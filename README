@@ -1,0 +1,123 @@
+MySQL Harness
+=============
+
+
+Building
+--------
+
+To build the MySQL Harness, you have to provide a name for the harness
+when executing CMake. For example, if you want the harness to be named
+*router* then you have to use the line:
+
+    cmake -DHARNESS_NAME:String=router .
+    
+
+Installing
+----------
+
+To install the files, use `make install`. This will install the
+harness, the harness library, the header files for writing plugins,
+and the available plugins that were not marked with `NO_INSTALL` (see
+below).
+
+
+Running
+-------
+
+To start the harness, type the name of the harness (whatever name you
+gave to `HARNESS_NAME`) and use the -r option to give the root
+directory. If you have installed a harness you named `router`, the
+following command should run the harness:
+
+    router -r /
+
+This will automatically load all the plugins in the `/var/lib/router`
+directory and start them. The harness will exit when all the plugins
+have exited.
+
+
+Writing Plugins
+---------------
+
+All available plugins are in the `plugins/` directory. There is one
+directory for each plugin and it is assumed that it contain a
+`CMakeLists.txt` file.
+
+The main `CMakeLists.txt` file provide an `add_plugin` macro that can
+be used add new plugins.
+
+    add_plugin(<name> [ NO_INSTALL ] <source> ...)
+
+This macro adds a plugin named `<name>`. If `NO_INSTALL` is provided,
+it will not be installed with the harness (useful if you have plugins
+used for testing). Otherwise, the plugin will be installed in the
+*root*`/var/lib/`*harness-name* directory.
+
+
+### Harness Structure ###
+
+The harness structure contain some basic fields providing information
+to the extension. Currently only two fields are provided:
+
+    struct Harness {
+      const char *ext_dir;                  /* Location of extensions */
+      const char *log_dir;                  /* Log file directory */
+    };
+
+
+### Extension Structure ###
+
+To define a new extension, you have to create an instance of the
+`Extension` structure in your plugin similar to this:
+
+    #include "extension.h"
+    
+    static const char* requires[] = {
+      "magic.so"
+    };
+
+    Extension ext_info = {
+      EXTENSION_VERSION,
+
+      // Brief description of extension
+      "An example plugin",
+
+      // Array of required extensions
+      sizeof(requires)/sizeof(*requires), requires,
+
+      // Array of extensions that conflict with this one
+      0, NULL,
+
+      init,
+      deinit,
+      start,
+    };
+
+
+### Initialization and Cleanup ###
+
+After the extension is loaded, the `init()` function is called for all
+extensions with a pointer to the harness (as defined above) as the
+only argument.
+
+Before the harness exits, it will call the `deinit()` function with a
+pointer to the harness as the only argument.
+
+
+### Starting the Extension ###
+
+After all the extensions have been successfully initialized, a thread
+will be created for each extensions that have a `start()` function
+defined.
+
+The start function will be called with a pointer to the harness as the
+only parameter. When all the extensions return from their `start()`
+functions, the harness will perform cleanup and exit.
+
+
+### Logging ###
+
+Logging is handled by re-directing standard output to
+*root*`/var/log/general.log` and standard error to
+*root*`/var/log/error.log`. This is deployed as a plugin itself and is
+automatically loaded when starting the harness.
