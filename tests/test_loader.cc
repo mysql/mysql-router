@@ -97,7 +97,7 @@ static int test_init(Loader *loader)
 
 int main(int argc, char *argv[])
 {
-  Loader loader(dirname(argv[0]) + "/", HARNESS_NAME);
+  Loader loader(dirname(argv[0]) + "/", "harness");
   test_available(&loader);
   if (int error = test_loading(&loader))
     exit(error);

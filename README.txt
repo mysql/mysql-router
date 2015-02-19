@@ -5,12 +5,19 @@ MySQL Harness
 Building
 --------
 
-To build the MySQL Harness, you have to provide a name for the harness
-when executing CMake. For example, if you want the harness to be named
-*router* then you have to use the line:
+To build the MySQL Harness you use the standard steps to build from
+CMake:
 
-    cmake -DHARNESS_NAME:String=router .
-    
+    cmake .
+    make
+
+If you want to do an out-of-source build, the procedure is:
+
+    mkdir build
+    cd build
+    cmake <path-to-source>
+    make
+
 
 Installing
 ----------
@@ -24,16 +31,20 @@ below).
 Running
 -------
 
-To start the harness, type the name of the harness (whatever name you
-gave to `HARNESS_NAME`) and use the -r option to give the root
-directory. If you have installed a harness you named `router`, the
-following command should run the harness:
+To start the harness, just run it using `harness` and use the -r
+option to give the root directory:
 
-    router -r /
+    harness -r /
 
-This will automatically load all the plugins in the `/var/lib/router`
-directory and start them. The harness will exit when all the plugins
-have exited.
+Note that the harness uses the base name of the file (whatever is in
+argv[0]) together with the prefix to create directories for logging
+files and plugins. This means that if you want to create a harness
+that automatically load all the plugins in the `/var/lib/router`
+directory and start them, you need to create a file `router`
+containing the line above and install it under `/usr/bin` or `/bin`.
+
+The harness will then load plugins from the directory
+`/var/lib/router` and write log files to `/var/log/router`.
 
 
 Writing Plugins
@@ -50,8 +61,8 @@ be used add new plugins.
 
 This macro adds a plugin named `<name>`. If `NO_INSTALL` is provided,
 it will not be installed with the harness (useful if you have plugins
-used for testing). Otherwise, the plugin will be installed in the
-*root*`/var/lib/`*harness-name* directory.
+used for testing, see the `tests/` directory). Otherwise, the plugin
+will be installed in the *root*`/var/lib/`*harness-name* directory.
 
 
 ### Harness Structure ###

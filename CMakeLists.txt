@@ -1,6 +1,9 @@
 cmake_minimum_required (VERSION 2.8.10)
 project(harness)
 
+# Basic variables
+set(HARNESS_NAME harness)
+
 include(CPack)
 
 include(CheckCXXCompilerFlag)
@@ -40,11 +43,6 @@ install(FILES ${include_files} DESTINATION "include/${HARNESS_NAME}")
 
 enable_testing()
  
-if(HARNESS_NAME)
-else()
-  message(FATAL_ERROR "You have to set HARNESS_NAME to the name of the harness")
-endif()
-
 add_subdirectory(harness)
 add_subdirectory(tests)
 add_subdirectory(plugins)
