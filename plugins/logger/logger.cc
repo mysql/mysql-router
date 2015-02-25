@@ -5,8 +5,8 @@
 
 static int init(Harness* harness)
 {
-  std::string error_log(std::string(harness->log_dir) + "error.log");
-  std::string general_log(std::string(harness->log_dir) + "general.log");
+  std::string error_log(std::string(harness->logdir) + "error.log");
+  std::string general_log(std::string(harness->logdir) + "general.log");
   freopen(error_log.c_str(), "a+", stderr);
   freopen(general_log.c_str(), "a+", stdout);
 }

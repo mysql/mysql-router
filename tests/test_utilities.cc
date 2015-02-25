@@ -1,5 +1,7 @@
 #include "utilities.h"
 
+#include "helpers.h"
+
 #include <stdexcept>
 #include <string>
 #include <cstring>
@@ -45,11 +47,31 @@ static int test_basename()
   check_basename("foo/bar/baz", "baz");
 }
 
+static void test_strip()
+{
+  const char *strings[][2] = {
+    { "foo", "foo", },
+    { " foo", "foo", },
+    { "foo ", "foo", },
+    { " \tfoo \t\t", "foo", },
+    { "", "" },
+  };
+
+  for (auto sample: make_range(strings, sizeof(strings)/sizeof(*strings)))
+  {
+    std::string str(sample[0]);
+    strip(str);
+    expect_equal(str.c_str(), sample[1]);
+  }
+}
+
+
 int main()
 {
   try {
     test_dirname();
     test_basename();
+    test_strip();
   }
   catch (std::runtime_error& exc) {
     std::cerr << exc.what() << std::endl;

@@ -1,8 +1,12 @@
 #include "utilities.h"
 
+#include "helpers.h"
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
+
 
 static int test_iterator() {
   static const char* array[] = {
@@ -12,11 +16,10 @@ static int test_iterator() {
   const char** ptr = array;
 
   auto range = make_range(array, array_length);
-  for (auto elem : range) {
-    if (strcmp(elem, *ptr) != 0)
-      return EXIT_FAILURE;
-    if (ptr - array > sizeof(array)/sizeof(*array))
-      return EXIT_FAILURE;
+  for (auto elem: range) {
+    expect_equal(elem, *ptr);
+    expect_less(ptr - array,
+                 static_cast<long>(sizeof(array)/sizeof(*array)));
     ++ptr;
   }
 }
@@ -24,7 +27,12 @@ static int test_iterator() {
 
 int main()
 {
-  if (int error = test_iterator())
-    exit(error);
+  try {
+    test_iterator();
+  }
+  catch (std::runtime_error& exc) {
+    std::cerr << exc.what() << std::endl;
+    exit(EXIT_FAILURE);
+  }
   exit(EXIT_SUCCESS);
 }

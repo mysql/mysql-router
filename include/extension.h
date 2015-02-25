@@ -23,7 +23,7 @@ typedef struct Harness {
    * `/var/lib/mysql/<name>`.
    */
 
-  const char *ext_dir;
+  const char *extdir;
 
 
   /**
@@ -34,7 +34,7 @@ typedef struct Harness {
    * `/var/log/<name>`.
    */
 
-  const char *log_dir;
+  const char *logdir;
 } Harness;
 
 
