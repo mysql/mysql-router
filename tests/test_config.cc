@@ -17,10 +17,13 @@ void test_config_basic()
       config.get("magic");
     });
 
+  expect_equal(config.has("magic"), false);
+
   // Add the section
   config.add("magic");
 
   // Test that fetching a section get the right section back.
+  expect_equal(config.has("magic"), true);
   ConfigSection& section = config.get("magic");
   if (section.name != "magic")
     throw std::runtime_error("Expected 'magic', got " + section.name);
@@ -68,9 +71,9 @@ void test_config_parser_basic()
       ("[DEFAULT]\n" "foo = bar\n"
        "[one]\n"),
       ("[DEFAULT]\n" "other = ar\n"
-       "[one]\n" "foo = b%(other)s"),
+       "[one]\n" "foo = b%(other)s\n"),
       ("[DEFAULT]\n" "one = b\n" "two = r\n"
-       "[one]\n" "foo = %(one)sa%(two)s"),
+       "[one]\n" "foo = %(one)sa%(two)s\n"),
     };
 
     auto range = make_range(examples, sizeof(examples)/sizeof(*examples));

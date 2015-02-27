@@ -18,6 +18,8 @@ else()
   message(STATUS "You need C++11 support, but ${CMAKE_CXX_COMPILER} does not have that.")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wconversion -pedantic")
+
 macro(ADD_PLUGIN NAME)
   set(sources)
   set(NO_INSTALL FALSE)
@@ -39,7 +41,7 @@ endmacro(ADD_PLUGIN)
 
 include_directories(include)
 file(GLOB include_files include/*)
-install(FILES ${include_files} DESTINATION "include/${HARNESS_NAME}")
+install(FILES ${include_files} DESTINATION "include/mysql/${HARNESS_NAME}")
 
 enable_testing()
  

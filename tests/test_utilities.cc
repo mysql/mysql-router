@@ -33,14 +33,14 @@ static void check_basename(const std::string& path,
   }
 }
 
-static int test_dirname()
+static void test_dirname()
 {
   check_dirname("foo", ".");
   check_dirname("foo/bar", "foo");
   check_dirname("foo/bar/baz", "foo/bar");
 }
 
-static int test_basename()
+static void test_basename()
 {
   check_basename("foo", "foo");
   check_basename("foo/bar", "bar");

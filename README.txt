@@ -2,9 +2,9 @@ MySQL Harness
 =============
 
 MySQL Harness is an extensible framework that handles loading and
-unloading of *extensions* (also known as *plugins*). The built-in
-features is dependency tracking between extensions, configuration file
-handling, and support for extension life-cycles.
+unloading of *plugins*. The built-in features are dependency tracking
+between plugins, configuration file handling, and support for plugin
+life-cycles.
 
 Building
 --------
@@ -23,84 +23,109 @@ If you want to do an out-of-source build, the procedure is:
     make
 
 
+Documentation
+-------------
+
+Documentation can be built using Doxygen and the supplied `Doxyfile`
+as follows:
+
+    doxygen Doxyfile
+
+The documentation will be placed in the `doc/` directory.
+
+
 Installing
 ----------
 
 To install the files, use `make install`. This will install the
-harness, the harness library, the header files for writing extensions,
-and the available extensions that were not marked with `NO_INSTALL` (see
+harness, the harness library, the header files for writing plugins,
+and the available plugins that were not marked with `NO_INSTALL` (see
 below).
 
 
 Running
 -------
 
-To start the harness, just run it using `harness` and use the `-r`
-option to give the root directory:
+To start the harness, you need a configuration file. You can find an
+example in `data/router.cfg`:
 
-    harness -r /
+    # Example configuration file for router
 
-Note that the harness uses the base name of the file (whatever is in
-argv[0]) together with the prefix to create directories for logging
-files and extensions. This means that if you want to create a harness
-that automatically load all the extensions in the `/var/lib/router`
-directory and start them, you need to create a file `router`
-containing the line above and install it under `/usr/bin` or `/bin`.
+    [DEFAULT]
+    logdir = /var/log/router
+    etcdir = /etc/mysql/router
+    libdir = /var/lib/router
+    rundir = /var/run/router
 
-The harness will then load extensions from the directory
+    [example]
+    library = example.so
+
+To run the harness, just provide the configuration file as the only
+argument:
+
+    harness /etc/mysql/router/main.cfg
+
+Note that the harness uses read directories for logging,
+configuration, etc. from the configuration file so you have to make
+sure these are present and that the section name is used to find the
+plugin structure in the shared library (see below).
+
+Typically, the harness will then load plugins from the directory
 `/var/lib/router` and write log files to `/var/log/router`.
 
 
-Writing Extensions
+Writing Plugins
 ---------------
 
-All available extensions are in the `plugins/` directory. There is one
-directory for each extension and it is assumed that it contain a
+All available plugins are in the `plugins/` directory. There is one
+directory for each plugin and it is assumed that it contain a
 `CMakeLists.txt` file.
 
 The main `CMakeLists.txt` file provide an `add_plugin` macro that can
-be used add new extensions.
+be used add new plugins.
 
     add_plugin(<name> [ NO_INSTALL ] <source> ...)
 
-This macro adds a extension named `<name>`. If `NO_INSTALL` is provided,
-it will not be installed with the harness (useful if you have extensions
-used for testing, see the `tests/` directory). Otherwise, the extension
+This macro adds a plugin named `<name>`. If `NO_INSTALL` is provided,
+it will not be installed with the harness (useful if you have plugins
+used for testing, see the `tests/` directory). Otherwise, the plugin
 will be installed in the *root*`/var/lib/`*harness-name* directory.
 
 
 ### Harness Structure ###
 
 The harness structure contain some basic fields providing information
-to the extension. Currently only two fields are provided:
+to the plugin. Currently only three fields are provided:
 
     struct Harness {
-      const char *ext_dir;                  /* Location of extensions */
-      const char *log_dir;                  /* Log file directory */
+      const char *libdir;                  /* Location of plugins */
+      const char *logdir;                  /* Log file directory */
+      const char *etcdir;                  /* Config file directory */
+      const char *rundir;                  /* Run file directory */
     };
 
 
-### Extension Structure ###
+### Plugin Structure ###
 
-To define a new extension, you have to create an instance of the
-`Extension` structure in your extension similar to this:
+To define a new plugin, you have to create an instance of the
+`Plugin` structure in your plugin similar to this:
 
-    #include "extension.h"
+    #include "plugin.h"
     
     static const char* requires[] = {
       "magic.so"
     };
 
-    Extension ext_info = {
-      EXTENSION_VERSION,
+    Plugin example = {
+      PLUGIN_ABI_VERSION,
 
-      // Brief description of extension
+      // Brief description of plugin
       "An example plugin",
 
-      // Array of required extensions
+      // Array of required plugins
       sizeof(requires)/sizeof(*requires), requires,
 
-      // Array of extensions that conflict with this one
+      // Array of plugins that conflict with this one
       0, NULL,
 
       init,
@@ -111,32 +136,24 @@ To define a new extension, you have to create an instance of the
 
 ### Initialization and Cleanup ###
 
-After the extension is loaded, the `init()` function is called for all
-extensions with a pointer to the harness (as defined above) as the
-only argument.
+After the plugin is loaded, the `init()` function is called for all
+plugins with a pointer to the harness (as defined above) as the only
+argument.
 
 The `init()` functions are called in dependency order so that all
-`init()` functions in required extensions are called before the `init()`
-function in the extension itself.
+`init()` functions in required plugins are called before the `init()`
+function in the plugin itself.
 
 Before the harness exits, it will call the `deinit()` function with a
 pointer to the harness as the only argument.
 
 
-### Starting the Extension ###
+### Starting the Plugin ###
 
-After all the extensions have been successfully initialized, a thread
-will be created for each extensions that have a `start()` function
+After all the plugins have been successfully initialized, a thread
+will be created for each plugins that have a `start()` function
 defined.
 
 The start function will be called with a pointer to the harness as the
-only parameter. When all the extensions return from their `start()`
+only parameter. When all the plugins return from their `start()`
 functions, the harness will perform cleanup and exit.
-
-
-### Logging ###
-
-Logging is handled by re-directing standard output to
-*root*`/var/log/general.log` and standard error to
-*root*`/var/log/error.log`. This is deployed as a extension itself and
-is automatically loaded when starting the harness.

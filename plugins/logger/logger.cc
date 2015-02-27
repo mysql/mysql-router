@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "plugin.h"
 
 #include <string>
 #include <cstdio>
@@ -9,10 +9,11 @@ static int init(Harness* harness)
   std::string general_log(std::string(harness->logdir) + "general.log");
   freopen(error_log.c_str(), "a+", stderr);
   freopen(general_log.c_str(), "a+", stdout);
+  return 0;
 }
 
-Extension ext_info = {
-  EXTENSION_VERSION,
+Plugin ext_info = {
+  PLUGIN_ABI_VERSION,
   "Logging functions",
   0, NULL,                                      // Requires
   0, NULL,                                      // Conflicts

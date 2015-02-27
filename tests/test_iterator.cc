@@ -8,11 +8,11 @@
 #include <stdexcept>
 
 
-static int test_iterator() {
+static void test_iterator() {
   static const char* array[] = {
     "one", "two", "three",
   };
-  const int array_length = sizeof(array)/sizeof(*array);
+  const size_t array_length = sizeof(array)/sizeof(*array);
   const char** ptr = array;
 
   auto range = make_range(array, array_length);

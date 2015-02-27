@@ -22,7 +22,18 @@ void expect_exception(Function func)
   throw std::runtime_error(message);
 }
 
-template <class Type> struct CompareTraits;
+template <class Type>
+struct CompareTraits
+{
+  static bool equal(Type a, Type b) { return a == b; }
+  static bool less(Type a, Type b) { return a < b; }
+
+  static const char *c_str(long val) {
+    static char buf[16];
+    sprintf(buf, "%ld", val);
+    return buf;
+  }
+};
 
 template <>
 struct CompareTraits<const char*>

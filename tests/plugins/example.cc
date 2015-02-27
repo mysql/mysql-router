@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "plugin.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 static const char* requires[] = {
-  "magic.so"
+  "magic"
 };
 
 static int init(Harness* harness) {
@@ -16,6 +16,7 @@ static int init(Harness* harness) {
 }
 
 static int deinit(Harness* harness) {
+  return 0;
 }
 
 static void *start(Harness* harness) {
@@ -26,8 +27,8 @@ static void *start(Harness* harness) {
   return NULL;
 }
 
-Extension ext_info = {
-  EXTENSION_VERSION,
+Plugin example = {
+  PLUGIN_ABI_VERSION,
   "An example plugin",
   sizeof(requires)/sizeof(*requires),
   requires,

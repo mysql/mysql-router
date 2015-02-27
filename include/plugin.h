@@ -1,10 +1,12 @@
-#ifndef EXTENSION_INCLUDED
-#define EXTENSION_INCLUDED
+#ifndef PLUGIN_INCLUDED
+#define PLUGIN_INCLUDED
+
+#include <stdlib.h>
 
 /**
  * Structure with information about the harness.
  *
- * This structure is made available to extensions so that they can get
+ * This structure is made available to plugins so that they can get
  * information about the plugin harness.
  *
  * @note We are intentionally using C calls here to avoid issues with
@@ -15,7 +17,7 @@
 
 typedef struct Harness {
   /**
-   * Directory name for extensions.
+   * Directory name for plugins.
    *
    * Name of the directory where extensions can be found and it
    * depends on how the harness was installed. In a typical
@@ -23,7 +25,7 @@ typedef struct Harness {
    * `/var/lib/mysql/<name>`.
    */
 
-  const char *extdir;
+  const char *libdir;
 
 
   /**
@@ -35,42 +37,52 @@ typedef struct Harness {
    */
 
   const char *logdir;
+
+  /**
+   * Directory name for run files.
+   *
+   * Name of the directory where run files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/var/run/<name>`.
+   */
+
+  const char *rundir;
 } Harness;
 
 
 /**
- * Structure containing information about the extension.
+ * Structure containing information about the plugin.
  *
- * The name of the extension is give by the filename.
+ * The name of the plugin is give by the filename.
  */
 
-struct Extension {
+struct Plugin {
   /**
    * Version of the interface.
    *
    * The least significant byte contain the minor version, the second
    * least significant byte contain the major version.
    *
-   * When definiting an extension, this should typically be set to @c
-   * EXTENSION_VERSION since that is the current version of the
-   * extension interface.
+   * When definiting an plugin, this should typically be set to @c
+   * PLUGIN_VERSION since that is the current version of the
+   * plugin interface.
    */
 
   int version;
 
 
   /**
-   * Brief description of extension, to show in listings.
+   * Brief description of plugin, to show in listings.
    */
 
   const char *brief;
 
 
   /**
-   * Array of names of required extensions.
+   * Array of names of required plugins.
    *
    * Length is given as the number of elements in the array and the
-   * array contain the names of the required extensions as C strings.
+   * array contain the names of the required plugins as C strings.
    *
    * A typical use is:
    * @code
@@ -79,7 +91,7 @@ struct Extension {
    *   "second",
    * };
    *
-   * Extension ext_info = {
+   * Plugin my_plugin = {
    *   ...
    *   sizeof(requires)/sizeof(*requires),
    *   requires,
@@ -88,18 +100,18 @@ struct Extension {
    * @endcode
    */
 
-  int requires_length;
+  size_t requires_length;
   const char **requires;
 
 
   /**
-   * Array of names of extensions it conflicts with.
+   * Array of names of plugins it conflicts with.
    *
    * The array is defined in a similar way to how the @c requires
    * array is defined.
    */
 
-  int conflicts_length;
+  size_t conflicts_length;
   const char **conflicts;
 
 
@@ -136,9 +148,9 @@ struct Extension {
   /**
    * Module thread start function.
    *
-   * If this field is non-NULL, the extension will be assigned a new
+   * If this field is non-NULL, the plugin will be assigned a new
    * thread and the start function will be called. The start functions
-   * of different extensions are called in an arbitrary order, so no
+   * of different plugins are called in an arbitrary order, so no
    * expectations on the start order should be made.
    *
    * @param harness Pointer to harness this module was loaded into.
@@ -154,9 +166,9 @@ struct Extension {
  * This constant is the version of the plugin interface in use. This
  * should be used when initializing the module structure.
  *
- * @see Extension
+ * @see Plugin
  */
 
-const unsigned int EXTENSION_VERSION = 0x0100;
+const unsigned int PLUGIN_ABI_VERSION = 0x0100;
 
-#endif /* EXTENSION_INCLUDED */
+#endif /* PLUGIN_INCLUDED */

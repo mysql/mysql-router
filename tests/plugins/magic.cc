@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "plugin.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -11,8 +11,8 @@ void do_magic() {
   std::cout << "Just a test" << std::endl;
 }
 
-Extension ext_info = {
-  EXTENSION_VERSION,
+Plugin magic = {
+  PLUGIN_ABI_VERSION,
   "A magic plugin",
   0,
   NULL,
