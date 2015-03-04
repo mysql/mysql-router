@@ -15,7 +15,7 @@
  *
  */
 
-typedef struct Harness {
+typedef struct Info {
   /**
    * Directory name for plugins.
    *
@@ -47,7 +47,7 @@ typedef struct Harness {
    */
 
   const char *rundir;
-} Harness;
+} Info;
 
 
 /**
@@ -58,17 +58,19 @@ typedef struct Harness {
 
 struct Plugin {
   /**
-   * Version of the interface.
+   * Version of the plugin interface the plugin was built for.
+   *
+   * This field contain the ABI version the plugin was built for and
+   * is checked when loading the plugin to determine if the structure
+   * can be safely read. It shall normally be set to
+   * `PLUGIN_ABI_VERSION`, which is the version of the ABI that is
+   * being used.
    *
    * The least significant byte contain the minor version, the second
    * least significant byte contain the major version.
-   *
-   * When definiting an plugin, this should typically be set to @c
-   * PLUGIN_VERSION since that is the current version of the
-   * plugin interface.
    */
 
-  int version;
+  int for_abi_version;
 
 
   /**
@@ -125,10 +127,11 @@ struct Plugin {
    * their @c init() function called before this modules init
    * function.
    *
-   * @param harness Pointer to harness this module was loaded into.
+   * @param info Pointer to information about harness this module was
+   * loaded into.
    */
 
-  int (*init)(Harness* harness);
+  int (*init)(Info* info);
 
 
   /**
@@ -141,9 +144,10 @@ struct Plugin {
    * module are called after the @c deinit() function of this module
    * have exited.
    *
-   * @param harness Pointer to harness this module was loaded into.
+   * @param info Pointer to information about the harness this module
+   * was loaded into.
    */
-  int (*deinit)(Harness* harness);
+  int (*deinit)(Info* info);
 
   /**
    * Module thread start function.
@@ -153,10 +157,11 @@ struct Plugin {
    * of different plugins are called in an arbitrary order, so no
    * expectations on the start order should be made.
    *
-   * @param harness Pointer to harness this module was loaded into.
+   * @param info Pointer to information about the harness this module
+   * was loaded into.
    */
 
-  void* (*start)(Harness* harness);
+  void* (*start)(Info* info);
 };
 
 

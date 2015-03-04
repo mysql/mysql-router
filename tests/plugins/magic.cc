@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 
-static int init(Harness* harness) {
+static int init(Info* info) {
   return 0;
 }
 

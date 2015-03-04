@@ -9,17 +9,17 @@ static const char* requires[] = {
   "magic"
 };
 
-static int init(Harness* harness) {
+static int init(Info* info) {
   extern void do_magic();
   do_magic();
   return 0;
 }
 
-static int deinit(Harness* harness) {
+static int deinit(Info* info) {
   return 0;
 }
 
-static void *start(Harness* harness) {
+static void *start(Info* info) {
   for (int x = 0 ; x < 10 ; ++x) {
     std::cout << "<count: " << x << ">" << std::endl;
     sleep(1);

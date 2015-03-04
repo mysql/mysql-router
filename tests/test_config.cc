@@ -12,6 +12,13 @@ void test_config_basic()
 {
   Config config;
 
+  std::vector<std::string> words;
+  words.push_back("reserved");
+  config.set_reserved(words);
+
+  expect_equal(config.is_reserved("reserved"), true);
+  expect_equal(config.is_reserved("legal"), false);
+
   // Test that fetching a non-existing section throws an exception.
   expect_exception<std::runtime_error>([&config]{
       config.get("magic");
@@ -80,6 +87,11 @@ void test_config_parser_basic()
     for (auto contents: range)
     {
       Config config;
+
+      std::vector<std::string> words;
+      words.push_back("reserved");
+      config.set_reserved(words);
+
       std::istringstream input(contents);
       config.read(input);
       check_config(config);
@@ -95,6 +107,9 @@ void test_config_parser_basic()
       // Malformed start of a section
       ("one]\n" "foo: bar\n"),
 
+      // Bad section name
+      ("[one]\n" "foo = bar\n" "[mysqld]\n" "foo = baz\n"),
+
       // Options before first section
       ("  foo: bar   \n" "[one]\n"),
 
@@ -102,12 +117,31 @@ void test_config_parser_basic()
       ("[one]\n" "foo = %(bar\n"),
       ("[one]\n" "foo = %(bar)\n"),
       ("[one]\n" "foo = %(bar)sx%(foo\n"),
+
+      // Unterminated last line
+      ("[one]\n" "foo = bar"),
+
+      // Repeated option
+      ("[one]\n" "foo = bar\n" "foo = baz\n"),
+      ("[one]\n" "foo = bar\n" "Foo = baz\n"),
+
+      // Repeated section
+      ("[one]\n" "foo = bar\n" "[one]\n" "foo = baz\n"),
+      ("[one]\n" "foo = bar\n" "[ONE]\n" "foo = baz\n"),
+
+      // Reserved words
+      ("[one]\n" "mysql_trick = bar\n" "[two]\n" "foo = baz\n"),
     };
 
     auto range = make_range(examples, sizeof(examples)/sizeof(*examples));
     for (auto contents: range)
     {
       Config config;
+
+      std::vector<std::string> words;
+      words.push_back("mysql*");
+      config.set_reserved(words);
+
       std::istringstream input(contents);
       expect_exception<std::runtime_error>([&config, &input]{
           config.read(input);
