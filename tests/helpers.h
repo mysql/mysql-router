@@ -65,6 +65,15 @@ struct CompareTraits<long>
   }
 };
 
+void _expect(bool value, const std::string& expr, const std::string& expect)
+{
+  if (!value)
+    throw std::runtime_error("Expected expression " + std::string(expr) +
+                             " to be " + expect);
+}
+
+#define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
+
 template <class Type, class Traits = CompareTraits<Type> >
 void expect_equal(Type value, Type expect, Traits traits = Traits())
 {

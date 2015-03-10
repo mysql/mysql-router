@@ -15,6 +15,7 @@ static int init(Info* info)
 Plugin ext_info = {
   PLUGIN_ABI_VERSION,
   "Logging functions",
+  VERSION_NUMBER(0,1,0),
   0, NULL,                                      // Requires
   0, NULL,                                      // Conflicts
   init,

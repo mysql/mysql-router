@@ -3,6 +3,11 @@
 
 #include <stdlib.h>
 
+/* Forward declarations */
+struct Config;
+typedef struct Config Config;
+
+
 /**
  * Structure with information about the harness.
  *
@@ -47,6 +52,13 @@ typedef struct Info {
    */
 
   const char *rundir;
+
+  /**
+   * Configuration information.
+   */
+
+  const Config* config;
+
 } Info;
 
 
@@ -79,6 +91,15 @@ struct Plugin {
 
   const char *brief;
 
+
+  /**
+   * Plugin version.
+   *
+   * Version of the plugin, given as a version number.
+   *
+   * @see VERSION_NUMBER
+   */
+  unsigned long version;
 
   /**
    * Array of names of required plugins.
@@ -175,5 +196,22 @@ struct Plugin {
  */
 
 const unsigned int PLUGIN_ABI_VERSION = 0x0100;
+
+#define VERSION_NUMBER(MAJ, MIN, PAT) \
+  ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Get the value of a configuration option.
+ */
+
+const char *config_get(const Config *config, const char *section, const char *option);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PLUGIN_INCLUDED */

@@ -6,6 +6,7 @@
 
 #include "plugin.h"
 #include "utilities.h"
+#include "exception.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -24,9 +25,6 @@ static int check_loading(Loader *loader,
   }
   else
   {
-    for (auto error : loader->errors())
-      std::cerr << error << std::endl;
-    loader->clear_errors();
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
@@ -49,10 +47,11 @@ static int check_unloading(Loader *loader,
 
 static void test_available(Loader *loader)
 {
+  const long int expected = 4;
   std::list<std::string> lst = loader->available();
-  if (lst.size() != 2) {
+  if (lst.size() != expected) {
     char buf[256];
-    sprintf(buf, "Expected length 2, got %lu", lst.size());
+    sprintf(buf, "Expected length %lu, got %lu", expected, lst.size());
     throw std::logic_error(buf);
   }
   if (std::find(lst.begin(), lst.end(), "example") == lst.end())
@@ -63,15 +62,48 @@ static void test_available(Loader *loader)
 
 static int test_loading(Loader *loader)
 {
-  // Test that loading something non-existant works
-  if (loader->load("test") != NULL)
-    return EXIT_FAILURE;
-  loader->clear_errors();
+  // These should fail, for different reasons
 
+  // Test that loading something non-existant works
+  try {
+    loader->load("test");
+    return EXIT_FAILURE;
+  }
+  catch (bad_plugin& err) {
+    std::string text(err.what());
+    if (text.find("test.so: cannot open") == std::string::npos)
+      throw;
+  }
+
+  try {
+    loader->load("bad_one");
+    return EXIT_FAILURE;
+  }
+  catch (bad_plugin& err) {
+    std::string text(err.what());
+    if (text.find("foobar.so: cannot open") == std::string::npos)
+      throw;
+  }
+
+  try {
+    loader->load("bad_two");
+    return EXIT_FAILURE;
+  }
+  catch (bad_plugin& err) {
+    std::string text(err.what());
+
+    // This is checking the message, but we should probably define a
+    // specialized exception and catch that.
+    if (text.find("plugin version was 1.2.3, expected >>1.2.3") == std::string::npos)
+      throw;
+  }
+
+  // These should all be OK.
   if (int error = check_loading(loader, "example", "An example plugin"))
     return error;
   if (int error = check_loading(loader, "magic", "A magic plugin"))
     return error;
+
 
 #if 0
   if (int error = check_unloading(loader, "example"))
