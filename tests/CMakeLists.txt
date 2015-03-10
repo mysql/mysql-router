@@ -9,6 +9,7 @@ macro(MY_ADD_TEST name)
   add_test(${name} ${test_name})
 endmacro()
 
+my_add_test(TestDesignator test_designator.cc)
 my_add_test(TestLoader test_loader.cc)
 my_add_test(TestIterator test_iterator.cc)
 my_add_test(TestUtilities test_utilities.cc)

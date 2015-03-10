@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 static const char* requires[] = {
-  "magic"
+  "magic (>>1.0)",
 };
 
 static int init(Info* info) {
@@ -30,6 +30,7 @@ static void *start(Info* info) {
 Plugin example = {
   PLUGIN_ABI_VERSION,
   "An example plugin",
+  VERSION_NUMBER(1,0,0),
   sizeof(requires)/sizeof(*requires),
   requires,
   0,

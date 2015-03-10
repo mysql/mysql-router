@@ -31,7 +31,9 @@ as follows:
 
     doxygen Doxyfile
 
-The documentation will be placed in the `doc/` directory.
+The documentation will be placed in the `doc/` directory. For more
+detailed information about the code, please read the documentation
+rather than rely on this `README`.
 
 
 Installing
@@ -59,6 +61,11 @@ example in `data/router.cfg`:
 
     [example]
     library = example.so
+
+The configuration file contain information about all the plugins that
+should be loaded when starting and configuration options for each
+plugin.  The default section contain configuration options available
+in to all plugins.
 
 To run the harness, just provide the configuration file as the only
 argument:
@@ -113,20 +120,21 @@ To define a new plugin, you have to create an instance of the
     #include "plugin.h"
     
     static const char* requires[] = {
-      "magic.so"
+      "magic (>>1.0)",
     };
 
     Plugin example = {
       PLUGIN_ABI_VERSION,
-
-      // Brief description of plugin
-      "An example plugin",
+      "An example plugin",       // Brief description of plugin
+      VERSION_NUMBER(1,0,0),     // Version number of the plugin
 
       // Array of required plugins
-      sizeof(requires)/sizeof(*requires), requires,
+      sizeof(requires)/sizeof(*requires),
+      requires,
 
       // Array of plugins that conflict with this one
-      0, NULL,
+      0,
+      NULL,
 
       init,
       deinit,
