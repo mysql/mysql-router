@@ -26,21 +26,35 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wconversion -pedantic")
 
 # add_plugin - Add a new plugin target and set install location
 #
-# add_plugin(name [NO_INSTALL] file1 ...)
+# add_plugin(name [NO_INSTALL]
+#            SOURCES file1 ...
+#            INTERFACE header1 ...)
 #
 # The add_plugin command will set up a new plugin target and also set
 # the install location of the target corretly.
 #
 # If NO_INSTALL is provided, it will not be installed, which is useful
 # if the plugin is only for testing purposes.
+#
+# Files provided after the SOURCES keyword are the sources to build
+# the plugin from, while header files after INTERFACE will be
+# installed alongside the header files for the harness.
 macro(ADD_PLUGIN NAME)
   set(sources)
   set(NO_INSTALL FALSE)
+  set(headers)
+  set(doing)
   foreach(arg ${ARGN})
-    if(arg MATCHES "^(NO_INSTALL)$")
+    if(arg MATCHES "^NO_INSTALL$")
       set(NO_INSTALL TRUE)
-    else()
+    elseif(arg MATCHES "^(SOURCES|INTERFACE)$")
+      set(doing ${arg})
+    elseif(doing MATCHES "^SOURCES$")
       list(APPEND sources ${arg})
+    elseif(doing MATCHES "^INTERFACE")
+      list(APPEND headers ${arg})
+    else()
+      message(AUTHOR_WARNING "Unknown argument: '${arg}'")
     endif()
   endforeach()
 

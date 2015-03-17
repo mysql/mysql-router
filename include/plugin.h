@@ -20,7 +20,15 @@ typedef struct Config Config;
  *
  */
 
-typedef struct Info {
+typedef struct AppInfo {
+  /**
+   * Program name.
+   *
+   * Name of the application.
+   */
+
+  const char *program;
+
   /**
    * Directory name for plugins.
    *
@@ -53,13 +61,25 @@ typedef struct Info {
 
   const char *rundir;
 
+
+  /**
+   * Directory name for configuration files.
+   *
+   * Name of the directory where run files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/etc/<name>`.
+   */
+
+  const char *etcdir;
+
+
   /**
    * Configuration information.
    */
 
   const Config* config;
 
-} Info;
+} AppInfo;
 
 
 /**
@@ -82,7 +102,7 @@ struct Plugin {
    * least significant byte contain the major version.
    */
 
-  int for_abi_version;
+  int abi_version;
 
 
   /**
@@ -99,7 +119,7 @@ struct Plugin {
    *
    * @see VERSION_NUMBER
    */
-  unsigned long version;
+  unsigned long plugin_version;
 
   /**
    * Array of names of required plugins.
@@ -152,7 +172,7 @@ struct Plugin {
    * loaded into.
    */
 
-  int (*init)(Info* info);
+  int (*init)(AppInfo* info);
 
 
   /**
@@ -168,7 +188,7 @@ struct Plugin {
    * @param info Pointer to information about the harness this module
    * was loaded into.
    */
-  int (*deinit)(Info* info);
+  int (*deinit)(AppInfo* info);
 
   /**
    * Module thread start function.
@@ -182,7 +202,7 @@ struct Plugin {
    * was loaded into.
    */
 
-  void* (*start)(Info* info);
+  void* (*start)(AppInfo* info);
 };
 
 

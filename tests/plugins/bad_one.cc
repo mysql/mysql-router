@@ -5,11 +5,11 @@ static const char* requires[] = {
   "foobar",
 };
 
-static int init(Info* info) {
+static int init(AppInfo* info) {
   return 0;
 }
 
-static int deinit(Info* info) {
+static int deinit(AppInfo* info) {
   return 0;
 }
 

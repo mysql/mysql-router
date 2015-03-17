@@ -1,5 +1,7 @@
 #include "plugin.h"
 
+#include "logger.h"
+
 #include <iostream>
 #include <cstdlib>
 
@@ -7,21 +9,22 @@
 
 static const char* requires[] = {
   "magic (>>1.0)",
+  "logger",
 };
 
-static int init(Info* info) {
+static int init(AppInfo* info) {
   extern void do_magic();
   do_magic();
   return 0;
 }
 
-static int deinit(Info* info) {
+static int deinit(AppInfo* info) {
   return 0;
 }
 
-static void *start(Info* info) {
+static void *start(AppInfo* info) {
   for (int x = 0 ; x < 10 ; ++x) {
-    std::cout << "<count: " << x << ">" << std::endl;
+    log_info("<count: %d>", x);
     sleep(1);
   }
   return NULL;

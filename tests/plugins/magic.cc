@@ -1,17 +1,19 @@
 #include "plugin.h"
 
+#include "logger.h"
+
 #include <cstdlib>
 #include <iostream>
 
-Info* g_info;
+AppInfo* g_info;
 
-static int init(Info* info) {
+static int init(AppInfo* info) {
   g_info = info;
   return 0;
 }
 
 void do_magic() {
-  std::cout << config_get(g_info->config, "magic", "message") << std::endl;
+  log_info("%s", config_get(g_info->config, "magic", "message"));
 }
 
 Plugin magic = {
