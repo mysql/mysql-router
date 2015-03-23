@@ -1,11 +1,51 @@
 MySQL Router 1.0
+================
 
-This is a release of MySQL Router.
+This is a release of MySQL Router, part of MySQL Fabric 1.6.
+
 For the avoidance of doubt, this particular copy of the software
 is released under the version 2 of the GNU General Public License.
 MySQL Router is brought to you by Oracle.
 
 Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+
+Running Tests
+-------------
+
+All tests can be run doing the following:
+
+    shell> mkdir build
+    shell> cd build
+    shell> cmake ..
+    shell> make
+    shell> make test
+
+After running `make`, test executables and scripts are available
+in the folder `tests/bin`. You can directly execute these tests
+like this:
+
+    shell> ./tests/bin/tools/boost_libs
+    shell> python -B tests/bin/tools/python_exec.py
+
+
+Documentation
+-------------
+
+For further information about MySQL Router or additional
+documentation, see:
+
+* The latest information about MySQL: http://www.mysql.com
+* The current MySQL Router documentation: http://dev.mysql.com/doc
+
+You can browse the MySQL Reference Manual online or download it
+in any of several formats at the URL given earlier in this file.
+Source distributions include a local copy of the manual in the
+Docs directory.
+
+
+License
+-------
 
 License information can be found in the License.txt file.
 
@@ -35,13 +75,3 @@ Oracle elects to use only the General Public License version 2
 license versions is made available with the language indicating
 that GPLv2 or any later version may be used, or where a choice
 of which version of the GPL is applied is otherwise unspecified.
-
-For further information about MySQL Router or additional
-documentation, see:
-- The latest information about MySQL: http://www.mysql.com
-- The current MySQL Router documentation: http://dev.mysql.com/doc
-
-You can browse the MySQL Reference Manual online or download it
-in any of several formats at the URL given earlier in this file.
-Source distributions include a local copy of the manual in the
-Docs directory.

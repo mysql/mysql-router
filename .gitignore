@@ -23,10 +23,12 @@
 *.sublime-*
 
 # Folders
-.DS_Store
-build
-gtest
-gtest*
+/.DS_Store
+/build
+/gtest
+/gtest*
+/boost
+/boost*
 
 # Python
 *__pycache__*
