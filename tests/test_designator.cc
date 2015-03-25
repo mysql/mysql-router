@@ -1,5 +1,6 @@
+#include <mysql/harness/plugin.h>
+
 #include "designator.h"
-#include "plugin.h"
 
 #include "helpers.h"
 #include "utilities.h"

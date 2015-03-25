@@ -1,7 +1,7 @@
 #include "logger.h"
 
-#include "plugin.h"
-#include "path_utils.h"
+#include <mysql/harness/plugin.h>
+#include <mysql/harness/path_utils.h>
 
 #include <string>
 #include <cstdio>

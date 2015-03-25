@@ -1,4 +1,4 @@
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
 
 static const char* requires[] = {
   // Magic plugin is version 1.2.3, so version does not match and this

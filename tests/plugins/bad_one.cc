@@ -1,4 +1,4 @@
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
 
 static const char* requires[] = {
   // This plugin do not exist

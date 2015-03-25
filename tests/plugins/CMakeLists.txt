@@ -1,7 +1,9 @@
-add_plugin(example NO_INSTALL SOURCES example.cc)
 add_plugin(bad_one NO_INSTALL SOURCES bad_one.cc)
 add_plugin(bad_two NO_INSTALL SOURCES bad_two.cc)
 add_plugin(magic NO_INSTALL SOURCES magic.cc)
+add_plugin(example NO_INSTALL
+           SOURCES example.cc
+           REQUIRES magic logger)
 
 add_custom_command(TARGET example POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:example> ../var/lib/${HARNESS_NAME}/$<TARGET_FILE_NAME:example>)

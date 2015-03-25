@@ -1,3 +1,1 @@
-add_plugin(logger
-  SOURCES logger.cc
-  INTERFACE logger.h)
+add_plugin(logger INTERFACE include SOURCES logger.cc)

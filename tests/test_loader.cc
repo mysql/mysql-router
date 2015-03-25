@@ -1,10 +1,11 @@
 
 // Redefine the accessor to check internals
 #define private public
-#include "loader.h"
+#include <mysql/harness/loader.h>
 #undef private
 
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
+
 #include "utilities.h"
 #include "exception.h"
 

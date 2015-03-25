@@ -1,6 +1,5 @@
-#include "plugin.h"
-
-#include "logger.h"
+#include <mysql/harness/plugin.h>
+#include <mysql/harness/logger.h>
 
 #include <iostream>
 #include <cstdlib>

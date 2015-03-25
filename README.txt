@@ -96,7 +96,7 @@ be used add new plugins.
 
     add_plugin(<name> [ NO_INSTALL ]
                SOURCES <source> ...
-               INTERFACE <header> ...)
+               INTERFACE <directory> ...)
 
 This macro adds a plugin named `<name>` built from the given
 sources. If `NO_INSTALL` is provided, it will not be installed with
@@ -104,11 +104,11 @@ the harness (useful if you have plugins used for testing, see the
 `tests/` directory). Otherwise, the plugin will be installed in the
 *root*`/var/lib/harness` directory.
 
-The `INTERFACE` header files are the interface files to the plugin and
-shall be used by other plugins requiring features from this
-plugin. These header files will be installed alongside the harness
-include files and will also be made available to other plugins while
-building from source.
+The header files in the directory given by `INTERFACE` are the
+interface files to the plugin and shall be used by other plugins
+requiring features from this plugin. These header files will be
+installed alongside the harness include files and will also be made
+available to other plugins while building from source.
 
 ### Plugin Directory Structure ###
 
