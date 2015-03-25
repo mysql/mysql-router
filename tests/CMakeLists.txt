@@ -3,15 +3,31 @@ include_directories(${CMAKE_SOURCE_DIR}/harness)
 add_subdirectory(plugins)
 
 macro(MY_ADD_TEST name)
-  get_filename_component(test_name ${ARGV1} NAME_WE)
-  add_executable(${test_name} ${ARGN})
-  target_link_libraries(${test_name} harness-archive)
-  add_test(${name} ${test_name})
+  set(doing)
+  set(sources)
+  set(requires)
+  foreach(arg ${ARGN})
+    if(arg MATCHES "^(SOURCES|REQUIRES)$")
+      set(doing ${arg})
+    elseif(doing MATCHES "^SOURCES$")
+      list(APPEND sources ${arg})
+    elseif(doing MATCHES "^REQUIRES")
+      list(APPEND requires "${arg}-INTERFACE")
+    else()
+      message(AUTHOR_WARNING "Unknown argument: '${arg}'")
+    endif()
+  endforeach()
+
+  add_executable(${name} ${sources})
+  if(requires)
+    add_dependencies(${name} ${requires})
+  endif()
+  target_link_libraries(${name} harness-archive)
+  add_test(${name} ${name})
 endmacro()
 
-my_add_test(TestLoader test_loader.cc)
-add_dependencies(test_loader harness-INTERFACE)
-add_custom_command(TARGET test_loader POST_BUILD
+my_add_test(TestLoader SOURCES test_loader.cc REQUIRES harness)
+add_custom_command(TARGET TestLoader POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/${HARNESS_NAME}/$<TARGET_FILE_NAME:logger>)
 
 execute_process(
@@ -22,8 +38,8 @@ execute_process(
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/${HARNESS_NAME}
 )
 
-my_add_test(TestDesignator test_designator.cc)
-my_add_test(TestIterator test_iterator.cc)
-my_add_test(TestUtilities test_utilities.cc)
-my_add_test(TestConfig test_config.cc)
-add_dependencies(test_config config-INTERFACE)
+my_add_test(TestDesignator SOURCES test_designator.cc)
+my_add_test(TestIterator SOURCES test_iterator.cc)
+my_add_test(TestUtilities SOURCES test_utilities.cc)
+
+my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
