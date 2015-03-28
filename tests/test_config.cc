@@ -1,4 +1,4 @@
-#include "config_parser.h"
+#include <mysql/harness/config.h>
 
 #include "utilities.h"
 #include "helpers.h"
@@ -100,7 +100,7 @@ void test_config_parser_basic()
 
   // Some examples that should not work
   {
-    static const char* examples[] = {
+    static const char* parse_problems[] = {
       // Unterminated section header line
       ("[one\n" "foo = bar\n"),
 
@@ -133,7 +133,7 @@ void test_config_parser_basic()
       ("[one]\n" "mysql_trick = bar\n" "[two]\n" "foo = baz\n"),
     };
 
-    auto range = make_range(examples, sizeof(examples)/sizeof(*examples));
+    auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
     for (auto contents: range)
     {
       Config config;
@@ -143,7 +143,7 @@ void test_config_parser_basic()
       config.set_reserved(words);
 
       std::istringstream input(contents);
-      expect_exception<std::runtime_error>([&config, &input]{
+      expect_exception<std::exception>([&config, &input]{
           config.read(input);
           expect_equal(config.get("one").get("foo").c_str(), "bar");
         });

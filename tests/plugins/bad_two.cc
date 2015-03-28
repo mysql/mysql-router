@@ -1,4 +1,4 @@
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
 
 static const char* requires[] = {
   // Magic plugin is version 1.2.3, so version does not match and this
@@ -6,11 +6,11 @@ static const char* requires[] = {
   "magic (>>1.2.3)",
 };
 
-static int init(Info* info) {
+static int init(AppInfo* info) {
   return 0;
 }
 
-static int deinit(Info* info) {
+static int deinit(AppInfo* info) {
   return 0;
 }
 

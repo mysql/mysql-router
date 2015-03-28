@@ -1,15 +1,15 @@
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
 
 static const char* requires[] = {
   // This plugin do not exist
   "foobar",
 };
 
-static int init(Info* info) {
+static int init(AppInfo* info) {
   return 0;
 }
 
-static int deinit(Info* info) {
+static int deinit(AppInfo* info) {
   return 0;
 }
 

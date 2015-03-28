@@ -1,1 +1,1 @@
-add_plugin(logger logger.cc)
+add_plugin(logger INTERFACE include SOURCES logger.cc)

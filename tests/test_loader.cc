@@ -1,10 +1,11 @@
 
 // Redefine the accessor to check internals
 #define private public
-#include "loader.h"
+#include <mysql/harness/loader.h>
 #undef private
 
-#include "plugin.h"
+#include <mysql/harness/plugin.h>
+
 #include "utilities.h"
 #include "exception.h"
 
@@ -47,7 +48,7 @@ static int check_unloading(Loader *loader,
 
 static void test_available(Loader *loader)
 {
-  const long int expected = 4;
+  const long int expected = 5;
   std::list<std::string> lst = loader->available();
   if (lst.size() != expected) {
     char buf[256];
@@ -74,14 +75,19 @@ static int test_loading(Loader *loader)
     if (text.find("test.so: cannot open") == std::string::npos)
       throw;
   }
+  catch (bad_section& err) {
+    std::string text(err.what());
+    if (text.find("Section 'test'") == std::string::npos)
+      throw;
+  }
 
   try {
     loader->load("bad_one");
     return EXIT_FAILURE;
   }
-  catch (bad_plugin& err) {
+  catch (bad_section& err) {
     std::string text(err.what());
-    if (text.find("foobar.so: cannot open") == std::string::npos)
+    if (text.find("Section 'foobar'") == std::string::npos)
       throw;
   }
 
@@ -94,7 +100,7 @@ static int test_loading(Loader *loader)
 
     // This is checking the message, but we should probably define a
     // specialized exception and catch that.
-    if (text.find("plugin version was 1.2.3, expected >>1.2.3") == std::string::npos)
+    if (text.find("version was 1.2.3, expected >>1.2.3") == std::string::npos)
       throw;
   }
 
@@ -128,7 +134,7 @@ int main(int argc, char *argv[])
   params["program"] = "harness";
   params["prefix"] = prefix;
 
-  Loader loader(prefix + "data/tests.cfg", params);
+  Loader loader("harness", prefix + "data/tests.cfg", params);
   test_available(&loader);
   if (int error = test_loading(&loader))
     exit(error);

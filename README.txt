@@ -60,7 +60,10 @@ example in `data/router.cfg`:
     rundir = /var/run/router
 
     [example]
-    library = example.so
+    library = example
+
+    [logger]
+    library = logger
 
 The configuration file contain information about all the plugins that
 should be loaded when starting and configuration options for each
@@ -91,24 +94,52 @@ directory for each plugin and it is assumed that it contain a
 The main `CMakeLists.txt` file provide an `add_plugin` macro that can
 be used add new plugins.
 
-    add_plugin(<name> [ NO_INSTALL ] <source> ...)
+    add_plugin(<name> [ NO_INSTALL ]
+               SOURCES <source> ...
+               INTERFACE <directory> ...)
 
-This macro adds a plugin named `<name>`. If `NO_INSTALL` is provided,
-it will not be installed with the harness (useful if you have plugins
-used for testing, see the `tests/` directory). Otherwise, the plugin
-will be installed in the *root*`/var/lib/`*harness-name* directory.
+This macro adds a plugin named `<name>` built from the given
+sources. If `NO_INSTALL` is provided, it will not be installed with
+the harness (useful if you have plugins used for testing, see the
+`tests/` directory). Otherwise, the plugin will be installed in the
+*root*`/var/lib/harness` directory.
+
+The header files in the directory given by `INTERFACE` are the
+interface files to the plugin and shall be used by other plugins
+requiring features from this plugin. These header files will be
+installed alongside the harness include files and will also be made
+available to other plugins while building from source.
+
+### Plugin Directory Structure ###
+
+Similar to the harness, each plugin have two types of files:
+
+* Plugin-internal files used to build the plugin. These include the
+  source files and but also header files associated with each source
+  file and are stored in the `src` directory of the plugin directory.
+* Interface files used by other plugins. These are header files that
+  are made available to other plugins and are installed alongside the
+  harness installed files, usually under the directory
+  `/usr/include/mysql/harness`.
+
+It is assumed that the plugin directory contain the following two
+directories:
 
 
-### Harness Structure ###
 
-The harness structure contain some basic fields providing information
-to the plugin. Currently only three fields are provided:
+### Application Information Structure ###
 
-    struct Harness {
+The application information structure contain some basic fields
+providing information to the plugin. Currently these fields are
+provided:
+
+    struct AppInfo {
+      const char *program;                 /* Name of the application */
       const char *libdir;                  /* Location of plugins */
       const char *logdir;                  /* Log file directory */
       const char *etcdir;                  /* Config file directory */
       const char *rundir;                  /* Run file directory */
+      const Config* config;                /* Configuration information */
     };
 
 
@@ -117,7 +148,7 @@ to the plugin. Currently only three fields are provided:
 To define a new plugin, you have to create an instance of the
 `Plugin` structure in your plugin similar to this:
 
-    #include "plugin.h"
+    #include <mysql/harness/plugin.h>
     
     static const char* requires[] = {
       "magic (>>1.0)",
