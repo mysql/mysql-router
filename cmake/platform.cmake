@@ -13,24 +13,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(CURR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-file(GLOB MODULE_DIRS
-   RELATIVE ${CURR_DIR}
-   ${CURR_DIR}/*)
-
-# Load all modules
-foreach(module_name ${MODULE_DIRS})
-  set(mod_dir "${CURR_DIR}/${module_name}")
-  if(module_name STREQUAL "harness")
-      # Harness is loaded from the root CMakeLists.txt
-  elseif(IS_DIRECTORY ${mod_dir})
-    if(EXISTS "${mod_dir}/CMakeLists.txt")
-      message(STATUS "Loading MySQL Router module '${module_name}'")
-      add_subdirectory(${module_name})
-    else()
-      message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")
-    endif()
+# Figure out a nice name for Platform and Architecture
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    string(SUBSTRING ${CMAKE_SYSTEM} 7 2 DARWIN_VERSION)
+  if(DARWIN_VERSION STREQUAL "14")
+    set(PLATFORM_NAME "OS X v10.10")
+  elseif(DARWIN_VERSION STREQUAL "13")
+    set(PLATFORM_NAME "OS X v10.9")
+  else()
+    message(FATAL_ERROR "Unsupported version of MacOS X")
   endif()
-  unset(mod_dir)
-endforeach()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
+  set(PLATFORM_NAME "Windows/Cygwin")
+else()
+  set(PLATFORM_NAME ${CMAKE_SYSTEM_NAME})
+endif()
+
+# Whether we deal with 32 or 64 CPU architecture/compiler
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(ARCH_64BIT 1)
+else()
+  set(ARCH_64BIT 0)
+endif()

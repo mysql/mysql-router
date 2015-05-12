@@ -1,0 +1,8 @@
+[DEFAULT]
+logdir =
+libdir = @CMAKE_BINARY_DIR@/stage/lib/mysqlrouter
+rundir = @CMAKE_BINARY_DIR@/stage/run
+etcdir = @CMAKE_BINARY_DIR@/stage/etc
+
+[logger]
+library = logger

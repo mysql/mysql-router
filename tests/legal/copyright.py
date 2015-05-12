@@ -41,7 +41,7 @@ from tests import get_arguments, get_path_root, git_tracked
 class TestCopyright(unittest.TestCase):
 
     root_path = ''
-    _ignore_file_ext = ['.o', '.pyc', '.pyo']
+    _ignore_file_ext = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.html', '.css', '.ini']
 
     # Folders not checked, relative to root_path
     _ignore_folders = [
@@ -116,8 +116,8 @@ class TestCopyright(unittest.TestCase):
                 if relative in self._ignore_files:
                     continue
 
-                _, ext = os.path.splitext(filename)
-                if ext not in self._ignore_file_ext:
+                if not any([filename.endswith(ext)
+                        for ext in self._ignore_file_ext]):
                     if os.path.getsize(fullpath):
                         self._check_copyright_presence(fullpath)
 

@@ -16,20 +16,24 @@
 # Version information of MySQL Router
 
 # Change following when releasing
-set(PROJECT_VERSION_TEXT "0.1.0")
-set(PROJECT_VERSION_LEVEL "dev")  # alpha, beta, rc or GA
-set(PROJECT_PARTOF_TEXT "MySQL Fabric 1.6")
+set(PROJECT_VERSION_TEXT "2.0.0")
+set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
 
 # Nothing hereunder needs change when releasing
 
-# The GA level is actually not shown
-if(PROJECT_VERSION_LEVEL STREQUAL "GA")
-    set(PROJECT_VERSION_LEVEL "")
-endif()
-
-# Error out when version level is incorrect
-set(VALID_EDITIONS "dev" "alpha" "beta" "rc" "")
-list(FIND VALID_EDITIONS "${PROJECT_VERSION_LEVEL}" index)
-if(index EQUAL -1)
-    message(FATAL_ERROR "Incorrect version level, was '${PROJECT_VERSION_LEVEL}'" )
+# Older CMake version do not set PROJECT_VERSION
+if(${CMAKE_VERSION} VERSION_LESS "3.0")
+  # We can not use project() to set version information
+  string(REPLACE "." ";" version_list ${PROJECT_VERSION_TEXT})
+  list(GET version_list 0 major)
+  list(GET version_list 1 minor)
+  list(GET version_list 2 patch)
+  set(MySQLRouter_VERSION_MAJOR ${major})
+  set(MySQLRouter_VERSION_MINOR ${minor})
+  set(MySQLRouter_VERSION_PATCH ${patch})
+  set(PROJECT_VERSION_MAJOR ${major})
+  set(PROJECT_VERSION_MINOR ${minor})
+  set(PROJECT_VERSION_PATCH ${patch})
+  set(MySQLRouter_VERSION ${PROJECT_VERSION_TEXT})
+  set(PROJECT_VERSION ${PROJECT_VERSION_TEXT})
 endif()

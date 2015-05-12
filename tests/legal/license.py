@@ -58,7 +58,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 class TestLicense(unittest.TestCase):
 
     root_path = ''
-    _ignore_file_ext = ['.o', '.pyc', '.pyo', '.txt', '.md']
+    _ignore_file_ext = ['.o', '.pyc', '.pyo', '.txt', '.md', '.ini.in', '.cfg.in', '.html', '.css', '.ini']
 
     # Folders not checked, relative to root_path
     _ignore_folders = [
@@ -136,8 +136,8 @@ class TestLicense(unittest.TestCase):
                 if relative in self._ignore_files:
                     continue
 
-                _, ext = os.path.splitext(filename)
-                if ext not in self._ignore_file_ext:
+                if not any([filename.endswith(ext)
+                        for ext in self._ignore_file_ext]):
                     if os.path.getsize(fullpath):
                         self._check_license_presence(fullpath)
 

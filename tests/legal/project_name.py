@@ -28,7 +28,7 @@ import unittest
 
 from tests import get_arguments
 
-PROJECT_NAME = "MySQL Router"
+MYSQL_ROUTER_NAME = "MySQL Router"
 
 
 class TestProjectName(unittest.TestCase):
@@ -49,51 +49,18 @@ class TestProjectName(unittest.TestCase):
         with open(os.path.join(self.root_path, 'README.txt')) as fp:
             found = False
             first_line = fp.readline()
-            self.assertTrue(first_line.startswith(PROJECT_NAME),
+            self.assertTrue(first_line.startswith(MYSQL_ROUTER_NAME),
                 "README.txt first does not start with '%s'" %
-                PROJECT_NAME)
+                MYSQL_ROUTER_NAME)
 
             for line in fp:
                 if line.startswith('This is a release of'):
-                    self.assertTrue(PROJECT_NAME in line)
+                    self.assertTrue(MYSQL_ROUTER_NAME in line)
                     found = True
                     break
             self.assertTrue(
                 found,
-                "Project name '%s' not found in README.txt" % PROJECT_NAME)
-
-
-    def test_part_of(self):
-        """WL8400: Check if the 'part of'-clause is present"""
-
-        # File to check with needle for getting the line
-        files_to_check = [
-            (os.path.join(self.root_path, 'README.txt'),
-             'This is a release of'),
-        ]
-
-        cmake_file = os.path.join(self.root_path, 'cmake', 'version.cmake')
-        part_of_text = ""
-        with open(os.path.join(self.root_path,  cmake_file)) as fp:
-            for line in fp.readlines():
-                if 'set(PROJECT_PARTOF_TEXT ' in line:
-                    part_of_text = re.findall('"([^"]*)"', line)[0]
-                    self.assertTrue(part_of_text.startswith('MySQL '))
-                    break
-
-        self.assertTrue(part_of_text != "")
-
-        i = 0
-        for file_to_check, needle in files_to_check:
-            with open(file_to_check) as fp:
-                for line in fp:
-                    if needle in line:
-                        break
-                self.assertTrue(
-                    "part of " + part_of_text in line,
-                    "part of-clause wrong in README.txt (index=%d)" % i)
-            i += 1
-
+                "Project name '%s' not found in README.txt" % MYSQL_ROUTER_NAME)
 
     def test_settings_cmake(self):
         """WL8400: Check if project name in settings.cmake
@@ -106,13 +73,13 @@ class TestProjectName(unittest.TestCase):
             found = 0
             exp_found = 2
             for line in fp.readlines():
-                if 'set(MYSQL_PROJECT_NAME ' in line:
-                    self.assertTrue('"MySQLRouter"' in line,
-                                    "MYSQL_PROJECT_NAME is incorrect")
+                if 'set(MYSQL_ROUTER_NAME ' in line:
+                    self.assertTrue('"MySQL Router"' in line,
+                                    "MYSQL_ROUTER_NAME is incorrect")
                     found += 1
                 elif 'set(MYSQL_ROUTER_TARGET ' in line:
                     self.assertTrue('"mysqlrouter"' in line,
-                                    "MYSQL_ROUTER_TARGET is incorrect")
+                                    "MYSQL_ROUTER_NAME is incorrect")
                     found += 1
 
             self.assertEqual(exp_found, found,

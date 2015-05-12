@@ -13,24 +13,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(CURR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(VERSION ${MySQLRouter_VERSION})
+set(VERSION_MAJOR ${MySQLRouter_VERSION_MAJOR})
+set(VERSION_MINOR ${MySQLRouter_VERSION_MINOR})
+set(VERSION_PATCH ${MySQLRouter_VERSION_PATCH})
+set(CONFIG_FILES ${CONFIG_FILE_LOCATIONS})
 
-file(GLOB MODULE_DIRS
-   RELATIVE ${CURR_DIR}
-   ${CURR_DIR}/*)
-
-# Load all modules
-foreach(module_name ${MODULE_DIRS})
-  set(mod_dir "${CURR_DIR}/${module_name}")
-  if(module_name STREQUAL "harness")
-      # Harness is loaded from the root CMakeLists.txt
-  elseif(IS_DIRECTORY ${mod_dir})
-    if(EXISTS "${mod_dir}/CMakeLists.txt")
-      message(STATUS "Loading MySQL Router module '${module_name}'")
-      add_subdirectory(${module_name})
-    else()
-      message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")
-    endif()
+# Generate the copyright string
+function(SET_COPYRIGHT TARGET)
+  string(TIMESTAMP curr_year "%Y" UTC)
+  set(start_year "2015")
+  set(years "${start_year},")
+  if(NOT curr_year STREQUAL ${start_year})
+    set(years "${start_year}, ${curr_year}")
   endif()
-  unset(mod_dir)
-endforeach()
+  set(${TARGET} "Copyright (c) ${years} Oracle and/or its affiliates. All rights reserved." PARENT_SCOPE)
+endfunction()
+
+set_copyright(ORACLE_COPYRIGHT)
+
+configure_file(config.h.in config.h)
+
+include_directories(${PROJECT_BINARY_DIR})

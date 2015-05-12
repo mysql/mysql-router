@@ -1,0 +1,51 @@
+/*
+  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+// Generated from config.h.in
+
+// MySQL Router version
+#define VERSION "@MySQLRouter_VERSION@"
+#define VERSION_MAJOR @MySQLRouter_VERSION_MAJOR@
+#define VERSION_MINOR @MySQLRouter_VERSION_MINOR@
+#define VERSION_PATCH @MySQLRouter_VERSION_PATCH@
+#define VERSION_EDITION "@PROJECT_EDITION@"
+
+// Package information
+#define PACKAGE_NAME "@MYSQL_ROUTER_NAME@"
+#define PACKAGE_PLATFORM "@PLATFORM_NAME@"
+#define PACKAGE_ARCH_CPU "@CMAKE_SYSTEM_PROCESSOR@"
+#define PACKAGE_ARCH_64BIT @ARCH_64BIT@
+
+// Legal
+#define COPYRIGHT "@ORACLE_COPYRIGHT@"
+#define WELCOME \
+    "@ORACLE_COPYRIGHT@"\
+    "\n\n"\
+    "Oracle is a registered trademark of Oracle Corporation and/or its\n"\
+    "affiliates. Other names may be trademarks of their respective\n"\
+    "owners.\n\n"\
+    "Start MySQL Router.\n"
+
+// MSVC support
+#ifdef _MSC_VER
+#define NOEXCEPT
+#else
+#define NOEXCEPT noexcept
+#endif
+
+// Defaults
+#define CONFIG_FILES R"cfg(@CONFIG_FILES@)cfg"
