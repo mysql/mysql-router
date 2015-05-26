@@ -1,9 +1,10 @@
 #include <mysql/harness/plugin.h>
+#include "utilities.h"
 
 #include "designator.h"
 
 #include "helpers.h"
-#include "utilities.h"
+
 
 #include <iostream>
 

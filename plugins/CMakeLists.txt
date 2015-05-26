@@ -4,4 +4,3 @@ foreach(dir ${subdirs})
     add_subdirectory(${dir})
   endif()
 endforeach()
-

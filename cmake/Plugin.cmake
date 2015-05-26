@@ -45,18 +45,26 @@ macro(ADD_PLUGIN NAME)
   endforeach()
 
   # Add a custom target for the interface which copies it to the
-  # staging directory. This is used when building 
+  # staging directory. This is used when building
   if(interface)
     include_directories(${interface})
     add_custom_target("${NAME}-INTERFACE"
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${interface} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}
       COMMENT "Copying interface from ${CMAKE_CURRENT_SOURCE_DIR}/${interface} to ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}")
+    file(GLOB interface_files ${interface}/*.h)
   endif()
 
   # Add the library and ensure that the name is good for the plugin
   # system (no "lib" before).
   add_library(${NAME} MODULE ${sources})
   set_target_properties(${NAME} PROPERTIES PREFIX "")
+  target_link_libraries(${NAME} ${Boost_LIBRARIES})
+
+  # Need to be able to link plugins with each other
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set_target_properties(${NAME} PROPERTIES
+        LINK_FLAGS "-undefined dynamic_lookup")
+  endif()
 
   # Add a dependencies on interfaces for other plugins this plugin
   # requires.
@@ -66,9 +74,9 @@ macro(ADD_PLUGIN NAME)
 
   # Add install rules to install the interface and the plugin
   # correctly.
-  if(NOT NO_INSTALL)
+  if(NOT NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
     install(TARGETS ${NAME} LIBRARY DESTINATION lib/${HARNESS_NAME})
-    install(FILES ${headers} DESTINATION ${INSTALL_INCLUDE_DIR})
+    install(FILES ${interface_files} DESTINATION ${INSTALL_INCLUDE_DIR})
   endif()
 
 endmacro(ADD_PLUGIN)

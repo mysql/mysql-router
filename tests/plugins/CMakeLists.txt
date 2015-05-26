@@ -1,6 +1,6 @@
 add_plugin(bad_one NO_INSTALL SOURCES bad_one.cc)
 add_plugin(bad_two NO_INSTALL SOURCES bad_two.cc)
-add_plugin(magic NO_INSTALL SOURCES magic.cc)
+add_plugin(magic NO_INSTALL INTERFACE include SOURCES magic.cc)
 add_plugin(example NO_INSTALL
            SOURCES example.cc
            REQUIRES magic logger)

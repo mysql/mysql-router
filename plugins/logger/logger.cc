@@ -3,6 +3,7 @@
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/path_utils.h>
 
+#include <cerrno>
 #include <string>
 #include <cstdio>
 #include <cassert>

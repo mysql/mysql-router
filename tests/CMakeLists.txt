@@ -1,4 +1,5 @@
-include_directories(${CMAKE_SOURCE_DIR}/harness)
+include_directories(${PROJECT_SOURCE_DIR}/harness)
+include_directories(${CMAKE_BINARY_DIR}/include)
 
 add_subdirectory(plugins)
 
@@ -43,3 +44,8 @@ my_add_test(TestIterator SOURCES test_iterator.cc)
 my_add_test(TestUtilities SOURCES test_utilities.cc)
 
 my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
+
+if(NOT EXISTS  ${CMAKE_BINARY_DIR}/tests/data)
+    file(GLOB_RECURSE test_data_files ${PROJECT_SOURCE_DIR}/tests/data/*)
+    file(COPY ${test_data_files} DESTINATION ${CMAKE_BINARY_DIR}/tests/data)
+endif()

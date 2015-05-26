@@ -2,10 +2,17 @@
 *.o
 *.so
 *.a
-Makefile
+
+# Build and Packaging
+build/
+cmake_install.cmake
 CMakeFiles
 CMakeCache.txt
-CTestTestfile.cmake
-cmake_install.cmake
+Makefile
 CPack*.cmake
 tests/var/**
+
+# Editor files & folders
+.idea/
+
+
