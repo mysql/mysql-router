@@ -26,7 +26,7 @@ endif()
 # Check for basic functions
 
 # Increase warning level for code
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wconversion -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wconversion -Wpedantic")
 
 enable_testing()
  
