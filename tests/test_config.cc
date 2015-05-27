@@ -81,12 +81,14 @@ void test_config_parser_basic()
        "[one]\n" "foo = b%(other)s\n"),
       ("[DEFAULT]\n" "one = b\n" "two = r\n"
        "[one]\n" "foo = %(one)sa%(two)s\n"),
+      ("[DEFAULT]\n" "one = b\n" "two = r\n"
+       "[one:my_key]\n" "foo = %(one)sa%(two)s\n"),
     };
 
     auto range = make_range(examples, sizeof(examples)/sizeof(*examples));
     for (auto contents: range)
     {
-      Config config;
+      Config config(true);
 
       std::vector<std::string> words;
       words.push_back("reserved");
@@ -131,16 +133,44 @@ void test_config_parser_basic()
 
       // Reserved words
       ("[one]\n" "mysql_trick = bar\n" "[two]\n" "foo = baz\n"),
+
+      // Key but keys not allowed
+      ("[one:my_key]\n" "foo = bar\n" "[two]\n" "foo = baz\n"),
     };
 
     auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
     for (auto contents: range)
     {
-      Config config;
+      Config config(false);
 
       std::vector<std::string> words;
       words.push_back("mysql*");
       config.set_reserved(words);
+
+      std::istringstream input(contents);
+      expect_exception<std::exception>([&config, &input]{
+          config.read(input);
+          expect_equal(config.get("one").get("foo").c_str(), "bar");
+        });
+    }
+  }
+
+  // Some examples where keys are allowed that should not work
+  {
+    static const char* parse_problems[] = {
+      // Empty key
+      ("[one:]\n" "foo = bar\n" "[two]\n" "foo = baz\n"),
+
+      // Key on default section
+      ("[DEFAULT:key]\n" "one = b\n" "two = r\n"
+       "[one:key1]\n" "foo = %(one)sa%(two)s\n"
+       "[one:key2]\n" "foo = %(one)sa%(two)s\n"),
+    };
+
+    auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
+    for (auto contents: range)
+    {
+      Config config(true);
 
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input]{

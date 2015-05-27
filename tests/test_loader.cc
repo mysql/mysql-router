@@ -8,6 +8,7 @@
 
 #include "utilities.h"
 #include "exception.h"
+#include "helpers.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -15,20 +16,15 @@
 #include <iostream>
 #include <algorithm>
 
-static int check_loading(Loader *loader,
-                         const std::string& name,
-                         const std::string& brief)
+template <class Checks>
+void check_loading(Loader *loader,
+                   const std::string& name,
+                   Checks extra)
 {
-  if (Plugin *ext = loader->load(name))
-  {
-    if (ext->brief != brief)
-      return EXIT_FAILURE;
-  }
-  else
-  {
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+  Plugin *ext = loader->load(name);
+  if (ext == nullptr)
+    throw std::runtime_error("Plugin '" + name + "' cannot be loaded");
+  extra(*ext);
 }
 
 
@@ -77,7 +73,7 @@ static int test_loading(Loader *loader)
   }
   catch (bad_section& err) {
     std::string text(err.what());
-    if (text.find("Section 'test'") == std::string::npos)
+    if (text.find("Section name 'test'") == std::string::npos)
       throw;
   }
 
@@ -87,7 +83,7 @@ static int test_loading(Loader *loader)
   }
   catch (bad_section& err) {
     std::string text(err.what());
-    if (text.find("Section 'foobar'") == std::string::npos)
+    if (text.find("Section name 'foobar'") == std::string::npos)
       throw;
   }
 
@@ -105,11 +101,12 @@ static int test_loading(Loader *loader)
   }
 
   // These should all be OK.
-  if (int error = check_loading(loader, "example", "An example plugin"))
-    return error;
-  if (int error = check_loading(loader, "magic", "A magic plugin"))
-    return error;
-
+  check_loading(loader, "example", [](const Plugin& plugin){
+      expect_equal(plugin.brief, "An example plugin");
+    });
+  check_loading(loader, "magic", [](const Plugin& plugin){
+      expect_equal(plugin.brief, "A magic plugin");
+    });
 
 #if 0
   if (int error = check_unloading(loader, "example"))
