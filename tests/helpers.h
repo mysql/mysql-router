@@ -74,8 +74,8 @@ void _expect(bool value, const std::string& expr, const std::string& expect)
 
 #define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
 
-template <class Type, class Traits = CompareTraits<Type> >
-void expect_equal(Type value, Type expect, Traits traits = Traits())
+template <class Type, class Type2, class Traits = CompareTraits<Type> >
+void expect_equal(Type value, Type2 expect, Traits traits = Traits())
 {
   if (!traits.equal(value, expect))
   {

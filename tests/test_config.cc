@@ -1,4 +1,5 @@
 #include <mysql/harness/config.h>
+#include <mysql/harness/plugin.h>
 
 #include "utilities.h"
 #include "helpers.h"
@@ -31,32 +32,38 @@ void test_config_basic()
 
   // Test that fetching a section get the right section back.
   expect_equal(config.has("magic"), true);
-  ConfigSection& section = config.get("magic");
+
+  Config::SectionList& sections = config.get("magic");
+  expect_equal(sections.size(), 1);
+  ConfigSection& section = sections.front();
+
   if (section.name != "magic")
     throw std::runtime_error("Expected 'magic', got " + section.name);
 
   // Test that fetching a non-existing option in a section throws an
   // exception.
-  expect_exception<std::runtime_error>([&config]{
-      config.get("magic").get("my_option");
+  expect_exception<std::runtime_error>([&]{
+      section.get("my_option");
     });
 
   // Set the value of the option in the section
-  config.get("magic").set("my_option", "my_value");
+  section.set("my_option", "my_value");
 
   // Check that the value can be retrieved.
-  const std::string value = config.get("magic").get("my_option");
+  const std::string value = section.get("my_option");
   if (value != "my_value")
     throw std::runtime_error("Expected 'my_value', got " + value);
 }
 
 
 void check_config(Config& config) {
-  ConfigSection& section = config.get("one");
+  Config::SectionList& sections = config.get("one");
+  expect_equal(sections.size(), 1);
+  ConfigSection& section = sections.front();
   if (section.name != "one")
     throw std::runtime_error("Expected 'one', got " + section.name);
 
-  expect_equal(config.get("one").get("foo").c_str(), "bar");
+  expect_equal(section.get("foo").c_str(), "bar");
 }
 
 void test_config_parser_basic()
@@ -150,7 +157,12 @@ void test_config_parser_basic()
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input]{
           config.read(input);
-          expect_equal(config.get("one").get("foo").c_str(), "bar");
+          auto sections = config.get("one");
+          expect_equal(sections.size(), 1);
+          auto section = sections.front();
+          expect_equal(section.get("foo").c_str(), "bar");
+          expect_equal(config_get(&config, "one", "foo"), "bar");
+          expect_equal(config_get_with_key(&config, "one", "", "foo"), "bar");
         });
     }
   }
@@ -175,7 +187,10 @@ void test_config_parser_basic()
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input]{
           config.read(input);
-          expect_equal(config.get("one").get("foo").c_str(), "bar");
+          auto sections = config.get("one");
+          expect_equal(sections.size(), 1);
+          auto section = sections.front();
+          expect_equal(section.get("foo").c_str(), "bar");
         });
     }
   }

@@ -10,15 +10,21 @@
 #include "exception.h"
 #include "helpers.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <string>
 #include <iostream>
-#include <algorithm>
+#include <string>
+#include <vector>
+
+using std::string;
+using std::vector;
+using std::cout;
+using std::endl;
 
 template <class Checks>
 void check_loading(Loader *loader,
-                   const std::string& name,
+                   const string& name,
                    Checks extra)
 {
   Plugin *ext = loader->load(name);
@@ -30,7 +36,7 @@ void check_loading(Loader *loader,
 
 #if 0
 static int check_unloading(Loader *loader,
-                           const std::string& name)
+                           const string& name)
 {
   if (loader->unload(name))
   {
@@ -45,7 +51,7 @@ static int check_unloading(Loader *loader,
 static void test_available(Loader *loader)
 {
   const long int expected = 5;
-  std::list<std::string> lst = loader->available();
+  vector<string> lst = loader->available();
   if (lst.size() != expected) {
     char buf[256];
     sprintf(buf, "Expected length %lu, got %lu", expected, lst.size());
@@ -67,13 +73,13 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_plugin& err) {
-    std::string text(err.what());
-    if (text.find("test.so: cannot open") == std::string::npos)
+    string text(err.what());
+    if (text.find("test.so: cannot open") == string::npos)
       throw;
   }
   catch (bad_section& err) {
-    std::string text(err.what());
-    if (text.find("Section name 'test'") == std::string::npos)
+    string text(err.what());
+    if (text.find("Section name 'test'") == string::npos)
       throw;
   }
 
@@ -82,8 +88,8 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_section& err) {
-    std::string text(err.what());
-    if (text.find("Section name 'foobar'") == std::string::npos)
+    string text(err.what());
+    if (text.find("Section name 'foobar'") == string::npos)
       throw;
   }
 
@@ -92,11 +98,11 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_plugin& err) {
-    std::string text(err.what());
+    string text(err.what());
 
     // This is checking the message, but we should probably define a
     // specialized exception and catch that.
-    if (text.find("version was 1.2.3, expected >>1.2.3") == std::string::npos)
+    if (text.find("version was 1.2.3, expected >>1.2.3") == string::npos)
       throw;
   }
 
@@ -126,16 +132,27 @@ static void test_init(Loader *loader)
 
 int main(int argc, char *argv[])
 {
-  const std::string prefix(dirname(argv[0]) + "/");
-  std::map<std::string, std::string> params;
+  const string prefix(dirname(argv[0]) + "/");
+  std::map<string, string> params;
   params["program"] = "harness";
   params["prefix"] = prefix;
 
-  Loader loader("harness", prefix + "data/tests.cfg", params);
-  test_available(&loader);
-  if (int error = test_loading(&loader))
-    exit(error);
-  test_init(&loader);
+  expect_exception<bad_section>([&]{
+    Loader loader("harness", prefix + "data/tests-bad-1.cfg", params);
+    });
+
+  expect_exception<bad_section>([&]{
+    Loader loader("harness", prefix + "data/tests-bad-2.cfg", params);
+    });
+
+  {
+    Loader loader("harness", prefix + "data/tests.cfg", params);
+    test_available(&loader);
+    if (int error = test_loading(&loader))
+      exit(error);
+    test_init(&loader);
+  }
+
   exit(EXIT_SUCCESS);
 }
 
