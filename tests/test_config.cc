@@ -157,9 +157,9 @@ void test_config_parser_basic()
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input]{
           config.read(input);
-          auto sections = config.get("one");
+          auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
-          auto section = sections.front();
+          auto& section = sections.front();
           expect_equal(section.get("foo").c_str(), "bar");
           expect_equal(config_get(&config, "one", "foo"), "bar");
           expect_equal(config_get_with_key(&config, "one", "", "foo"), "bar");
@@ -187,9 +187,9 @@ void test_config_parser_basic()
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input]{
           config.read(input);
-          auto sections = config.get("one");
+          auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
-          auto section = sections.front();
+          auto& section = sections.front();
           expect_equal(section.get("foo").c_str(), "bar");
         });
     }

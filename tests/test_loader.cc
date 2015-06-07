@@ -17,26 +17,33 @@
 #include <string>
 #include <vector>
 
-using std::string;
-using std::vector;
 using std::cout;
 using std::endl;
 
 template <class Checks>
-void check_loading(Loader *loader,
-                   const string& name,
-                   Checks extra)
+void check_loading(Loader *loader, const std::string& name,
+                   Checks checks)
 {
   Plugin *ext = loader->load(name);
   if (ext == nullptr)
     throw std::runtime_error("Plugin '" + name + "' cannot be loaded");
-  extra(*ext);
+  checks(*ext);
+}
+
+template <class Checks>
+void check_loading(Loader *loader, const std::string& name,
+                   const std::string& key, Checks checks)
+{
+  Plugin *ext = loader->load(name, key);
+  if (ext == nullptr)
+    throw std::runtime_error("Plugin '" + name + "' cannot be loaded");
+  checks(*ext);
 }
 
 
 #if 0
 static int check_unloading(Loader *loader,
-                           const string& name)
+                           const std::string& name)
 {
   if (loader->unload(name))
   {
@@ -51,7 +58,7 @@ static int check_unloading(Loader *loader,
 static void test_available(Loader *loader)
 {
   const long int expected = 5;
-  vector<string> lst = loader->available();
+  std::vector<std::string> lst = loader->available();
   if (lst.size() != expected) {
     char buf[256];
     sprintf(buf, "Expected length %lu, got %lu", expected, lst.size());
@@ -73,13 +80,13 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_plugin& err) {
-    string text(err.what());
-    if (text.find("test.so: cannot open") == string::npos)
+    std::string text(err.what());
+    if (text.find("test.so: cannot open") == std::string::npos)
       throw;
   }
   catch (bad_section& err) {
-    string text(err.what());
-    if (text.find("Section name 'test'") == string::npos)
+    std::string text(err.what());
+    if (text.find("Section name 'test'") == std::string::npos)
       throw;
   }
 
@@ -88,8 +95,8 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_section& err) {
-    string text(err.what());
-    if (text.find("Section name 'foobar'") == string::npos)
+    std::string text(err.what());
+    if (text.find("Section name 'foobar'") == std::string::npos)
       throw;
   }
 
@@ -98,28 +105,24 @@ static int test_loading(Loader *loader)
     return EXIT_FAILURE;
   }
   catch (bad_plugin& err) {
-    string text(err.what());
+    std::string text(err.what());
 
     // This is checking the message, but we should probably define a
     // specialized exception and catch that.
-    if (text.find("version was 1.2.3, expected >>1.2.3") == string::npos)
+    if (text.find("version was 1.2.3, expected >>1.2.3") == std::string::npos)
       throw;
   }
 
   // These should all be OK.
-  check_loading(loader, "example", [](const Plugin& plugin){
+  check_loading(loader, "example", "one", [](const Plugin& plugin){
+      expect_equal(plugin.brief, "An example plugin");
+    });
+  check_loading(loader, "example", "two", [](const Plugin& plugin){
       expect_equal(plugin.brief, "An example plugin");
     });
   check_loading(loader, "magic", [](const Plugin& plugin){
       expect_equal(plugin.brief, "A magic plugin");
     });
-
-#if 0
-  if (int error = check_unloading(loader, "example"))
-    return EXIT_FAILURE;
-  if (int error = check_unloading(loader, "magic"))
-    return EXIT_FAILURE;
-#endif
 
   return EXIT_SUCCESS;
 }
@@ -132,8 +135,8 @@ static void test_init(Loader *loader)
 
 int main(int argc, char *argv[])
 {
-  const string prefix(dirname(argv[0]) + "/");
-  std::map<string, string> params;
+  const std::string prefix(dirname(argv[0]) + "/");
+  std::map<std::string, std::string> params;
   params["program"] = "harness";
   params["prefix"] = prefix;
 
@@ -145,8 +148,12 @@ int main(int argc, char *argv[])
     Loader loader("harness", prefix + "data/tests-bad-2.cfg", params);
     });
 
+  expect_exception<bad_section>([&]{
+    Loader loader("harness", prefix + "data/tests-bad-3.cfg", params);
+    });
+
   {
-    Loader loader("harness", prefix + "data/tests.cfg", params);
+    Loader loader("harness", prefix + "data/tests-good-1.cfg", params);
     test_available(&loader);
     if (int error = test_loading(&loader))
       exit(error);

@@ -1,6 +1,11 @@
 *~
 *.o
 *.so
+*.a
 Makefile
 CMakeFiles
 CMakeCache.txt
+CTestTestfile.cmake
+cmake_install.cmake
+CPack*.cmake
+tests/var/**
