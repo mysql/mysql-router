@@ -1,4 +1,4 @@
-#include <mysql/harness/config.h>
+#include <mysql/harness/config_parser.h>
 #include <mysql/harness/plugin.h>
 
 #include "utilities.h"
