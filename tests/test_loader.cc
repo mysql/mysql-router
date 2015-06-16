@@ -55,18 +55,25 @@ static int check_unloading(Loader *loader,
 }
 #endif
 
-static void test_available(Loader *loader)
+static void test_available(Loader *loader, const unsigned long int expected)
 {
-  const long int expected = 5;
-  std::vector<std::string> lst = loader->available();
+  auto lst = loader->available();
   if (lst.size() != expected) {
     char buf[256];
     sprintf(buf, "Expected length %lu, got %lu", expected, lst.size());
     throw std::logic_error(buf);
   }
-  if (std::find(lst.begin(), lst.end(), "example") == lst.end())
+
+  auto match_example = [](const std::pair<std::string, std::string>& elem){
+    return elem.first == "example";
+  };
+  if (std::count_if(lst.begin(), lst.end(), match_example) == 0)
     throw std::logic_error("Missing 'example'");
-  if (std::find(lst.begin(), lst.end(), "magic") == lst.end())
+
+  auto match_magic = [](const std::pair<std::string, std::string>& elem){
+    return elem.first == "magic";
+  };
+  if (std::count_if(lst.begin(), lst.end(), match_magic) == 0)
     throw std::logic_error("Missing 'magic'");
 }
 
@@ -154,7 +161,7 @@ int main(int argc, char *argv[])
 
   {
     Loader loader("harness", prefix + "data/tests-good-1.cfg", params);
-    test_available(&loader);
+    test_available(&loader, 6);
     if (int error = test_loading(&loader))
       exit(error);
     test_init(&loader);

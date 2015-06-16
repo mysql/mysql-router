@@ -33,7 +33,7 @@ void test_config_basic()
   // Test that fetching a section get the right section back.
   expect_equal(config.has("magic"), true);
 
-  Config::SectionList& sections = config.get("magic");
+  Config::SectionList sections = config.get("magic");
   expect_equal(sections.size(), 1);
   ConfigSection& section = sections.front();
 
@@ -57,7 +57,7 @@ void test_config_basic()
 
 
 void check_config(Config& config) {
-  Config::SectionList& sections = config.get("one");
+  Config::SectionList sections = config.get("one");
   expect_equal(sections.size(), 1);
   ConfigSection& section = sections.front();
   if (section.name != "one")
@@ -159,7 +159,7 @@ void test_config_parser_basic()
           config.read(input);
           auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
-          auto& section = sections.front();
+          ConfigSection& section = sections.front();
           expect_equal(section.get("foo").c_str(), "bar");
           expect_equal(config_get(&config, "one", "foo"), "bar");
           expect_equal(config_get_with_key(&config, "one", "", "foo"), "bar");
@@ -189,7 +189,7 @@ void test_config_parser_basic()
           config.read(input);
           auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
-          auto& section = sections.front();
+          ConfigSection& section = sections.front();
           expect_equal(section.get("foo").c_str(), "bar");
         });
     }
