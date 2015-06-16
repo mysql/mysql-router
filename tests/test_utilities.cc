@@ -61,7 +61,7 @@ static void test_strip()
   {
     std::string str(sample[0]);
     strip(str);
-    expect_equal(str.c_str(), sample[1]);
+    expect_equal(str, sample[1]);
   }
 }
 

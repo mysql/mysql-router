@@ -20,6 +20,9 @@ void test_config_basic()
   expect_equal(config.is_reserved("reserved"), true);
   expect_equal(config.is_reserved("legal"), false);
 
+  // A newly created configuration is always empty.
+  expect_equal(config.empty(), true);
+
   // Test that fetching a non-existing section throws an exception.
   expect_exception<std::runtime_error>([&config]{
       config.get("magic");
@@ -63,7 +66,10 @@ void check_config(Config& config) {
   if (section.name != "one")
     throw std::runtime_error("Expected 'one', got " + section.name);
 
-  expect_equal(section.get("foo").c_str(), "bar");
+  expect_equal(section.get("foo"), "bar");
+  config.clear();
+  expect_equal(config.empty(), true);
+  expect_exception<bad_section>([&config]{ config.get("one"); });
 }
 
 void test_config_parser_basic()
@@ -95,7 +101,7 @@ void test_config_parser_basic()
     auto range = make_range(examples, sizeof(examples)/sizeof(*examples));
     for (auto contents: range)
     {
-      Config config(true);
+      Config config(Config::allow_keys);
 
       std::vector<std::string> words;
       words.push_back("reserved");
@@ -148,7 +154,7 @@ void test_config_parser_basic()
     auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
     for (auto contents: range)
     {
-      Config config(false);
+      Config config;
 
       std::vector<std::string> words;
       words.push_back("mysql*");
@@ -160,7 +166,7 @@ void test_config_parser_basic()
           auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
           ConfigSection& section = sections.front();
-          expect_equal(section.get("foo").c_str(), "bar");
+          expect_equal(section.get("foo"), "bar");
           expect_equal(config_get(&config, "one", "foo"), "bar");
           expect_equal(config_get_with_key(&config, "one", "", "foo"), "bar");
         });
@@ -179,30 +185,63 @@ void test_config_parser_basic()
        "[one:key2]\n" "foo = %(one)sa%(two)s\n"),
     };
 
-    auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
+    auto range = make_range(parse_problems,
+                            sizeof(parse_problems)/sizeof(*parse_problems));
     for (auto contents: range)
     {
-      Config config(true);
+      Config config(Config::allow_keys);
 
       std::istringstream input(contents);
-      expect_exception<std::exception>([&config, &input]{
+      expect_exception<std::exception>([&config, &input] {
           config.read(input);
           auto&& sections = config.get("one");
           expect_equal(sections.size(), 1);
           ConfigSection& section = sections.front();
-          expect_equal(section.get("foo").c_str(), "bar");
+          expect_equal(section.get("foo"), "bar");
         });
     }
   }
-
 }
 
+void test_config_update() {
+  const char *const configs[] = {
+    ("[one]\n"
+     "one = first\n"
+     "two = second\n"),
+    ("[one]\n"
+     "one = new first\n"
+     "[two]\n"
+     "one = first\n"),
+  };
+
+  Config config(Config::allow_keys);
+  std::istringstream input(configs[0]);
+  config.read(input);
+
+  Config other(Config::allow_keys);
+  std::istringstream other_input(configs[1]);
+  other.read(other_input);
+
+  Config expected(Config::allow_keys);
+  config.update(other);
+
+  ConfigSection& one = config.get("one", "");
+  ConfigSection& two = config.get("two", "");
+  expect_equal(one.get("one"), "new first");
+  expect_equal(one.get("two"), "second");
+  expect_equal(two.get("one"), "first");
+
+  // Check that merging sections with mismatching names generates an
+  // exception
+  expect_exception<bad_section>([&one, &two]{ one.update(two); });
+}
 
 int main()
 {
   try {
     test_config_basic();
     test_config_parser_basic();
+    test_config_update();
   }
   catch (std::runtime_error& exc) {
     std::cerr << exc.what() << std::endl;

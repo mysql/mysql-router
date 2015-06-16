@@ -12,7 +12,7 @@ void check_desig(const std::string& input,
                  const std::string& plugin)
 {
   Designator desig(input);
-  expect_equal(desig.plugin.c_str(), plugin.c_str());
+  expect_equal(desig.plugin, plugin);
 }
 
 void check_desig(const std::string& input,
@@ -23,7 +23,7 @@ void check_desig(const std::string& input,
                  long patch_version)
 {
   Designator desig(input);
-  expect_equal(desig.plugin.c_str(), plugin.c_str());
+  expect_equal(desig.plugin, plugin);
 
   expect_equal(static_cast<int>(desig.constraint.size()), 1);
   std::pair<Designator::Relation, Version> elem = desig.constraint.front();
@@ -46,7 +46,7 @@ void check_desig(const std::string& input,
                  long patch_version2)
 {
   Designator desig(input);
-  expect_equal(desig.plugin.c_str(), plugin.c_str());
+  expect_equal(desig.plugin, plugin);
 
   expect_equal(static_cast<int>(desig.constraint.size()), 2);
   std::pair<Designator::Relation, Version> elem1 = desig.constraint[0];

@@ -1,10 +1,11 @@
 #ifndef HELPERS_INCLUDED
 #define HELPERS_INCLUDED
 
+#include <cstring>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
-#include <cstring>
 
 template <class Exception, class Function>
 void expect_exception(Function func)
@@ -27,12 +28,6 @@ struct CompareTraits
 {
   static bool equal(Type a, Type b) { return a == b; }
   static bool less(Type a, Type b) { return a < b; }
-
-  static const char *c_str(long val) {
-    static char buf[16];
-    sprintf(buf, "%ld", val);
-    return buf;
-  }
 };
 
 template <>
@@ -41,28 +36,13 @@ struct CompareTraits<const char*>
   static bool equal(const char *a, const char *b) {
     return strcmp(a, b) == 0;
   }
-
-  static const char *c_str(const char* val) {
-    return val;
-  }
 };
 
 template <>
 struct CompareTraits<long>
 {
-  static bool equal(long a, long b) {
-    return a == b;
-  }
-
-  static bool less(long a, long b) {
-    return a < b;
-  }
-
-  static const char *c_str(long val) {
-    static char buf[16];
-    sprintf(buf, "%ld", val);
-    return buf;
-  }
+  static bool equal(long a, long b) { return a == b; }
+  static bool less(long a, long b) { return a < b; }
 };
 
 void _expect(bool value, const std::string& expr, const std::string& expect)
@@ -74,16 +54,14 @@ void _expect(bool value, const std::string& expr, const std::string& expect)
 
 #define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
 
-template <class Type, class Type2, class Traits = CompareTraits<Type> >
-void expect_equal(Type value, Type2 expect, Traits traits = Traits())
+template < class Type1, class Type2, class Traits = CompareTraits<Type1> >
+void expect_equal(Type1 value, Type2 expect, Traits traits = Traits())
 {
   if (!traits.equal(value, expect))
   {
-    char buf[256];
-    sprintf(buf, "Expected %s, got %s",
-            traits.c_str(expect),
-            traits.c_str(value));
-    throw std::runtime_error(buf);
+    std::ostringstream buffer;
+    buffer << "Expected " << expect << ", got " << value;
+    throw std::runtime_error(buffer.str());
   }
 }
 
@@ -92,11 +70,9 @@ void expect_less(Type value, Type expect, Traits traits = Traits())
 {
   if (!traits.less(value, expect))
   {
-    char buf[256];
-    sprintf(buf, "Expected something less than %s, got %s",
-            traits.c_str(expect),
-            traits.c_str(value));
-    throw std::runtime_error(buf);
+    std::ostringstream buffer;
+    buffer << "Expected something less than " << expect << ", got " << value;
+    throw std::runtime_error(buffer.str());
   }
 }
 
