@@ -25,8 +25,8 @@ void test_config_basic()
 
   // Test that fetching a non-existing section throws an exception.
   expect_exception<std::runtime_error>([&config]{
-      config.get("magic");
-    });
+    config.get("magic");
+  });
 
   expect_equal(config.has("magic"), false);
 
@@ -151,7 +151,8 @@ void test_config_parser_basic()
       ("[one:my_key]\n" "foo = bar\n" "[two]\n" "foo = baz\n"),
     };
 
-    auto range = make_range(parse_problems, sizeof(parse_problems)/sizeof(*parse_problems));
+    auto range = make_range(parse_problems,
+                            sizeof(parse_problems)/sizeof(*parse_problems));
     for (auto contents: range)
     {
       Config config;
@@ -193,12 +194,12 @@ void test_config_parser_basic()
 
       std::istringstream input(contents);
       expect_exception<std::exception>([&config, &input] {
-          config.read(input);
-          auto&& sections = config.get("one");
-          expect_equal(sections.size(), 1);
-          ConfigSection& section = sections.front();
-          expect_equal(section.get("foo"), "bar");
-        });
+        config.read(input);
+        auto&& sections = config.get("one");
+        expect_equal(sections.size(), 1);
+        ConfigSection& section = sections.front();
+        expect_equal(section.get("foo"), "bar");
+      });
     }
   }
 }

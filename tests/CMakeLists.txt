@@ -43,6 +43,7 @@ my_add_test(TestDesignator SOURCES test_designator.cc)
 my_add_test(TestIterator SOURCES test_iterator.cc)
 my_add_test(TestUtilities SOURCES test_utilities.cc)
 
+my_add_test(TestFilesystem SOURCES test_filesystem.cc REQUIRES harness)
 my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
 
 if(NOT EXISTS  ${CMAKE_BINARY_DIR}/tests/data)

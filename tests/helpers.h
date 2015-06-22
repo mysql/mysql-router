@@ -1,11 +1,16 @@
 #ifndef HELPERS_INCLUDED
 #define HELPERS_INCLUDED
 
+#include <algorithm>
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
+#include <iterator>
+
+using std::includes;
+using std::set_difference;
 
 template <class Exception, class Function>
 void expect_exception(Function func)
@@ -24,25 +29,48 @@ void expect_exception(Function func)
 }
 
 template <class Type>
-struct CompareTraits
+struct TestTraits
 {
-  static bool equal(Type a, Type b) { return a == b; }
-  static bool less(Type a, Type b) { return a < b; }
+  bool equal(Type a, Type b) { return a == b; }
+  bool less(Type a, Type b) { return a < b; }
+  void show_not_equal(std::ostream& out, const Type& value, const Type& expect)
+  {
+    out << "Expected " << expect << ", got " << value;
+  }
 };
 
-template <>
-struct CompareTraits<const char*>
+template <class Elem>
+struct TestTraits<std::vector<Elem>>
 {
-  static bool equal(const char *a, const char *b) {
-    return strcmp(a, b) == 0;
+  bool equal(const std::vector<Elem>& lhs, const std::vector<Elem>& rhs) {
+    if (lhs.size() != rhs.size())
+        return false;
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin());
+  }
+  void show_not_equal(std::ostream& out,
+                      const std::vector<Elem>& value,
+                      const std::vector<Elem>& expect)
+  {
+    copy(value.begin(), value.end(),
+         typename std::ostream_iterator<Elem>(out, " "));
+    out << " and ";
+    copy(expect.begin(), expect.end(),
+         typename std::ostream_iterator<Elem>(out, " "));
+    out << " not equal";
   }
 };
 
 template <>
-struct CompareTraits<long>
+struct TestTraits<const char*>
 {
-  static bool equal(long a, long b) { return a == b; }
-  static bool less(long a, long b) { return a < b; }
+  bool equal(const char *a, const char *b) {
+    return strcmp(a, b) == 0;
+  }
+
+  void show_not_equal(std::ostream& out, const char* value, const char* expect)
+  {
+    out << "Expected " << expect << ", got " << value;
+  }
 };
 
 void _expect(bool value, const std::string& expr, const std::string& expect)
@@ -54,18 +82,18 @@ void _expect(bool value, const std::string& expr, const std::string& expect)
 
 #define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
 
-template < class Type1, class Type2, class Traits = CompareTraits<Type1> >
+template < class Type1, class Type2, class Traits = TestTraits<Type1> >
 void expect_equal(Type1 value, Type2 expect, Traits traits = Traits())
 {
   if (!traits.equal(value, expect))
   {
     std::ostringstream buffer;
-    buffer << "Expected " << expect << ", got " << value;
+    traits.show_not_equal(buffer, value, expect);
     throw std::runtime_error(buffer.str());
   }
 }
 
-template <class Type, class Traits = CompareTraits<Type> >
+template <class Type, class Traits = TestTraits<Type> >
 void expect_less(Type value, Type expect, Traits traits = Traits())
 {
   if (!traits.less(value, expect))
