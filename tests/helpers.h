@@ -45,6 +45,7 @@ struct TestTraits<std::vector<Elem>>
   bool equal(const std::vector<Elem>& lhs, const std::vector<Elem>& rhs) {
     if (lhs.size() != rhs.size())
         return false;
+
     return std::equal(lhs.begin(), lhs.end(), rhs.begin());
   }
   void show_not_equal(std::ostream& out,

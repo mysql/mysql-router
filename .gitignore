@@ -15,4 +15,5 @@ tests/var/**
 # Editor files & folders
 .idea/
 
-
+doc/**
+include/**

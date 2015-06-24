@@ -5,6 +5,7 @@
 #undef private
 
 #include <mysql/harness/plugin.h>
+#include <mysql/harness/filesystem.h>
 
 #include "utilities.h"
 #include "exception.h"
@@ -142,25 +143,29 @@ static void test_init(Loader *loader)
 
 int main(int argc, char *argv[])
 {
-  const std::string prefix(dirname(argv[0]) + "/");
+  Path here = Path(argv[0]).dirname();
   std::map<std::string, std::string> params;
   params["program"] = "harness";
-  params["prefix"] = prefix;
+  params["prefix"] = here.c_str();
 
   expect_exception<bad_section>([&]{
-    Loader loader("harness", prefix + "data/tests-bad-1.cfg", params);
+    Loader loader("harness", params);
+    loader.read(here.join("data/tests-bad-1.cfg"));
     });
 
   expect_exception<bad_section>([&]{
-    Loader loader("harness", prefix + "data/tests-bad-2.cfg", params);
+    Loader loader("harness", params);
+    loader.read(here.join("data/tests-bad-2.cfg"));
     });
 
   expect_exception<bad_section>([&]{
-    Loader loader("harness", prefix + "data/tests-bad-3.cfg", params);
+    Loader loader("harness", params);
+    loader.read(here.join("data/tests-bad-3.cfg"));
     });
 
   {
-    Loader loader("harness", prefix + "data/tests-good-1.cfg", params);
+    Loader loader("harness", params);
+    loader.read(here.join("data/tests-good-1.cfg"));
     test_available(&loader, 6);
     if (int error = test_loading(&loader))
       exit(error);

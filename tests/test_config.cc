@@ -1,4 +1,5 @@
 #include <mysql/harness/config_parser.h>
+#include <mysql/harness/filesystem.h>
 #include <mysql/harness/plugin.h>
 
 #include "utilities.h"
@@ -8,6 +9,49 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+
+template <>
+struct TestTraits<Config>
+{
+  bool equal(const Config& lhs, const Config& rhs)
+  {
+    // We just check the section names to start with
+    auto&& lhs_names = lhs.section_names();
+    auto&& rhs_names = rhs.section_names();
+
+    // Check if the sizes differ. This is not an optimization since
+    // std::equal does not work properly on ranges of unequal size.
+    if (lhs_names.size() != rhs_names.size())
+      return false;
+
+    // Put the lists in vectors and sort them
+    std::vector<std::pair<std::string, std::string>>
+      lhs_vec(lhs_names.begin(), lhs_names.end());
+    std::sort(lhs_vec.begin(), lhs_vec.end());
+
+    std::vector<std::pair<std::string, std::string>>
+      rhs_vec(rhs_names.begin(), rhs_names.end());
+    std::sort(rhs_vec.begin(), rhs_vec.end());
+
+    // Compare the elements of the sorted vectors
+    return std::equal(lhs_vec.begin(), lhs_vec.end(), rhs_vec.begin());
+  }
+
+  void show_not_equal(std::ostream& out,
+                      const Config& value,
+                      const Config& expect)
+  {
+    out << "Configurations not equal\n";
+    out << "\tWas: ";
+    for (auto&& val: value.section_names())
+      out << val.first << ":" << val.second << " ";
+    out << std::endl;
+    out << "\tExpected: ";
+    for (auto&& val: expect.section_names())
+      out << val.first << ":" << val.second << " ";
+    out << std::endl;
+  }
+};
 
 void test_config_basic()
 {
@@ -237,12 +281,62 @@ void test_config_update() {
   expect_exception<bad_section>([&one, &two]{ one.update(two); });
 }
 
-int main()
+void test_config_read_basic(const Path& here)
+{
+  // Here are three different sources of configurations that should
+  // all be identical. One is a single file, one is a directory, and
+  // one is a stream.
+
+  Config dir_config = Config(Config::allow_keys);
+  dir_config.read(here.join("data/logger.d"), "*.cfg");
+
+  Config file_config = Config(Config::allow_keys);
+  file_config.read(here.join("data/logger.cfg"));
+
+  const char *const config_string =
+    ("[DEFAULT]\n"
+     "logdir = var/log\n"
+     "etcdir = etc\n"
+     "libdir = var/lib\n"
+     "rundir = var/run\n"
+     "[logger]\n"
+     "library = logger\n"
+     "[example]\n"
+     "library = example\n"
+     "[magic]\n"
+     "library = magic\n"
+     "message = Some kind of\n");
+
+  Config stream_config(Config::allow_keys);
+  std::istringstream stream_input(config_string);
+  stream_config.read(stream_input);
+
+  expect_equal(dir_config, file_config);
+  expect_equal(dir_config, stream_config);
+  expect_equal(file_config, stream_config);
+}
+
+
+// Here we test that reads of configuration entries overwrite previous
+// read entries.
+void test_config_read_overwrite(const Path& here)
+{
+  Config config = Config(Config::allow_keys);
+  config.read(here.join("data/logger.d"), "*.cfg");
+  expect_equal(config.get("magic", "").get("message"), "Some kind of");
+  config.read(here.join("data/magic-alt.cfg"));
+  expect_equal(config.get("magic", "").get("message"), "Another message");
+}
+
+
+int main(int argc, char *argv[])
 {
   try {
     test_config_basic();
     test_config_parser_basic();
     test_config_update();
+    test_config_read_basic(Path(argv[0]).dirname());
+    test_config_read_overwrite(Path(argv[0]).dirname());
   }
   catch (std::runtime_error& exc) {
     std::cerr << exc.what() << std::endl;
