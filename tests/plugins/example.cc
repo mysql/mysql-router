@@ -11,17 +11,17 @@ static const char* requires[] = {
   "logger",
 };
 
-static int init(AppInfo* info) {
+static int init(AppInfo*) {
   extern void do_magic();
   do_magic();
   return 0;
 }
 
-static int deinit(AppInfo* info) {
+static int deinit(AppInfo*) {
   return 0;
 }
 
-static void *start(AppInfo* info) {
+static void *start(AppInfo*) {
   for (int x = 0 ; x < 10 ; ++x) {
     log_info("<count: %d>", x);
     sleep(1);

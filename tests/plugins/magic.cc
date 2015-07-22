@@ -20,9 +20,10 @@ Plugin magic = {
   "A magic plugin",
   VERSION_NUMBER(1,2,3),
   0,
-  NULL,
+  nullptr,
   0,
-  NULL,
+  nullptr,
   init,
-  NULL,
+  nullptr,
+  nullptr,
 };

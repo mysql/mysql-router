@@ -1,3 +1,5 @@
+// -*- Mode: C++ -*-
+
 #ifndef HELPERS_INCLUDED
 #define HELPERS_INCLUDED
 
@@ -8,17 +10,18 @@
 #include <string>
 #include <typeinfo>
 #include <iterator>
+#include <vector>
 
-using std::includes;
-using std::set_difference;
 
 template <class Exception, class Function>
 void expect_exception(Function func)
 {
-  try {
+  try
+  {
     func();
   }
-  catch (Exception& exc) {
+  catch (Exception& exc)
+  {
     return;
   }
 
@@ -42,12 +45,14 @@ struct TestTraits
 template <class Elem>
 struct TestTraits<std::vector<Elem>>
 {
-  bool equal(const std::vector<Elem>& lhs, const std::vector<Elem>& rhs) {
+  bool equal(const std::vector<Elem>& lhs, const std::vector<Elem>& rhs)
+  {
     if (lhs.size() != rhs.size())
         return false;
 
     return std::equal(lhs.begin(), lhs.end(), rhs.begin());
   }
+
   void show_not_equal(std::ostream& out,
                       const std::vector<Elem>& value,
                       const std::vector<Elem>& expect)
@@ -64,7 +69,8 @@ struct TestTraits<std::vector<Elem>>
 template <>
 struct TestTraits<const char*>
 {
-  bool equal(const char *a, const char *b) {
+  bool equal(const char *a, const char *b)
+  {
     return strcmp(a, b) == 0;
   }
 
@@ -83,7 +89,7 @@ void _expect(bool value, const std::string& expr, const std::string& expect)
 
 #define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
 
-template < class Type1, class Type2, class Traits = TestTraits<Type1> >
+template <class Type1, class Type2, class Traits = TestTraits<Type1>>
 void expect_equal(Type1 value, Type2 expect, Traits traits = Traits())
 {
   if (!traits.equal(value, expect))
@@ -94,7 +100,7 @@ void expect_equal(Type1 value, Type2 expect, Traits traits = Traits())
   }
 }
 
-template <class Type, class Traits = TestTraits<Type> >
+template <class Type, class Traits = TestTraits<Type>>
 void expect_less(Type value, Type expect, Traits traits = Traits())
 {
   if (!traits.less(value, expect))

@@ -99,7 +99,7 @@ test_directory(const std::string& program)
   }
 }
 
-int main(int argc, char *argv[])
+int main(int, char *argv[])
 {
   try {
     test_path(argv[0]);

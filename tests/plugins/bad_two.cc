@@ -6,11 +6,11 @@ static const char* requires[] = {
   "magic (>>1.2.3)",
 };
 
-static int init(AppInfo* info) {
+static int init(AppInfo*) {
   return 0;
 }
 
-static int deinit(AppInfo* info) {
+static int deinit(AppInfo*) {
   return 0;
 }
 
@@ -21,7 +21,8 @@ Plugin bad_two = {
   sizeof(requires)/sizeof(*requires),
   requires,
   0,
-  NULL,
+  nullptr,
   init,
   deinit,
+  nullptr,
 };

@@ -46,7 +46,5 @@ my_add_test(TestUtilities SOURCES test_utilities.cc)
 my_add_test(TestFilesystem SOURCES test_filesystem.cc REQUIRES harness)
 my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
 
-if(NOT EXISTS  ${CMAKE_BINARY_DIR}/tests/data)
-    file(GLOB_RECURSE test_data_files ${PROJECT_SOURCE_DIR}/tests/data/*)
-    file(COPY ${test_data_files} DESTINATION ${CMAKE_BINARY_DIR}/tests/data)
-endif()
+add_custom_command(TARGET TestConfig POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/tests/data ${CMAKE_BINARY_DIR}/tests/data)

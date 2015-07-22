@@ -35,7 +35,7 @@ endif()
 find_package(Threads REQUIRED)
 
 # Increase warning level for code
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wconversion -Wpedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
 
 enable_testing()
 add_subdirectory(harness)

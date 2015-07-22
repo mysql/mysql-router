@@ -5,11 +5,11 @@ static const char* requires[] = {
   "foobar",
 };
 
-static int init(AppInfo* info) {
+static int init(AppInfo*) {
   return 0;
 }
 
-static int deinit(AppInfo* info) {
+static int deinit(AppInfo*) {
   return 0;
 }
 
@@ -20,7 +20,8 @@ Plugin bad_one = {
   sizeof(requires)/sizeof(*requires),
   requires,
   0,
-  NULL,
+  nullptr,
   init,
   deinit,
+  nullptr,
 };

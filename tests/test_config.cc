@@ -81,7 +81,7 @@ void test_config_basic()
   expect_equal(config.has("magic"), true);
 
   Config::SectionList sections = config.get("magic");
-  expect_equal(sections.size(), 1);
+  expect_equal(sections.size(), 1U);
   ConfigSection& section = sections.front();
 
   if (section.name != "magic")
@@ -105,7 +105,7 @@ void test_config_basic()
 
 void check_config(Config& config) {
   Config::SectionList sections = config.get("one");
-  expect_equal(sections.size(), 1);
+  expect_equal(sections.size(), 1U);
   ConfigSection& section = sections.front();
   if (section.name != "one")
     throw std::runtime_error("Expected 'one', got " + section.name);
@@ -209,7 +209,7 @@ void test_config_parser_basic()
       expect_exception<std::exception>([&config, &input]{
           config.read(input);
           auto&& sections = config.get("one");
-          expect_equal(sections.size(), 1);
+          expect_equal(sections.size(), 1U);
           ConfigSection& section = sections.front();
           expect_equal(section.get("foo"), "bar");
           expect_equal(config_get(&config, "one", "foo"), "bar");
@@ -240,7 +240,7 @@ void test_config_parser_basic()
       expect_exception<std::exception>([&config, &input] {
         config.read(input);
         auto&& sections = config.get("one");
-        expect_equal(sections.size(), 1);
+        expect_equal(sections.size(), 1U);
         ConfigSection& section = sections.front();
         expect_equal(section.get("foo"), "bar");
       });
@@ -329,7 +329,7 @@ void test_config_read_overwrite(const Path& here)
 }
 
 
-int main(int argc, char *argv[])
+int main(int, char *argv[])
 {
   try {
     test_config_basic();

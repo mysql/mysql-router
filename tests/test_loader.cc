@@ -141,7 +141,7 @@ static void test_init(Loader *loader)
 }
 
 
-int main(int argc, char *argv[])
+int main(int, char *argv[])
 {
   Path here = Path(argv[0]).dirname();
   std::map<std::string, std::string> params;
