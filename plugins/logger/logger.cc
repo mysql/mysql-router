@@ -1,7 +1,7 @@
 #include "logger.h"
 
 #include <mysql/harness/plugin.h>
-#include <mysql/harness/path_utils.h>
+#include <mysql/harness/filesystem.h>
 
 #include <cerrno>
 #include <string>
@@ -34,8 +34,7 @@ init(AppInfo* info)
     g_log_fd = stdout;
   }
   else {
-    const std::string
-      log_file(mkpath(info->logdir, info->program, "log"));
+    const Path log_file(Path::make_path(info->logdir, info->program, "log"));
     g_log_fd = fopen(log_file.c_str(), "a");
     if (!g_log_fd) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",
