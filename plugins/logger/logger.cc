@@ -26,7 +26,7 @@ const char *level_str[] = {
 static FILE* g_log_fd = NULL;
 
 static int
-init(AppInfo* info)
+init(const AppInfo* info)
 {
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.

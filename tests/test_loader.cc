@@ -163,9 +163,10 @@ int main(int, char *argv[])
     loader.read(here.join("data/tests-bad-3.cfg"));
     });
 
+  for (auto cfgfile: { "data/tests-good-1.cfg", "data/tests-good-2.cfg" })
   {
     Loader loader("harness", params);
-    loader.read(here.join("data/tests-good-1.cfg"));
+    loader.read(here.join(cfgfile));
     test_available(&loader, 6);
     if (int error = test_loading(&loader))
       exit(error);

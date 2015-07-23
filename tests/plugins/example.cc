@@ -11,22 +11,22 @@ static const char* requires[] = {
   "logger",
 };
 
-static int init(AppInfo*) {
+static int init(const AppInfo*) {
   extern void do_magic();
   do_magic();
   return 0;
 }
 
-static int deinit(AppInfo*) {
+static int deinit(const AppInfo*) {
   return 0;
 }
 
-static void *start(AppInfo*) {
+static void *start(const ConfigSection*) {
   for (int x = 0 ; x < 10 ; ++x) {
     log_info("<count: %d>", x);
     sleep(1);
   }
-  return NULL;
+  return nullptr;
 }
 
 Plugin example = {
@@ -36,7 +36,7 @@ Plugin example = {
   sizeof(requires)/sizeof(*requires),
   requires,
   0,
-  NULL,
+  nullptr,
   init,
   deinit,
   start,
