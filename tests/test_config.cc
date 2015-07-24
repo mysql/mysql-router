@@ -106,14 +106,26 @@ void test_config_basic()
 void check_config(Config& config) {
   Config::SectionList sections = config.get("one");
   expect_equal(sections.size(), 1U);
+
   ConfigSection* section = sections.front();
   if (section->name != "one")
     throw std::runtime_error("Expected 'one', got " + section->name);
 
   expect_equal(section->get("foo"), "bar");
+
+  // Checking that getting a non-existient option in an existing
+  // section throws exception.
+  expect_exception<bad_option>([&config, &section]{
+      section->get("not-in-section");
+    });
+
   config.clear();
   expect_equal(config.empty(), true);
-  expect_exception<bad_section>([&config]{ config.get("one"); });
+
+  // Checking that getting a non-existent section throws exception
+  expect_exception<bad_section>([&config]{
+      config.get("one");
+    });
 }
 
 void test_config_parser_basic()
@@ -274,6 +286,12 @@ void test_config_update() {
   expect_equal(one.get("two"), "second");
   expect_equal(two.get("one"), "first");
 
+  // Non-existent options should still throw an exception
+  auto&& section = config.get("one", "");
+  expect_exception<bad_option>([&config, &section]{
+      section.get("not-in-section");
+    });
+
   // Check that merging sections with mismatching names generates an
   // exception
   expect_exception<bad_section>([&one, &two]{ one.update(two); });
@@ -322,8 +340,25 @@ void test_config_read_overwrite(const Path& here)
   Config config = Config(Config::allow_keys);
   config.read(here.join("data/logger.d"), "*.cfg");
   expect_equal(config.get("magic", "").get("message"), "Some kind of");
+
+  // Non-existent options should still throw an exception
+  {
+    auto&& section = config.get("magic", "");
+    expect_exception<bad_option>([&config, &section]{
+        section.get("not-in-section");
+      });
+  }
+
   config.read(here.join("data/magic-alt.cfg"));
   expect_equal(config.get("magic", "").get("message"), "Another message");
+
+  // Non-existent options should still throw an exception
+  {
+    auto&& section = config.get("magic", "");
+    expect_exception<bad_option>([&config, &section]{
+        section.get("not-in-section");
+      });
+  }
 }
 
 
