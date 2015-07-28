@@ -95,8 +95,9 @@ The main `CMakeLists.txt` file provide an `add_plugin` macro that can
 be used add new plugins.
 
     add_plugin(<name> [ NO_INSTALL ]
+               INTERFACE <directory>
                SOURCES <source> ...
-               INTERFACE <directory> ...)
+               REQUIRES <plugin> ...)
 
 This macro adds a plugin named `<name>` built from the given
 sources. If `NO_INSTALL` is provided, it will not be installed with
@@ -198,3 +199,34 @@ only parameter. When all the plugins return from their `start()`
 functions, the harness will perform cleanup and exit.
 
 
+License
+-------
+
+License information can be found in the License.txt file.
+
+MySQL FOSS License Exception
+We want free and open source software applications under certain
+licenses to be able to use specified GPL-licensed MySQL client
+libraries despite the fact that not all such FOSS licenses are
+compatible with version 2 of the GNU General Public License.
+Therefore there are special exceptions to the terms and conditions
+of the GPLv2 as applied to these client libraries, which are
+identified and described in more detail in the FOSS License
+Exception at
+<http://www.mysql.com/about/legal/licensing/foss-exception.html>.
+
+This distribution may include materials developed by third
+parties. For license and attribution notices for these
+materials, please refer to the documentation that accompanies
+this distribution (see the "Licenses for Third-Party Components"
+appendix) or view the online documentation at
+<http://dev.mysql.com/doc/>.
+
+GPLv2 Disclaimer
+For the avoidance of doubt, except that if any license choice
+other than GPL or LGPL is available it will apply instead,
+Oracle elects to use only the General Public License version 2
+(GPLv2) at this time for any software where a choice of GPL
+license versions is made available with the language indicating
+that GPLv2 or any later version may be used, or where a choice
+of which version of the GPL is applied is otherwise unspecified.
