@@ -6,6 +6,11 @@ unloading of *plugins*. The built-in features are dependency tracking
 between plugins, configuration file handling, and support for plugin
 life-cycles.
 
+For the avoidance of doubt, this particular copy of the software is
+released under the version 2 of the GNU General Public License.
+
+Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+
 Building
 --------
 
