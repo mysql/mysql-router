@@ -17,6 +17,7 @@ set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL "Whether to install the Harness provi
 
 include(CPack)
 include(Plugin)
+include(Docs)
 
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)
