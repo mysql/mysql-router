@@ -38,12 +38,11 @@ static int deinit(AppInfo*) {
   return 0;
 }
 
-static void *start(AppInfo*) {
+static void start(AppInfo*) {
   for (int x = 0 ; x < 10 ; ++x) {
     log_info("<count: %d>", x);
     sleep(1);
   }
-  return NULL;
 }
 
 Plugin example = {
