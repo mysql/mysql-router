@@ -1,0 +1,40 @@
+# Generated from doc/doxygen.cfg.in
+
+# This file describes the settings to be used by Doxygen for MySQL Router.
+
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "MySQL Router"
+PROJECT_NUMBER         =
+PROJECT_BRIEF          = "Route MySQL connections"
+PROJECT_LOGO           =
+
+OUTPUT_DIRECTORY       = doc
+OUTPUT_LANGUAGE        = English
+GENERATE_LATEX         = NO
+BRIEF_MEMBER_DESC      = YES
+REPEAT_BRIEF           = NO
+OPTIMIZE_OUTPUT_FOR_C  = NO
+EXTENSION_MAPPING      = cc=C++
+
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+
+BUILTIN_STL_SUPPORT    = YES
+
+EXTRACT_PRIVATE        = YES
+INTERNAL_DOCS          = YES
+CASE_SENSE_NAMES       = NO
+
+RECURSIVE              = YES
+INPUT                  = @CMAKE_SOURCE_DIR@/README.md @CMAKE_SOURCE_DIR@/src/
+EXCLUDE_PATTERNS       = */tests/*
+USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+
+HTML_HEADER            = @CMAKE_SOURCE_DIR@/doc/router_header.html
+HTML_FOOTER            = @CMAKE_SOURCE_DIR@/doc/router_footer.html
+HTML_EXTRA_STYLESHEET  = @CMAKE_SOURCE_DIR@/doc/router_doxygen.css
+
+ALIASES               += devnote="<div class=\"devnote\">\n\internal \n"
+ALIASES               += enddevnote="\endinternal \n</div>"
+
+WARN_IF_UNDOCUMENTED   = NO

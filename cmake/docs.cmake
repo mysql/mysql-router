@@ -13,24 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(CURR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+find_package(Doxygen)
 
-file(GLOB MODULE_DIRS
-   RELATIVE ${CURR_DIR}
-   ${CURR_DIR}/*)
+if (DOXYGEN_FOUND)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/doc)
 
-# Load all modules
-foreach(module_name ${MODULE_DIRS})
-  set(mod_dir "${CURR_DIR}/${module_name}")
-  if(module_name STREQUAL "harness")
-      # Harness is loaded from the root CMakeLists.txt
-  elseif(IS_DIRECTORY ${mod_dir})
-    if(EXISTS "${mod_dir}/CMakeLists.txt")
-      message(STATUS "Loading MySQL Router module '${module_name}'")
-      add_subdirectory(${module_name})
-    else()
-      message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")
-    endif()
-  endif()
-  unset(mod_dir)
-endforeach()
+  configure_file(doc/doxygen.cfg.in ${CMAKE_BINARY_DIR}/doc/doxgen.cfg @ONLY)
+
+  foreach(f router_footer.html router_header.html router_doxygen.css)
+    file(COPY ${CMAKE_SOURCE_DIR}/doc/${f} DESTINATION ${CMAKE_BINARY_DIR}/doc/${f})
+  endforeach()
+
+  add_custom_target(doc ${DOXYGEN_EXECUTABLE} doc/doxgen.cfg
+    COMMAND pwd
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Generate MySQL Router developer documentation"
+    VERBATIM)
+endif()

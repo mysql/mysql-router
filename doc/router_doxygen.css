@@ -1,0 +1,28 @@
+.fragment {
+  font-size: 80% !important;
+}
+
+.textblock, .memitem {
+  width: 600px !important;
+}
+
+.memdoc p {
+}
+
+.devnote h6 {
+  font-color: orange;
+  font-weight: bold;
+  font-size: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+.devnote p {
+  margin: 0;
+}
+
+.devnote {
+  border-left: solid 3px orange;
+  padding-left: 3px;
+  margin-bottom: 5px;
+}

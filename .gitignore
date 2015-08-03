@@ -25,10 +25,11 @@
 # Folders
 /.DS_Store
 /build
-/gtest
-/gtest*
-/boost
-/boost*
+/gtest/**
+/gmock/**
+/harness/**
+/doc/html
+/doc/latex
 
 # Python
 *__pycache__*

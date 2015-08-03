@@ -1,7 +1,7 @@
-MySQL Router 1.0
+MySQL Router 2.0
 ================
 
-This is a release of MySQL Router, part of MySQL Fabric 1.6.
+This is a release of MySQL Router.
 
 For the avoidance of doubt, this particular copy of the software
 is released under the version 2 of the GNU General Public License.
@@ -21,12 +21,16 @@ All tests can be run doing the following:
     shell> make
     shell> make test
 
-After running `make`, test executables and scripts are available
-in the folder `tests/bin`. You can directly execute these tests
+After running `make`, individual test executables and scripts are available
+in under the folder `tests/`. You can directly execute these tests
 like this:
 
-    shell> ./tests/bin/tools/boost_libs
-    shell> python -B tests/bin/tools/python_exec.py
+    shell> ./tests/bin/router/test_mysqlrouter_app
+
+Python tests can be ran as follows:
+
+    shell> PYTHONPATH="." python -B tests/project_tests/copyright.py \
+        --cmake-source-dir ..
 
 
 Documentation
@@ -42,6 +46,15 @@ You can browse the MySQL Reference Manual online or download it
 in any of several formats at the URL given earlier in this file.
 Source distributions include a local copy of the manual in the
 Docs directory.
+
+Developer documention can be build when Doxygen 1.8.9 or greater
+has been installed:
+
+    shell> cd build
+    shell> cmake ..
+    shell> make doc
+
+You can then open the folder `doc/html/index.html` in your browser.
 
 
 License

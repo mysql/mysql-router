@@ -15,14 +15,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "router_app.h"
+
 #include <iostream>
 
-#include "router.h"
+int main(int argc, char **argv) {
+  try {
+    MySQLRouter router(argc, argv);
+    router.start();
+  } catch(const std::runtime_error &exc) {
+    std::cout << "Error: " << exc.what() << std::endl;
+    return 1;
+  }
 
-using std::cout;
-using std::endl;
-
-int main(int argc, char** argv)
-{
-    cout << "MySQL Router" << endl;
+  return 0;
 }
