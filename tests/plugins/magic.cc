@@ -17,19 +17,23 @@
 
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/logger.h>
+#include <mysql/harness/config_parser.h>
 
 #include <cstdlib>
 #include <iostream>
 
-AppInfo* g_info;
+const AppInfo* g_info;
+const ConfigSection* g_section;
 
-static int init(AppInfo* info) {
+static int init(const AppInfo* info) {
   g_info = info;
   return 0;
 }
 
 void do_magic() {
-  log_info("%s", config_get(g_info->config, "magic", "message"));
+  auto&& section = g_info->config->get("magic", "");
+  auto&& message = section.get("message");
+  log_info("%s", message.c_str());
 }
 
 Plugin magic = {
@@ -41,6 +45,6 @@ Plugin magic = {
   0,
   nullptr,
   init,
-  nullptr,
-  nullptr,
+  nullptr,                                      // deinit
+  nullptr,                                      // start
 };

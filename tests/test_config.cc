@@ -99,22 +99,22 @@ void test_config_basic()
 
   Config::SectionList sections = config.get("magic");
   expect_equal(sections.size(), 1U);
-  ConfigSection& section = sections.front();
+  ConfigSection* section = sections.front();
 
-  if (section.name != "magic")
-    throw std::runtime_error("Expected 'magic', got " + section.name);
+  if (section->name != "magic")
+    throw std::runtime_error("Expected 'magic', got " + section->name);
 
   // Test that fetching a non-existing option in a section throws an
   // exception.
   expect_exception<std::runtime_error>([&]{
-      section.get("my_option");
+      section->get("my_option");
     });
 
   // Set the value of the option in the section
-  section.set("my_option", "my_value");
+  section->set("my_option", "my_value");
 
   // Check that the value can be retrieved.
-  const std::string value = section.get("my_option");
+  const std::string value = section->get("my_option");
   if (value != "my_value")
     throw std::runtime_error("Expected 'my_value', got " + value);
 }
@@ -123,14 +123,26 @@ void test_config_basic()
 void check_config(Config& config) {
   Config::SectionList sections = config.get("one");
   expect_equal(sections.size(), 1U);
-  ConfigSection& section = sections.front();
-  if (section.name != "one")
-    throw std::runtime_error("Expected 'one', got " + section.name);
 
-  expect_equal(section.get("foo"), "bar");
+  ConfigSection* section = sections.front();
+  if (section->name != "one")
+    throw std::runtime_error("Expected 'one', got " + section->name);
+
+  expect_equal(section->get("foo"), "bar");
+
+  // Checking that getting a non-existient option in an existing
+  // section throws exception.
+  expect_exception<bad_option>([&config, &section]{
+      section->get("not-in-section");
+    });
+
   config.clear();
   expect_equal(config.empty(), true);
-  expect_exception<bad_section>([&config]{ config.get("one"); });
+
+  // Checking that getting a non-existent section throws exception
+  expect_exception<bad_section>([&config]{
+      config.get("one");
+    });
 }
 
 void test_config_parser_basic()
@@ -227,10 +239,8 @@ void test_config_parser_basic()
           config.read(input);
           auto&& sections = config.get("one");
           expect_equal(sections.size(), 1U);
-          ConfigSection& section = sections.front();
-          expect_equal(section.get("foo"), "bar");
-          expect_equal(config_get(&config, "one", "foo"), "bar");
-          expect_equal(config_get_with_key(&config, "one", "", "foo"), "bar");
+          ConfigSection* section = sections.front();
+          expect_equal(section->get("foo"), "bar");
         });
     }
   }
@@ -258,8 +268,8 @@ void test_config_parser_basic()
         config.read(input);
         auto&& sections = config.get("one");
         expect_equal(sections.size(), 1U);
-        ConfigSection& section = sections.front();
-        expect_equal(section.get("foo"), "bar");
+        ConfigSection* section = sections.front();
+        expect_equal(section->get("foo"), "bar");
       });
     }
   }
@@ -292,6 +302,12 @@ void test_config_update() {
   expect_equal(one.get("one"), "new first");
   expect_equal(one.get("two"), "second");
   expect_equal(two.get("one"), "first");
+
+  // Non-existent options should still throw an exception
+  auto&& section = config.get("one", "");
+  expect_exception<bad_option>([&config, &section]{
+      section.get("not-in-section");
+    });
 
   // Check that merging sections with mismatching names generates an
   // exception
@@ -341,8 +357,25 @@ void test_config_read_overwrite(const Path& here)
   Config config = Config(Config::allow_keys);
   config.read(here.join("data/logger.d"), "*.cfg");
   expect_equal(config.get("magic", "").get("message"), "Some kind of");
+
+  // Non-existent options should still throw an exception
+  {
+    auto&& section = config.get("magic", "");
+    expect_exception<bad_option>([&config, &section]{
+        section.get("not-in-section");
+      });
+  }
+
   config.read(here.join("data/magic-alt.cfg"));
   expect_equal(config.get("magic", "").get("message"), "Another message");
+
+  // Non-existent options should still throw an exception
+  {
+    auto&& section = config.get("magic", "");
+    expect_exception<bad_option>([&config, &section]{
+        section.get("not-in-section");
+      });
+  }
 }
 
 

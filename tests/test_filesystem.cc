@@ -89,6 +89,7 @@ test_directory(const std::string& program)
       dirname.join("data/tests-bad-2.cfg"),
       dirname.join("data/tests-bad-3.cfg"),
       dirname.join("data/tests-good-1.cfg"),
+      dirname.join("data/tests-good-2.cfg"),
       dirname.join("data/magic-alt.cfg"),
     };
 

@@ -8,8 +8,15 @@
 # The add_plugin command will set up a new plugin target and also set
 # the install location of the target correctly.
 #
+# Plugins that are normally put under the "lib" directory of the build
+# root, but see the caveat in the next paragraph.
+#
 # If NO_INSTALL is provided, it will not be installed, which is useful
-# if the plugin is only for testing purposes.
+# if the plugin is only for testing purposes. These plugins are also
+# left in their default location and not moved to the "lib"
+# directory. If you want to move the plugin to some specific
+# directory, you have to set the target property
+# LIBRARY_OUTPUT_DIRECTORY yourself.
 #
 # Files provided after the SOURCES keyword are the sources to build
 # the plugin from, while the files in the directory after INTERFACE
@@ -17,7 +24,7 @@
 #
 # The macro will create two targets:
 #
-#    <NAME>-INTERFACE is the target for the interface.
+#    <NAME>-INTERFACE is the target for the interface header files.
 #    <NAME> is the target for the library.
 #
 # All plugins are automatically dependent on the harness interface.
@@ -58,6 +65,15 @@ macro(ADD_PLUGIN NAME)
   # system (no "lib" before).
   add_library(${NAME} MODULE ${sources})
   set_target_properties(${NAME} PROPERTIES PREFIX "")
+
+  # If the plugin is intended to be installed, we move it to the "lib"
+  # directory under the build root. For plugins that are not going to
+  # be installed, user have to define the output directory themselves.
+  if (NOT NO_INSTALL)
+    set_target_properties(${NAME} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  endif()
+
   target_link_libraries(${NAME} ${Boost_LIBRARIES})
 
   # Need to be able to link plugins with each other
