@@ -38,12 +38,11 @@ static int deinit(const AppInfo*) {
   return 0;
 }
 
-static void *start(const ConfigSection*) {
+static void start(const ConfigSection*) {
   for (int x = 0 ; x < 10 ; ++x) {
     log_info("<count: %d>", x);
     sleep(1);
   }
-  return nullptr;
 }
 
 Plugin example = {
