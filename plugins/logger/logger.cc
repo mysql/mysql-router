@@ -47,11 +47,11 @@ init(const AppInfo* info)
 {
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
-  if (info->logdir == NULL || strlen(info->logdir) == 0) {
+  if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
     g_log_fd = stdout;
   }
   else {
-    const Path log_file(Path::make_path(info->logdir, info->program, "log"));
+    const Path log_file(Path::make_path(info->logging_folder, info->program, "log"));
     g_log_fd = fopen(log_file.c_str(), "a");
     if (!g_log_fd) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",

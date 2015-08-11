@@ -328,10 +328,10 @@ void test_config_read_basic(const Path& here)
 
   const char *const config_string =
     ("[DEFAULT]\n"
-     "logdir = var/log\n"
-     "etcdir = etc\n"
-     "libdir = var/lib\n"
-     "rundir = var/run\n"
+     "logging_folder = var/log\n"
+     "config_folder = etc\n"
+     "plugin_folder = var/lib\n"
+     "runtime_folder = var/run\n"
      "[logger]\n"
      "library = logger\n"
      "[example]\n"

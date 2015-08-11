@@ -59,10 +59,10 @@ example in `data/router.cfg`:
     # Example configuration file for router
 
     [DEFAULT]
-    logdir = /var/log/router
-    etcdir = /etc/mysql/router
-    libdir = /var/lib/router
-    rundir = /var/run/router
+    logging_folder = /var/log/router
+    config_folder = /etc/mysql/router
+    plugin_folder = /var/lib/router
+    runtime_folder = /var/run/router
 
     [example]
     library = example
@@ -141,10 +141,10 @@ provided:
 
     struct AppInfo {
       const char *program;                 /* Name of the application */
-      const char *libdir;                  /* Location of plugins */
-      const char *logdir;                  /* Log file directory */
-      const char *etcdir;                  /* Config file directory */
-      const char *rundir;                  /* Run file directory */
+      const char *plugin_folder;           /* Location of plugins */
+      const char *logging_folder;          /* Log file directory */
+      const char *config_folder;           /* Config file directory */
+      const char *runtime_folder;          /* Run file directory */
       const Config* config;                /* Configuration information */
     };
 
