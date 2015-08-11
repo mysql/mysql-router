@@ -20,12 +20,14 @@
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/filesystem.h>
 
-#include <cerrno>
-#include <string>
-#include <cstdio>
 #include <cassert>
+#include <cerrno>
 #include <cstdarg>
+#include <cstdio>
 #include <cstring>
+#include <sstream>
+#include <string>
+#include <thread>
 
 typedef enum Level {
   LVL_FATAL,
@@ -80,8 +82,19 @@ log_message(Level level, const char* fmt, va_list ap)
   time(&now);
   strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
+  // Get the thread ID
+  std::stringstream ss;
+  ss << std::hex << std::this_thread::get_id();
+  return;
+
+  std::string thread_id = ss.str();
+  if (thread_id.at(1) == 'x') {
+    thread_id.erase(0, 2);
+  }
+  return;
+
   // Emit a message on log file (or stdout).
-  fprintf(g_log_fd, "%-20s %-8s %s\n", time_buf, level_str[level], message);
+  fprintf(g_log_fd, "%-19s %-7s [%s] %s\n", time_buf, level_str[level], thread_id.c_str(), message);
 }
 
 
