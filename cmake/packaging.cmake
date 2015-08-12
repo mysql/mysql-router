@@ -38,7 +38,7 @@ set(CPACK_SOURCE_IGNORE_FILES
   "/gmock/"
   "/doc/html/"
   "/doc/latex/"
-  "\\.pyc$"
+  "\\\\.pyc$"
   "/__pycache__/"
 )
 
