@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-set(CPACK_PACKAGE_NAME "mysqlrouter")
+set(CPACK_PACKAGE_NAME "mysql-router")
 set(CPACK_PACKAGE_VENDOR "Oracle")
 
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_TEXT})
