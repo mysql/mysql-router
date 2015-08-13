@@ -27,19 +27,26 @@ set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
 set(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
 
-set(CPACK_SOURCE_IGNORE_FILES
-  "/.idea/"
-  "/.git/"
-  "/.gitignore"
-  "/.DS_Store/"
-  "/build/"
-  "/harness/build/"
-  "/gtest/"
-  "/gmock/"
-  "/doc/html/"
-  "/doc/latex/"
-  "\\\\.pyc$"
-  "/__pycache__/"
-)
+# We ignore all files in the root of the repository and then
+# exclude from the list which we want to keep.
+file(GLOB cpack_source_ignore_files "${CMAKE_SOURCE_DIR}/*")
+set(src_dir ${CMAKE_SOURCE_DIR})
+set(source_include
+  "${src_dir}/harness"
+  "${src_dir}/cmake"
+  "${src_dir}/doc"
+  "${src_dir}/src"
+  "${src_dir}/tests"
+  "${src_dir}/CMakeLists.txt"
+  "${src_dir}/config.h.in"
+  "${src_dir}/README.txt"
+  "${src_dir}/License.txt")
+list(REMOVE_ITEM cpack_source_ignore_files ${source_include})
+list(APPEND cpack_source_ignore_files "${src_dir}/harness/.gitignore")
+
+# We need to escape the dots
+string(REPLACE "." "\\\\." cpack_source_ignore_files "${cpack_source_ignore_files}")
+
+set(CPACK_SOURCE_IGNORE_FILES "${cpack_source_ignore_files}")
 
 include(CPack)
