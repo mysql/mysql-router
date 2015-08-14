@@ -26,6 +26,25 @@ import subprocess
 import sys
 import unittest
 
+# Ignore file extensions
+IGNORE_FILE_EXT = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.cfg', '.html', '.css', '.ini', '.gitignore']
+
+# Folders not checked, relative to repository root
+IGNORE_FOLDERS = [
+    os.path.join('.git'),
+    os.path.join('.idea'),
+    os.path.join('build'),
+    os.path.join('gtest'),
+    os.path.join('boost'),
+]
+
+# Files not checked, relative to repository root
+IGNORE_FILES = [
+    os.path.join('License.txt'),
+    os.path.join('harness', 'License.txt'),
+    os.path.join('harness', 'Doxyfile.in'),
+]
+
 
 class ArgHelpFormatter(argparse.HelpFormatter):
 

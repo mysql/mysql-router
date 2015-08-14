@@ -32,12 +32,13 @@ endfunction()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   check_cxx11()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
-  # Specifics for external libraries when testing
   if(ENABLE_TESTS)
-    set(CMAKE_CXX_FLAGS
-      "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-c++11-long-long -Wno-variadic-macros -Wno-sign-conversion")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
   endif()
+  # Specifics for external libraries when testing
+
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # Overview of MSVC versions: http://www.cmake.org/cmake/help/v3.3/variable/MSVC_VERSION.html
   if("${MSVC_VERSION}" VERSION_LESS 1800)

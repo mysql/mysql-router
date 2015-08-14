@@ -37,7 +37,9 @@ import sys
 from time import strptime
 import unittest
 
-from tests import get_arguments, get_path_root, seek_needle, git_tracked
+from tests import (
+    get_arguments, get_path_root, seek_needle, git_tracked,
+    IGNORE_FILE_EXT, IGNORE_FOLDERS, IGNORE_FILES)
 
 EXP_SHORT_LICENSE = """
 This program is free software; you can redistribute it and/or modify
@@ -54,26 +56,21 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
+EXP_SHORT_LICENSE_LINES = EXP_SHORT_LICENSE.split("\n")
 
 class TestLicense(unittest.TestCase):
 
     root_path = ''
-    _ignore_file_ext = ['.o', '.pyc', '.pyo', '.txt', '.md', '.ini.in', '.cfg.in', '.html', '.css', '.ini']
 
-    # Folders not checked, relative to root_path
-    _ignore_folders = [
-        os.path.join('.git'),
-        os.path.join('.idea'),
-        os.path.join('build'),
-        os.path.join('gtest'),
-        os.path.join('boost'),
-    ]
-
-    # Files not checked, relative to root_path
-    _ignore_files = [
-        os.path.join('.gitignore'),
-        os.path.join('License.txt'),
-    ]
+    extra_ignored_files = [
+        'README.md',
+        'README.txt',
+        'License.txt',
+        os.path.join('src', 'router', 'include', 'README.txt'),
+        os.path.join('harness', 'README.txt'),
+        os.path.join('harness', 'License.txt'),
+        os.path.join('harness', 'Doxyfile.in'),
+        ]
 
     def setUp(self):
         self.root_path = os.path.abspath(self.root_path)
@@ -89,43 +86,49 @@ class TestLicense(unittest.TestCase):
         with open(path, 'rb') as fp:
             # Go to the line containing the copyright statement
             line = seek_needle(fp, 'Copyright (c)')
-            self.assertTrue(
-                line is not None,
-                "Could not find start of license in %s" % path)
+            if not line:
+                return path + " (Copyright notice not found)"
 
             # Always blank line after copyright
-            line = next(fp)
+            try:
+                line = next(fp)
+            except StopIteration:
+                return path + " (no blank line after copyright)"
             if line[0] == '#':
                 line = line[1:]
-            self.assertEqual("", line.strip(),
-                             errmsg % 0)
+            if line.strip():
+                return path + " (no blank line after copyright)"
 
             # Now check license part
             curr_line = 1
-            exp_lines = EXP_SHORT_LICENSE.split("\n")
             for line in fp:
                 # Remove hash sign if present
                 if line[0] == '#':
                     line = line[1:]
-                if curr_line == len(exp_lines) - 1:
+                if curr_line == len(EXP_SHORT_LICENSE_LINES) - 1:
                     # We are at the end; skip blank
                     break
-                self.assertEqual(exp_lines[curr_line].strip(),
-                                 line.strip(),
-                                 errmsg % curr_line)
+                if not EXP_SHORT_LICENSE_LINES[curr_line].strip() == line.strip():
+                    return path + " (error line %d in short license)" % curr_line
                 curr_line += 1
-            self.assertEqual(13, curr_line)
+            if not 13 == curr_line:
+                return path + " (short license not 13 lines)"
 
+        return None
 
     def test_short_license_notice(self):
         """WL8400: Check short license notice"""
+
+        ignored_files = IGNORE_FILES + self.extra_ignored_files
+
+        failures = []
 
         for base, dirs, files in os.walk(self.root_path):
             if base != self.root_path:
                 relative_base = base.replace(self.root_path + os.sep, '')
             else:
                 relative_base = ''
-            if get_path_root(relative_base) in self._ignore_folders:
+            if get_path_root(relative_base) in IGNORE_FOLDERS:
                 continue
 
             for filename in files:
@@ -133,13 +136,17 @@ class TestLicense(unittest.TestCase):
                 if not git_tracked(fullpath):
                     continue
                 relative = os.path.join(relative_base, filename)
-                if relative in self._ignore_files:
+                if relative in ignored_files:
                     continue
 
-                if not any([filename.endswith(ext)
-                        for ext in self._ignore_file_ext]):
+                if not any([filename.endswith(ext) for ext in IGNORE_FILE_EXT]):
                     if os.path.getsize(fullpath):
-                        self._check_license_presence(fullpath)
+                        result = self._check_license_presence(fullpath)
+                        if result:
+                            failures.append(result)
+
+        if failures:
+            self.fail("Check license in following files: \n" + '\n'.join(failures) + "\n")
 
     def test_license_txt(self):
         """WL8400: Check content of License.txt"""

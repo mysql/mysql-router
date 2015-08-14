@@ -35,28 +35,14 @@ import sys
 from time import strptime
 import unittest
 
-from tests import get_arguments, get_path_root, git_tracked
+from tests import (
+    get_arguments, get_path_root, git_tracked,
+    IGNORE_FILE_EXT, IGNORE_FOLDERS, IGNORE_FILES)
 
 
 class TestCopyright(unittest.TestCase):
 
     root_path = ''
-    _ignore_file_ext = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.html', '.css', '.ini']
-
-    # Folders not checked, relative to root_path
-    _ignore_folders = [
-        os.path.join('.git'),
-        os.path.join('.idea'),
-        os.path.join('build'),
-        os.path.join('gtest'),
-        os.path.join('boost'),
-    ]
-
-    # Files not checked, relative to root_path
-    _ignore_files = [
-        os.path.join('.gitignore'),
-        os.path.join('License.txt'),
-    ]
 
     def setUp(self):
         self.root_path = os.path.abspath(self.root_path)
@@ -87,24 +73,23 @@ class TestCopyright(unittest.TestCase):
             match = copyright_notice.match(line)
             if match:
                 years = match.groups()
-                self.assertTrue(
-                    str(year) in years,
-                    "Check year(s) in '{file}' ({year})".format(
-                        file=path, year=year))
-                return
+                if not str(year) in years:
+                    return path + " (year %s missing, file changed!)" % str(year)
+                return None                
 
-        self.fail("No copyright notice found in "
-                  "file '{file}'".format(file=path))
+        return path + " (copyright notice not present)"
 
     def test_copyright_notice(self):
         """WL8400: Check copyright and years in all relevant files"""
+
+        failures = []
 
         for base, dirs, files in os.walk(self.root_path):
             if base != self.root_path:
                 relative_base = base.replace(self.root_path + os.sep, '')
             else:
                 relative_base = ''
-            if get_path_root(relative_base) in self._ignore_folders:
+            if get_path_root(relative_base) in IGNORE_FOLDERS:
                 continue
 
             for filename in files:
@@ -113,14 +98,17 @@ class TestCopyright(unittest.TestCase):
                     continue
 
                 relative = os.path.join(relative_base, filename)
-                if relative in self._ignore_files:
+                if relative in IGNORE_FILES:
                     continue
 
-                if not any([filename.endswith(ext)
-                        for ext in self._ignore_file_ext]):
+                if not any([filename.endswith(ext) for ext in IGNORE_FILE_EXT]):
                     if os.path.getsize(fullpath):
-                        self._check_copyright_presence(fullpath)
+                        result = self._check_copyright_presence(fullpath)
+                        if result:
+                            failures.append(result)
 
+        if failures:
+            self.fail("Check copyright in following files: \n" + '\n'.join(failures) + "\n")
 
 if __name__ == '__main__':
     args = get_arguments(description=__doc__)
