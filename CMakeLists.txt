@@ -26,7 +26,9 @@ set (CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.0")
   cmake_policy(SET CMP0046 NEW)
-  cmake_policy(SET CMP0054 NEW)
+  if(${CMAKE_VERSION} VERSION_GREATER "3.1")
+    cmake_policy(SET CMP0054 NEW)
+  endif()
 endif()
 
 # Basic variables
