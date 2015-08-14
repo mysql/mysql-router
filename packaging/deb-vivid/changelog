@@ -1,0 +1,5 @@
+mysql-router (2.0.0-1ubuntu15.04) vivid; urgency=low
+
+  * initial version
+
+ -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Fri, 14 Aug 2015 10:01:55 +0100

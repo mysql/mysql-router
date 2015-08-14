@@ -35,6 +35,7 @@ include(cmake/settings.cmake)
 # Required tools, libraries, etc..
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
+include(cmake/install_layout.cmake)  # needs ARCH_64BIT
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
 include(cmake/harness.cmake)
