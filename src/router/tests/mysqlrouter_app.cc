@@ -118,34 +118,31 @@ TEST_F(AppTest, CmdLineConfig) {
   ASSERT_THAT(r.extra_config_files_, IsEmpty());
 }
 
+TEST_F(AppTest, CmdLineConfigFailRead) {
+  string not_existing = "foobar.ini";
+  vector<string> argv = {
+      "--config", stage_dir + not_existing,
+  };
+  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
+    ASSERT_THAT(exc.what(), HasSubstr(not_existing));
+  }
+}
+
 TEST_F(AppTest, CmdLineMultipleConfig) {
   vector<string> argv = {
       "--config", stage_dir + "/etc/mysqlrouter.ini",
       "-c", stage_dir + "/etc/config_a.ini",
       "--config", stage_dir + "/etc/config_b.ini"
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.config_files_.at(1).c_str(), argv.at(3).c_str());
-  ASSERT_STREQ(r.config_files_.at(2).c_str(), argv.at(5).c_str());
-  ASSERT_THAT(r.default_config_files_, IsEmpty());
-  ASSERT_THAT(r.extra_config_files_, IsEmpty());
-}
-
-TEST_F(AppTest, CmdLineMultipleDuplicateConfig) {
-  string duplicate = "config_a.ini";
-  vector<string> argv = {
-      "--config", stage_dir + "/etc/mysqlrouter.ini",
-      "-c", stage_dir + "/etc/" + duplicate,
-      "--config", stage_dir + "/etc/" + duplicate
-  };
   ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
   try {
     MySQLRouter r(argv);
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Duplicate configuration file"));
-    ASSERT_THAT(exc.what(), HasSubstr(duplicate));
+    ASSERT_THAT(exc.what(), HasSubstr("can only be used once"));
   }
 }
 
@@ -158,6 +155,20 @@ TEST_F(AppTest, CmdLineExtraConfig) {
   ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(1).c_str());
   ASSERT_THAT(r.default_config_files_, SizeIs(Ge(2)));
   ASSERT_THAT(r.config_files_, IsEmpty());
+}
+
+TEST_F(AppTest, CmdLineExtraConfigFailRead) {
+  string not_existing = "foobar.ini";
+  vector<string> argv = {
+      "--extra-config", stage_dir + not_existing,
+  };
+  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
+    ASSERT_THAT(exc.what(), HasSubstr(not_existing));
+  }
 }
 
 TEST_F(AppTest, CmdLineMultipleExtraConfig) {
@@ -237,7 +248,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   r.start();
   auto section = r.loader_->m_config.get("logger", "");
   ASSERT_THAT(section.get("foo"), StrEq("bar"));
-  // TODO: ASSERT_THROW(section.get("NotInTheSection"), bad_option);
+  ASSERT_THROW(section.get("NotInTheSection"), bad_option);
 }
 
 TEST_F(AppTest, CanStartTrue) {

@@ -279,8 +279,6 @@ private:
    */
   void set_default_config_files(const char *locations) NOEXCEPT;
 
-  /** @brief Vector with startup message as strings to be logged later **/
-  vector<string> startup_messages_;
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
@@ -290,6 +288,15 @@ private:
   std::vector<string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
   vector<string> config_files_;
+  /** @brief Vector with available and usable configuration files
+   *
+   * @devnote
+   * config_files_ is a vector but it should only contain 1 element since the command line
+   * option for passing these configuration files can only be used once. We use a vector
+   * to make it ourselves easier when looping through all types of configuration files.
+   * @enddevnote
+   */
+  vector<string> available_config_files_;
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;
   /** @brief Harness loader **/

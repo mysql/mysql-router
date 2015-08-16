@@ -59,7 +59,7 @@ void MySQLRouter::init(vector<string> arguments) {
     return;
   }
 
-  check_config_files();
+  available_config_files_ = check_config_files();
   can_start_ = true;
 }
 
@@ -75,28 +75,13 @@ void MySQLRouter::start() {
 
   try {
     loader_ = std::unique_ptr<Loader>(new Loader("router", params));
-    auto config_file_containers = {
-        &default_config_files_,
-        &config_files_,
-        &extra_config_files_
-    };
-    for (vector<string> *vec: config_file_containers) {
-      for (auto config_file: *vec) {
-        loader_->read(Path(config_file));
-      }
+    for (auto&& config_file: available_config_files_) {
+      loader_->read(Path(config_file));
     }
   } catch (const parser_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
-  }
-
-  if (!startup_messages_.empty()) {
-    for (auto msg: startup_messages_) {
-      std::cout << string_format(msg.c_str()) << std::endl;
-    }
-    startup_messages_.clear();
-    vector<string>().swap(startup_messages_);
   }
 
   loader_->start();
@@ -196,6 +181,11 @@ void MySQLRouter::prepare_command_options() NOEXCEPT {
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
+
+        if (!config_files_.empty()) {
+          throw std::runtime_error("Option -c/--config can only be used once; use -a/--extra-config instead.");
+        }
+
         // When --config is used, no defaults shall be read
         default_config_files_.clear();
 
@@ -203,6 +193,8 @@ void MySQLRouter::prepare_command_options() NOEXCEPT {
         if (abspath != nullptr) {
           config_files_.push_back(string(abspath));
           free(abspath);
+        } else {
+          throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
 
@@ -214,6 +206,8 @@ void MySQLRouter::prepare_command_options() NOEXCEPT {
         if (abspath != nullptr) {
           extra_config_files_.push_back(string(abspath));
           free(abspath);
+        } else {
+          throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
 }
