@@ -18,7 +18,7 @@ include_directories(${CMAKE_BINARY_DIR}/include)
 
 enable_testing()
 
-find_package(GMock 1.6.0)
+find_package(GMock)
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
