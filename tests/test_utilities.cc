@@ -19,53 +19,33 @@
 
 #include "helpers.h"
 
-#include <stdexcept>
-#include <string>
+#include "gtest/gtest.h"
+
 #include <cstring>
 #include <iostream>
+#include <map>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
-static void check_dirname(const std::string& path,
-                          const std::string& expected)
-{
-  std::string result = dirname(path);
-  if (result != expected)
-  {
-    char buf[256];
-    sprintf(buf, "dirname('%s') was '%s', expected '%s'",
-            path.c_str(), result.c_str(), expected.c_str());
-    throw std::runtime_error(std::string(buf));
-  }
+using std::map;
+using std::string;
+using std::pair;
+using std::make_pair;
+
+TEST(TestUtilities, Dirname) {
+  EXPECT_EQ(".", dirname("foo"));
+  EXPECT_EQ("foo", dirname("foo/bar"));
+  EXPECT_EQ("foo/bar", dirname("foo/bar/baz"));
 }
 
-static void check_basename(const std::string& path,
-                           const std::string& expected)
-{
-  std::string result = basename(path);
-  if (result != expected)
-  {
-    char buf[256];
-    sprintf(buf, "basename('%s') was '%s', expected '%s'",
-            path.c_str(), result.c_str(), expected.c_str());
-    throw std::runtime_error(std::string(buf));
-  }
+TEST(TestUtilities, Basename) {
+  EXPECT_EQ("foo", basename("foo"));
+  EXPECT_EQ("bar", basename("foo/bar"));
+  EXPECT_EQ("baz", basename("foo/bar/baz"));
 }
 
-static void test_dirname()
-{
-  check_dirname("foo", ".");
-  check_dirname("foo/bar", "foo");
-  check_dirname("foo/bar/baz", "foo/bar");
-}
-
-static void test_basename()
-{
-  check_basename("foo", "foo");
-  check_basename("foo/bar", "bar");
-  check_basename("foo/bar/baz", "baz");
-}
-
-static void test_strip()
-{
+TEST(TestUtilities, Strip) {
   const char *strings[][2] = {
     { "foo", "foo", },
     { " foo", "foo", },
@@ -78,21 +58,41 @@ static void test_strip()
   {
     std::string str(sample[0]);
     strip(str);
-    expect_equal(str, sample[1]);
+    EXPECT_EQ(sample[1], str);
   }
 }
 
+TEST(TestUtilities, FindRangeFirst) {
+  typedef map<pair<string, string>, string> Map;
+  Map assoc;
+  assoc.emplace(make_pair("one", "first"), "alpha");
+  assoc.emplace(make_pair("one", "second"), "beta");
+  assoc.emplace(make_pair("two", "first"), "gamma");
+  assoc.emplace(make_pair("two", "second"), "delta");
+  assoc.emplace(make_pair("two", "three"), "epsilon");
 
-int main()
-{
-  try {
-    test_dirname();
-    test_basename();
-    test_strip();
-  }
-  catch (std::runtime_error& exc) {
-    std::cerr << exc.what() << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  exit(EXIT_SUCCESS);
+  auto rng1 = find_range_first(assoc, "one");
+  ASSERT_NE(rng1.first, assoc.end());
+  EXPECT_NE(rng1.second, assoc.end());
+  EXPECT_EQ(2, distance(rng1.first, rng1.second));
+  EXPECT_EQ("alpha", rng1.first++->second);
+  EXPECT_EQ("beta", rng1.first++->second);
+  EXPECT_EQ(rng1.second, rng1.first);
+
+  auto rng2 = find_range_first(assoc, "two");
+  ASSERT_NE(rng2.first, assoc.end());
+  EXPECT_EQ(rng2.second, assoc.end());
+  EXPECT_EQ(3, distance(rng2.first, rng2.second));
+  EXPECT_EQ("gamma", rng2.first++->second);
+  EXPECT_EQ("delta", rng2.first++->second);
+  EXPECT_EQ("epsilon", rng2.first++->second);
+  EXPECT_EQ(rng2.second, rng2.first);
+
+  // Check for ranges that do not exist
+  auto rng3 = find_range_first(assoc, "aardvark");
+  EXPECT_EQ(0, distance(rng3.first, rng3.second));
+
+  auto rng4 = find_range_first(assoc, "xyzzy");
+  EXPECT_EQ(rng4.first, assoc.end());
+  EXPECT_EQ(0, distance(rng4.first, rng4.second));
 }

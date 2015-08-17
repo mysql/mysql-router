@@ -22,6 +22,7 @@
 
 #include "helpers.h"
 
+#include "gtest/gtest.h"
 
 #include <iostream>
 
@@ -29,7 +30,7 @@ void check_desig(const std::string& input,
                  const std::string& plugin)
 {
   Designator desig(input);
-  expect_equal(desig.plugin, plugin);
+  EXPECT_EQ(plugin, desig.plugin);
 }
 
 void check_desig(const std::string& input,
@@ -40,14 +41,14 @@ void check_desig(const std::string& input,
                  long patch_version)
 {
   Designator desig(input);
-  expect_equal(desig.plugin, plugin);
+  EXPECT_EQ(plugin, desig.plugin);
 
-  expect_equal(static_cast<int>(desig.constraint.size()), 1);
+  EXPECT_EQ(1, static_cast<int>(desig.constraint.size()));
   std::pair<Designator::Relation, Version> elem = desig.constraint.front();
-  expect_equal(elem.first, relation);
-  expect_equal(elem.second.ver_major, major_version);
-  expect_equal(elem.second.ver_minor, minor_version);
-  expect_equal(elem.second.ver_patch, patch_version);
+  EXPECT_EQ(relation, elem.first);
+  EXPECT_EQ(major_version, elem.second.ver_major);
+  EXPECT_EQ(minor_version, elem.second.ver_minor);
+  EXPECT_EQ(patch_version, elem.second.ver_patch);
 }
 
 
@@ -63,23 +64,23 @@ void check_desig(const std::string& input,
                  long patch_version2)
 {
   Designator desig(input);
-  expect_equal(desig.plugin, plugin);
+  EXPECT_EQ(plugin, desig.plugin);
 
-  expect_equal(static_cast<int>(desig.constraint.size()), 2);
+  EXPECT_EQ(2, static_cast<int>(desig.constraint.size()));
   std::pair<Designator::Relation, Version> elem1 = desig.constraint[0];
-  expect_equal(elem1.first, relation1);
-  expect_equal(elem1.second.ver_major, major_version1);
-  expect_equal(elem1.second.ver_minor, minor_version1);
-  expect_equal(elem1.second.ver_patch, patch_version1);
+  EXPECT_EQ(relation1, elem1.first);
+  EXPECT_EQ(major_version1, elem1.second.ver_major);
+  EXPECT_EQ(minor_version1, elem1.second.ver_minor);
+  EXPECT_EQ(patch_version1, elem1.second.ver_patch);
 
   std::pair<Designator::Relation, Version> elem2 = desig.constraint[1];
-  expect_equal(elem2.first, relation2);
-  expect_equal(elem2.second.ver_major, major_version2);
-  expect_equal(elem2.second.ver_minor, minor_version2);
-  expect_equal(elem2.second.ver_patch, patch_version2);
+  EXPECT_EQ(relation2, elem2.first);
+  EXPECT_EQ(major_version2, elem2.second.ver_major);
+  EXPECT_EQ(minor_version2, elem2.second.ver_minor);
+  EXPECT_EQ(patch_version2, elem2.second.ver_patch);
 }
 
-void test_good_designators()
+TEST(TestDesignator, TestGoodDesignators)
 {
   check_desig("foo", "foo");
   check_desig("foo(<<1)", "foo",
@@ -105,7 +106,7 @@ void test_good_designators()
 }
 
 
-void test_bad_designators()
+TEST(TestDesignator, TestBadDesignators)
 {
   const char *strings[] = {
     "foo(",
@@ -121,80 +122,58 @@ void test_bad_designators()
   };
 
   for (auto input: make_range(strings, sizeof(strings)/sizeof(*strings)))
-    expect_exception<std::runtime_error>([&input]{ Designator desig(input); });
+    EXPECT_THROW({ Designator desig(input); }, std::runtime_error);
 }
 
-void test_version()
+TEST(TestDesignator, TestVersion)
 {
-  expect(Version(1,0,0) == Version(1,0,0), true);
-  expect(Version(1,0,0) < Version(1,0,0), false);
-  expect(Version(1,0,0) <= Version(1,0,0), true);
-  expect(Version(1,0,0) > Version(1,0,0), false);
-  expect(Version(1,0,0) >= Version(1,0,0), true);
+  EXPECT_EQ(Version(1,0,0), Version(1,0,0));
+  EXPECT_FALSE(Version(1,0,0) < Version(1,0,0));
+  EXPECT_LE(Version(1,0,0), Version(1,0,0));
+  EXPECT_FALSE(Version(1,0,0) > Version(1,0,0));
+  EXPECT_GE(Version(1,0,0), Version(1,0,0));
 
-  expect(Version(1,0,0) == Version(1,0,1), false);
-  expect(Version(1,0,0) < Version(1,0,1), true);
-  expect(Version(1,0,0) <= Version(1,0,1), true);
-  expect(Version(1,0,0) > Version(1,0,1), false);
-  expect(Version(1,0,0) >= Version(1,0,1), false);
+  EXPECT_NE(Version(1,0,0), Version(1,0,1));
+  EXPECT_LT(Version(1,0,0), Version(1,0,1));
+  EXPECT_LE(Version(1,0,0), Version(1,0,1));
+  EXPECT_FALSE(Version(1,0,0) > Version(1,0,1));
+  EXPECT_FALSE(Version(1,0,0) >= Version(1,0,1));
 
-  expect(Version(1,0,0) == Version(1,1,0), false);
-  expect(Version(1,0,0) < Version(1,1,0), true);
-  expect(Version(1,0,0) <= Version(1,1,0), true);
-  expect(Version(1,0,0) > Version(1,1,0), false);
-  expect(Version(1,0,0) >= Version(1,1,0), false);
+  EXPECT_FALSE(Version(1,0,0) == Version(1,1,0));
+  EXPECT_LT(Version(1,0,0), Version(1,1,0));
+  EXPECT_LE(Version(1,0,0), Version(1,1,0));
+  EXPECT_FALSE(Version(1,0,0) > Version(1,1,0));
+  EXPECT_FALSE(Version(1,0,0) >= Version(1,1,0));
 
-  expect(Version(1,0,0) == Version(1,1,5), false);
-  expect(Version(1,0,0) < Version(1,1,5), true);
-  expect(Version(1,0,0) <= Version(1,1,5), true);
-  expect(Version(1,0,0) > Version(1,1,5), false);
-  expect(Version(1,0,0) >= Version(1,1,5), false);
+  EXPECT_FALSE(Version(1,0,0) == Version(1,1,5));
+  EXPECT_LT(Version(1,0,0), Version(1,1,5));
+  EXPECT_LE(Version(1,0,0), Version(1,1,5));
+  EXPECT_FALSE(Version(1,0,0) > Version(1,1,5));
+  EXPECT_FALSE(Version(1,0,0) >= Version(1,1,5));
 
-  expect(Version(1,0,0) == Version(2,1,5), false);
-  expect(Version(1,0,0) < Version(2,1,5), true);
-  expect(Version(1,0,0) <= Version(2,1,5), true);
-  expect(Version(1,0,0) > Version(2,1,5), false);
-  expect(Version(1,0,0) >= Version(2,1,5), false);
+  EXPECT_FALSE(Version(1,0,0) == Version(2,1,5));
+  EXPECT_LT(Version(1,0,0), Version(2,1,5));
+  EXPECT_LE(Version(1,0,0), Version(2,1,5));
+  EXPECT_FALSE(Version(1,0,0) > Version(2,1,5));
+  EXPECT_FALSE(Version(1,0,0) >= Version(2,1,5));
 
-  std::cerr << Version(VERSION_NUMBER(1,0,0)) << std::endl;
-  expect(Version(VERSION_NUMBER(1,0,0)) == Version(1,0,0), true);
-  expect(Version(VERSION_NUMBER(1,1,0)) == Version(1,1,0), true);
-  expect(Version(VERSION_NUMBER(1,2,0)) == Version(1,2,0), true);
-  expect(Version(VERSION_NUMBER(1,0,2)) == Version(1,0,2), true);
-  expect(Version(VERSION_NUMBER(1,2,3)) == Version(1,2,3), true);
+  EXPECT_EQ(Version(VERSION_NUMBER(1,0,0)), Version(1,0,0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1,1,0)), Version(1,1,0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1,2,0)), Version(1,2,0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1,0,2)), Version(1,0,2));
+  EXPECT_EQ(Version(VERSION_NUMBER(1,2,3)), Version(1,2,3));
 }
 
-void check_constraint(const std::string& str, const Version& ver, bool expect)
+TEST(TestDesignator, TestConstraints)
 {
-  Designator designator(str);
-  expect(designator.version_good(ver), expect);
+  EXPECT_TRUE(Designator("foo(<< 1.2)").version_good(Version(1,1)));
+  EXPECT_FALSE(Designator("foo(<< 1.2)").version_good(Version(1,2)));
+  EXPECT_TRUE(Designator("foo(<= 1.2)").version_good(Version(1,2)));
+  EXPECT_FALSE(Designator("foo(<= 1.2)").version_good(Version(1,2,1)));
+  EXPECT_TRUE(Designator("foo(>= 1.2)").version_good(Version(1,2,2)));
+  EXPECT_TRUE(Designator("foo(>>1.2)").version_good(Version(1,2,2)));
+  EXPECT_FALSE(Designator("foo(>= 1.2, !=1.2.2)").version_good(Version(1,2,2)));
+  EXPECT_FALSE(Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1,2,2)));
+  EXPECT_TRUE(Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1,2,3)));
 }
 
-void test_constraints()
-{
-  check_constraint("foo(<< 1.2)", Version(1,1), true);
-  check_constraint("foo(<< 1.2)", Version(1,2), false);
-  check_constraint("foo(<= 1.2)", Version(1,2), true);
-  check_constraint("foo(<= 1.2)", Version(1,2,1), false);
-  check_constraint("foo(>= 1.2)", Version(1,2,2), true);
-  check_constraint("foo(>>1.2)", Version(1,2,2), true);
-  check_constraint("foo(>= 1.2, !=1.2.2)", Version(1,2,2), false);
-  check_constraint("foo(>> 1.2, !=1.2.2)", Version(1,2,2), false);
-  check_constraint("foo(>> 1.2, !=1.2.2)", Version(1,2,3), true);
-}
-
-
-int main()
-{
-  try {
-    test_version();
-    test_good_designators();
-    test_bad_designators();
-    test_constraints();
-  }
-  catch (std::runtime_error& exc) {
-    std::cerr << exc.what() << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  exit(EXIT_SUCCESS);
-}

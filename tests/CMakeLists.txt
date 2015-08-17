@@ -16,6 +16,12 @@
 include_directories(${PROJECT_SOURCE_DIR}/harness)
 include_directories(${CMAKE_BINARY_DIR}/include)
 
+enable_testing()
+
+find_package(GMock 1.6.0)
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
 add_subdirectory(plugins)
 
 macro(MY_ADD_TEST name)
@@ -38,7 +44,7 @@ macro(MY_ADD_TEST name)
   if(requires)
     add_dependencies(${name} ${requires})
   endif()
-  target_link_libraries(${name} harness-archive)
+  target_link_libraries(${name} harness-archive ${GTEST_BOTH_LIBRARIES})
   add_test(${name} ${name})
 endmacro()
 

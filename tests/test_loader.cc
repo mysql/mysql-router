@@ -23,6 +23,8 @@
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/filesystem.h>
 
+#include "gtest/gtest.h"
+
 #include "utilities.h"
 #include "exception.h"
 #include "helpers.h"
@@ -37,158 +39,119 @@
 using std::cout;
 using std::endl;
 
-template <class Checks>
-void check_loading(Loader *loader, const std::string& name,
-                   Checks checks)
-{
-  Plugin *ext = loader->load(name);
-  if (ext == nullptr)
-    throw std::runtime_error("Plugin '" + name + "' cannot be loaded");
-  checks(*ext);
-}
+std::string g_here;
 
-template <class Checks>
-void check_loading(Loader *loader, const std::string& name,
-                   const std::string& key, Checks checks)
+class LoaderTest
+  : public ::testing::TestWithParam<const char*>
 {
-  Plugin *ext = loader->load(name, key);
-  if (ext == nullptr)
-    throw std::runtime_error("Plugin '" + name + "' cannot be loaded");
-  checks(*ext);
-}
+protected:
+  virtual void SetUp() {
+    Path here = Path(g_here);
 
+    std::map<std::string, std::string> params;
+    params["program"] = "harness";
+    params["prefix"] = here.c_str();
 
-#if 0
-static int check_unloading(Loader *loader,
-                           const std::string& name)
-{
-  if (loader->unload(name))
-  {
-    for (auto error : loader->errors())
-      std::cerr << error << std::endl;
-    return EXIT_FAILURE;
+    loader = new Loader("harness", params);
   }
-  return EXIT_SUCCESS;
-}
-#endif
 
-static void test_available(Loader *loader, const unsigned long int expected)
+  virtual void TearDown() {
+    delete loader;
+    loader = nullptr;
+  }
+
+  Loader *loader;
+};
+
+class LoaderReadTest
+  : public LoaderTest
+{
+protected:
+  virtual void SetUp() {
+    LoaderTest::SetUp();
+    loader->read(Path(g_here).join(GetParam()));
+  }
+};
+
+::testing::AssertionResult
+AssertLoaderSectionAvailable(const char *loader_expr,
+                             const char *section_expr,
+                             Loader* loader,
+                             const std::string& section_name)
 {
   auto lst = loader->available();
-  if (lst.size() != expected) {
-    char buf[256];
-    sprintf(buf, "Expected length %lu, got %lu", expected, lst.size());
-    throw std::logic_error(buf);
-  }
-
-  auto match_example = [](const std::pair<std::string, std::string>& elem){
-    return elem.first == "example";
+  auto match_example = [&section_name](const std::pair<std::string, std::string>& elem){
+    return elem.first == section_name;
   };
-  if (std::count_if(lst.begin(), lst.end(), match_example) == 0)
-    throw std::logic_error("Missing 'example'");
 
-  auto match_magic = [](const std::pair<std::string, std::string>& elem){
-    return elem.first == "magic";
-  };
-  if (std::count_if(lst.begin(), lst.end(), match_magic) == 0)
-    throw std::logic_error("Missing 'magic'");
+  if (std::count_if(lst.begin(), lst.end(), match_example) > 0)
+    return ::testing::AssertionSuccess();
+
+  return ::testing::AssertionFailure()
+    << "Loader '" << loader_expr << "' did not contain section '"
+    << section_name << "' (from expression '" << section_expr << "')";
 }
 
-static int test_loading(Loader *loader)
-{
+#define EXPECT_SECTION_AVAILABLE(S, L)  \
+  EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
+
+TEST_P(LoaderReadTest, Available) {
+  auto lst = loader->available();
+  EXPECT_EQ(6U, lst.size());
+
+  EXPECT_SECTION_AVAILABLE("example", loader);
+  EXPECT_SECTION_AVAILABLE("magic", loader);
+}
+
+TEST_P(LoaderReadTest, Loading) {
   // These should fail, for different reasons
 
   // Test that loading something non-existant works
-  try {
-    loader->load("test");
-    return EXIT_FAILURE;
-  }
-  catch (bad_plugin& err) {
-    std::string text(err.what());
-    if (text.find("test.so: cannot open") == std::string::npos)
-      throw;
-  }
-  catch (bad_section& err) {
-    std::string text(err.what());
-    if (text.find("Section name 'test'") == std::string::npos)
-      throw;
-  }
+  EXPECT_THROW(loader->load("nonexistant-plugin"), bad_section);
 
-  try {
-    loader->load("bad_one");
-    return EXIT_FAILURE;
-  }
-  catch (bad_section& err) {
-    std::string text(err.what());
-    if (text.find("Section name 'foobar'") == std::string::npos)
-      throw;
-  }
+  // Dependent plugin do not exist
+  EXPECT_THROW(loader->load("bad_one"), bad_section);
 
-  try {
-    loader->load("bad_two");
-    return EXIT_FAILURE;
-  }
-  catch (bad_plugin& err) {
-    std::string text(err.what());
-
-    // This is checking the message, but we should probably define a
-    // specialized exception and catch that.
-    if (text.find("version was 1.2.3, expected >>1.2.3") == std::string::npos)
-      throw;
-  }
+  // Wrong version of dependent sections
+  EXPECT_THROW(loader->load("bad_two"), bad_plugin);
 
   // These should all be OK.
-  check_loading(loader, "example", "one", [](const Plugin& plugin){
-      expect_equal(plugin.brief, "An example plugin");
-    });
-  check_loading(loader, "example", "two", [](const Plugin& plugin){
-      expect_equal(plugin.brief, "An example plugin");
-    });
-  check_loading(loader, "magic", [](const Plugin& plugin){
-      expect_equal(plugin.brief, "A magic plugin");
-    });
+  Plugin* ext1 = loader->load("example", "one");
+  EXPECT_NE(ext1, nullptr);
+  EXPECT_STREQ("An example plugin", ext1->brief);
 
-  return EXIT_SUCCESS;
+  Plugin* ext2 = loader->load("example", "two");
+  EXPECT_NE(ext2, nullptr);
+  EXPECT_STREQ("An example plugin", ext2->brief);
+
+  Plugin* ext3 = loader->load("magic");
+  EXPECT_NE(ext3, nullptr);
+  EXPECT_STREQ("A magic plugin", ext3->brief);
 }
 
-static void test_init(Loader *loader)
+const char *good_cfgs[] = {
+  "data/tests-good-1.cfg",
+  "data/tests-good-2.cfg",
+};
+
+INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest, ::testing::ValuesIn(good_cfgs));
+
+TEST_P(LoaderTest, BadSection) {
+  EXPECT_THROW(loader->read(Path(g_here).join(GetParam())), bad_section);
+}
+
+const char *bad_cfgs[] = {
+  "data/tests-bad-1.cfg",
+  "data/tests-bad-2.cfg",
+  "data/tests-bad-3.cfg",
+};
+
+INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest, ::testing::ValuesIn(bad_cfgs));
+
+int main(int argc, char *argv[])
 {
-  loader->init_all();
+  g_here = Path(argv[0]).dirname().str();
+
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
-
-
-int main(int, char *argv[])
-{
-  Path here = Path(argv[0]).dirname();
-  std::map<std::string, std::string> params;
-  params["program"] = "harness";
-  params["prefix"] = here.c_str();
-
-  expect_exception<bad_section>([&]{
-    Loader loader("harness", params);
-    loader.read(here.join("data/tests-bad-1.cfg"));
-    });
-
-  expect_exception<bad_section>([&]{
-    Loader loader("harness", params);
-    loader.read(here.join("data/tests-bad-2.cfg"));
-    });
-
-  expect_exception<bad_section>([&]{
-    Loader loader("harness", params);
-    loader.read(here.join("data/tests-bad-3.cfg"));
-    });
-
-  for (auto cfgfile: { "data/tests-good-1.cfg", "data/tests-good-2.cfg" })
-  {
-    Loader loader("harness", params);
-    loader.read(here.join(cfgfile));
-    test_available(&loader, 6);
-    if (int error = test_loading(&loader))
-      exit(error);
-    test_init(&loader);
-  }
-
-  exit(EXIT_SUCCESS);
-}
-

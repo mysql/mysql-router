@@ -19,111 +19,49 @@
 #define HELPERS_INCLUDED
 
 #include <algorithm>
-#include <cstring>
-#include <sstream>
-#include <stdexcept>
 #include <string>
-#include <typeinfo>
-#include <iterator>
 #include <vector>
 
+#include "gtest/gtest.h"
 
-template <class Exception, class Function>
-void expect_exception(Function func)
+template <typename SeqCont1, typename SeqCont2>
+::testing::AssertionResult
+AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
+               const SeqCont1& seq1, const SeqCont2& seq2)
 {
-  try
-  {
-    func();
-  }
-  catch (Exception& exc)
-  {
-    return;
+  std::vector<typename SeqCont1::value_type> c1(seq1.begin(), seq1.end());
+  std::vector<typename SeqCont2::value_type> c2(seq2.begin(), seq2.end());
+  std::sort(c1.begin(), c1.end());
+  std::sort(c2.begin(), c2.end());
+
+  // Check for elements that are in the first range but not in the second.
+  std::vector<typename SeqCont2::value_type> c1_not_c2;
+  std::set_difference(c1.begin(), c1.end(), c2.begin(), c2.end(),
+                      std::inserter(c1_not_c2, c1_not_c2.begin()));
+  if (c1_not_c2.size() > 0) {
+    auto result = ::testing::AssertionFailure()
+      << seq1_expr << " had elements not in " << seq2_expr << ": ";
+    for (auto elem: c1_not_c2)
+      result << elem << " ";
+    return result;
   }
 
-  std::string message("Expected exception ");
-  message += typeid(Exception).name();
+  // Check for elements that are in the second range but not in the first.
+  std::vector<typename SeqCont2::value_type> c2_not_c1;
+  std::set_difference(c2.begin(), c2.end(), c1.begin(), c1.end(),
+                      std::inserter(c2_not_c1, c2_not_c1.begin()));
+  if (c2_not_c1.size() > 0) {
+    auto result = ::testing::AssertionFailure()
+      << seq2_expr << " had elements not in " << seq1_expr << ": ";
+    for (auto elem: c2_not_c1)
+      result << elem << " ";
+    return result;
+  }
 
-  throw std::runtime_error(message);
+  return ::testing::AssertionSuccess();
 }
 
-template <class Type>
-struct TestTraits
-{
-  bool equal(Type a, Type b) { return a == b; }
-  bool less(Type a, Type b) { return a < b; }
-  void show_not_equal(std::ostream& out, const Type& value, const Type& expect)
-  {
-    out << "Expected " << expect << ", got " << value;
-  }
-};
-
-template <class Elem>
-struct TestTraits<std::vector<Elem>>
-{
-  bool equal(const std::vector<Elem>& lhs, const std::vector<Elem>& rhs)
-  {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    return std::equal(lhs.begin(), lhs.end(), rhs.begin());
-  }
-
-  void show_not_equal(std::ostream& out,
-                      const std::vector<Elem>& value,
-                      const std::vector<Elem>& expect)
-  {
-    copy(value.begin(), value.end(),
-         typename std::ostream_iterator<Elem>(out, " "));
-    out << " and ";
-    copy(expect.begin(), expect.end(),
-         typename std::ostream_iterator<Elem>(out, " "));
-    out << " not equal";
-  }
-};
-
-template <>
-struct TestTraits<const char*>
-{
-  bool equal(const char *a, const char *b)
-  {
-    return strcmp(a, b) == 0;
-  }
-
-  void show_not_equal(std::ostream& out, const char* value, const char* expect)
-  {
-    out << "Expected " << expect << ", got " << value;
-  }
-};
-
-void _expect(bool value, const std::string& expr, const std::string& expect)
-{
-  if (!value)
-    throw std::runtime_error("Expected expression " + std::string(expr) +
-                             " to be " + expect);
-}
-
-#define expect(EXPR, BOOL) _expect((EXPR) == (BOOL), #EXPR, #BOOL)
-
-template <class Type1, class Type2, class Traits = TestTraits<Type1>>
-void expect_equal(Type1 value, Type2 expect, Traits traits = Traits())
-{
-  if (!traits.equal(value, expect))
-  {
-    std::ostringstream buffer;
-    traits.show_not_equal(buffer, value, expect);
-    throw std::runtime_error(buffer.str());
-  }
-}
-
-template <class Type, class Traits = TestTraits<Type>>
-void expect_less(Type value, Type expect, Traits traits = Traits())
-{
-  if (!traits.less(value, expect))
-  {
-    std::ostringstream buffer;
-    buffer << "Expected something less than " << expect << ", got " << value;
-    throw std::runtime_error(buffer.str());
-  }
-}
+#define EXPECT_SETEQ(S1, S2) \
+  EXPECT_PRED_FORMAT2(AssertSetEqual, S1, S2)
 
 #endif /* HELPERS_INCLUDED */
