@@ -18,7 +18,8 @@
 # add_plugin(name [NO_INSTALL]
 #            SOURCES file1 ...
 #            INTERFACE directory
-#            REQUIRES plugin1 ...)
+#            DESTINATION_PREFIX string
+#            REQUIRES plugin ...)
 #
 # The add_plugin command will set up a new plugin target and also set
 # the install location of the target correctly.
@@ -32,6 +33,10 @@
 # directory. If you want to move the plugin to some specific
 # directory, you have to set the target property
 # LIBRARY_OUTPUT_DIRECTORY yourself.
+#
+# If DESTINATION_PREFIX is provided, it will be prepended to the
+# destination for install commands. DESTINATION_PREFIX is optional and
+# default to ${HARNESS_NAME}.
 #
 # Files provided after the SOURCES keyword are the sources to build
 # the plugin from, while the files in the directory after INTERFACE
@@ -47,12 +52,13 @@
 macro(ADD_PLUGIN NAME)
   set(sources)
   set(requires "harness-INTERFACE")
+  set(_dest_prefix ${HARNESS_NAME})
   set(NO_INSTALL FALSE)
   set(doing)
   foreach(arg ${ARGN})
     if(arg MATCHES "^NO_INSTALL$")
       set(NO_INSTALL TRUE)
-    elseif(arg MATCHES "^(SOURCES|INTERFACE|REQUIRES)$")
+    elseif(arg MATCHES "^(SOURCES|INTERFACE|REQUIRES|DESTINATION_PREFIX)$")
       set(doing ${arg})
     elseif(doing MATCHES "^SOURCES$")
       list(APPEND sources ${arg})
@@ -60,6 +66,9 @@ macro(ADD_PLUGIN NAME)
       list(APPEND requires "${arg}-INTERFACE")
     elseif(doing MATCHES "^INTERFACE$")
       set(interface ${arg})
+      set(doing)
+    elseif(doing MATCHES "^DESTINATION_PREFIX$")
+      set(_dest_prefix ${arg})
       set(doing)
     else()
       message(AUTHOR_WARNING "Unknown argument: '${arg}'")
@@ -106,10 +115,9 @@ macro(ADD_PLUGIN NAME)
   # Add install rules to install the interface and the plugin
   # correctly.
   if(NOT NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
-    install(TARGETS ${NAME} LIBRARY DESTINATION lib/${HARNESS_NAME})
+    install(TARGETS ${NAME} LIBRARY DESTINATION lib/${_dest_prefix})
     install(FILES ${interface_files} DESTINATION ${INSTALL_INCLUDE_DIR})
   endif()
-
 endmacro(ADD_PLUGIN)
 
 include_directories(${CMAKE_BINARY_DIR}/include)

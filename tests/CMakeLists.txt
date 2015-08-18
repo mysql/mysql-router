@@ -50,15 +50,32 @@ endmacro()
 
 my_add_test(TestLoader SOURCES test_loader.cc REQUIRES harness)
 add_custom_command(TARGET TestLoader POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/${HARNESS_NAME}/$<TARGET_FILE_NAME:logger>)
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:logger>)
 
 execute_process(
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib/${HARNESS_NAME}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/${HARNESS_NAME}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
 )
+
+# Some basic tests of the executable. The error message is printed
+# to stderr, which will be caught by CTest and checked for matching.
+add_test(NAME TestHarness1
+  COMMAND $<TARGET_FILE:harness-program> --foobar)
+set_tests_properties(TestHarness1 PROPERTIES
+  PASS_REGULAR_EXPRESSION "unrecognized option")
+
+add_test(NAME TestHarness2
+  COMMAND $<TARGET_FILE:harness-program>)
+set_tests_properties(TestHarness2 PROPERTIES
+  PASS_REGULAR_EXPRESSION "No configuration file provided")
+
+add_test(NAME TestHarness3
+  COMMAND $<TARGET_FILE:harness-program> whatever.cfg)
+set_tests_properties(TestHarness3 PROPERTIES
+  PASS_REGULAR_EXPRESSION "Path.*whatever.cfg.*does not exist")
 
 my_add_test(TestDesignator SOURCES test_designator.cc)
 my_add_test(TestIterator SOURCES test_iterator.cc)

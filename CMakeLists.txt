@@ -16,8 +16,8 @@
 cmake_minimum_required (VERSION 2.8.10)
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.0")
-    cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
-    cmake_policy(SET CMP0048 NEW)
+  cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
+  cmake_policy(SET CMP0048 NEW)
 endif()
 
 project(harness)
@@ -36,6 +36,7 @@ set(HARNESS_NAME "harness" CACHE STRING "Name of Harness")
 set(INSTALL_INCLUDE_DIR "include/mysql/harness")
 set(HARNESS_INSTALL_PROGRAM YES CACHE BOOL "Whether to install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL "Whether to install the Harness provided plugins")
+set(ENABLE_TESTS OFF CACHE BOOL "Enable unit tests when building")
 
 include(CPack)
 include(Plugin)
@@ -71,8 +72,11 @@ endif()
 # Check for basic functions
 find_package(Threads REQUIRED)
 
-enable_testing()
 add_subdirectory(harness)
-add_subdirectory(tests)
 add_subdirectory(plugins)
+
+if(ENABLE_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
 
