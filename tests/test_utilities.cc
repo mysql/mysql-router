@@ -33,18 +33,6 @@ using std::string;
 using std::pair;
 using std::make_pair;
 
-TEST(TestUtilities, Dirname) {
-  EXPECT_EQ(".", dirname("foo"));
-  EXPECT_EQ("foo", dirname("foo/bar"));
-  EXPECT_EQ("foo/bar", dirname("foo/bar/baz"));
-}
-
-TEST(TestUtilities, Basename) {
-  EXPECT_EQ("foo", basename("foo"));
-  EXPECT_EQ("bar", basename("foo/bar"));
-  EXPECT_EQ("baz", basename("foo/bar/baz"));
-}
-
 TEST(TestUtilities, Strip) {
   const char *strings[][2] = {
     { "foo", "foo", },
