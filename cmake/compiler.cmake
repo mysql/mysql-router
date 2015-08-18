@@ -37,7 +37,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
   endif()
-  # Specifics for external libraries when testing
+
+  if(ENABLE_GCOV)
+    message(STATUS "Enabling code coverage using Gcov")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+  endif()
 
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # Overview of MSVC versions: http://www.cmake.org/cmake/help/v3.3/variable/MSVC_VERSION.html
@@ -46,6 +50,10 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   endif()
   # /TP is needed so .cc files are recognoized as C++ source files by MSVC
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /TP")
+
+  if(ENABLE_GCOV)
+    message(FATAL_ERROR "Code coverage not supported with MSVC")
+  endif()
 else()
   message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} is not supported")
 endif()

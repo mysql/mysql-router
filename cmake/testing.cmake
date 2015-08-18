@@ -34,7 +34,7 @@ function(ADD_TEST_FILE FILE)
   endif()
 
   get_filename_component(test_ext ${FILE} EXT)
-  get_filename_component(runtime_dir ${FILE} DIRECTORY)
+  get_filename_component(runtime_dir ${FILE} PATH)  # Not using DIRECTORY because of CMake >=2.8.11 requirement
 
   set(runtime_dir ${CMAKE_BINARY_DIR}/tests/${TEST_MODULE})
 
