@@ -16,13 +16,18 @@
 */
 
 #include "router_app.h"
+#include "mysqlrouter/utils.h"
 #include "utils.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
+#include <fstream>
 #include <sstream>
+#include <string>
 #include <sys/fcntl.h>
 #include <unistd.h>
 #include <vector>
@@ -71,6 +76,17 @@ void MySQLRouter::start() {
       {"program", "mysqlrouter"}
   };
 
+  // Using environment variable ROUTER_PID is a temporary solution. We will remove this
+  // functionality when Harness introduces the `pid_file` option.
+  auto pid_file_env = std::getenv("ROUTER_PID");
+  if (pid_file_env != nullptr) {
+    pid_file_path_ = pid_file_env;
+    Path pid_file_path(pid_file_path_);
+    if (pid_file_path.is_regular()) {
+      throw std::runtime_error(string_format("PID file %s found. Already running?", pid_file_path_.c_str()));
+    }
+  }
+
   try {
     loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
     for (auto&& config_file: available_config_files_) {
@@ -82,10 +98,22 @@ void MySQLRouter::start() {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   }
 
+  if (!pid_file_path_.empty()) {
+    auto pid = getpid();
+    std::ofstream pidfile(pid_file_path_);
+    if (pidfile.good()) {
+      pidfile << pid << std::endl;
+      pidfile.close();
+      std::cout << "PID " << pid <<  " written to " << pid_file_path_ << std::endl;
+    } else {
+      throw std::runtime_error(string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
+    }
+  }
+
   loader_->start();
 }
 
-void MySQLRouter::set_default_config_files(const char *locations) NOEXCEPT {
+void MySQLRouter::set_default_config_files(const char *locations) noexcept {
   std::stringstream ss_line{locations};
 
   // We remove all previous entries
@@ -105,11 +133,11 @@ void MySQLRouter::set_default_config_files(const char *locations) NOEXCEPT {
   }
 }
 
-string MySQLRouter::get_version() NOEXCEPT {
+string MySQLRouter::get_version() noexcept {
   return string(VERSION);
 }
 
-string MySQLRouter::get_version_line() NOEXCEPT {
+string MySQLRouter::get_version_line() noexcept {
   std::ostringstream os;
   string edition{VERSION_EDITION};
 
@@ -141,13 +169,13 @@ vector<string> MySQLRouter::check_config_files() {
       if (pos != result.end()) {
         throw std::runtime_error(string_format("Duplicate configuration file: %s.", file.c_str()));
       }
-      auto fp = std::fopen(file.c_str(), "r");
-      if (fp != nullptr) {
+      std::ifstream file_check;
+      file_check.open(file);
+      if (file_check.is_open()) {
         result.push_back(file);
         if (vec != &extra_config_files_) {
           nr_of_none_extra++;
         }
-        std::fclose(fp);
       }
     }
   }
@@ -164,7 +192,7 @@ vector<string> MySQLRouter::check_config_files() {
   return result;
 }
 
-void MySQLRouter::prepare_command_options() NOEXCEPT {
+void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.clear_options();
   arg_handler_.add_option(OptionNames({"-v", "--version"}), "Display version information and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
@@ -212,7 +240,7 @@ void MySQLRouter::prepare_command_options() NOEXCEPT {
       });
 }
 
-void MySQLRouter::show_help() NOEXCEPT {
+void MySQLRouter::show_help() noexcept {
   FILE *fp;
   std::cout << WELCOME << std::endl;
 
@@ -237,7 +265,7 @@ void MySQLRouter::show_help() NOEXCEPT {
   show_usage();
 }
 
-void MySQLRouter::show_usage(bool include_options) NOEXCEPT {
+void MySQLRouter::show_usage(bool include_options) noexcept {
   for (auto line: arg_handler_.usage_lines("Usage: mysqlrouter", "", kHelpScreenWidth)) {
     std::cout << line << std::endl;
   }
@@ -254,7 +282,6 @@ void MySQLRouter::show_usage(bool include_options) NOEXCEPT {
   std::cout << "\n";
 }
 
-void MySQLRouter::show_usage() NOEXCEPT {
+void MySQLRouter::show_usage() noexcept {
   show_usage(true);
 }
-

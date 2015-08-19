@@ -27,11 +27,12 @@ function(CHECK_CXX11)
   else()
     message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} does not support C++11 standard")
   endif()
-
+  set(CMAKE_CXX_FLAGS ${CXX11_FLAG} PARENT_SCOPE)
 endfunction()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   check_cxx11()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAG}")
   if(ENABLE_TESTS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-macro-redefined")
   else()

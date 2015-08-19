@@ -185,9 +185,9 @@ public:
    * @param action action to perform when the option was found
    */
   void add_option(const OptionNames names, const string description, const CmdOptionValueReq value_req,
-                  const string metavar, ActionFunc action) NOEXCEPT;
+                  const string metavar, ActionFunc action) noexcept;
 
-  void add_option(const CmdOption &other) NOEXCEPT;
+  void add_option(const CmdOption &other) noexcept;
 
   /** @brief Processes given command line arguments
    *
@@ -243,7 +243,7 @@ public:
    * @param name option name to check
    * @return true if name is valid; false otherwise
    */
-  bool is_valid_option_name(const string name) NOEXCEPT;
+  bool is_valid_option_name(const string name) noexcept;
 
   /** @brief Finds the option by name
    *
@@ -256,7 +256,7 @@ public:
    * @param name name of the option as string
    * @returns iterator object
    */
-  OptionContainer::iterator find_option(const string name) NOEXCEPT;
+  OptionContainer::iterator find_option(const string name) noexcept;
 
   /** @brief Produces lines of text suitable to show usage
    *
@@ -283,7 +283,7 @@ public:
    * @param width maximum length of each line
    * @return vector of strings
    */
-  vector<string> usage_lines(const string prefix, const string rest_metavar, size_t width) NOEXCEPT;
+  vector<string> usage_lines(const string prefix, const string rest_metavar, size_t width) noexcept;
 
   /** @brief Produces description of all options
    *
@@ -310,7 +310,7 @@ public:
    * @param indent how much the description should be indented.
    * @return vector of strings
    */
-  vector<string> option_descriptions(const size_t width, const size_t indent) NOEXCEPT;
+  vector<string> option_descriptions(const size_t width, const size_t indent) noexcept;
 
   /** @brief Returns an iterator to first option
    *

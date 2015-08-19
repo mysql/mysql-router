@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cstdarg>
 #include <sstream>
+#include <vector>
 
 namespace mysqlrouter {
 

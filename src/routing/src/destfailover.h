@@ -15,19 +15,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef ROUTING_DESTFAILOVER_INCLUDED
+#define ROUTING_DESTFAILOVER_INCLUDED
 
-#include "router_app.h"
+#include "destination.h"
 
-#include <iostream>
+#include "logger.h"
 
-int main(int argc, char **argv) {
-  try {
-    MySQLRouter router(argc, argv);
-    router.start();
-  } catch(const std::runtime_error &exc) {
-    std::cout << "Error: " << exc.what() << std::endl;
-    return 1;
+using std::runtime_error;
+
+class DestFailover final : public RouteDestination {
+public:
+  void rewind() noexcept {
+    std::lock_guard<std::mutex> lock(mutex_update_);
+    destination_iter_ = destinations_.begin();
   }
+};
 
-  return 0;
-}
+
+#endif // ROUTING_DESTFAILOVER_INCLUDED

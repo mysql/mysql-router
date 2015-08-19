@@ -16,18 +16,24 @@
 */
 
 
-#include "router_app.h"
+#ifndef ROUTING_TESTS_HELPER_LOGGER_INCLUDED
+#define ROUTING_TESTS_HELPER_LOGGER_INCLUDED
 
-#include <iostream>
+#include <fstream>
 
-int main(int argc, char **argv) {
-  try {
-    MySQLRouter router(argc, argv);
-    router.start();
-  } catch(const std::runtime_error &exc) {
-    std::cout << "Error: " << exc.what() << std::endl;
-    return 1;
-  }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  return 0;
+void log_error(const char *fmt, ...);
+void log_warning(const char *fmt, ...);
+void log_info(const char *fmt, ...);
+void log_debug(const char *fmt, ...);
+
+void set_log_fd(FILE *fp);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif // ROUTING_TESTS_HELPER_LOGGER_INCLUDED

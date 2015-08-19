@@ -40,12 +40,14 @@
     "owners.\n\n"\
     "Start MySQL Router.\n"
 
-// MSVC support
+// Compiler features
 #ifdef _MSC_VER
-#define NOEXCEPT
-#else
-#define NOEXCEPT noexcept
+#if (_MSC_VER < 1700)
+#define noexcept
+#endif
 #endif
 
 // Defaults
 #define CONFIG_FILES R"cfg(@CONFIG_FILES@)cfg"
+
+#cmakedefine ENABLE_TESTS

@@ -15,19 +15,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysqlrouter/routing.h"
 
-#include "router_app.h"
+namespace routing {
 
-#include <iostream>
+const std::map<string, AccessMode> kAccessModeNames = {
+    {"read-write", AccessMode::kReadWrite},
+    {"read-only",  AccessMode::kReadOnly},
+};
 
-int main(int argc, char **argv) {
-  try {
-    MySQLRouter router(argc, argv);
-    router.start();
-  } catch(const std::runtime_error &exc) {
-    std::cout << "Error: " << exc.what() << std::endl;
-    return 1;
+string get_access_mode_name(AccessMode access_mode) noexcept {
+  for (auto &it: kAccessModeNames) {
+    if (it.second == access_mode) {
+      return it.first;
+    }
   }
-
-  return 0;
+  return "";
 }
+
+} // routing

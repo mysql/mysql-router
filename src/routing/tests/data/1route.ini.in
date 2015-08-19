@@ -1,0 +1,12 @@
+# Part of MySQL Router testing
+
+[DEFAULT]
+logging_folder =
+plugin_folder = @CMAKE_BINARY_DIR@/stage/lib/mysqlrouter
+runtime_folder = @CMAKE_BINARY_DIR@/stage/run
+config_folder = @CMAKE_BINARY_DIR@/stage/etc
+
+[logger]
+
+[routing]
+destination = @RUNNING_MYSQL_SERVER@
