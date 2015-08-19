@@ -45,6 +45,11 @@ include(Docs)
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  # This declares that we are POSIX.1-2001 compliant and
+  # XSI-conforming. The pre-processor variable _POSIX_C_SOURCE is
+  # indirectly set when we set _XOPEN_SOURCE.
+  add_definitions(-D_XOPEN_SOURCE=600)
+
   check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
   check_cxx_compiler_flag("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
   if(COMPILER_SUPPORTS_CXX11)
