@@ -1,0 +1,19 @@
+[Unit]
+Description=MySQL Router
+After=syslog.target
+After=network.target
+
+[Service]
+Type=forking
+User=mysql
+Group=mysql
+
+PIDFile=/run/mysqlrouter.pid
+
+ExecStart=/usr/sbin/mysqlrouter 
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
