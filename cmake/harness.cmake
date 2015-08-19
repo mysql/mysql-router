@@ -28,7 +28,7 @@ set(HARNESS_INSTALL_PROGRAM NO CACHE BOOL "Harness program is not installed")
 add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)
 
 # Quick fixing tests
-file(COPY ${WITH_HARNESS}/tests/data DESTINATION ${CMAKE_BINARY_DIR}/src/harness/tests)
+file(COPY ${WITH_HARNESS}/tests/data DESTINATION ${CMAKE_BINARY_DIR}/harness/tests)
 
 # Make sure targets are going to staging
 set_target_properties(harness-library harness-archive PROPERTIES
