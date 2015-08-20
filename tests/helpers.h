@@ -18,6 +18,8 @@
 #ifndef HELPERS_INCLUDED
 #define HELPERS_INCLUDED
 
+#include <mysql/harness/loader.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -63,5 +65,35 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
 
 #define EXPECT_SETEQ(S1, S2) \
   EXPECT_PRED_FORMAT2(AssertSetEqual, S1, S2)
+
+::testing::AssertionResult
+AssertLoaderSectionAvailable(const char *loader_expr,
+                             const char *section_expr,
+                             Loader* loader,
+                             const std::string& section_name)
+{
+  auto lst = loader->available();
+  auto match_example = [&section_name](const std::pair<std::string, std::string>& elem){
+    return elem.first == section_name;
+  };
+
+  if (std::count_if(lst.begin(), lst.end(), match_example) > 0)
+    return ::testing::AssertionSuccess();
+
+  std::ostringstream sections;
+  for (auto& name : lst) {
+    sections << " " << name.first;
+    if (!name.second.empty()) {
+      sections << ":" << name.second;
+    }
+  }
+  return ::testing::AssertionFailure()
+         << "Loader '" << loader_expr << "' did not contain section '"
+         << section_name << "' (from expression '" << section_expr << "')\n"
+         << "Sections were: " << sections.str();
+}
+
+#define EXPECT_SECTION_AVAILABLE(S, L)  \
+  EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
 
 #endif /* HELPERS_INCLUDED */

@@ -84,5 +84,11 @@ my_add_test(TestUtilities SOURCES test_utilities.cc)
 my_add_test(TestFilesystem SOURCES test_filesystem.cc REQUIRES harness)
 my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
 
+my_add_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc REQUIRES harness)
+add_custom_command(TARGET TestPluginKeepalive POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+      -E copy $<TARGET_FILE:keepalive> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:keepalive>
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/keepalive)
+
 add_custom_command(TARGET TestConfig POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/tests/data ${CMAKE_BINARY_DIR}/tests/data)

@@ -73,28 +73,6 @@ protected:
   }
 };
 
-::testing::AssertionResult
-AssertLoaderSectionAvailable(const char *loader_expr,
-                             const char *section_expr,
-                             Loader* loader,
-                             const std::string& section_name)
-{
-  auto lst = loader->available();
-  auto match_example = [&section_name](const std::pair<std::string, std::string>& elem){
-    return elem.first == section_name;
-  };
-
-  if (std::count_if(lst.begin(), lst.end(), match_example) > 0)
-    return ::testing::AssertionSuccess();
-
-  return ::testing::AssertionFailure()
-    << "Loader '" << loader_expr << "' did not contain section '"
-    << section_name << "' (from expression '" << section_expr << "')";
-}
-
-#define EXPECT_SECTION_AVAILABLE(S, L)  \
-  EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
-
 TEST_P(LoaderReadTest, Available) {
   auto lst = loader->available();
   EXPECT_EQ(6U, lst.size());

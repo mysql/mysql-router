@@ -95,9 +95,13 @@ TEST(TestFilesystem, TestDirectory)
   {
     // These are the files in the "data" directory in the test
     // directory. Please update it if you add more files.
+    //
+    // TODO: Do not use the data directory for this but create a
+    // dedicated directory for testing this feature.
     std::vector<Path> expect{
       here.join("data/logger.d"),
       here.join("data/logger.cfg"),
+      here.join("data/keepalive.cfg"),
       here.join("data/tests-bad-1.cfg"),
       here.join("data/tests-bad-2.cfg"),
       here.join("data/tests-bad-3.cfg"),
