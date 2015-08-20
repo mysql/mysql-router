@@ -14,6 +14,7 @@ tests/var/**
 
 # Editor files & folders
 .idea/
+.DS_Store
 
 doc/**
 include/**

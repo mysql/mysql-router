@@ -85,13 +85,11 @@ log_message(Level level, const char* fmt, va_list ap)
   // Get the thread ID
   std::stringstream ss;
   ss << std::hex << std::this_thread::get_id();
-  return;
 
   std::string thread_id = ss.str();
   if (thread_id.at(1) == 'x') {
     thread_id.erase(0, 2);
   }
-  return;
 
   // Emit a message on log file (or stdout).
   fprintf(g_log_fd, "%-19s %-7s [%s] %s\n", time_buf, level_str[level], thread_id.c_str(), message);
