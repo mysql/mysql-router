@@ -23,7 +23,7 @@
 *.sublime-*
 
 # Folders
-/.DS_Store
+.DS_Store
 /build
 /gtest/**
 /gmock/**
