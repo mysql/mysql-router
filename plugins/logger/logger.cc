@@ -42,7 +42,7 @@ const char *level_str[] = {
   "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", 0
 };
 
-static FILE* g_log_fd = NULL;
+static FILE* g_log_file = NULL;
 
 static int
 init(const AppInfo* info)
@@ -50,12 +50,12 @@ init(const AppInfo* info)
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
   if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
-    g_log_fd = stdout;
+    g_log_file = stdout;
   }
   else {
-    const Path log_file(Path::make_path(info->logging_folder, info->program, "log"));
-    g_log_fd = fopen(log_file.c_str(), "a");
-    if (!g_log_fd) {
+    const auto log_file = Path::make_path(info->logging_folder, info->program, "log");
+    g_log_file = fopen(log_file.c_str(), "a");
+    if (!g_log_file) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",
               log_file.c_str(), strerror(errno));
       return 1;
@@ -70,7 +70,7 @@ static void
 log_message(Level level, const char* fmt, va_list ap)
 {
   assert(level < LEVEL_COUNT);
-  assert(g_log_fd);
+  assert(g_log_file);
 
   // Format the message
   char message[256];
@@ -92,7 +92,9 @@ log_message(Level level, const char* fmt, va_list ap)
   }
 
   // Emit a message on log file (or stdout).
-  fprintf(g_log_fd, "%-19s %-7s [%s] %s\n", time_buf, level_str[level], thread_id.c_str(), message);
+  fprintf(g_log_file, "%-19s %-7s [%s] %s\n",
+          time_buf, level_str[level], thread_id.c_str(), message);
+  fflush(g_log_file);
 }
 
 
