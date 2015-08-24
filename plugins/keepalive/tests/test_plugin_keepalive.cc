@@ -15,19 +15,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+////////////////////////////////////////
+// Harness interface include files
 #define private public
 // Need access to m_logging_folder and m_program
-#include <mysql/harness/loader.h>
+#include "loader.h"
 #undef private
+#include "plugin.h"
+#include "filesystem.h"
 
-#include <mysql/harness/loader.h>
-#include <mysql/harness/plugin.h>
-#include <mysql/harness/filesystem.h>
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
 
-#include "helpers.h"
-
+////////////////////////////////////////
+// Third-party include files
 #include <gtest/gtest.h>
 
+////////////////////////////////////////
+// Standard include files
 #include <iostream>
 #include <fstream>
 

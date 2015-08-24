@@ -27,19 +27,21 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.1")
   cmake_policy(SET CMP0054 NEW)
 endif()
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 # Basic variables
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
-set(INSTALL_INCLUDE_DIR "include/mysql/${HARNESS_NAME}" CACHE STRING
+set(INSTALL_INCLUDE_DIR "include/mysql/${HARNESS_NAME}" CACHE PATH
   "Installation directory for harness include files")
-set(HARNESS_INSTALL_PROGRAM YES CACHE BOOL
-  "Whether to install the Harness main program")
+set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
+  "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
   "Whether to install the Harness provided plugins")
 set(ENABLE_TESTS OFF CACHE BOOL
   "Enable unit tests when building")
+set(WITH_GMOCK "" CACHE PATH
+  "Directory containing the Google Mock *source code* (with a CMakeLists.txt file)")
 
 # We include GMock without touching the compile flags. GMock can
 # handle that itself. It will also indirectly create targets for gmock
@@ -51,31 +53,64 @@ set(ENABLE_TESTS OFF CACHE BOOL
 # 2. If WITH_GMOCK is not given, it will look in the 'ext' directory
 #    in the source root.
 if(ENABLE_TESTS)
-  message(STATUS "Looking for GMock under ${CMAKE_SOURCE_DIR}/ext/gmock/CMakeLists.txt")
   if(WITH_GMOCK)
-    set(_root ${WITH_GMOCK})
-  elseif(EXISTS "${CMAKE_SOURCE_DIR}/ext/gmock/CMakeLists.txt")
-    set(_root "${CMAKE_SOURCE_DIR}/ext/gmock")
-  else()
-    message(SEND_ERROR
-      "Unable to find GMock, not possible to build tests. Either "
-      "disable tests with ENABLE_TESTS=no or download the source code "
-      "for GMock (available at ).")
+    set(_gmock_root ${WITH_GMOCK})
+    set(_gtest_root ${WITH_GMOCK}/gtest)
+  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/gmock/CMakeLists.txt")
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/gtest/CMakeLists.txt")
+      message(FATAL_ERROR "Cannot find GTest repository under ${CMAKE_CURRENT_SOURCE_DIR}/ext/gtest")
+    endif()
+    set(_gmock_root "${CMAKE_CURRENT_SOURCE_DIR}/ext/gmock")
+    set(_gtest_root "${CMAKE_CURRENT_SOURCE_DIR}/ext/gtest")
   endif()
-  add_subdirectory(${_root} ext/gmock)
 
-  set(TEST_LIBRARIES gmock gtest gmock_main gtest_main)
+  if(NOT EXISTS "${_gmock_root}/CMakeLists.txt")
+    message(FATAL_ERROR
+      "Unable to find GMock source, not possible to build tests. Either "
+      "disable tests with ENABLE_TESTS=no or download the source code "
+      "for GMock (available at https://github.com/google/googlemock) and "
+      "set WITH_GMOCK to the directory of the unpacked source code.")
+  endif()
+
+  message(STATUS "Found GMock source under ${_gmock_root}")
+  add_subdirectory(${_gmock_root} ext/gmock)
+
+  # Setting variables that are normally discovered using FindXXX.cmake
+  set(GTEST_INCLUDE_DIRS ${_gtest_root}/include)
+  set(GTEST_LIBRARIES gtest)
+  set(GTEST_MAIN_LIBRARIES gtest_main)
+  set(GTEST_BOTH_LIBRARIES ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+
+  set(GMOCK_INCLUDE_DIRS ${_gmock_root}/include)
+  set(GMOCK_LIBRARIES gtest)
+  set(GMOCK_MAIN_LIBRARIES gtest_main)
+  set(GMOCK_BOTH_LIBRARIES ${GMOCK_LIBRARIES} ${GMOCK_MAIN_LIBRARIES})
+
+  set(TEST_LIBRARIES ${GMOCK_BOTH_LIBRARIES} ${GTEST_BOTH_LIBRARIES})
 
   # Since GMock and GTest do not set
   # INTERFACE_SYSTEM_INCLUDE_DIRECTORIES, we do that here. This means
   # that any targets that reference one of these libraries will
   # "automatically" have the include directories for these libraries
   # added to their build flags.
-  target_include_directories(gmock SYSTEM PUBLIC ext/gmock/include)
-  target_include_directories(gmock_main SYSTEM PUBLIC ext/gmock/include)
-  target_include_directories(gtest SYSTEM PUBLIC ext/gmock/gtest/include)
-  target_include_directories(gtest_main SYSTEM PUBLIC ext/gmock/gtest/include)
+  target_include_directories(gmock SYSTEM PUBLIC ${GMOCK_INCLUDE_DIRS})
+  target_include_directories(gmock_main SYSTEM PUBLIC ${GMOCK_INCLUDE_DIRS})
+  target_include_directories(gtest SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})
+  target_include_directories(gtest_main SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})
 endif()
+
+# Basic variables
+set(HARNESS_NAME "harness"
+  CACHE STRING "Name of Harness")
+set(HARNESS_INSTALL_INCLUDE_PREFIX "include/mysql")
+set(HARNESS_INSTALL_PROGRAM YES
+  CACHE BOOL "Whether to install the Harness main program")
+set(HARNESS_INSTALL_PLUGINS YES
+  CACHE BOOL "Whether to install the Harness provided plugins")
+set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib
+  CACHE STRING "Output directory for plugins")
+set(ENABLE_TESTS OFF
+  CACHE BOOL "Enable unit tests when building")
 
 include(CPack)
 include(Plugin)
@@ -116,10 +151,10 @@ endif()
 # Check for basic functions
 find_package(Threads REQUIRED)
 
-add_subdirectory(harness)
-add_subdirectory(plugins)
-
 if(ENABLE_TESTS)
   enable_testing()
-  add_subdirectory(tests)
+  add_subdirectory(shared)
 endif()
+
+add_subdirectory(harness)
+add_subdirectory(plugins)

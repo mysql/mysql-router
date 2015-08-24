@@ -13,16 +13,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# add_plugin - Add a new plugin target and set install location
+# add_harness_plugin - Add a new plugin target and set install
+#                      location
 #
-# add_plugin(name [NO_INSTALL]
-#            SOURCES file1 ...
-#            INTERFACE directory
-#            DESTINATION_PREFIX string
-#            REQUIRES plugin ...)
+# add_harness_plugin(name [NO_INSTALL]
+#                    SOURCES file1 ...
+#                    INTERFACE directory
+#                    DESTINATION_SUFFIX string
+#                    REQUIRES plugin ...)
 #
-# The add_plugin command will set up a new plugin target and also set
-# the install location of the target correctly.
+# The add_harness_plugin command will set up a new plugin target and
+# also set the install location of the target correctly.
 #
 # Plugins that are normally put under the "lib" directory of the build
 # root, but see the caveat in the next paragraph.
@@ -34,91 +35,76 @@
 # directory, you have to set the target property
 # LIBRARY_OUTPUT_DIRECTORY yourself.
 #
-# If DESTINATION_PREFIX is provided, it will be prepended to the
-# destination for install commands. DESTINATION_PREFIX is optional and
+# If DESTINATION_SUFFIX is provided, it will be appended to the
+# destination for install commands. DESTINATION_SUFFIX is optional and
 # default to ${HARNESS_NAME}.
 #
 # Files provided after the SOURCES keyword are the sources to build
 # the plugin from, while the files in the directory after INTERFACE
 # will be installed alongside the header files for the harness.
-#
-# The macro will create two targets:
-#
-#    <NAME>-INTERFACE is the target for the interface header files.
-#    <NAME> is the target for the library.
-#
-# All plugins are automatically dependent on the harness interface.
 
-macro(ADD_PLUGIN NAME)
-  set(sources)
-  set(requires "harness-INTERFACE")
-  set(_dest_prefix ${HARNESS_NAME})
-  set(NO_INSTALL FALSE)
-  set(doing)
-  foreach(arg ${ARGN})
-    if(arg MATCHES "^NO_INSTALL$")
-      set(NO_INSTALL TRUE)
-    elseif(arg MATCHES "^(SOURCES|INTERFACE|REQUIRES|DESTINATION_PREFIX)$")
-      set(doing ${arg})
-    elseif(doing MATCHES "^SOURCES$")
-      list(APPEND sources ${arg})
-    elseif(doing MATCHES "^REQUIRES")
-      list(APPEND requires "${arg}-INTERFACE")
-    elseif(doing MATCHES "^INTERFACE$")
-      set(interface ${arg})
-      set(doing)
-    elseif(doing MATCHES "^DESTINATION_PREFIX$")
-      set(_dest_prefix ${arg})
-      set(doing)
-    else()
-      message(AUTHOR_WARNING "Unknown argument: '${arg}'")
-    endif()
-  endforeach()
+function(ADD_HARNESS_PLUGIN NAME)
+  set(_options NO_INSTALL)
+  set(_single_value INTERFACE DESTINATION_SUFFIX)
+  set(_multi_value SOURCES REQUIRES)
+  cmake_parse_arguments(ADD_HARNESS_PLUGIN
+    "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
-  # Add a custom target for the interface which copies it to the
-  # staging directory. This is used when building
-  if(interface)
-    include_directories(${interface})
-    add_custom_target("${NAME}-INTERFACE"
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${interface} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}
-      COMMENT "Copying interface from ${CMAKE_CURRENT_SOURCE_DIR}/${interface} to ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}")
-    file(GLOB interface_files ${interface}/*.h)
+  if(ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS)
+    message(AUTHOR_WARNING
+      "Unrecognized arguments: ${ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS}")
+  endif()
+
+  # Set default values
+  if(NOT ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX)
+    set(ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX harness)
   endif()
 
   # Add the library and ensure that the name is good for the plugin
-  # system (no "lib" before).
-  add_library(${NAME} MODULE ${sources})
-  set_target_properties(${NAME} PROPERTIES PREFIX "")
+  # system (no "lib" before). We are using SHARED libraries since we
+  # intend to link against it, which is something that MODULE does not
+  # allow. On OSX, this means that the suffix for the library becomes
+  # .dylib, which we do not want, so we reset it here.
+  # 
+  # TODO: This need to be fixed properly when we move to Windows
+  # support, since it is using a different suffix.
+  add_library(${NAME} SHARED ${ADD_HARNESS_PLUGIN_SOURCES})
+  set_target_properties(${NAME} PROPERTIES
+    PREFIX ""
+    SUFFIX ".so")
 
-  # If the plugin is intended to be installed, we move it to the "lib"
-  # directory under the build root. For plugins that are not going to
-  # be installed, user have to define the output directory themselves.
-  if (NOT NO_INSTALL)
-    set_target_properties(${NAME} PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  # Declare the interface directory for this plugin, if present. It
+  # will be used both when compiling the plugin as well as as for any
+  # dependent targets.
+  if(ADD_HARNESS_PLUGIN_INTERFACE)
+    target_include_directories(${NAME}
+      PUBLIC ${ADD_HARNESS_PLUGIN_INTERFACE})
   endif()
 
-  target_link_libraries(${NAME} ${Boost_LIBRARIES})
-
+  # Add a dependencies on interfaces for other plugins this plugin
+  # requires.
+  target_link_libraries(${NAME}
+    harness-library
+    ${ADD_HARNESS_PLUGIN_REQUIRES})
+  
   # Need to be able to link plugins with each other
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${NAME} PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup")
   endif()
 
-  # Add a dependencies on interfaces for other plugins this plugin
-  # requires.
-  if(requires)
-    add_dependencies(${NAME} ${requires})
+  set_target_properties(${NAME} PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+
+  # Add install rules to install the interface header files and the
+  # plugin correctly.
+  if(NOT ADD_HARNESS_PLUGIN_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
+    install(TARGETS ${NAME}
+      LIBRARY DESTINATION lib/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+    if(ADD_HARNESS_PLUGIN_INTERFACE)
+      file(GLOB interface_files ${ADD_HARNESS_PLUGIN_INTERFACE}/*.h)
+      install(FILES ${interface_files}
+        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+    endif()
   endif()
-
-  # Add install rules to install the interface and the plugin
-  # correctly.
-  if(NOT NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
-    install(TARGETS ${NAME} LIBRARY DESTINATION lib/${_dest_prefix})
-    install(FILES ${interface_files} DESTINATION ${INSTALL_INCLUDE_DIR})
-  endif()
-endmacro(ADD_PLUGIN)
-
-include_directories(${CMAKE_BINARY_DIR}/include)
-
+endfunction(ADD_HARNESS_PLUGIN)

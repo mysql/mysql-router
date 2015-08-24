@@ -13,11 +13,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-add_harness_plugin(keepalive
-  INTERFACE include
-  SOURCES src/keepalive.cc
-  REQUIRES logger)
+function(ADD_HARNESS_TEST NAME)
+  set(_options)
+  set(_single_value)
+  set(_multi_value SOURCES REQUIRES)
+  cmake_parse_arguments(ADD_HARNESS_TEST
+    "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
-if(ENABLE_TESTS)
-  add_subdirectory(tests)
-endif()
+  add_executable(${NAME} ${ADD_HARNESS_TEST_SOURCES})
+  if(requires)
+    add_dependencies(${NAME} ${ADD_HARNESS_TEST_REQUIRES})
+  endif()
+  target_link_libraries(${NAME}
+    PRIVATE harness-archive test-helpers ${TEST_LIBRARIES})
+  add_test(${NAME} ${NAME})
+endfunction()
+

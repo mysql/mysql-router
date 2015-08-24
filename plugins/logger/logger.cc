@@ -17,8 +17,8 @@
 
 #include "logger.h"
 
-#include <mysql/harness/plugin.h>
-#include <mysql/harness/filesystem.h>
+#include "plugin.h"
+#include "filesystem.h"
 
 #include <cassert>
 #include <cerrno>
@@ -28,47 +28,49 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <atomic>
 
-typedef enum Level {
+enum Level {
   LVL_FATAL,
   LVL_ERROR,
   LVL_WARNING,
   LVL_INFO,
   LVL_DEBUG,
   LEVEL_COUNT
-} Level;
+};
 
-const char *level_str[] = {
+const char *const level_str[] = {
   "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", 0
 };
 
-static FILE* g_log_file = NULL;
+std::atomic<FILE*> g_log_file;
 
-static int
-init(const AppInfo* info)
-{
+static int init(const AppInfo* info) {
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
   if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
-    g_log_file = stdout;
+    g_log_file.store(stdout);
   }
   else {
     const auto log_file = Path::make_path(info->logging_folder, info->program, "log");
-    g_log_file = fopen(log_file.c_str(), "a");
-    if (!g_log_file) {
+    FILE *fp = fopen(log_file.c_str(), "a");
+    if (!fp) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",
               log_file.c_str(), strerror(errno));
       return 1;
     }
+    g_log_file.store(fp);
   }
 
   return 0;
 }
 
+static int deinit(const AppInfo*) {
+  assert(g_log_file);
+  return fclose(g_log_file.exchange(nullptr));
+}
 
-static void
-log_message(Level level, const char* fmt, va_list ap)
-{
+static void log_message(Level level, const char* fmt, va_list ap) {
   assert(level < LEVEL_COUNT);
   assert(g_log_file);
 
@@ -92,17 +94,17 @@ log_message(Level level, const char* fmt, va_list ap)
   }
 
   // Emit a message on log file (or stdout).
-  fprintf(g_log_file, "%-19s %-7s [%s] %s\n",
+  FILE *outfp = g_log_file.load(std::memory_order_acquire);
+  fprintf(outfp, "%-19s %-7s [%s] %s\n",
           time_buf, level_str[level], thread_id.c_str(), message);
-  fflush(g_log_file);
+  fflush(outfp);
 }
 
 
 // Log format is:
 // <date> <level> <plugin> <message>
 
-void log_error(const char *fmt, ...)
-{
+void log_error(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   log_message(LVL_ERROR, fmt, args);
@@ -110,8 +112,7 @@ void log_error(const char *fmt, ...)
 }
 
 
-void log_warning(const char *fmt, ...)
-{
+void log_warning(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   log_message(LVL_WARNING, fmt, args);
@@ -119,8 +120,7 @@ void log_warning(const char *fmt, ...)
 }
 
 
-void log_info(const char *fmt, ...)
-{
+void log_info(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   log_message(LVL_INFO, fmt, args);
@@ -128,8 +128,7 @@ void log_info(const char *fmt, ...)
 }
 
 
-void log_debug(const char *fmt, ...)
-{
+void log_debug(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   log_message(LVL_DEBUG, fmt, args);
@@ -144,6 +143,6 @@ Plugin logger = {
   0, NULL,                                      // Requires
   0, NULL,                                      // Conflicts
   init,
-  NULL,
+  deinit,
   NULL                                          // start
 };

@@ -30,9 +30,10 @@
 #include <iostream>
 #include <thread>
 
-#include <mysql/harness/config_parser.h>
-#include <mysql/harness/plugin.h>
-#include <mysql/harness/logger.h>
+// Harness interface include files
+#include "config_parser.h"
+#include "plugin.h"
+#include "logger.h"
 
 // Keep symbols with external linkage away from global scope so that
 // they do not clash with other symbols.
@@ -81,11 +82,15 @@ static void start(const ConfigSection *section) {
   }
 }
 
+static const char *requires[] = {
+  "logger",
+};
+
 Plugin keepalive = {
     PLUGIN_ABI_VERSION,
     "Keepalive Plugin",
     VERSION_NUMBER(0, 0, 1),
-    0, nullptr,
+    sizeof(requires)/sizeof(*requires), requires,
     0, nullptr,
     init,
     nullptr,

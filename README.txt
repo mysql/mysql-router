@@ -31,14 +31,16 @@ If you want to do an out-of-source build, the procedure is:
 Documentation
 -------------
 
-Documentation can be built using Doxygen and the supplied `Doxyfile`
-as follows:
+Documentation can be built as follows:
 
-    doxygen Doxyfile
+    make docs
 
-The documentation will be placed in the `doc/` directory. For more
-detailed information about the code, please read the documentation
-rather than rely on this `README`.
+The documentation is using Doxygen to extract documentation comments
+from the source code.
+
+The documentation will be placed in the `doc/` directory under the
+build directory. For more detailed information about the code, please
+read the documentation rather than rely on this `README`.
 
 
 Installing
@@ -54,9 +56,9 @@ Running
 -------
 
 To start the harness, you need a configuration file. You can find an
-example in `data/router.cfg`:
+example in `data/main.cfg`:
 
-    # Example configuration file for router
+    # Example configuration file
 
     [DEFAULT]
     logging_folder = /var/log/router
@@ -78,15 +80,15 @@ in to all plugins.
 To run the harness, just provide the configuration file as the only
 argument:
 
-    harness /etc/mysql/router/main.cfg
+    harness /etc/mysql/harness/main.cfg
 
-Note that the harness uses read directories for logging,
-configuration, etc. from the configuration file so you have to make
-sure these are present and that the section name is used to find the
-plugin structure in the shared library (see below).
+Note that the harness read directories for logging, configuration,
+etc. from the configuration file so you have to make sure these are
+present and that the section name is used to find the plugin structure
+in the shared library (see below).
 
 Typically, the harness will then load plugins from the directory
-`/var/lib/router` and write log files to `/var/log/router`.
+`/var/lib/harness` and write log files to `/var/log/harness`.
 
 
 Writing Plugins
@@ -96,15 +98,15 @@ All available plugins are in the `plugins/` directory. There is one
 directory for each plugin and it is assumed that it contain a
 `CMakeLists.txt` file.
 
-The main `CMakeLists.txt` file provide an `add_plugin` macro that can
-be used add new plugins.
+The main `CMakeLists.txt` file provide an `add_harness_plugin`
+function that can be used add new plugins.
 
-    add_plugin(<name> [ NO_INSTALL ]
-               INTERFACE <directory>
-               SOURCES <source> ...
-               REQUIRES <plugin> ...)
+    add_harness_plugin(<name> [ NO_INSTALL ]
+                       INTERFACE <directory>
+                       SOURCES <source> ...
+                       REQUIRES <plugin> ...)
 
-This macro adds a plugin named `<name>` built from the given
+This function adds a plugin named `<name>` built from the given
 sources. If `NO_INSTALL` is provided, it will not be installed with
 the harness (useful if you have plugins used for testing, see the
 `tests/` directory). Otherwise, the plugin will be installed in the
@@ -127,11 +129,6 @@ Similar to the harness, each plugin have two types of files:
   are made available to other plugins and are installed alongside the
   harness installed files, usually under the directory
   `/usr/include/mysql/harness`.
-
-It is assumed that the plugin directory contain the following two
-directories:
-
-
 
 ### Application Information Structure ###
 
