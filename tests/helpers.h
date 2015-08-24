@@ -23,8 +23,32 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "gtest/gtest.h"
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
+  out << "{";
+  for (auto&& elem: v)
+    out << " " << elem;
+  out << " }";
+  return out;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::list<T>& v) {
+  out << "{";
+  for (auto&& elem: v)
+    out << " " << elem;
+  out << " }";
+  return out;
+}
+
+template <typename A, typename B>
+std::ostream& operator<<(std::ostream& out, const std::pair<A,B>& p) {
+  return out << p.first << ":" << p.second;
+}
 
 template <typename SeqCont1, typename SeqCont2>
 ::testing::AssertionResult
@@ -39,10 +63,10 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
   // Check for elements that are in the first range but not in the second.
   std::vector<typename SeqCont2::value_type> c1_not_c2;
   std::set_difference(c1.begin(), c1.end(), c2.begin(), c2.end(),
-                      std::inserter(c1_not_c2, c1_not_c2.begin()));
+                      std::back_inserter(c1_not_c2));
   if (c1_not_c2.size() > 0) {
-    auto result = ::testing::AssertionFailure()
-      << seq1_expr << " had elements not in " << seq2_expr << ": ";
+    auto result = ::testing::AssertionFailure();
+    result << seq1_expr << " had elements not in " << seq2_expr << ": ";
     for (auto elem: c1_not_c2)
       result << elem << " ";
     return result;
@@ -51,10 +75,10 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
   // Check for elements that are in the second range but not in the first.
   std::vector<typename SeqCont2::value_type> c2_not_c1;
   std::set_difference(c2.begin(), c2.end(), c1.begin(), c1.end(),
-                      std::inserter(c2_not_c1, c2_not_c1.begin()));
+                      std::back_inserter(c2_not_c1));
   if (c2_not_c1.size() > 0) {
-    auto result = ::testing::AssertionFailure()
-      << seq2_expr << " had elements not in " << seq1_expr << ": ";
+    auto result = ::testing::AssertionFailure();
+    result << seq2_expr << " had elements not in " << seq1_expr << ": ";
     for (auto elem: c2_not_c1)
       result << elem << " ";
     return result;

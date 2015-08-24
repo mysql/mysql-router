@@ -30,15 +30,6 @@ using std::back_inserter;
 
 std::string g_here;
 
-template <typename T>
-std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
-  out << "{";
-  for (auto&& elem: v)
-    out << " " << elem;
-  out << " }";
-  return out;
-}
-
 TEST(TestFilesystem, TestPath)
 {
   Path here = Path(g_here);
