@@ -22,7 +22,7 @@
 
 #include "helpers.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <iostream>
 

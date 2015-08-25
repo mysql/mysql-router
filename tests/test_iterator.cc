@@ -19,7 +19,7 @@
 
 #include "helpers.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <cstdlib>
 #include <cstring>

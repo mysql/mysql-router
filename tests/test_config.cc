@@ -22,7 +22,7 @@
 #include "utilities.h"
 #include "helpers.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include <stdexcept>
 #include <string>

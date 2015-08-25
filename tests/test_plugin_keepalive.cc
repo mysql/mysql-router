@@ -24,8 +24,9 @@
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/filesystem.h>
 
-#include "gtest/gtest.h"
 #include "helpers.h"
+
+#include <gtest/gtest.h>
 
 #include <iostream>
 #include <fstream>

@@ -23,7 +23,7 @@
 #include <mysql/harness/plugin.h>
 #include <mysql/harness/filesystem.h>
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "utilities.h"
 #include "exception.h"

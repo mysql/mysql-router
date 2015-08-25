@@ -16,15 +16,9 @@
 include_directories(${PROJECT_SOURCE_DIR}/harness)
 include_directories(${CMAKE_BINARY_DIR}/include)
 
-enable_testing()
-
-find_package(GMock)
-find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
-
 add_subdirectory(plugins)
 
-macro(MY_ADD_TEST name)
+function(MY_ADD_TEST name)
   set(doing)
   set(sources)
   set(requires)
@@ -44,9 +38,9 @@ macro(MY_ADD_TEST name)
   if(requires)
     add_dependencies(${name} ${requires})
   endif()
-  target_link_libraries(${name} harness-archive ${GTEST_BOTH_LIBRARIES})
+  target_link_libraries(${name} PRIVATE harness-archive ${TEST_LIBRARIES})
   add_test(${name} ${name})
-endmacro()
+endfunction()
 
 my_add_test(TestLoader SOURCES test_loader.cc REQUIRES harness)
 add_custom_command(TARGET TestLoader POST_BUILD
@@ -81,10 +75,10 @@ my_add_test(TestDesignator SOURCES test_designator.cc)
 my_add_test(TestIterator SOURCES test_iterator.cc)
 my_add_test(TestUtilities SOURCES test_utilities.cc)
 
-my_add_test(TestFilesystem SOURCES test_filesystem.cc REQUIRES harness)
-my_add_test(TestConfig SOURCES test_config.cc REQUIRES harness)
+my_add_test(TestFilesystem SOURCES test_filesystem.cc)
+my_add_test(TestConfig SOURCES test_config.cc)
 
-my_add_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc REQUIRES harness)
+my_add_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
 add_custom_command(TARGET TestPluginKeepalive POST_BUILD
     COMMAND ${CMAKE_COMMAND}
       -E copy $<TARGET_FILE:keepalive> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:keepalive>
