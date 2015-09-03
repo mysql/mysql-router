@@ -1,0 +1,64 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+enable_testing()
+
+include_directories(${GTEST_INCLUDE_DIRS})
+
+include(HarnessTesting)
+
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
+)
+
+add_subdirectory(plugins)
+
+# Some basic tests of the executable. The error message is printed
+# to stderr, which will be caught by CTest and checked for matching.
+if(ENABLE_HARNESS_PROGRAM)
+  add_test(NAME TestHarness1
+    COMMAND $<TARGET_FILE:harness-program> --foobar)
+  set_tests_properties(TestHarness1 PROPERTIES
+    PASS_REGULAR_EXPRESSION "unrecognized option")
+
+  add_test(NAME TestHarness2
+    COMMAND $<TARGET_FILE:harness-program>)
+  set_tests_properties(TestHarness2 PROPERTIES
+    PASS_REGULAR_EXPRESSION "No configuration file provided")
+
+  add_test(NAME TestHarness3
+    COMMAND $<TARGET_FILE:harness-program> whatever.cfg)
+  set_tests_properties(TestHarness3 PROPERTIES
+    PASS_REGULAR_EXPRESSION "Path.*whatever.cfg.*does not exist")
+endif()
+
+add_harness_test(TestLoader SOURCES test_loader.cc)
+
+add_custom_command(TARGET TestLoader POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:logger>)
+
+add_harness_test(TestDesignator SOURCES test_designator.cc)
+add_harness_test(TestIterator SOURCES test_iterator.cc)
+add_harness_test(TestUtilities SOURCES test_utilities.cc)
+
+add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
+add_harness_test(TestConfig SOURCES test_config.cc)
+
+add_custom_command(TARGET TestConfig POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/data)
