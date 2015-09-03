@@ -141,11 +141,13 @@ vector<string> MySQLRouter::check_config_files() {
       if (pos != result.end()) {
         throw std::runtime_error(string_format("Duplicate configuration file: %s.", file.c_str()));
       }
-      if (std::fopen(file.c_str(), "r") != nullptr) {
+      auto fp = std::fopen(file.c_str(), "r");
+      if (fp != nullptr) {
         result.push_back(file);
         if (vec != &extra_config_files_) {
           nr_of_none_extra++;
         }
+        std::fclose(fp);
       }
     }
   }
