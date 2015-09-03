@@ -39,27 +39,27 @@ enum Level {
   LEVEL_COUNT
 };
 
-const char *const level_str[] = {
+static const char *const level_str[] = {
   "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", 0
 };
 
-std::atomic<FILE*> g_log_file;
+static std::atomic<FILE*> g_log_file;
 
 static int init(const AppInfo* info) {
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
   if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
-    g_log_file.store(stdout);
-  }
-  else {
+    g_log_file.store(stdout, std::memory_order_release);
+  } else {
     const auto log_file = Path::make_path(info->logging_folder, info->program, "log");
     FILE *fp = fopen(log_file.c_str(), "a");
     if (!fp) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",
               log_file.c_str(), strerror(errno));
+      fflush(stderr);
       return 1;
     }
-    g_log_file.store(fp);
+    g_log_file.store(fp, std::memory_order_release);
   }
 
   return 0;
@@ -67,7 +67,7 @@ static int init(const AppInfo* info) {
 
 static int deinit(const AppInfo*) {
   assert(g_log_file);
-  return fclose(g_log_file.exchange(nullptr));
+  return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
 }
 
 static void log_message(Level level, const char* fmt, va_list ap) {
@@ -94,7 +94,7 @@ static void log_message(Level level, const char* fmt, va_list ap) {
   }
 
   // Emit a message on log file (or stdout).
-  FILE *outfp = g_log_file.load(std::memory_order_acquire);
+  FILE *outfp = g_log_file.load(std::memory_order_consume);
   fprintf(outfp, "%-19s %-7s [%s] %s\n",
           time_buf, level_str[level], thread_id.c_str(), message);
   fflush(outfp);
