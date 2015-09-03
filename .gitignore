@@ -1,0 +1,20 @@
+*~
+*.o
+*.so
+*.a
+
+# Build and Packaging
+build/
+cmake_install.cmake
+CMakeFiles
+CMakeCache.txt
+Makefile
+CPack*.cmake
+tests/var/**
+
+# Editor files & folders
+.idea/
+.DS_Store
+
+doc/**
+include/**
