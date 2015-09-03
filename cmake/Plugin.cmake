@@ -57,7 +57,7 @@ function(ADD_HARNESS_PLUGIN NAME)
 
   # Set default values
   if(NOT ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX)
-    set(ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX harness)
+    set(ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX ${HARNESS_NAME})
   endif()
 
   # Add the library and ensure that the name is good for the plugin
