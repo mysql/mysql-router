@@ -33,7 +33,7 @@
 #include <tuple>
 #include <vector>
 
-#include <mysql/harness/loader.h>
+#include "loader.h"
 
 using std::string;
 using std::tuple;

@@ -31,11 +31,10 @@ IGNORE_FILE_EXT = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.cfg', '.html', 
 
 # Folders not checked, relative to repository root
 IGNORE_FOLDERS = [
+    os.path.join('harness', 'ext'),
     os.path.join('.git'),
     os.path.join('.idea'),
     os.path.join('build'),
-    os.path.join('gtest'),
-    os.path.join('boost'),
 ]
 
 # Files not checked, relative to repository root
@@ -180,3 +179,9 @@ def git_tracked(file_path):
                             file_path], stdout=devnull, stderr=devnull)
     ret = proc.wait()
     return proc.wait() == 0
+
+def is_in_ignored_folder(path):
+    for ignored_folder in IGNORE_FOLDERS:
+        if path.startswith(ignored_folder):
+            return True
+    return False

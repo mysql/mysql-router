@@ -44,12 +44,8 @@ function(ADD_TEST_FILE FILE)
     set(test_target "test_${test_target}")
     set(test_name "tests/${TEST_MODULE}/${test_target}")
     add_executable(${test_target} ${FILE})
-    target_include_directories(${test_target} PRIVATE
-      ${GTEST_INCLUDE_DIRS}
-      ${GMOCK_INCLUDE_DIRS})
     target_link_libraries(${test_target}
-      ${GTEST_BOTH_LIBRARIES}
-      ${GMOCK_BOTH_LIBRARIES}
+      gtest gtest_main gmock gmock_main
       ${CMAKE_THREAD_LIBS_INIT})
     foreach(libtarget ${TEST_LIB_DEPENDS})
       add_dependencies(${test_target} ${libtarget})

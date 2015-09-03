@@ -45,7 +45,6 @@ include_directories(${CMAKE_BINARY_DIR}/include)
 # Enable testing
 if(ENABLE_TESTS)
   include(cmake/python.cmake)
-  include(cmake/gmocktest.cmake)
   enable_testing()
   add_subdirectory(tests)
 endif()

@@ -39,7 +39,7 @@ import unittest
 
 from tests import (
     get_arguments, get_path_root, seek_needle, git_tracked,
-    IGNORE_FILE_EXT, IGNORE_FOLDERS, IGNORE_FILES)
+    IGNORE_FILE_EXT, IGNORE_FILES, is_in_ignored_folder)
 
 EXP_SHORT_LICENSE = """
 This program is free software; you can redistribute it and/or modify
@@ -128,11 +128,14 @@ class TestLicense(unittest.TestCase):
                 relative_base = base.replace(self.root_path + os.sep, '')
             else:
                 relative_base = ''
-            if get_path_root(relative_base) in IGNORE_FOLDERS:
+
+            if is_in_ignored_folder(relative_base):
                 continue
 
             for filename in files:
                 fullpath = os.path.join(base, filename)
+                if is_in_ignored_folder(relative_base):
+                    continue
                 if not git_tracked(fullpath):
                     continue
                 relative = os.path.join(relative_base, filename)

@@ -43,7 +43,7 @@ set(GMOCK_MINIMUM_VERSION "1.7.0"
 set(GMOCK_DOWNLOAD_URL
   "http://googlemock.googlecode.com/files/gmock-${GMOCK_MINIMUM_VERSION}.zip"
   CACHE STRING "Google C++ Mocking Framework download URL")
-set(GMOCK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/gmock/"
+set(GMOCK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/harness/ext/gmock/"
   CACHE STRING "Google C++ Mocking Framework installation")
 set(GTEST_ROOT "${GMOCK_ROOT}/gtest"
   CACHE STRING "Google C++ Testing Framework installation")

@@ -27,10 +27,8 @@
 #include <unistd.h>
 #include <vector>
 
-#include <mysql/harness/config_parser.h>
-#include <mysql/harness/filesystem.h>
-#include <mysql/harness/loader.h>
-
+#include "config_parser.h"
+#include "filesystem.h"
 
 using std::string;
 using mysqlrouter::string_format;
@@ -74,7 +72,7 @@ void MySQLRouter::start() {
   };
 
   try {
-    loader_ = std::unique_ptr<Loader>(new Loader("router", params));
+    loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
     for (auto&& config_file: available_config_files_) {
       loader_->read(Path(config_file));
     }

@@ -37,7 +37,7 @@ import unittest
 
 from tests import (
     get_arguments, get_path_root, git_tracked,
-    IGNORE_FILE_EXT, IGNORE_FOLDERS, IGNORE_FILES)
+    IGNORE_FILE_EXT, IGNORE_FILES, is_in_ignored_folder)
 
 
 class TestCopyright(unittest.TestCase):
@@ -85,15 +85,18 @@ class TestCopyright(unittest.TestCase):
         failures = []
 
         for base, dirs, files in os.walk(self.root_path):
-            if base != self.root_path:
+            if not base == self.root_path:
                 relative_base = base.replace(self.root_path + os.sep, '')
             else:
                 relative_base = ''
-            if get_path_root(relative_base) in IGNORE_FOLDERS:
+
+            if is_in_ignored_folder(relative_base):
                 continue
 
             for filename in files:
                 fullpath = os.path.join(base, filename)
+                if is_in_ignored_folder(relative_base):
+                    continue
                 if not git_tracked(fullpath):
                     continue
 

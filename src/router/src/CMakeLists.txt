@@ -25,7 +25,7 @@ set(lib_source_files router_app.cc arg_handler.cc utils.cc)
 set(source_files main.cc ${lib_source_files})
 
 add_executable(${MYSQL_ROUTER_TARGET} ${source_files})
-add_dependencies(${MYSQL_ROUTER_TARGET} harness-INTERFACE)
+#add_dependencies(${MYSQL_ROUTER_TARGET} harness-INTERFACE)
 target_link_libraries(${MYSQL_ROUTER_TARGET} ${CMAKE_DL_LIBS} harness-library)
 target_include_directories(${MYSQL_ROUTER_TARGET} PUBLIC ${CMAKE_BINARY_DIR}/include)
 set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
@@ -40,7 +40,7 @@ endif()
 # For testing
 if(ENABLE_TESTS)
   add_library(router_test_lib SHARED ${lib_source_files})
-  add_dependencies(router_test_lib harness-INTERFACE)
+  #add_dependencies(router_test_lib harness-INTERFACE)
   target_link_libraries(router_test_lib ${CMAKE_DL_LIBS} harness-library)
 endif()
 

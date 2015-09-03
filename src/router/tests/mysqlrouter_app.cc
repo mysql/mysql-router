@@ -15,6 +15,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "config.h"
+#define orig_private private
+#define private public
+#include "router_app.h"
+#define private orig_private
+
 #include "gmock/gmock.h"
 
 #include <cstdio>
@@ -22,13 +28,8 @@
 #include <streambuf>
 #include <unistd.h>
 
-#define private public
-
-#include <mysql/harness/loader.h>
-#include <mysql/harness/config_parser.h>
-#include "config.h"
-#include "router_app.h"
-#include "../src/router_app.h"
+#include "loader.h"
+#include "config_parser.h"
 
 using std::string;
 using std::vector;
