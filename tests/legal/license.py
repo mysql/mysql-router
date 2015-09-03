@@ -67,9 +67,9 @@ class TestLicense(unittest.TestCase):
         'README.txt',
         'License.txt',
         os.path.join('src', 'router', 'include', 'README.txt'),
-        os.path.join('harness', 'README.txt'),
-        os.path.join('harness', 'License.txt'),
-        os.path.join('harness', 'Doxyfile.in'),
+        os.path.join('mysql_harness', 'README.txt'),
+        os.path.join('mysql_harness', 'License.txt'),
+        os.path.join('mysql_harness', 'Doxyfile.in'),
         ]
 
     def setUp(self):

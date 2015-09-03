@@ -31,7 +31,7 @@ IGNORE_FILE_EXT = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.cfg', '.html', 
 
 # Folders not checked, relative to repository root
 IGNORE_FOLDERS = [
-    os.path.join('harness', 'ext'),
+    os.path.join('mysql_harness', 'ext'),
     os.path.join('.git'),
     os.path.join('.idea'),
     os.path.join('build'),
@@ -40,8 +40,8 @@ IGNORE_FOLDERS = [
 # Files not checked, relative to repository root
 IGNORE_FILES = [
     os.path.join('License.txt'),
-    os.path.join('harness', 'License.txt'),
-    os.path.join('harness', 'Doxyfile.in'),
+    os.path.join('mysql_harness', 'License.txt'),
+    os.path.join('mysql_harness', 'Doxyfile.in'),
 ]
 
 
