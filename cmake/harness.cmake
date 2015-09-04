@@ -24,11 +24,7 @@ message(STATUS "Adding MySQL Harness")
 
 set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
 set(ENABLE_HARNESS_PROGRAM NO CACHE BOOL "Harness program is not installed")
+set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
 
 add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)
 
-# Make sure targets are going to staging
-set_target_properties(logger PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME})
-set_target_properties(keepalive PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME})
