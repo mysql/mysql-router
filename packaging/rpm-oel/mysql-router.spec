@@ -173,6 +173,7 @@ fi
 /usr/lib/libmysqlharness.so.0
 %dir /usr/lib/mysqlrouter
 /usr/lib/mysqlrouter/logger.so
+/usr/lib/mysqlrouter/keepalive.so
 %dir %attr(755, mysql, mysql) %{_localstatedir}/log/mysql
 
 %changelog
