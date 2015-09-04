@@ -3,7 +3,7 @@
 
 [DEFAULT]
 logging_folder = %(prefix)s/var/log/keepalive
-plugin_folder = %(prefix)s/var/lib/%(program)s
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
 runtime_folder = %(prefix)s/var/run/%(program)s
 config_folder = %(prefix)s/var/run/%(program)s
 

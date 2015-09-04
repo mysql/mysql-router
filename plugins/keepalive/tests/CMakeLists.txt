@@ -19,9 +19,5 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
 add_custom_command(TARGET TestPluginKeepalive POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:keepalive> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:keepalive>
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/keepalive)
-add_custom_command(TARGET TestPluginKeepalive POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/data)
-add_custom_command(TARGET TestPluginKeepalive POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:logger>)
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/keepalive)
+configure_file(data/keepalive.cfg.in data/keepalive.cfg)

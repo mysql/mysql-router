@@ -10,7 +10,6 @@ CMakeFiles
 CMakeCache.txt
 Makefile
 CPack*.cmake
-tests/var/**
 
 # Editor files & folders
 .idea/
