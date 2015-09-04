@@ -21,9 +21,7 @@ include(HarnessTesting)
 
 execute_process(
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
 )
 
@@ -50,9 +48,6 @@ endif()
 
 add_harness_test(TestLoader SOURCES test_loader.cc)
 
-add_custom_command(TARGET TestLoader POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:logger> ${CMAKE_CURRENT_BINARY_DIR}/var/lib/harness/$<TARGET_FILE_NAME:logger>)
-
 add_harness_test(TestDesignator SOURCES test_designator.cc)
 add_harness_test(TestIterator SOURCES test_iterator.cc)
 add_harness_test(TestUtilities SOURCES test_utilities.cc)
@@ -60,5 +55,16 @@ add_harness_test(TestUtilities SOURCES test_utilities.cc)
 add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
 add_harness_test(TestConfig SOURCES test_config.cc)
 
-add_custom_command(TARGET TestConfig POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/data)
+# Use configuration file templates to generate configuration files
+file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
+foreach(_template ${_templates})
+  string(REGEX REPLACE ".in$" "" _output ${_template})
+  message(STATUS "Generating ${_output} from ${_template}")
+  configure_file(${_template} ${_output})
+endforeach()
+
+# Copy plain configuration files
+file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
+foreach(_file ${_files})
+  configure_file(${_file} ${_file} COPYONLY)
+endforeach()

@@ -1,13 +1,14 @@
 [DEFAULT]
 logging_folder = %(prefix)s/var/log/%(program)s
-plugin_folder = %(prefix)s/var/lib/%(program)s
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
 runtime_folder = %(prefix)s/var/run/%(program)s
 config_folder = %(prefix)s/var/run/%(program)s
 
 [logger]
-# No library necessary, default to the section name, that is "logger"
+library = logger
 
 [magic]
+library = magic
 message = It is some kind of magic
 
 # Two instance of the same plugin with different keys and values for
@@ -15,10 +16,10 @@ message = It is some kind of magic
 # for the loader to work.
 
 [example:one]
-# No library necessary, default to the section name, that is "example"
+library = example
 
 [example:two]
-# No library necessary, default to the section name, that is "example"
+library = example
 
 [bad_one]
 library = bad_one

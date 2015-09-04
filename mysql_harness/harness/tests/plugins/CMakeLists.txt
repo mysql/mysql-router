@@ -28,12 +28,3 @@ add_harness_plugin(example NO_INSTALL
   DESTINATION_SUFFIX harness
   SOURCES example.cc
   REQUIRES magic logger)
-
-add_custom_command(TARGET example POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:example> ../var/lib/harness/$<TARGET_FILE_NAME:example>)
-add_custom_command(TARGET bad_one POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:bad_one> ../var/lib/harness/$<TARGET_FILE_NAME:bad_one>)
-add_custom_command(TARGET bad_two POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:bad_two> ../var/lib/harness/$<TARGET_FILE_NAME:bad_two>)
-add_custom_command(TARGET magic POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:magic> ../var/lib/harness/$<TARGET_FILE_NAME:magic>)
