@@ -92,11 +92,12 @@ if(ENABLE_TESTS)
   # INTERFACE_SYSTEM_INCLUDE_DIRECTORIES, we do that here. This means
   # that any targets that reference one of these libraries will
   # "automatically" have the include directories for these libraries
-  # added to their build flags.
-  target_include_directories(gmock SYSTEM PUBLIC ${GMOCK_INCLUDE_DIRS})
-  target_include_directories(gmock_main SYSTEM PUBLIC ${GMOCK_INCLUDE_DIRS})
-  target_include_directories(gtest SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})
-  target_include_directories(gtest_main SYSTEM PUBLIC ${GTEST_INCLUDE_DIRS})
+  # added to their build flags.  We cannot use "SYSTEM" since that is
+  # not available in 2.8.9 (it was introduced in 2.8.12).
+  target_include_directories(gmock PUBLIC ${GMOCK_INCLUDE_DIRS})
+  target_include_directories(gmock_main PUBLIC ${GMOCK_INCLUDE_DIRS})
+  target_include_directories(gtest PUBLIC ${GTEST_INCLUDE_DIRS})
+  target_include_directories(gtest_main PUBLIC ${GTEST_INCLUDE_DIRS})
 endif()
 
 # Basic variables
