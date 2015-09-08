@@ -18,7 +18,7 @@
 ////////////////////////////////////////
 // Harness interface include files
 #define private public
-// Need access to m_logging_folder and m_program
+// Need access to logging_folder_ and program_
 #include "loader.h"
 #undef private
 #include "plugin.h"
@@ -79,7 +79,7 @@ TEST_F(KeepalivePluginTest, Available) {
 }
 
 TEST_F(KeepalivePluginTest, CheckLog) {
-  const auto log_file = Path::make_path(loader->m_config.get_default("logging_folder"), loader->m_program, "log");
+  const auto log_file = Path::make_path(loader->config_.get_default("logging_folder"), loader->program_, "log");
 
   // Make sure log file is empty
   std::fstream fs;
