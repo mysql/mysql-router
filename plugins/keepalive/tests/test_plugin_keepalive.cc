@@ -30,7 +30,7 @@
 
 ////////////////////////////////////////
 // Third-party include files
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 ////////////////////////////////////////
 // Standard include files
