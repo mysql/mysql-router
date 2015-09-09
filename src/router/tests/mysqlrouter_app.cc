@@ -247,7 +247,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), extra_config.c_str());
 
   r.start();
-  auto section = r.loader_->m_config.get("logger", "");
+  auto section = r.loader_->config_.get("logger", "");
   ASSERT_THAT(section.get("foo"), StrEq("bar"));
   ASSERT_THROW(section.get("NotInTheSection"), bad_option);
 }

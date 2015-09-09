@@ -32,6 +32,7 @@ IGNORE_FILE_EXT = ['.o', '.pyc', '.pyo', '.ini.in', '.cfg.in', '.cfg', '.html', 
 # Folders not checked, relative to repository root
 IGNORE_FOLDERS = [
     os.path.join('mysql_harness', 'ext'),
+    os.path.join('packaging'),
     os.path.join('.git'),
     os.path.join('.idea'),
     os.path.join('build'),
