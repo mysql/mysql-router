@@ -120,7 +120,7 @@ public:
 
 #ifndef NDEBUG
   bool assert_default(const ConfigSection* def) const {
-    return def == m_defaults;
+    return def == defaults_;
   }
 #endif
 
@@ -131,8 +131,8 @@ public:
 private:
   std::string do_replace(const std::string& value) const;
 
-  const ConfigSection* m_defaults;
-  OptionMap m_options;
+  const ConfigSection* defaults_;
+  OptionMap options_;
 };
 
 
@@ -183,7 +183,7 @@ public:
     : Config(flags)
   {
     for (auto item: parameters)
-      m_defaults.set(item.first, item.second);
+      defaults_.set(item.first, item.second);
   }
 
   /** @overload */
@@ -194,7 +194,7 @@ public:
     : Config(parameters, flags)
   {
     for (auto word: reserved)
-      m_reserved.push_back(word);
+      reserved_.push_back(word);
   }
 
   virtual ~Config() = default;
@@ -202,7 +202,7 @@ public:
   template <class SeqT>
   void set_reserved(const SeqT& reserved)
   {
-    m_reserved.assign(reserved.begin(), reserved.end());
+    reserved_.assign(reserved.begin(), reserved.end());
   }
 
   /**
@@ -336,7 +336,7 @@ public:
   std::list<Config::SectionKey> section_names() const
   {
     decltype(section_names()) result;
-    for (auto& section: m_sections)
+    for (auto& section: sections_)
       result.push_back(section.first);
     return result;
   }
@@ -375,10 +375,10 @@ protected:
    */
   virtual void do_read_stream(std::istream& input);
 
-  SectionMap m_sections;
-  ReservedList m_reserved;
-  ConfigSection m_defaults;
-  unsigned int m_flags;
+  SectionMap sections_;
+  ReservedList reserved_;
+  ConfigSection defaults_;
+  unsigned int flags_;
 };
 
 #endif /* CONFIG_PARSER_INCLUDED */

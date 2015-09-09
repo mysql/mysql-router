@@ -15,15 +15,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "designator.h"
+
 #include "plugin.h"
 #include "utilities.h"
 
-#include "designator.h"
-
+////////////////////////////////////////
+// Test system include files
 #include "test/helpers.h"
 
-#include <gtest/gtest.h>
+////////////////////////////////////////
+// Third-party include files
+#include "gtest/gtest.h"
 
+////////////////////////////////////////
+// Standard include files
 #include <iostream>
 
 void check_desig(const std::string& input,

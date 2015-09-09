@@ -20,15 +20,21 @@
 #include "loader.h"
 #undef private
 
-#include "plugin.h"
-#include "filesystem.h"
-
-#include <gtest/gtest.h>
-
-#include "utilities.h"
 #include "exception.h"
+#include "filesystem.h"
+#include "plugin.h"
+#include "utilities.h"
+
+////////////////////////////////////////
+// Test system include files
 #include "test/helpers.h"
 
+////////////////////////////////////////
+// Third-party include files
+#include "gtest/gtest.h"
+
+////////////////////////////////////////
+// Standard include files
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>

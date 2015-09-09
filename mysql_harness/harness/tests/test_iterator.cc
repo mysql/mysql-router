@@ -17,10 +17,16 @@
 
 #include "utilities.h"
 
+////////////////////////////////////////
+// Test system include files
 #include "test/helpers.h"
 
-#include <gtest/gtest.h>
+////////////////////////////////////////
+// Third-party include files
+#include "gtest/gtest.h"
 
+////////////////////////////////////////
+// Standard include files
 #include <cstdlib>
 #include <cstring>
 #include <iostream>

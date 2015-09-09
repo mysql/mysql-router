@@ -37,7 +37,7 @@
  */
 class Path {
   friend std::ostream& operator<<(std::ostream& out, const Path& path) {
-    out << path.m_path;
+    out << path.path_;
     return out;
   }
 
@@ -99,12 +99,12 @@ public:
                         const std::string& extension);
 
   Path& operator=(const Path& rhs) {
-    m_path = rhs.m_path;
+    path_ = rhs.path_;
     return *this;
   }
 
   bool operator==(const Path& rhs) const {
-    return m_path == rhs.m_path;
+    return path_ == rhs.path_;
   }
 
   /**
@@ -114,7 +114,7 @@ public:
    * lexicographically.
    */
   bool operator<(const Path& rhs) const {
-    return m_path < rhs.m_path;
+    return path_ < rhs.path_;
   }
 
   /**
@@ -208,7 +208,7 @@ public:
    * @return Pointer to a null-terminated C-string.
    */
   const char *c_str() const {
-    return m_path.c_str();
+    return path_.c_str();
   }
 
   /**
@@ -217,12 +217,12 @@ public:
    * @return Instance of std::string containing the path.
    */
   const std::string& str() const {
-    return m_path;
+    return path_;
   }
 
 private:
-  std::string m_path;
-  mutable FileType m_type;
+  std::string path_;
+  mutable FileType type_;
 };
 
 /**
@@ -269,14 +269,14 @@ public:
   private:
     void fill_result();
 
-    const Path m_root;
+    const Path root_;
 
     // This is POSIX-specific, it need to be factored out into an
     // implementation class that can vary between platforms.
-    DIR *m_dirp;
-    struct dirent m_entry;
-    struct dirent *m_result;
-    std::string m_pattern;
+    DIR *dirp_;
+    struct dirent entry_;
+    struct dirent *result_;
+    std::string pattern_;
   };
 
   /**

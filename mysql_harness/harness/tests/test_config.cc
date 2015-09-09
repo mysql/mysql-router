@@ -19,10 +19,16 @@
 #include "filesystem.h"
 #include "plugin.h"
 
+////////////////////////////////////////
+// Test system include files
 #include "test/helpers.h"
 
-#include <gtest/gtest.h>
+////////////////////////////////////////
+// Third-party include files
+#include "gtest/gtest.h"
 
+////////////////////////////////////////
+// Standard include files
 #include <stdexcept>
 #include <string>
 #include <iostream>

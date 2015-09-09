@@ -17,12 +17,19 @@
 
 #include "filesystem.h"
 
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
+
+////////////////////////////////////////
+// Third-party include files
+#include "gtest/gtest.h"
+
+////////////////////////////////////////
+// Standard include files
+
 #include <iostream>
 #include <vector>
-
-#include <gtest/gtest.h>
-
-#include "test/helpers.h"
 
 using std::cout;
 using std::endl;

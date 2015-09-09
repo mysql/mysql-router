@@ -28,27 +28,27 @@
 void Designator::trace(const std::string& where) const
 {
   fprintf(stderr, "[%20s]: %s\n", where.c_str(),
-          std::string(m_cur, m_input.end()).c_str());
+          std::string(cur_, input_.end()).c_str());
 }
 #endif
 
 inline std::string::value_type Designator::peek() const
 {
-  if (m_cur == m_input.end())
+  if (cur_ == input_.end())
     return '\0';                       // Return NUL character if end.
-  return *m_cur;
+  return *cur_;
 }
 
 inline std::string::value_type Designator::next() {
-  if (m_cur == m_input.end())
+  if (cur_ == input_.end())
     parse_error("Unexpected end of input");
-  return *++m_cur;
+  return *++cur_;
 }
 
 void Designator::parse_error(const std::string& prefix) const
 {
   std::string
-    message(prefix + " at '" + std::string(m_cur, m_input.end()) + "'");
+    message(prefix + " at '" + std::string(cur_, input_.end()) + "'");
   throw std::runtime_error(message);
 }
 
@@ -59,7 +59,7 @@ void Designator::skip_space()
   trace(__func__);
 #endif
   while (isspace(peek()))
-    ++m_cur;
+    ++cur_;
 }
 
 long Designator::parse_number()
@@ -68,12 +68,12 @@ long Designator::parse_number()
   trace(__func__);
 #endif
   skip_space();
-  std::string::const_iterator start = m_cur;
+  std::string::const_iterator start = cur_;
   while (::isdigit(peek()))
-    ++m_cur;
-  if (std::distance(start, m_cur) == 0)
+    ++cur_;
+  if (std::distance(start, cur_) == 0)
     parse_error("Expected number");
-  return strtol(std::string(start, m_cur).c_str(), NULL, 10);
+  return strtol(std::string(start, cur_).c_str(), NULL, 10);
 }
 
 void Designator::parse_plugin()
@@ -82,12 +82,12 @@ void Designator::parse_plugin()
   trace(__func__);
 #endif
   skip_space();
-  std::string::const_iterator start = m_cur;
+  std::string::const_iterator start = cur_;
   if (!::isalpha(peek()) && peek() != '_')
     parse_error("Invalid start of module name");
   while (::isalnum(peek()) || peek() == '_')
-    ++m_cur;
-  plugin.assign(start, m_cur);
+    ++cur_;
+  plugin.assign(start, cur_);
 }
 
 void Designator::parse_version_list()
@@ -107,7 +107,7 @@ void Designator::parse_version_list()
     skip_space();
     if (peek() != ',')
       break;
-    ++m_cur;
+    ++cur_;
   }
 }
 
@@ -122,48 +122,48 @@ Designator::Relation Designator::parse_relation()
     switch (next())
     {
     case '=':
-      ++m_cur;
+      ++cur_;
       return LESS_EQUAL;
 
     case '<':
-      ++m_cur;
+      ++cur_;
       return LESS_THEN;
     }
-    --m_cur;
+    --cur_;
     break;
 
   case '>':
     switch (next())
     {
     case '=':
-      ++m_cur;
+      ++cur_;
       return GREATER_EQUAL;
 
     case '>':
-      ++m_cur;
+      ++cur_;
       return GREATER_THEN;
     }
-    --m_cur;
+    --cur_;
     break;
 
   case '!':
     switch (next())
     {
     case '=':
-      ++m_cur;
+      ++cur_;
       return NOT_EQUAL;
     }
-    --m_cur;
+    --cur_;
     break;
 
   case '=':
     switch (next())
     {
     case '=':
-      ++m_cur;
+      ++cur_;
       return EQUAL;
     }
-    --m_cur;
+    --cur_;
     break;
   }
   parse_error("Expected operator");
@@ -179,12 +179,12 @@ Version Designator::parse_version()
   version.ver_major = parse_number();
   if (peek() != '.')
     return version;
-  ++m_cur;
+  ++cur_;
   version.ver_minor = parse_number();
 
   if (peek() != '.')
     return version;
-  ++m_cur;
+  ++cur_;
   version.ver_patch = parse_number();
 
   return version;
@@ -203,12 +203,12 @@ void Designator::parse_root()
   switch (peek())
   {
   case '(':
-    ++m_cur;
+    ++cur_;
     parse_version_list();
     skip_space();
     if (peek() != ')')
       parse_error("Expected end of version list");
-    ++m_cur;
+    ++cur_;
     break;
 
   case 0:
@@ -264,13 +264,13 @@ bool Designator::version_good(const Version& version) const
 
 
 Designator::Designator(const std::string& str)
-  : m_input(str), m_cur(m_input.begin())
+  : input_(str), cur_(input_.begin())
 {
   parse_root();
   skip_space();                                 // Trailing space allowed
-  if (m_cur != m_input.end())
+  if (cur_ != input_.end())
   {
-    std::string trailing(m_cur, m_input.end());
+    std::string trailing(cur_, input_.end());
     throw std::runtime_error("Trailing input: '" + trailing + "'");
   }
 }

@@ -42,7 +42,7 @@ void LoaderConfig::fill_and_check()
 {
   // Set the default value of library for all sections that do not
   // have the library set.
-  for (auto&& elem: m_sections)
+  for (auto&& elem: sections_)
   {
     if (!elem.second.has("library"))
     {
@@ -61,10 +61,10 @@ void LoaderConfig::fill_and_check()
   }
 
   // Check all sections to make sure that the values are correct.
-  for (auto&& iter = m_sections.begin() ; iter != m_sections.end() ; ++iter)
+  for (auto&& iter = sections_.begin() ; iter != sections_.end() ; ++iter)
   {
     const std::string& section_name = iter->second.name;
-    const auto& seclist = find_range_first(m_sections, section_name, iter);
+    const auto& seclist = find_range_first(sections_, section_name, iter);
 
     const std::string& library = seclist.first->second.get("library");
     auto library_mismatch = [&library](decltype(*seclist.first)& it) -> bool {
@@ -101,7 +101,7 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 {
   setup_info();
   // Create a path to the plugin file.
-  Path path = Path::make_path(m_plugin_folder, library_name, "so");
+  Path path = Path::make_path(plugin_folder_, library_name, "so");
 
   // We always load the library (even if it is already loaded) to
   // honor dlopen()/dlclose() reference counts.
@@ -117,8 +117,8 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 
   // If it was already loaded previously, we can skip the init part,
   // so let's check that and return early in that case.
-  PluginMap::const_iterator it = m_plugins.find(plugin_name);
-  if (it != m_plugins.end())
+  PluginMap::const_iterator it = plugins_.find(plugin_name);
+  if (it != plugins_.end())
   {
     // This should not happen, but let's check to make sure
     if (it->second.handle != handle)
@@ -172,20 +172,20 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 
   // If all went well, we register the plugin and return a
   // pointer to it.
-  m_plugins.emplace(plugin_name, PluginInfo(handle, plugin));
+  plugins_.emplace(plugin_name, PluginInfo(handle, plugin));
   return plugin;
 }
 
 Plugin* Loader::load(const std::string& plugin_name, const std::string& key)
 {
-  auto& plugin = m_config.get(plugin_name, key);
+  auto& plugin = config_.get(plugin_name, key);
   const auto& library_name = plugin.get("library");
   return load_from(plugin_name, library_name);
 }
 
 Plugin* Loader::load(const std::string& plugin_name)
 {
-  auto plugins = m_config.get(plugin_name);
+  auto plugins = config_.get(plugin_name);
   if (plugins.size() > 1) {
     std::ostringstream buffer;
     buffer << "Section name '" << plugin_name
@@ -219,38 +219,38 @@ void Loader::start()
 
 bool Loader::is_loaded(const std::string& name) const
 {
-  return m_plugins.find(name) != m_plugins.end();
+  return plugins_.find(name) != plugins_.end();
 }
 
 auto Loader::available() const
-  -> decltype(m_config.section_names())
+  -> decltype(config_.section_names())
 {
-  return m_config.section_names();
+  return config_.section_names();
 }
 
 void Loader::read(const Path& path)
 {
-  m_config.read(path);
+  config_.read(path);
 
   // This means it is checked after each file load, which might
   // require changes in the future if checks that cover the entire
   // configuration are added. Right now it just contain safety checks.
-  m_config.fill_and_check();
+  config_.fill_and_check();
 }
 
 void Loader::setup_info()
 {
-  m_logging_folder = m_config.get_default("logging_folder");
-  m_plugin_folder = m_config.get_default("plugin_folder");
-  m_runtime_folder = m_config.get_default("runtime_folder");
-  m_config_folder = m_config.get_default("config_folder");
+  logging_folder_ = config_.get_default("logging_folder");
+  plugin_folder_ = config_.get_default("plugin_folder");
+  runtime_folder_ = config_.get_default("runtime_folder");
+  config_folder_ = config_.get_default("config_folder");
 
-  m_appinfo.logging_folder = m_logging_folder.c_str();
-  m_appinfo.plugin_folder = m_plugin_folder.c_str();
-  m_appinfo.runtime_folder = m_runtime_folder.c_str();
-  m_appinfo.config_folder = m_config_folder.c_str();
-  m_appinfo.config = &m_config;
-  m_appinfo.program = m_program.c_str();
+  appinfo_.logging_folder = logging_folder_.c_str();
+  appinfo_.plugin_folder = plugin_folder_.c_str();
+  appinfo_.runtime_folder = runtime_folder_.c_str();
+  appinfo_.config_folder = config_folder_.c_str();
+  appinfo_.config = &config_;
+  appinfo_.program = program_.c_str();
 }
 
 void Loader::init_all()
@@ -258,10 +258,10 @@ void Loader::init_all()
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
 
-  for (auto& plugin_key : reverse(m_order))
+  for (auto& plugin_key : reverse(order_))
   {
-    PluginInfo &info = m_plugins.at(plugin_key);
-    if (info.plugin->init && info.plugin->init(&m_appinfo))
+    PluginInfo &info = plugins_.at(plugin_key);
+    if (info.plugin->init && info.plugin->init(&appinfo_))
       throw std::runtime_error("Plugin init failed");
   }
 }
@@ -269,16 +269,16 @@ void Loader::init_all()
 void Loader::start_all()
 {
   // Start all the threads
-  for (auto&& section: m_config.sections())
+  for (auto&& section: config_.sections())
   {
-    auto& plugin = m_plugins.at(section->name);
+    auto& plugin = plugins_.at(section->name);
     void (*fptr)(const ConfigSection*) = plugin.plugin->start;
     if (fptr)
-      m_sessions.push_back(std::thread(fptr, section));
+      sessions_.push_back(std::thread(fptr, section));
   }
 
   // Reap all the threads
-  for (auto&& session : m_sessions)
+  for (auto&& session : sessions_)
   {
     assert(session.joinable());
     session.join();
@@ -286,11 +286,11 @@ void Loader::start_all()
 }
 
 void Loader::deinit_all() {
-  for (auto& name : m_order)
+  for (auto& name : order_)
   {
-    PluginInfo& info = m_plugins.at(name);
+    PluginInfo& info = plugins_.at(name);
     if (info.plugin->deinit)
-      info.plugin->deinit(&m_appinfo);
+      info.plugin->deinit(&appinfo_);
   }
 }
 
@@ -304,13 +304,13 @@ bool Loader::topsort()
 {
   std::map<std::string, int> status;
   std::list<std::string> order;
-  for (auto& plugin : m_plugins)
+  for (auto& plugin : plugins_)
   {
     bool succeeded = visit(plugin.first, status, order);
     if (!succeeded)
       return false;
   }
-  m_order.swap(order);
+  order_.swap(order);
   return true;
 }
 
@@ -332,7 +332,7 @@ bool Loader::visit(const std::string& designator,
   case UNVISITED:
     {
       status[info.plugin] = ONGOING;
-      if (Plugin *plugin = m_plugins.at(info.plugin).plugin)
+      if (Plugin *plugin = plugins_.at(info.plugin).plugin)
       {
         for (auto required : make_range(plugin->requires, plugin->requires_length))
         {

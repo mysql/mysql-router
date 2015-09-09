@@ -119,8 +119,8 @@ public:
   Loader(const std::string& program,
          const AssocT& defaults = AssocT(),
          const SeqT& reserved = SeqT())
-    : m_config(defaults, reserved, Config::allow_keys)
-    , m_program(program)
+    : config_(defaults, reserved, Config::allow_keys)
+    , program_(program)
   {
   }
 
@@ -239,34 +239,34 @@ private:
   typedef std::map<std::string, PluginInfo> PluginMap;
   typedef std::vector<std::thread> SessionList;
 
-  // Init order is important, so keep m_config first.
+  // Init order is important, so keep config_ first.
 
   /**
    * Configuration sections for all plugins.
    */
-  LoaderConfig m_config;
+  LoaderConfig config_;
 
   /**
    * Map of all plugins (without key name).
    */
-  PluginMap m_plugins;
+  PluginMap plugins_;
 
   /**
    * List of all active session.
    */
-  SessionList m_sessions;
+  SessionList sessions_;
 
   /**
    * Initialization order.
    */
-  std::list<std::string> m_order;
+  std::list<std::string> order_;
 
-  std::string m_logging_folder;
-  std::string m_plugin_folder;
-  std::string m_runtime_folder;
-  std::string m_config_folder;
-  std::string m_program;
-  AppInfo m_appinfo;
+  std::string logging_folder_;
+  std::string plugin_folder_;
+  std::string runtime_folder_;
+  std::string config_folder_;
+  std::string program_;
+  AppInfo appinfo_;
 };
 
 #endif /* LOADER_INCLUDED */

@@ -154,8 +154,8 @@ private:
   void parse_version_list();
   void skip_space();
 
-  const std::string& m_input;
-  std::string::const_iterator m_cur;
+  const std::string& input_;
+  std::string::const_iterator cur_;
 
 };
 

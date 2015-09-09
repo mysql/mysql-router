@@ -59,29 +59,29 @@ ConfigSection::ConfigSection(const std::string& name_arg,
                              const std::string& key_arg,
                              const ConfigSection* defaults)
   : name(name_arg), key(key_arg)
-  , m_defaults(defaults)
+  , defaults_(defaults)
 {
 }
 
 ConfigSection::ConfigSection(const ConfigSection& other,
                              const ConfigSection* defaults)
   : name(other.name), key(other.key)
-  , m_defaults(defaults)
-  , m_options(other.m_options)
+  , defaults_(defaults)
+  , options_(other.options_)
 {
 }
 
 void
 ConfigSection::clear()
 {
-  m_options.clear();
+  options_.clear();
 }
 
 void
 ConfigSection::update(const ConfigSection& other)
 {
 #ifndef NDEBUG
-  auto old_defaults = m_defaults;
+  auto old_defaults = defaults_;
 #endif
 
   if (other.name != name || other.key != key)
@@ -92,10 +92,10 @@ ConfigSection::update(const ConfigSection& other)
     throw bad_section(buffer.str());
   }
 
-  for (auto& option: other.m_options)
-    m_options[option.first] = option.second;
+  for (auto& option: other.options_)
+    options_[option.first] = option.second;
 
-  assert(old_defaults == m_defaults);
+  assert(old_defaults == defaults_);
 }
 
 std::string
@@ -126,62 +126,62 @@ ConfigSection::do_replace(const std::string& value) const
 std::string
 ConfigSection::get(const std::string& option) const
 {
-  OptionMap::const_iterator it = m_options.find(lower(option));
-  if (it != m_options.end())
+  OptionMap::const_iterator it = options_.find(lower(option));
+  if (it != options_.end())
     return do_replace(it->second);
-  if (m_defaults)
-    return m_defaults->get(option);
+  if (defaults_)
+    return defaults_->get(option);
   throw bad_option("Value for '" + option + "' not found");
 }
 
 bool
 ConfigSection::has(const std::string& option) const
 {
-  if (m_options.find(lower(option)) != m_options.end())
+  if (options_.find(lower(option)) != options_.end())
     return true;
-  if (m_defaults)
-    return m_defaults->has(option);
+  if (defaults_)
+    return defaults_->has(option);
   return false;
 }
 
 void
 ConfigSection::set(const std::string& option, const std::string& value)
 {
-  m_options[lower(option)] = value;
+  options_[lower(option)] = value;
 }
 
 void
 ConfigSection::add(const std::string& option, const std::string& value)
 {
-  auto ret = m_options.emplace(OptionMap::value_type(lower(option), value));
+  auto ret = options_.emplace(OptionMap::value_type(lower(option), value));
   if (!ret.second)
     throw bad_option("Option '" + option + "' already defined");
 }
 
 Config::Config(unsigned int flags)
-  : m_defaults("default", "", NULL)
-  , m_flags(flags)
+  : defaults_("default", "", NULL)
+  , flags_(flags)
 {
 }
 
 void
 Config::copy_guts(const Config& source)
 {
-  m_reserved = source.m_reserved;
-  m_flags = source.m_flags;
+  reserved_ = source.reserved_;
+  flags_ = source.flags_;
 }
 
 bool
 Config::has(const std::string& section, const std::string& key) const
 {
-  auto it = m_sections.find(make_pair(section, key));
-  return (it != m_sections.end());
+  auto it = sections_.find(make_pair(section, key));
+  return (it != sections_.end());
 }
 
 Config::ConstSectionList
 Config::get(const std::string& section) const
 {
-  auto rng = find_range_first(m_sections, section);
+  auto rng = find_range_first(sections_, section);
   if (distance(rng.first, rng.second) == 0)
     throw bad_section("Section name '" + section + "' does not exist");
   ConstSectionList result;
@@ -193,7 +193,7 @@ Config::get(const std::string& section) const
 Config::SectionList
 Config::get(const std::string& section)
 {
-  auto rng = find_range_first(m_sections, section);
+  auto rng = find_range_first(sections_, section);
   if (distance(rng.first, rng.second) == 0)
     throw bad_section("Section name '" + section + "' does not exist");
   SectionList result;
@@ -207,11 +207,11 @@ Config::get(const std::string& section, const std::string& key)
 {
   // Check if we allow keys and throw an error if keys are not
   // allowed.
-  if (!(m_flags & allow_keys))
+  if (!(flags_ & allow_keys))
     throw bad_section("Key '" + key + "' used but keys are not allowed");
 
-  SectionMap::iterator sec = m_sections.find(make_pair(section, key));
-  if (sec == m_sections.end())
+  SectionMap::iterator sec = sections_.find(make_pair(section, key));
+  if (sec == sections_.end())
     throw bad_section("Section '" + section + "' with key '" + key
                       + "' does not exist");
   return sec->second;
@@ -226,19 +226,19 @@ Config::get(const std::string& section, const std::string& key) const
 std::string
 Config::get_default(const std::string& option) const
 {
-  return m_defaults.get(option);
+  return defaults_.get(option);
 }
 
 bool
 Config::has_default(const std::string& option) const
 {
-  return m_defaults.has(option);
+  return defaults_.has(option);
 }
 
 void
 Config::set_default(const std::string& option, const std::string& value)
 {
-  m_defaults.set(option, value);
+  defaults_.set(option, value);
 }
 
 bool
@@ -248,8 +248,8 @@ Config::is_reserved(const std::string& word) const
     return (fnmatch(pattern.c_str(), word.c_str(), 0) == 0);
   };
 
-  auto it = find_if(m_reserved.begin(), m_reserved.end(), match);
-  return (it != m_reserved.end());
+  auto it = find_if(reserved_.begin(), reserved_.end(), match);
+  return (it != reserved_.end());
 }
 
 ConfigSection&
@@ -258,8 +258,8 @@ Config::add(const std::string& section, const std::string& key)
   if (is_reserved(section))
     throw parser_error("Section name '" + section + "' is reserved");
 
-  ConfigSection cnfsec(section, key, &m_defaults);
-  auto result = m_sections.emplace(make_pair(section, key), std::move(cnfsec));
+  ConfigSection cnfsec(section, key, &defaults_);
+  auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
   if (!result.second)
   {
     ostringstream buffer;
@@ -372,7 +372,7 @@ void Config::do_read_stream(std::istream& input)
       // within the brackets.
       std::string section_name(line);
       std::string section_key;
-      if (m_flags & allow_keys) {
+      if (flags_ & allow_keys) {
         // Split line at first colon
         auto pos = line.find_last_of(':');
         if (pos != std::string::npos) {
@@ -394,7 +394,7 @@ void Config::do_read_stream(std::istream& input)
       if (!std::all_of(section_name.begin(), section_name.end(), isident))
       {
         std::string message("Invalid section name '" + section_name + "'");
-        if (!(m_flags & allow_keys) &&
+        if (!(flags_ & allow_keys) &&
             line.find_last_of(':') != std::string::npos)
         {
           message += " (keys not configured)";
@@ -406,7 +406,7 @@ void Config::do_read_stream(std::istream& input)
       // distinguish between sections in lower and upper case.
       inplace_lower(section_name);
       if (section_name == "default")
-        current = &m_defaults;
+        current = &defaults_;
       else
         current = &add(section_name, section_key);
     }
@@ -435,14 +435,14 @@ void Config::do_read_stream(std::istream& input)
 bool
 Config::empty() const
 {
-  return m_sections.empty();
+  return sections_.empty();
 }
 
 void
 Config::clear()
 {
-  m_defaults.clear();
-  m_sections.clear();
+  defaults_.clear();
+  sections_.clear();
 }
 
 void
@@ -451,29 +451,29 @@ Config::update(const Config& other)
   // Pre-condition is that the default section pointers before the
   // update all refer to the default section for this configuration
   // instance.
-  assert(std::all_of(m_sections.cbegin(), m_sections.cend(),
+  assert(std::all_of(sections_.cbegin(), sections_.cend(),
                      [this](const SectionMap::value_type& val) -> bool {
-                       return val.second.assert_default(&m_defaults);
+                       return val.second.assert_default(&defaults_);
                      }));
 
-  for (const auto& section: other.m_sections)
+  for (const auto& section: other.sections_)
   {
     const SectionKey& key = section.first;
-    SectionMap::iterator iter = m_sections.find(key);
-    if (iter == m_sections.end())
-      m_sections.emplace(key, ConfigSection(section.second, &m_defaults));
+    SectionMap::iterator iter = sections_.find(key);
+    if (iter == sections_.end())
+      sections_.emplace(key, ConfigSection(section.second, &defaults_));
     else
       iter->second.update(section.second);
   }
 
-  m_defaults.update(other.m_defaults);
+  defaults_.update(other.defaults_);
 
   // Post-condition is that the default section pointers after the
   // update all refer to the default section for this configuration
   // instance.
-  assert(std::all_of(m_sections.cbegin(), m_sections.cend(),
+  assert(std::all_of(sections_.cbegin(), sections_.cend(),
                      [this](const SectionMap::value_type& val) -> bool {
-                       return val.second.assert_default(&m_defaults);
+                       return val.second.assert_default(&defaults_);
                      }));
 }
 
@@ -481,7 +481,7 @@ Config::ConstSectionList
 Config::sections() const
 {
   decltype(sections()) result;
-  for (auto& section: m_sections)
+  for (auto& section: sections_)
     result.push_back(&section.second);
   return result;
 }

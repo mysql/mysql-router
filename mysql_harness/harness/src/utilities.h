@@ -32,49 +32,49 @@ public:
   class iterator
   {
   public:
-    iterator(Type* ptr) : m_ptr(ptr)  {}
+    iterator(Type* ptr) : ptr_(ptr)  {}
 
     iterator& operator++() {
-      ++m_ptr;
+      ++ptr_;
       return *this;
     }
 
     bool operator==(const iterator& rhs) {
-      return m_ptr == rhs.m_ptr;
+      return ptr_ == rhs.ptr_;
     }
 
     bool operator!=(const iterator& rhs) {
-      return m_ptr != rhs.m_ptr;
+      return ptr_ != rhs.ptr_;
     }
 
     Type& operator*() {
-      return *m_ptr;
+      return *ptr_;
     }
 
     const Type& operator*() const {
-      return *m_ptr;
+      return *ptr_;
     }
 
   private:
-    Type *m_ptr;
+    Type *ptr_;
   };
 
   Range(Type* ptr, size_t length)
-    : m_start(ptr), m_finish(ptr + length)
+    : start_(ptr), finish_(ptr + length)
   {
   }
 
   iterator begin() {
-    return iterator(m_start);
+    return iterator(start_);
   }
 
   iterator end() {
-    return iterator(m_finish);
+    return iterator(finish_);
   }
 
 private:
-  Type* m_start;
-  Type* m_finish;
+  Type* start_;
+  Type* finish_;
 };
 
 
@@ -104,32 +104,32 @@ class RangeReverse
 public:
 
   RangeReverse(Range& range)
-    : m_range(range)
+    : range_(range)
   {
   }
 
   typename Range::reverse_iterator begin()
   {
-    return m_range.rbegin();
+    return range_.rbegin();
   }
 
   typename Range::const_reverse_iterator begin() const
   {
-    return m_range.rbegin();
+    return range_.rbegin();
   }
 
   typename Range::reverse_iterator end()
   {
-    return m_range.rend();
+    return range_.rend();
   }
 
   typename Range::const_reverse_iterator end() const
   {
-    return m_range.rend();
+    return range_.rend();
   }
 
 private:
-  Range& m_range;
+  Range& range_;
 };
 
 
