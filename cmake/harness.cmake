@@ -28,3 +28,4 @@ set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRIN
 
 add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)
 
+include_directories(${WITH_HARNESS}/harness/include)

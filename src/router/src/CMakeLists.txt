@@ -44,8 +44,7 @@ if(ENABLE_TESTS)
   target_link_libraries(router_test_lib ${CMAKE_DL_LIBS} harness-library)
 endif()
 
-install(TARGETS ${MYSQL_ROUTER_TARGET}
-  RUNTIME DESTINATION bin)
+install(TARGETS ${MYSQL_ROUTER_TARGET} RUNTIME DESTINATION ${INSTALL_SBINDIR})
 
 file(GLOB ROUTER_INTERFACE ../include/*.h)
 install(FILES ${ROUTER_INTERFACE} DESTINATION include/mysql/router)

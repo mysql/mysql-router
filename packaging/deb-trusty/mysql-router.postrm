@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -11,12 +13,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-add_subdirectory(src/)
-if(ENABLE_TESTS)
-    add_subdirectory(tests/)
-endif()
+. /usr/share/debconf/confmodule
 
-install(FILES ${CMAKE_SOURCE_DIR}/README.txt DESTINATION ${INSTALL_DOCDIR})
-install(FILES ${CMAKE_SOURCE_DIR}/License.txt DESTINATION ${INSTALL_DOCDIR})
+case "$1" in
+	remove)
+		;;
+	purge)
+		set -e
+		db_purge
+		set +e
+		;;
+esac
+
+#DEBHELPER#
+
+exit 0

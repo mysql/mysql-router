@@ -16,12 +16,16 @@
 
 set(CPACK_PACKAGE_NAME "mysql-router")
 set(CPACK_PACKAGE_VENDOR "Oracle")
+set(CPACK_PACKAGE_CONTACT "MySQL Release Engineering <mysql-build@oss.oracle.com>")
 
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_TEXT})
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 
+#
+# Source Distribution
+#
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
 set(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
@@ -32,11 +36,12 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSIO
 file(GLOB cpack_source_ignore_files "${CMAKE_SOURCE_DIR}/*")
 set(src_dir ${CMAKE_SOURCE_DIR})
 set(source_include
-  "${src_dir}/harness"
+  "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
   "${src_dir}/doc"
   "${src_dir}/src"
   "${src_dir}/tests"
+  "${src_dir}/packaging"
   "${src_dir}/CMakeLists.txt"
   "${src_dir}/config.h.in"
   "${src_dir}/README.txt"
