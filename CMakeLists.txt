@@ -52,7 +52,9 @@ if(ENABLE_TESTS)
 endif()
 
 # Compiler & Linker settings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAG}")
+if(${INSTALL_LAYOUT} STREQUAL "STANDALONE")
+  set(CMAKE_INSTALL_RPATH "${PLUGIN_RPATH}")
+endif()
 
 # Configure
 include(cmake/configure.cmake)

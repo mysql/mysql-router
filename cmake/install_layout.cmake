@@ -153,7 +153,7 @@ SET(INSTALL_SBINDIR_STANDALONE          "bin")
 SET(INSTALL_SCRIPTDIR_STANDALONE        "scripts")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
-SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
+SET(INSTALL_PLUGINDIR_STANDALONE        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
 #
@@ -180,7 +180,7 @@ SET(INSTALL_SBINDIR_WIN          "bin")
 SET(INSTALL_SCRIPTDIR_WIN        "scripts")
 #
 SET(INSTALL_LIBDIR_WIN           "lib")
-SET(INSTALL_PLUGINDIR_WIN        "lib/plugin")
+SET(INSTALL_PLUGINDIR_WIN        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_WIN       "include")
 #
@@ -207,7 +207,7 @@ SET(INSTALL_SBINDIR_FREEBSD          "bin")
 SET(INSTALL_SCRIPTDIR_FREEBSD        "scripts")
 #
 SET(INSTALL_LIBDIR_FREEBSD           "lib")
-SET(INSTALL_PLUGINDIR_FREEBSD        "lib/plugin")
+SET(INSTALL_PLUGINDIR_FREEBSD        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_FREEBSD       "include")
 #
@@ -234,7 +234,7 @@ SET(INSTALL_SBINDIR_GLIBC          "bin")
 SET(INSTALL_SCRIPTDIR_GLIBC        "scripts")
 #
 SET(INSTALL_LIBDIR_GLIBC           "lib")
-SET(INSTALL_PLUGINDIR_GLIBC        "lib/plugin")
+SET(INSTALL_PLUGINDIR_GLIBC        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_GLIBC       "include")
 #
@@ -261,7 +261,7 @@ SET(INSTALL_SBINDIR_OSX          "bin")
 SET(INSTALL_SCRIPTDIR_OSX        "scripts")
 #
 SET(INSTALL_LIBDIR_OSX           "lib")
-SET(INSTALL_PLUGINDIR_OSX        "lib/plugin")
+SET(INSTALL_PLUGINDIR_OSX        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_OSX       "include")
 #
@@ -288,7 +288,7 @@ SET(INSTALL_SBINDIR_TARGZ          "bin")
 SET(INSTALL_SCRIPTDIR_TARGZ        "scripts")
 #
 SET(INSTALL_LIBDIR_TARGZ           "lib")
-SET(INSTALL_PLUGINDIR_TARGZ        "lib/plugin")
+SET(INSTALL_PLUGINDIR_TARGZ        "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_TARGZ       "include")
 #
@@ -383,11 +383,11 @@ SET(INSTALL_SBINDIR_DEB                 "sbin")
 SET(INSTALL_SCRIPTDIR_DEB               "bin")
 #
 IF(ARCH_64BIT)
-  SET(INSTALL_LIBDIR_DEB                "lib64")
-  SET(INSTALL_PLUGINDIR_DEB             "lib64/mysqlrouter/plugin")
+  SET(INSTALL_LIBDIR_DEB                "lib/x86_64-linux-gnu")
+  SET(INSTALL_PLUGINDIR_DEB             "lib/x86_64-linux-gnu/mysqlrouter")
 ELSE()
   SET(INSTALL_LIBDIR_DEB                "lib")
-  SET(INSTALL_PLUGINDIR_DEB             "lib/mysqlrouter/plugin")
+  SET(INSTALL_PLUGINDIR_DEB             "lib/mysqlrouter")
 ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include/mysql/router")
@@ -415,7 +415,7 @@ SET(INSTALL_SBINDIR_DEBSVR4             "bin")
 SET(INSTALL_SCRIPTDIR_DEBSVR4           "scripts")
 #
 SET(INSTALL_LIBDIR_DEBSVR4              "lib")
-SET(INSTALL_PLUGINDIR_DEBSVR4           "lib/plugin")
+SET(INSTALL_PLUGINDIR_DEBSVR4           "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_DEBSVR4          "include")
 #

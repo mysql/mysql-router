@@ -43,6 +43,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
   endif()
 
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAG}")
+
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # Overview of MSVC versions: http://www.cmake.org/cmake/help/v3.3/variable/MSVC_VERSION.html
   if("${MSVC_VERSION}" VERSION_LESS 1800)
@@ -58,8 +60,8 @@ else()
   message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} is not supported")
 endif()
 
-# Make libraries work while testing/developing
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-endif()
+set(PLUGIN_RPATH
+  "${CMAKE_INSTALL_PREFIX}/lib/${HARNESS_NAME}"
+  "${CMAKE_INSTALL_PREFIX}/lib"
+)
+
