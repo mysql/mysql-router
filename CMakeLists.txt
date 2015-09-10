@@ -115,6 +115,7 @@ set(ENABLE_TESTS OFF
 
 include(CPack)
 include(Plugin)
+include(Arch)
 include(Docs)
 
 # Check for C++ 11 support
