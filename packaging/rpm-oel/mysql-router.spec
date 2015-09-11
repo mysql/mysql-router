@@ -98,7 +98,6 @@ necessary to develop MySQL Router applications.
 
 %prep
 %setup -q
-sed -i -e 's/^install/#install/' src/router/CMakeLists.txt
 
 %build
 mkdir release && pushd release
@@ -119,7 +118,7 @@ install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/mysql/mysqlrouter.in
 
 # remove some unwanted files
 rm -rf %{buildroot}%{_includedir}
-rm -rf %{buildroot}/usr/lib/libmysqlharness.{a,so}
+rm -rf %{buildroot}/usr/lib/libmysqlharness.a
 
 %clean
 rm -rf %{buildroot}
@@ -171,6 +170,8 @@ fi
 %endif
 # todo: need support for libdir = /usr/lib64, not just /usr/lib
 /usr/lib/libmysql*.so.0
+/usr/lib/libmysqlharness.so
+%{_libdir}/libmysqlrouter.so
 %dir /usr/lib/mysqlrouter
 /usr/lib/mysqlrouter/*.so
 %dir %attr(755, mysql, mysql) %{_localstatedir}/log/mysql

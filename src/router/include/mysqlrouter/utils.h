@@ -21,24 +21,20 @@
 #include <cassert>
 #include <cstdarg>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace mysqlrouter {
 
-using std::vector;
 using std::string;
 
-#if __GNUC__ == 4 && __GNUC_MINOR__ < 9
-// Some GNU GCC 4.8 installation miss std::to_string
+// Some (older) compiler have no std::to_string avialable 
 template<typename T>
 std::string to_string(const T &data) {
   std::ostringstream os;
   os << data;
   return os.str();
 }
-#else
-to_string = std::to_string;
-#endif
 
 /** @brief Returns string formatted using given data
 *
