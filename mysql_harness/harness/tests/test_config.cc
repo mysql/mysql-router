@@ -173,11 +173,11 @@ const char *good_examples[] = {
   ("[DEFAULT]\n" "foo = bar\n"
    "[one]\n"),
   ("[DEFAULT]\n" "other = ar\n"
-   "[one]\n" "foo = b%(other)s\n"),
+   "[one]\n" "foo = b{other}\n"),
   ("[DEFAULT]\n" "one = b\n" "two = r\n"
-   "[one]\n" "foo = %(one)sa%(two)s\n"),
+   "[one]\n" "foo = {one}a{two}\n"),
   ("[DEFAULT]\n" "one = b\n" "two = r\n"
-   "[one:my_key]\n" "foo = %(one)sa%(two)s\n")
+   "[one:my_key]\n" "foo = {one}a{two}\n")
 };
 
 INSTANTIATE_TEST_CASE_P(TestParsing, GoodParseTestAllowKey,
@@ -221,16 +221,21 @@ static const char* syntax_problems[] = {
   ("  foo: bar   \n" "[one]\n"),
 
   // Incomplete variable interpolation
-  ("[one]\n" "foo = %(bar\n"),
-  ("[one]\n" "foo = %(bar)\n"),
-  ("[one]\n" "foo = %(bar)sx%(foo\n"),
+  ("[one]\n" "foo = {bar"),
+  ("[one]\n" "foo = {bar\n"),
+  ("[one]\n" "foo = {bar}x{foo"),
+  ("[one]\n" "foo = {bar}x{foo\n"),
 
   // Unterminated last line
   ("[one]\n" "foo = bar"),
+  ("[one]\n" "foo = bar\\"),
 
   // Repeated option
   ("[one]\n" "foo = bar\n" "foo = baz\n"),
   ("[one]\n" "foo = bar\n" "Foo = baz\n"),
+
+  // Space in option
+  ("[one]\n" "foo bar = bar\n" "bar = baz\n"),
 
   // Repeated section
   ("[one]\n" "foo = bar\n" "[one]\n" "foo = baz\n"),
@@ -276,8 +281,8 @@ static const char* semantic_problems[] = {
 
   // Key on default section
   ("[DEFAULT:key]\n" "one = b\n" "two = r\n"
-   "[one:key1]\n" "foo = %(one)sa%(two)s\n"
-   "[one:key2]\n" "foo = %(one)sa%(two)s\n"),
+   "[one:key1]\n" "foo = {one}a{two}\n"
+   "[one:key2]\n" "foo = {one}a{two}\n"),
 };
 
 INSTANTIATE_TEST_CASE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,

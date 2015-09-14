@@ -2,10 +2,10 @@
 # Configuration file for Keepalive plugin tests
 
 [DEFAULT]
-logging_folder = %(prefix)s/var/log/keepalive
+logging_folder = {prefix}/var/log/keepalive
 plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
-runtime_folder = %(prefix)s/var/run/%(program)s
-config_folder = %(prefix)s/var/run/%(program)s
+runtime_folder = {prefix}/var/run/{program}
+config_folder = {prefix}/var/run/{program}
 
 [logger]
 # library = logger

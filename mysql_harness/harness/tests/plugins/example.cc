@@ -45,7 +45,7 @@ static void start(const ConfigSection*) {
   }
 }
 
-Plugin example = {
+Plugin example_plugin = {
   PLUGIN_ABI_VERSION,
   "An example plugin",
   VERSION_NUMBER(1,0,0),

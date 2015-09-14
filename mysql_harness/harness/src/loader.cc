@@ -126,9 +126,24 @@ Plugin* Loader::load_from(const std::string& plugin_name,
     return it->second.plugin;
   }
 
-  Plugin *plugin = static_cast<Plugin*>(dlsym(handle, plugin_name.c_str()));
+  // Try to load the symbol either using the same name as the plugin,
+  // or with the suffix "_plugin", or with the prefix
+  // "harness_plugin_". The latter case is to provide an alternative
+  // when the plugin name need to be used for other purposes.
+  std::vector<std::string> alternatives{
+    plugin_name,
+    plugin_name + "_plugin",
+    "harness_plugin_" + plugin_name
+  };
 
-  if (plugin == NULL)
+  Plugin *plugin = nullptr;
+  for (auto&& symbol: alternatives) {
+    plugin = static_cast<Plugin*>(dlsym(handle, symbol.c_str()));
+    if (plugin)
+      break;
+  }
+
+  if (plugin == nullptr)
   {
     std::ostringstream buffer;
     buffer << "symbol '" << plugin_name << "' not found in " << path.str();

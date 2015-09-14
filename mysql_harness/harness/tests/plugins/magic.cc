@@ -36,7 +36,7 @@ void do_magic() {
   log_info("%s", message.c_str());
 }
 
-Plugin magic = {
+Plugin harness_plugin_magic = {
   PLUGIN_ABI_VERSION,
   "A magic plugin",
   VERSION_NUMBER(1,2,3),

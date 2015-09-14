@@ -1,8 +1,8 @@
 [DEFAULT]
-logging_folder = %(prefix)s/var/log/%(program)s
+logging_folder = {prefix}/var/log/{program}
 plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
-runtime_folder = %(prefix)s/var/run/%(program)s
-config_folder = %(prefix)s/var/run/%(program)s
+runtime_folder = {prefix}/var/run/{program}
+config_folder = {prefix}/var/run/{program}
 
 [logger]
 library = logger

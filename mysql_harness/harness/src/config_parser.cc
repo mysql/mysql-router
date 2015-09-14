@@ -46,6 +46,11 @@
 
 using std::ostringstream;
 
+static bool isident(const char ch)
+{
+  return isalnum(ch) || ch == '_';
+}
+
 static void inplace_lower(std::string& str) {
   std::transform(str.begin(), str.end(), str.begin(), ::tolower);
 }
@@ -53,6 +58,11 @@ static void inplace_lower(std::string& str) {
 static std::string lower(std::string str) {
   std::transform(str.begin(), str.end(), str.begin(), ::tolower);
   return str;
+}
+
+static void check_option(const std::string& str) {
+  if (!all_of(str.begin(), str.end(), isident))
+    throw bad_option("Not a legal option name: '" + str + "'");
 }
 
 ConfigSection::ConfigSection(const std::string& name_arg,
@@ -98,34 +108,88 @@ ConfigSection::update(const ConfigSection& other)
   assert(old_defaults == defaults_);
 }
 
+/** @internal
+ *
+ * The parser is a simple hand-written scanner with three states:
+ * `NORMAL`, `EAT_ONE`, and `IDENT`.
+ *
+ * <table>
+ *  <tr><th></th><th>Input</th><th>Next State</th><th>Action</th></tr>
+ *  <tr><th>NORMAL</th><td>'\'</td><td>EAT_ONE</td><td></td></tr>
+ *  <tr><th>NORMAL</th><td>'{'</td><td>IDENT</td><td>CLEAR ident</td></tr>
+ *  <tr><th>NORMAL</th><td>*</td><td>NORMAL</td><td></td>EMIT INPUT</tr>
+ *  <tr><th>EAT_ONE</th><td>*</td><td>NORMAL</td><td>EMIT INOUT</td></tr>
+ *  <tr><th>IDENT</th><td>'}'</td><td>NORMAL</td><td>EMIT LOOKUP(ident)</td></tr>
+ *  <tr><th>IDENT</th><td>[A-Za-z0-9]</td><td>IDENT</td><td>APPEND TO ident</td></tr>
+ *  <tr><th>IDENT</th><td>*</td><td>IDENT</td><td>ERROR</td></tr>
+ * </table>
+ */
 std::string
 ConfigSection::do_replace(const std::string& value) const
 {
-  std::string result = value;
-  std::string::size_type pos = 0;
-  while ((pos = result.find("%(", pos)) != std::string::npos)
-  {
-    std::string::size_type endpos = result.find(")s", pos + 2);
+  std::string result;
+  enum { NORMAL, EAT_ONE, IDENT } state = NORMAL;
+  std::string ident;
 
-    // Raise an error if the parameter substitution was bad. Consider
-    // if this can be relaxed later.
-    if (endpos == std::string::npos)
-    {
-      std::string message("Malformed parameter substitution at '" +
-                          result.substr(pos) + "'");
-      throw parser_error(message);
+  // State machine implementation that will scan the string one
+  // character at a time and store the result of substituting variable
+  // interpolations in the result variable.
+  auto process = [&result, &state, &ident, this](char ch){
+    switch (state) {
+      case EAT_ONE:  // Unconditionally append the character
+        result.push_back(ch);
+        break;
+
+      case IDENT:  // Reading an variable interpolation
+        if (ch == '}') {
+          // Found the end. The identifier is in the 'ident' variable
+          result.append(get(ident));
+          state = NORMAL;
+        } else if (isident(ch)) {
+          // One more character of the variable name
+          ident.push_back(ch);
+        } else {
+          // Something that cannot be part of an identifier. Save it
+          // away to give a good error message.
+          ident.push_back(ch);
+          ostringstream buffer;
+          buffer << "Only alphanumeric characters in variable names allowed. "
+                 << "Saw '" << ident << "'";
+          throw syntax_error(buffer.str());
+        }
+        break;
+
+      default:   // Normal state, just reading characters
+        switch (ch) {
+          case '\\':  // Next character is escaped
+            state = EAT_ONE;
+            break;
+
+          case '{':  // Start a variable interpolation
+            ident.clear();
+            state = IDENT;
+            break;
+
+          default:    // Just copy the character to the output string
+            result.push_back(ch);
+            break;
+        }
+        break;
     }
-    std::string param = get(result.substr(pos + 2, endpos - pos - 2));
-    result.replace(pos, endpos + 2 - pos, param);
-    pos += param.length();
-  }
+  };
 
+  for_each(value.begin(), value.end(), process);
+  if (state == EAT_ONE)
+    throw syntax_error("String ending with a backslash");
+  if (state == IDENT)
+    throw syntax_error("Unterminated variable interpolation");
   return result;
 }
 
 std::string
 ConfigSection::get(const std::string& option) const
 {
+  check_option(option);
   OptionMap::const_iterator it = options_.find(lower(option));
   if (it != options_.end())
     return do_replace(it->second);
@@ -137,6 +201,7 @@ ConfigSection::get(const std::string& option) const
 bool
 ConfigSection::has(const std::string& option) const
 {
+  check_option(option);
   if (options_.find(lower(option)) != options_.end())
     return true;
   if (defaults_)
@@ -147,6 +212,7 @@ ConfigSection::has(const std::string& option) const
 void
 ConfigSection::set(const std::string& option, const std::string& value)
 {
+  check_option(option);
   options_[lower(option)] = value;
 }
 
@@ -256,7 +322,7 @@ ConfigSection&
 Config::add(const std::string& section, const std::string& key)
 {
   if (is_reserved(section))
-    throw parser_error("Section name '" + section + "' is reserved");
+    throw syntax_error("Section name '" + section + "' is reserved");
 
   ConfigSection cnfsec(section, key, &defaults_);
   auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
@@ -276,11 +342,6 @@ Config::add(const std::string& section, const std::string& key)
 
   // Return reference to the newly inserted section.
   return result.first->second;
-}
-
-static bool isident(const char ch)
-{
-  return isalnum(ch) || ch == '_';
 }
 
 void
@@ -360,7 +421,7 @@ void Config::do_read_stream(std::istream& input)
       if (line.back() != ']')
       {
         std::string message("Malformed section header: '" + line + "'");
-        throw parser_error(message);
+        throw syntax_error(message);
       }
 
       // Remove leading and trailing brackets
@@ -383,7 +444,7 @@ void Config::do_read_stream(std::istream& input)
               !std::all_of(section_key.begin(), section_key.end(), isident))
           {
             std::string message("Invalid section key '" + section_key + "'");
-            throw parser_error(message);
+            throw syntax_error(message);
           }
 
           section_name.erase(pos);
@@ -399,7 +460,7 @@ void Config::do_read_stream(std::istream& input)
         {
           message += " (keys not configured)";
         }
-        throw parser_error(message);
+        throw syntax_error(message);
       }
 
       // Section names are always stored in lowercase and we do not
@@ -413,11 +474,11 @@ void Config::do_read_stream(std::istream& input)
     else
     {
       if (current == NULL)
-        throw parser_error("Option line before start of section");
+        throw syntax_error("Option line before start of section");
       // Got option line
       std::string::size_type pos = line.find_first_of(":=");
       if (pos == std::string::npos)
-        throw parser_error("Malformed option line: '" + line + "'");
+        throw syntax_error("Malformed option line: '" + line + "'");
       std::string option(line, 0, pos);
       strip(option);
       std::string value(line, pos + 1);
@@ -427,7 +488,7 @@ void Config::do_read_stream(std::istream& input)
   }
 
   if (input.gcount() > 0)
-    throw parser_error("Unterminated last line");
+    throw syntax_error("Unterminated last line");
 
 }
 

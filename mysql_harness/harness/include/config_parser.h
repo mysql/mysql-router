@@ -29,12 +29,12 @@ class ConfigSection;
 class Path;
 
 /**
- * Exception thrown for errors during parsing configuration file.
+ * Exception thrown for syntax errors.
  */
 
-class parser_error : public std::logic_error {
+class syntax_error : public std::logic_error {
 public:
-  explicit parser_error(const std::string& msg)
+  explicit syntax_error(const std::string& msg)
     : std::logic_error(msg)
   {
   }
@@ -228,7 +228,7 @@ public:
    * @param path Path to directory or file to read from.
    * @param pattern Glob pattern for configuration files in the directory.
    *
-   * @exception parser_error Raised if there is a syntax error in the
+   * @exception syntax_error Raised if there is a syntax error in the
    * configuration file and the configuration file have to be corrected.
    *
    * @exception bad_section Raised if there is a duplicate section
