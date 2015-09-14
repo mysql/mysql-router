@@ -72,7 +72,6 @@ static int deinit(const AppInfo*) {
 
 static void log_message(Level level, const char* fmt, va_list ap) {
   assert(level < LEVEL_COUNT);
-  assert(g_log_file);
 
   // Format the message
   char message[256];
@@ -95,7 +94,7 @@ static void log_message(Level level, const char* fmt, va_list ap) {
 
   // Emit a message on log file (or stdout).
   FILE *outfp = g_log_file.load(std::memory_order_consume);
-  fprintf(outfp, "%-19s %-7s [%s] %s\n",
+  fprintf(outfp ? outfp : stdout, "%-19s %-7s [%s] %s\n",
           time_buf, level_str[level], thread_id.c_str(), message);
   fflush(outfp);
 }
