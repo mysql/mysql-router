@@ -76,7 +76,7 @@ void MySQLRouter::start() {
     for (auto&& config_file: available_config_files_) {
       loader_->read(Path(config_file));
     }
-  } catch (const parser_error &err) {
+  } catch (const syntax_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
