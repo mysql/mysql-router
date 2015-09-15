@@ -41,6 +41,7 @@ find_package(Threads REQUIRED)
 include(cmake/harness.cmake)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)
+find_package(MySQL 5.6 REQUIRED)
 include_directories(${CMAKE_BINARY_DIR}/include)
 
 # Enable testing
