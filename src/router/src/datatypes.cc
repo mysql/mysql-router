@@ -17,31 +17,41 @@
 
 #include "mysqlrouter/datatypes.h"
 
+#include <cstring>
+#include <netdb.h>
 #include <iostream>
 #include <sstream>
-#include <sys/socket.h>
 
 namespace mysqlrouter {
 
-void TCPAddress::init_family() noexcept {
-
-  std::ostringstream os;
-  int result;
-
-  ip_family_ = Family::UNKNOWN;
+void TCPAddress::detect_family() noexcept {
+  // Function only run once by setting ip_family_ > Family::UNKNOWN
+  ip_family_ = Family::INVALID;
 
   if (addr.empty()) {
     return;
   }
 
-  struct sockaddr_in6 saddr6;
-  result = inet_pton(AF_INET6, addr.c_str(), &(saddr6.sin6_addr));
-  if (result == 1) {
-    ip_family_ = Family::IPV6;
-  } else {
-    struct sockaddr_in saddr4;
-    result = inet_pton(AF_INET, addr.c_str(), &(saddr4.sin_addr));
-    if (result == 1) {
+  struct addrinfo *servinfo, *info, hints;
+  int err;
+
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  errno = 0;
+  err = getaddrinfo(addr.c_str(), nullptr, &hints, &servinfo);
+  if (err != 0) {
+    // We consider the IP/name to be invalid
+    return;
+  }
+
+  // Try to setup socket and bind
+  for (info = servinfo; info != nullptr; info = info->ai_next) {
+    if (info->ai_family == AF_INET6) {
+      ip_family_ = Family::IPV6;
+    } else if (info->ai_family == AF_INET) {
       ip_family_ = Family::IPV4;
     }
   }
@@ -70,12 +80,11 @@ string TCPAddress::str() const {
   return os.str();
 }
 
-const char *TCPAddress::c_str() const {
-  return str().c_str();
-}
-
-bool TCPAddress::is_valid() const {
-  return !(addr.empty() || port == 0 || ip_family_ == Family::UNKNOWN);
+bool TCPAddress::is_valid() noexcept {
+  if (ip_family_ == Family::UNKNOWN) {
+    detect_family();
+  }
+  return !(addr.empty() || port == 0 || ip_family_ == Family::INVALID);
 }
 
 } // namespace

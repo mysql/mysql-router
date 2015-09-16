@@ -33,7 +33,7 @@ TEST_F(TCPAddressTest, EmptyAddress) {
   EXPECT_EQ("", a.addr);
   EXPECT_EQ(0, a.port);
   EXPECT_EQ(false, a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::UNKNOWN, a.ip_family_);
+  EXPECT_EQ(TCPAddress::Family::INVALID, a.ip_family_);
   EXPECT_EQ(false, a.is_family<TCPAddress::Family::IPV4>());
   EXPECT_EQ(false, a.is_family<TCPAddress::Family::IPV6>());
 }
@@ -63,7 +63,7 @@ TEST_F(TCPAddressTest, IPv4InvalidAddress) {
   EXPECT_EQ("999.999.999.999", a.addr);
   EXPECT_EQ(3306, a.port);
   EXPECT_EQ(false, a.is_valid());
-  EXPECT_EQ(TCPAddress::Family::UNKNOWN, a.ip_family_);
+  EXPECT_EQ(TCPAddress::Family::INVALID, a.ip_family_);
   EXPECT_EQ(false, a.is_family<TCPAddress::Family::IPV4>());
   EXPECT_EQ(false, a.is_family<TCPAddress::Family::IPV6>());
 }

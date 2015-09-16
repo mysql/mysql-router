@@ -34,19 +34,23 @@ const char *kRoutingRequires[1] = {
     "logger",
 };
 
-int init(const AppInfo *info) {
+static int init(const AppInfo *info) {
   g_app_info = info;
   return 0;
 }
 
-void start(const ConfigSection *section) {
+static void start(const ConfigSection *section) {
   auto name = section->name + ":" + section->key;
 
   try {
     RoutingPluginConfig config(section);
     config.section_name = name;
     MySQLRouting r(config);
-    r.set_destination(config.destination, config.mode);
+    try {
+      r.set_destinations_from_uri(URI(config.destinations));
+    } catch (URIError) {
+      r.set_destinations_from_csv(config.destinations);
+    }
     r.start();
   } catch (const std::invalid_argument &exc) {
     log_error(exc.what());

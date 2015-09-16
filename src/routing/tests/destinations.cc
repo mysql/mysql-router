@@ -98,7 +98,7 @@ TEST_F(RouteDestinationTest, GetNext_NoDestinations)
 {
   RouteDestination d;
   ASSERT_EQ(d.size(), 0);
-  ASSERT_FALSE(d.get_next().is_valid());
+  ASSERT_FALSE(d.get_server().is_valid());
 }
 
 TEST_F(RouteDestinationTest, GetNext_1Destination)
@@ -108,8 +108,8 @@ TEST_F(RouteDestinationTest, GetNext_1Destination)
   d.add("addr1", 1);
   ASSERT_EQ(d.size(), 1);
 
-  ASSERT_EQ(d.get_next().port, 1);
-  ASSERT_EQ(d.get_next().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
 }
 
 TEST_F(RouteDestinationTest, GetNext_3Destinations)
@@ -121,10 +121,10 @@ TEST_F(RouteDestinationTest, GetNext_3Destinations)
   d.add("addr3", 3);
   ASSERT_EQ(d.size(), 3);
 
-  EXPECT_EQ(d.get_next().port, 1);
-  EXPECT_EQ(d.get_next().port, 2);
-  EXPECT_EQ(d.get_next().port, 3);
-  EXPECT_EQ(d.get_next().port, 1);
+  EXPECT_EQ(d.get_server().port, 1);
+  EXPECT_EQ(d.get_server().port, 2);
+  EXPECT_EQ(d.get_server().port, 3);
+  EXPECT_EQ(d.get_server().port, 1);
 }
 
 TEST_F(RouteDestinationTest, GetNext_Remove)
@@ -136,16 +136,16 @@ TEST_F(RouteDestinationTest, GetNext_Remove)
   d.add("addr3", 3);
   ASSERT_EQ(d.size(), 3);
 
-  d.get_next();  // 1
+  d.get_server();  // 1
 
   d.remove("addr2", 2);
-  ASSERT_EQ(d.get_next().port, 1);
-  ASSERT_EQ(d.get_next().port, 3);
-  ASSERT_EQ(d.get_next().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
+  ASSERT_EQ(d.get_server().port, 3);
+  ASSERT_EQ(d.get_server().port, 1);
 
   d.remove("addr3", 3);
-  ASSERT_EQ(d.get_next().port, 1);
-  ASSERT_EQ(d.get_next().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
   d.remove("addr1", 1);
 
   ASSERT_THROW(d.get("addr1", 1), std::out_of_range);
@@ -156,11 +156,11 @@ TEST_F(RouteDestinationTest, GetNext_Add)
   RouteDestination d;
 
   d.add("addr1", 1);
-  ASSERT_EQ(d.get_next().port, 1);
-  ASSERT_EQ(d.get_next().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
+  ASSERT_EQ(d.get_server().port, 1);
   d.add("addr1", 2);
-  ASSERT_EQ(d.get_next().port, 1);
-  ASSERT_EQ(d.get_next().port, 2);
+  ASSERT_EQ(d.get_server().port, 1);
+  ASSERT_EQ(d.get_server().port, 2);
 }
 
 TEST_F(RouteDestinationTest, RemoveAll)

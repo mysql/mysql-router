@@ -19,6 +19,10 @@
 
 namespace routing {
 
+const int kDefaultWaitTimeout = 300;
+const uint16_t kDefaultMaxConnections = 512;
+const int kDefaultDestinationConnectionTimeout = 1;
+
 const std::map<string, AccessMode> kAccessModeNames = {
     {"read-write", AccessMode::kReadWrite},
     {"read-only",  AccessMode::kReadOnly},

@@ -32,17 +32,17 @@ static const char *kRoutingRequires[] = {
     "logger",
 };
 
-int init(const AppInfo *info) {
+static int init(const AppInfo *info) {
   g_app_info = info;
   return 0;
 }
 
-void start(const ConfigSection *section) {
+static void start(const ConfigSection *section) {
   std::string section_name = section->name + ":" + section->key;
   string name_tag = string();
 
   if (!section->key.empty()) {
-    name_tag = "'+ section->key +' ";
+    name_tag = "'" + section->key + "' ";
   }
 
   try {
@@ -51,7 +51,8 @@ void start(const ConfigSection *section) {
 
     port = port == 0 ? fabric_cache::kDefaultFabricPort : port;
 
-    log_info("Starting Fabric Cache %susing MySQL Fabric running on %s", name_tag.c_str(), config.address.c_str());
+    log_info("Starting Fabric Cache %susing MySQL Fabric running on %s",
+             name_tag.c_str(), config.address.str().c_str());
     fabric_cache::cache_init(section->key, config.address.addr, port, config.user, config.password);
 
   } catch (const fabric_cache::base_error &exc) {

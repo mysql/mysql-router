@@ -17,22 +17,21 @@
 
 #include "plugin_config.h"
 #include "mysql_routing.h"
+#include "mysqlrouter/routing.h"
 
 #include <algorithm>
-#include <exception>
 #include <vector>
 
 #include "mysqlrouter/utils.h"
 
-using std::invalid_argument;
 using std::vector;
 
 string RoutingPluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
-      {"connect_timeout", to_string(kDefaultDestinationConnectionTimeout)},
-      {"wait_timeout",    to_string(kDefaultWaitTimeout)},
-      {"max_connections", to_string(kDefaultMaxConnections)},
+      {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
+      {"wait_timeout",    to_string(routing::kDefaultWaitTimeout)},
+      {"max_connections", to_string(routing::kDefaultMaxConnections)},
   };
 
   auto it = defaults.find(option);
@@ -44,9 +43,9 @@ string RoutingPluginConfig::get_default(const string &option) {
 
 bool RoutingPluginConfig::is_required(const string &option) {
   const vector<string> required{
-      "destination",
       "bind_address",
-      "mode"
+      "mode",
+      "destinations",
   };
 
   return std::find(required.begin(), required.end(), option) != required.end();

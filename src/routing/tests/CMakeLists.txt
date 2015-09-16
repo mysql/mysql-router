@@ -13,16 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(../include ../src)
+include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include)
 
 add_library(routing_tests SHARED ${ROUTING_SOURCE_FILES})
-target_link_libraries(routing_tests routertest_helpers logger router_lib)
+target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache)
 set_target_properties(routing_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 add_library(routing_plugin_tests SHARED ${ROUTING_PLUGIN_SOURCE_FILES})
-target_link_libraries(routing_plugin_tests routing_tests routertest_helpers logger router_lib)
+target_link_libraries(routing_plugin_tests routing_tests routertest_helpers logger router_lib fabric_cache)
 set_target_properties(routing_plugin_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing_plugin_tests PRIVATE ${include_dirs})

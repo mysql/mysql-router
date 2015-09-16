@@ -77,14 +77,21 @@ public:
    */
   int fetch_ttl();
 
-private:
-  /** @brief Connects with the MySQL Fabric server
+  /** @brief Connects with the Fabric server
    *
    * Checks first whether we are connected. If not, this method will
-   * try indefinitely try to reconnect with the MySQL Fabric server.
+   * try indefinitely try to reconnect with the Fabric server.
    */
   void connect() noexcept;
 
+  /** @brief Disconnects from the Fabric server
+   *
+   * Checks first whether we are connected. If not, this method will
+   * try indefinitely try to reconnect with the Fabric server.
+   */
+  void disconnect() noexcept;
+  
+private:
   /** @brief Returns result from remote API call
    *
    * Returns result from remote API call executed on the Fabric Server.

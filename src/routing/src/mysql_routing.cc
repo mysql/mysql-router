@@ -17,6 +17,7 @@
 
 #include "mysql_routing.h"
 #include "destfailover.h"
+#include "dest_fabric_cache.h"
 #include "uri.h"
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
@@ -39,10 +40,12 @@ using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
 
-MySQLRouting::MySQLRouting(uint16_t port, const string &bind_address, const string &route_name)
+MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
+                           const string &route_name)
     : name(route_name),
-      wait_timeout_(kDefaultWaitTimeout),
-      destination_connect_timeout_(kDefaultDestinationConnectionTimeout),
+      mode_(mode),
+      wait_timeout_(routing::kDefaultWaitTimeout),
+      destination_connect_timeout_(routing::kDefaultDestinationConnectionTimeout),
       bind_address_(TCPAddress(bind_address, port)),
       stopping_(false),
       info_active_routes_(0),
@@ -50,8 +53,9 @@ MySQLRouting::MySQLRouting(uint16_t port, const string &bind_address, const stri
 
 MySQLRouting::MySQLRouting(const RoutingPluginConfig &config)
     : name(config.section_name),
+      mode_(config.mode),
       wait_timeout_(config.wait_timeout),
-      destination_connect_timeout_(kDefaultDestinationConnectionTimeout),
+      destination_connect_timeout_(routing::kDefaultDestinationConnectionTimeout),
       bind_address_(config.bind_address),
       stopping_(false),
       info_active_routes_(0),
@@ -98,7 +102,7 @@ int MySQLRouting::get_destination() noexcept {
 
   destination_->rewind();
   for (size_t i = 0; i < destination_->size(); ++i) {
-    auto addr = destination_->get_next();  // Validated when added
+    auto addr = destination_->get_server();  // Validated when added
     auto s = get_mysql_connection(addr);
     if (s) {
       return s;
@@ -199,10 +203,10 @@ void MySQLRouting::start() {
     setup_service();
   } catch (const runtime_error &exc) {
     throw runtime_error(
-        string_format("Setting up service using %s: %s", bind_address_.c_str(), exc.what()));
+        string_format("Setting up service using %s: %s", bind_address_.str().c_str(), exc.what()));
   }
 
-  log_info("%s started: listening on %s; %s", name.c_str(), bind_address_.c_str(),
+  log_info("%s started: listening on %s; %s", name.c_str(), bind_address_.str().c_str(),
            routing::get_access_mode_name(mode_).c_str());
 
 #ifndef ENABLE_TESTS
@@ -216,9 +220,9 @@ void MySQLRouting::start() {
       continue;
     }
 
-    if (info_active_routes_.load(std::memory_order_relaxed) >= kDefaultMaxConnections) {
+    if (info_active_routes_.load(std::memory_order_relaxed) >= routing::kDefaultMaxConnections) {
       shutdown(sock_client, SHUT_RDWR);
-      log_warning("%s reached max active connections (%d)", name.c_str(), kDefaultMaxConnections);
+      log_warning("%s reached max active connections (%d)", name.c_str(), routing::kDefaultMaxConnections);
       continue;
     }
 
@@ -250,6 +254,8 @@ void MySQLRouting::setup_service() {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
+
+  errno = 0;
 
   err = getaddrinfo(bind_address_.addr.c_str(), to_string(bind_address_.port).c_str(), &hints, &servinfo);
   if (err != 0) {
@@ -288,47 +294,44 @@ void MySQLRouting::setup_service() {
   }
 }
 
-void MySQLRouting::set_destination(const string &destination, const AccessMode mode) {
-  std::stringstream ss(destination);
+void MySQLRouting::set_destinations_from_uri(const URI &uri) {
+  if (uri.scheme == "fabric+cache") {
+    destination_.reset(new DestFabricCacheGroup(uri.host, uri.path[1], mode_, uri.query));
+  } else {
+    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s", uri.scheme.c_str()));
+  }
+}
+
+void MySQLRouting::set_destinations_from_csv(const string &csv) {
+  std::stringstream ss(csv);
   std::string part;
   std::pair<std::string, uint16_t> info;
 
-  try {
-    URI uri(destination);
-    if (uri.scheme == "fabric_cache") {
-      // Todo: Add mysql+fabric support
+  if (AccessMode::kReadOnly == mode_) {
+    destination_.reset(new RouteDestination());
+  } else if (AccessMode::kReadWrite == mode_) {
+    destination_.reset(new DestFailover());
+  } else {
+    throw std::runtime_error("Unknown mode");
+  }
+  // Fall back to comma separated list of MySQL servers
+  while (std::getline(ss, part, ',')) {
+    info = mysqlrouter::split_addr_port(part);
+    if (info.second == 0) {
+      info.second = 3306;
+    }
+    TCPAddress addr(info.first, info.second);
+    if (addr.is_valid()) {
+      destination_->add(addr);
     } else {
-      //throw std::runtime_error(string_format("Invalid scheme for URI %s", destination.c_str()));
-      log_warning("Invalid URI scheme for URI %s", destination.c_str());
+      throw std::runtime_error(string_format("Destination address '%s' is invalid", addr.str().c_str()));
     }
-  } catch (URIError) {
-    if (AccessMode::kReadOnly == mode) {
-      destination_.reset(new RouteDestination());
-    } else if (AccessMode::kReadWrite == mode) {
-      destination_.reset(new DestFailover());
-    } else {
-      throw std::runtime_error("Unknown mode");
-    }
-    // Fall back to comma separated list of MySQL servers
-    while (std::getline(ss, part, ',')) {
-      info = mysqlrouter::split_addr_port(part);
-      if (info.second == 0) {
-        info.second = 3306;
-      }
-      TCPAddress addr(info.first, info.second);
-      if (addr.is_valid()) {
-        destination_->add(addr);
-      } else {
-        log_warning("Destination address %s is invalid; skipped", part.c_str());
-      }
-    }
-    mode_ = mode;
+  }
 
-    // Check whether bind address is part of destination
-    for (auto &it: *destination_) {
-      if (it == bind_address_) {
-        throw std::runtime_error("Bind Address can not be part of destinations");
-      }
+  // Check whether bind address is part of list of destinations
+  for (auto &it: *destination_) {
+    if (it == bind_address_) {
+      throw std::runtime_error("Bind Address can not be part of destinations");
     }
   }
 
@@ -384,7 +387,7 @@ int MySQLRouting::get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept {
     if (res <= 0) {
       if (res == 0) {
         shutdown(sock, SHUT_RDWR);
-        log_debug("Timeout reached connecting with MySQL Server %s", addr.c_str());
+        log_debug("Timeout reached connecting with MySQL Server %s", addr.str().c_str());
         return 0;
       }
       continue;
@@ -401,7 +404,7 @@ int MySQLRouting::get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept {
   // Handle remaining errors
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
     shutdown(sock, SHUT_RDWR);
-    auto errmsg = string_format("Destination %s %%s (%%d)", addr.c_str());
+    auto errmsg = string_format("Destination %s %%s (%%d)", addr.str().c_str());
     if (so_error) {
       log_debug(errmsg.c_str(), strerror(so_error), so_error);
     } else {

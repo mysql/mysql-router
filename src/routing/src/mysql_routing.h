@@ -31,6 +31,7 @@
 #include "config.h"
 
 class MySQLRouting;
+
 class RoutingPluginConfig;
 
 #include "plugin_config.h"
@@ -72,10 +73,10 @@ using std::string;
  *
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
- *   MySQLRouting r("0.0.0.0", 7001);
+ *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
  *   r.wait_timeout = 200;
  *   r.destination_connect_timeout = 1;
- *   r.set_destination("10.0.10.5;10.0.11.6", routing::AccessMode::kReadWrite);
+ *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
  *   r.start();
  *
  *  The above example will, when MySQL running on 10.0.10.5 is not available,
@@ -86,17 +87,18 @@ class MySQLRouting {
 public:
   /** @brief Default constructor
    *
-   * @param port TCP port for listining for incoming connections
+   * @param port TCP port for listening for incoming connections
    * @param optional bind_address Bind to particular IP address
    * @param optional route name
    */
-  MySQLRouting(uint16_t port, const string &bind_address, const string &route_name);
+  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address, const string &route_name);
 
   /** @overload */
-  MySQLRouting(uint16_t port, const string &bind_address) : MySQLRouting(port, bind_address, "") { }
+  MySQLRouting(routing::AccessMode &mode, uint16_t port, const string &bind_address)
+      : MySQLRouting(mode, port, bind_address, "") { }
 
   /** @overload */
-  MySQLRouting(uint16_t port) : MySQLRouting(port, "0.0.0.0", "") { }
+  MySQLRouting(routing::AccessMode &mode, uint16_t port) : MySQLRouting(mode, port, "0.0.0.0", "") { }
 
   /** @overload */
   MySQLRouting(const RoutingPluginConfig &config);
@@ -125,28 +127,21 @@ public:
     return stopping_.load();
   }
 
-  /** @brief Sets the destination
+  /** @brief Sets the destinations from URI
    *
-   * Sets the destination using the given string and the given mode. The string
-   * can be either a semicolon dist of MySQL servers or a valid supported URI.
+   * Sets destinations using the given string and the given mode. The string
+   * should be a comma separated list of MySQL servers.
    *
    * The mode is one of MySQLRouting::Mode, for example MySQLRouting::Mode::kReadOnly.
    *
-   * Example of destination:
-   *   "10.0.10.5;10.0.11.6:3307"
+   * Example of destinations:
+   *   "10.0.10.5,10.0.11.6:3307"
    *
-   * @param destination destination as string provided by configuration
-   * @param mode mode to use, for example read-only or read-write
+   * @param csv destinations as comma-separated-values
    */
-  void set_destination(const string &destination, const routing::AccessMode mode);
+  void set_destinations_from_csv(const string &csv);
 
-  /** @brief Returns the name of the current mode
-   *
-   *  Returns the name of the current mode as a string.
-   *
-   *  @return name of the configured mode
-   */
-  string get_mode_name();
+  void set_destinations_from_uri(const URI &uri);
 
   /** @brief Descriptive name of the connection routing */
   const string name;
@@ -194,6 +189,8 @@ private:
    */
   void thd_routing_select(int client) noexcept;
 
+  /** @brief Mode to use when getting next destination */
+  routing::AccessMode mode_;
   /** @brief Timeout for idling clients */
   int wait_timeout_;
   /** @brief Timeout connecting to destination */
@@ -202,8 +199,6 @@ private:
   const TCPAddress bind_address_;
   /** @brief Socket descriptor of the service */
   int sock_server_;
-  /** @brief Mode to use when getting next destination */
-  routing::AccessMode mode_;
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
   /** @brief Whether we were asked to stop */

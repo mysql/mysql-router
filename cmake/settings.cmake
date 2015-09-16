@@ -26,6 +26,7 @@ set(MYSQL_ROUTER_INI "mysqlrouter.ini"
 # Command line options for CMake
 option(ENABLE_TESTS "Enable Tests" NO)
 option(DOWNLOAD_BOOST "Download Boost C++ Libraries" NO)
+option(WITH_STATIC "Enable static linkage of external libraries" NO)
 
 # MySQL Harness
 set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
@@ -49,8 +50,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} install_prefix)
   # We are using Raw strings (see config.h.in), no double escaping of \\ needed
   set(CONFIG_FILE_LOCATIONS
-    "ENV{PROGRAMDATA}\\MySQL\\MySQL Router ${ver}\\${MYSQL_ROUTER_INI}"
-    "${install_prefix}\\${MYSQL_ROUTER_INI}"
     "ENV{APPDATA}\\${MYSQL_ROUTER_INI}"
   )
   unset(ver)
@@ -58,8 +57,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 else()
   set(CONFIG_FILE_LOCATIONS
     "/etc/mysql/${MYSQL_ROUTER_INI}"
-    "${CMAKE_INSTALL_PREFIX}/etc/${MYSQL_ROUTER_INI}"
-    "ENV{MYSQL_ROUTER_HOME}/${MYSQL_ROUTER_INI}"
     "ENV{HOME}/.${MYSQL_ROUTER_INI}"
   )
 endif()

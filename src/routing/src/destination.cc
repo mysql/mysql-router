@@ -83,9 +83,9 @@ void RouteDestination::clear() {
   post_remove();
 }
 
-const TCPAddress RouteDestination::get_next() noexcept {
+TCPAddress RouteDestination::get_server() noexcept {
   if (destinations_.empty()) {
-    return TCPAddress();
+    return TCPAddress{};
   }
 
   // With only 1 destination, no need to lock and update the iterator

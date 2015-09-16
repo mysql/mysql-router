@@ -55,6 +55,12 @@ public:
   /** @brief Destructor */
   ~FabricCache();
 
+  /** Starts the Fabric Cache
+   *
+   * Starts the Fabric Cache and launch thread.
+   */
+  void start();
+
   /** @brief Returns list of managed servers in a group
    *
    * Returns list of managed servers in a group.
@@ -118,7 +124,7 @@ private:
 
   static const map<string, int> shard_type_map_;
 
-  bool terminate_ = false;
+  bool terminate_;
 
   std::shared_ptr<FabricMetaData> fabric_meta_data_;
 

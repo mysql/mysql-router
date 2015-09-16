@@ -34,8 +34,8 @@ if(WIN32)
     $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
   )
   set(MySQL_INCLUDE_PATHS
-      ${WITH_MYSQL}/include
-      $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/include
+    ${WITH_MYSQL}/include
+    $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/include
   )
 else()
   set(WITH_MYSQL "/usr/local/mysql" CACHE PATH "Installation path of MySQL Client Libraries")
@@ -54,7 +54,11 @@ else()
 endif()
 
 find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS} PATH_SUFFIXES mysql)
-find_library(MySQL_CLIENT_LIB NAMES ${MySQL_CLIENT_LIBRARY} PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql)
+if(WITH_STATIC)
+  find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql)
+else()
+  find_library(MySQL_CLIENT_LIB NAMES ${MySQL_CLIENT_LIBRARY} PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql)
+endif()
 
 if(MySQL_INCLUDES AND MySQL_CLIENT_LIB)
   set(MySQL_FOUND TRUE)
@@ -74,7 +78,7 @@ if(MySQL_INCLUDES AND MySQL_CLIENT_LIB)
 
   if(MySQL_FIND_VERSION)
     if(MySQL_FIND_VERSION_EXACT AND (NOT MySQL_VERSION VERSION_EQUAL MySQL_FIND_VERSION))
-        message(FATAL_ERROR "Exact MySQL v${MySQL_FIND_VERSION} is required; found v${MySQL_VERSION}")
+      message(FATAL_ERROR "Exact MySQL v${MySQL_FIND_VERSION} is required; found v${MySQL_VERSION}")
     elseif(MySQL_VERSION VERSION_LESS MySQL_FIND_VERSION)
       message(FATAL_ERROR "MySQL v${MySQL_FIND_VERSION} or later is required; found v${MySQL_VERSION}")
     endif()
@@ -85,7 +89,7 @@ else()
 endif()
 
 if(MySQL_FOUND)
-  message(STATUS "Found MySQL Libraries ${MySQL_VERSION}")
+  message(STATUS "Found MySQL Libraries ${MySQL_VERSION}; using ${MySQL_LIBRARIES}")
 else()
   if(MySQL_FIND_REQUIRED)
     message(FATAL_ERROR "Could not find MySQL libraries; used ${MySQL_LIBRARY_PATHS}")

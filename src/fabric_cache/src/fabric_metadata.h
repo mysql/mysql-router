@@ -39,6 +39,8 @@ public:
   virtual int fetch_ttl() = 0;
   virtual map<string, list<ManagedServer>> fetch_servers() = 0;
   virtual map<string, list<ManagedShard>> fetch_shards() = 0;
+  virtual void connect() = 0;
+  virtual void disconnect() = 0;
 };
 
 #endif // FABRIC_CACHE_FABRIC_METADATA_INCLUDED

@@ -47,7 +47,6 @@ string FabricCachePluginConfig::get_default(const string &option) {
 
 bool FabricCachePluginConfig::is_required(const string &option) {
   const vector<string> required{
-      "address"
   };
 
   return std::find(required.begin(), required.end(), option) != required.end();

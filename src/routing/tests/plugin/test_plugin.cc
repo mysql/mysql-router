@@ -65,7 +65,7 @@ protected:
 
     config_section = std::make_shared<ConfigSection>("routing", "tests", nullptr);
     config_section->add("bind_address", "127.0.0.1:15508");
-    config_section->add("destination", "127.0.0.1:3306");
+    config_section->add("destinations", "127.0.0.1:3306");
     config_section->add("mode", "read-only");
   }
 
@@ -159,14 +159,14 @@ TEST_F(RoutingPluginTests, StartCamelCaseMode) {
 
 TEST_F(RoutingPluginTests, StartMissingDestination) {
   auto section = config_section.get();
-  section->set("destination", "");
+  section->set("destinations", "");
 
   harness_plugin_routing.init(&test_app_info);
   auto start = harness_plugin_routing.start;
 
   start(section);
   auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr("option destination in [routing:tests] is required and needs a value"));
+  ASSERT_THAT(log, HasSubstr("option destinations in [routing:tests] is required and needs a value"));
 }
 
 TEST_F(RoutingPluginTests, StartMissingBindAddress) {

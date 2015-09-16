@@ -44,6 +44,9 @@ void cache_init(const string &cache_name, const string &host, const int port,
       std::unique_ptr<FabricCache>(
           new FabricCache(host, port, user, password, 1, 1))
   );
+
+  auto cache = g_fabric_caches.find(cache_name);
+  cache->second->start();
 }
 
 bool have_cache(const string &cache_name) {

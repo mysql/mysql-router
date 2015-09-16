@@ -69,19 +69,30 @@ void Fabric::connect() noexcept {
     mysql_options(fabric_connection_, MYSQL_OPT_RECONNECT, &reconnect);
 
     ++attempts;
+    unsigned long client_flags = (
+        CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 | CLIENT_MULTI_RESULTS
+    );
     if (mysql_real_connect(fabric_connection_, host.c_str(), user_.c_str(),
                            password_.c_str(), nullptr, static_cast<unsigned int>(port_), nullptr,
-                           CLIENT_MULTI_RESULTS)) {
+                           client_flags)) {
       break;
     }
 
     if (attempts % kConnectErrorReportInterval == 0 || attempts == 1) {
       log_error("Failed connecting to Fabric; will retry (%s)", mysql_error(fabric_connection_));
+      attempts = 10;  // reset, but make sure this is not 1 otherwise we get double message
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   connected_ = true;
+}
+
+void Fabric::disconnect() noexcept {
+  connected_ = false;
+  if (fabric_connection_ != nullptr) {
+    mysql_close(fabric_connection_);
+  }
 }
 
 MYSQL_RES *Fabric::fetch_metadata(string &remote_api) {
@@ -147,7 +158,7 @@ MYSQL_RES *Fabric::fetch_metadata(string &remote_api) {
   }
   else {
     ostringstream ss;
-    ss << "Failed fetching results: " << mysql_error(fabric_connection_);
+    ss << "Failed fetching multiple results: " << remote_api;
     throw fabric_cache::metadata_error(ss.str());
   }
 }
@@ -185,8 +196,8 @@ map<string, list<ManagedShard>> Fabric::fetch_shards() {
   string api = "dump.sharding_information";
 
   map<string, list<ManagedShard>> shard_map;
-  MYSQL_ROW row = nullptr;
 
+  MYSQL_ROW row = nullptr;
   MYSQL_RES *result = fetch_metadata(api);
 
   while ((row = mysql_fetch_row(result)) != nullptr) {

@@ -101,7 +101,7 @@ public:
    *
    * @return Instance of mysqlrouter::TCPAddress
    */
-  virtual const TCPAddress get_next() noexcept;
+  virtual TCPAddress get_server() noexcept;
 
   /** @brief Gets the number of destinations
    *

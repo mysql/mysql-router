@@ -17,6 +17,7 @@ set(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql_routing.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_fabric_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/uri.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
 )
@@ -30,10 +31,13 @@ set(include_dirs
   ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
   ${CMAKE_SOURCE_DIR}/src/router/include
   ${CMAKE_SOURCE_DIR}/src/routing/include
+  ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
 )
 
 # The Plugin
-add_harness_plugin(routing SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES} REQUIRES logger)
+add_harness_plugin(routing
+        SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
+        REQUIRES logger)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")

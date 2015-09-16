@@ -25,6 +25,22 @@ using std::string;
 
 namespace routing {
 
+/** @brief Timeout for idling clients (in seconds)
+ *
+ * Constant defining how long (in seconds) a client can keep the connection idling. This is similar to the
+ * wait_timeout variable in the MySQL Server.
+ */
+extern const int kDefaultWaitTimeout;
+
+/** @brief Max number of active routes for this routing instance */
+extern const uint16_t kDefaultMaxConnections;
+
+/** @brief Timeout connecting to destination (in seconds)
+ *
+ * Constant defining how long we wait to establish connection with the server before we give up.
+ */
+extern const int kDefaultDestinationConnectionTimeout;
+
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
   kReadWrite = 1,

@@ -64,16 +64,6 @@ FabricCache::FabricCache(string host, int port, string user, string password,
   shard_data_ = shard_data_temp_;
   ttl_ = kDefaultTimeToLive;
   terminate_ = false;
-
-  // Start the Fabric Cache refresh thread
-  auto refresh_loop = [this] {
-    while (!terminate_) {
-      refresh();
-      std::this_thread::sleep_for(
-          std::chrono::seconds(ttl_ == 0 ? kDefaultTimeToLive : ttl_));
-    }
-  };
-  thread(refresh_loop).join();
 }
 
 FabricCache::~FabricCache() {
@@ -81,6 +71,21 @@ FabricCache::~FabricCache() {
   if (refresh_thread_.joinable()) {
     refresh_thread_.join();
   }
+}
+
+void FabricCache::start() {
+  // Start the Fabric Cache refresh thread
+  auto refresh_loop = [this] {
+    while (!terminate_) {
+      refresh();
+      std::this_thread::sleep_for(
+          std::chrono::seconds(ttl_ == 0 ? kDefaultTimeToLive : ttl_));
+      fabric_meta_data_->disconnect();
+      fabric_meta_data_->connect();
+    }
+  };
+  thread(refresh_loop).join();
+  // Restart the thread
 }
 
 list<ManagedServer> FabricCache::group_lookup(const string &group_id) {
@@ -126,17 +131,21 @@ list<ManagedServer> FabricCache::shard_lookup(const string &table_name, const st
 }
 
 void FabricCache::refresh() {
-  fetch_data();
-  cache_refreshing_mutex_.lock();
-  group_data_ = group_data_temp_;
-  shard_data_ = shard_data_temp_;
-  cache_refreshing_mutex_.unlock();
+  try {
+    fetch_data();
+    cache_refreshing_mutex_.lock();
+    group_data_ = group_data_temp_;
+    shard_data_ = shard_data_temp_;
+    cache_refreshing_mutex_.unlock();
+  } catch (const fabric_cache::base_error &exc) {
+    log_debug("Failed fetching data: %s", exc.what());
+  }
 }
 
 void FabricCache::fetch_data() {
-  group_data_temp_ = fabric_meta_data_->fetch_servers();
-  shard_data_temp_ = fabric_meta_data_->fetch_shards();
-  ttl_ = fabric_meta_data_->fetch_ttl();
+    group_data_temp_ = fabric_meta_data_->fetch_servers();
+    shard_data_temp_ = fabric_meta_data_->fetch_shards();
+    ttl_ = fabric_meta_data_->fetch_ttl();
 }
 
 ValueComparator *FabricCache::fetch_value_comparator(string shard_type) {
