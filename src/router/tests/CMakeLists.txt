@@ -17,12 +17,11 @@ include_directories(../include ../src)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "router"
-  LIB_DEPENDS router_test_lib harness-library
   ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
 foreach(config_file ${config_files})
-  add_custom_command(TARGET test_mysqlrouter_app
+  add_custom_command(TARGET test_router_mysqlrouter_app
             COMMAND ${CMAKE_COMMAND} -E copy ${config_file} ${STAGE_DIR}/etc/
             COMMENT "Copying Router test data: ${config_file}"
   )

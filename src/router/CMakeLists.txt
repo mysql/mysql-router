@@ -13,10 +13,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+include_directories(
+  include/
+  ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
+)
+
 add_subdirectory(src/)
 if(ENABLE_TESTS)
     add_subdirectory(tests/)
 endif()
 
-install(FILES ${CMAKE_SOURCE_DIR}/README.txt DESTINATION ${INSTALL_DOCDIR})
-install(FILES ${CMAKE_SOURCE_DIR}/License.txt DESTINATION ${INSTALL_DOCDIR})
+if(INSTALL_DOCDIR)
+  install(FILES ${CMAKE_SOURCE_DIR}/README.txt DESTINATION ${INSTALL_DOCDIR})
+  install(FILES ${CMAKE_SOURCE_DIR}/License.txt DESTINATION ${INSTALL_DOCDIR})
+endif()
+
+file(GLOB router_headers include/mysqlrouter/*.h)
+install(FILES ${router_headers}
+  DESTINATION "include/mysql/${HARNESS_NAME}")

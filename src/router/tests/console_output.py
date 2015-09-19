@@ -78,7 +78,7 @@ class TestConsoleOutput(unittest.TestCase):
                     files.append(line.strip())
 
         self.assertTrue(found, "List of configuration files missing")
-        self.assertTrue(len(files) > 2,
+        self.assertTrue(len(files) > 1,
                         "Failed reading list of configuration files")
 
     def test_help_usage(self):

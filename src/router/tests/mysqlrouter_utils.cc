@@ -20,16 +20,20 @@
  */
 
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 #include <cstdlib>
 
+#include "mysqlrouter/utils.h"
 #include "utils.h"
-#include "../src/utils.h"
 
 using std::string;
 
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
+
+using ::testing::StrEq;
+using ::testing::ContainerEq;
 
 
 class SubstituteEnvVarTest : public ::testing::Test {
@@ -61,7 +65,12 @@ protected:
   };
 
   string short_line_less72 {
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+  };
+
+  string custom_indents {
+    "           Lorem ipsum dolor      sit amet,\n"
+    "           consectetur adipiscing elit."
   };
 };
 
@@ -142,122 +151,96 @@ try {
 
 TEST_F(WrapStringTest, ShortLine)
 {
-std::vector<string> lines = wrap_string(short_line_less72, 72, 0);
+  std::vector<string> lines = wrap_string(short_line_less72, 72, 0);
 
-std::vector<string> exp {short_line_less72};
-ASSERT_EQ(exp.size(), lines.size());
-ASSERT_STREQ(exp.at(0).c_str(), lines.at(0).c_str());
+  std::vector<string> exp {short_line_less72};
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 TEST_F(WrapStringTest, OneLine72width)
 {
-std::vector<string> lines = wrap_string(one_line, 72, 0);
+  std::vector<string> lines = wrap_string(one_line, 72, 0);
 
-std::vector<string> exp {
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac tempor",
-  "ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer lacinia,",
-  "velit vel aliquam finibus, dui turpis aliquet leo, pharetra finibus",
-  "neque elit id sapien. Nunc hendrerit ut felis nec gravida. Proin a mi id",
-  "ligula pharetra pulvinar ut in sapien. Cras lorem libero, mollis",
-  "consectetur leo et, sollicitudin scelerisque mauris. Nunc semper",
-  "dignissim libero, vitae ullamcorper arcu luctus eu.",
-};
+  std::vector<string> exp {
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac tempor",
+    "ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer lacinia,",
+    "velit vel aliquam finibus, dui turpis aliquet leo, pharetra finibus",
+    "neque elit id sapien. Nunc hendrerit ut felis nec gravida. Proin a mi id",
+    "ligula pharetra pulvinar ut in sapien. Cras lorem libero, mollis",
+    "consectetur leo et, sollicitudin scelerisque mauris. Nunc semper",
+    "dignissim libero, vitae ullamcorper arcu luctus eu.",
+  };
 
-EXPECT_EQ(exp.size(), lines.size());
-
-auto eb = exp.begin();
-auto lb = lines.begin();
-auto ee = exp.end();
-auto le = lines.end();
-
-for (; eb != ee && lb != le; ++eb, ++lb) {
-  EXPECT_STREQ((*eb).c_str(), (*lb).c_str());
-}
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 TEST_F(WrapStringTest, OneLine72widthIndent4)
 {
-std::vector<string> lines = wrap_string(one_line, 72, 4);
+  std::vector<string> lines = wrap_string(one_line, 72, 4);
 
-std::vector<string> exp {
-  "    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac",
-  "    tempor ligula. Curabitur imperdiet sem eget tincidunt viverra.",
-  "    Integer lacinia, velit vel aliquam finibus, dui turpis aliquet leo,",
-  "    pharetra finibus neque elit id sapien. Nunc hendrerit ut felis nec",
-  "    gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras",
-  "    lorem libero, mollis consectetur leo et, sollicitudin scelerisque",
-  "    mauris. Nunc semper dignissim libero, vitae ullamcorper arcu luctus",
-  "    eu.",
-};
+  std::vector<string> exp {
+    "    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac",
+    "    tempor ligula. Curabitur imperdiet sem eget tincidunt viverra.",
+    "    Integer lacinia, velit vel aliquam finibus, dui turpis aliquet leo,",
+    "    pharetra finibus neque elit id sapien. Nunc hendrerit ut felis nec",
+    "    gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras",
+    "    lorem libero, mollis consectetur leo et, sollicitudin scelerisque",
+    "    mauris. Nunc semper dignissim libero, vitae ullamcorper arcu luctus",
+    "    eu.",
+  };
 
-EXPECT_EQ(exp.size(), lines.size());
-
-auto eb = exp.begin();
-auto lb = lines.begin();
-auto ee = exp.end();
-auto le = lines.end();
-
-for (; eb != ee && lb != le; ++eb, ++lb) {
-  EXPECT_STREQ((*eb).c_str(), (*lb).c_str());
-}
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 TEST_F(WrapStringTest, RespectNewLine)
 {
-std::vector<string> lines = wrap_string(with_newlines, 80, 0);
+  std::vector<string> lines = wrap_string(with_newlines, 80, 0);
 
-std::vector<string> exp {
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-  "Ut ac tempor ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer",
-  "lacinia, velit",
-  "vel aliquam finibus, dui turpis aliquet leo, pharetra finibus neque elit id",
-  "sapien. Nunc hendrerit ut felis nec",
-  "gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras lorem libero,",
-  "mollis consectetur",
-  "leo et, sollicitudin scelerisque mauris. Nunc semper dignissim libero, vitae",
-  "ullamcorper arcu luctus",
-  "eu.",
-};
+  std::vector<string> exp {
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "Ut ac tempor ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer",
+    "lacinia, velit",
+    "vel aliquam finibus, dui turpis aliquet leo, pharetra finibus neque elit id",
+    "sapien. Nunc hendrerit ut felis nec",
+    "gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras lorem libero,",
+    "mollis consectetur",
+    "leo et, sollicitudin scelerisque mauris. Nunc semper dignissim libero, vitae",
+    "ullamcorper arcu luctus",
+    "eu.",
+  };
 
-EXPECT_EQ(exp.size(), lines.size());
-
-auto eb = exp.begin();
-auto lb = lines.begin();
-auto ee = exp.end();
-auto le = lines.end();
-
-for (; eb != ee && lb != le; ++eb, ++lb) {
-  EXPECT_STREQ((*eb).c_str(), (*lb).c_str());
-}
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 TEST_F(WrapStringTest, RespectNewLineIndent2)
 {
-std::vector<string> lines = wrap_string(with_newlines, 60, 2);
+  std::vector<string> lines = wrap_string(with_newlines, 60, 2);
 
-std::vector<string> exp {
-    "  Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    "  Ut ac tempor ligula. Curabitur imperdiet sem eget",
-    "  tincidunt viverra. Integer lacinia, velit",
-    "  vel aliquam finibus, dui turpis aliquet leo, pharetra",
-    "  finibus neque elit id sapien. Nunc hendrerit ut felis nec",
-    "  gravida. Proin a mi id ligula pharetra pulvinar ut in",
-    "  sapien. Cras lorem libero, mollis consectetur",
-    "  leo et, sollicitudin scelerisque mauris. Nunc semper",
-    "  dignissim libero, vitae ullamcorper arcu luctus",
-    "  eu.",
-};
-
-EXPECT_EQ(exp.size(), lines.size());
-
-auto eb = exp.begin();
-auto lb = lines.begin();
-auto ee = exp.end();
-auto le = lines.end();
-
-for (; eb != ee && lb != le; ++eb, ++lb) {
-  EXPECT_STREQ((*eb).c_str(), (*lb).c_str());
+  std::vector<string> exp {
+      "  Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "  Ut ac tempor ligula. Curabitur imperdiet sem eget",
+      "  tincidunt viverra. Integer lacinia, velit",
+      "  vel aliquam finibus, dui turpis aliquet leo, pharetra",
+      "  finibus neque elit id sapien. Nunc hendrerit ut felis nec",
+      "  gravida. Proin a mi id ligula pharetra pulvinar ut in",
+      "  sapien. Cras lorem libero, mollis consectetur",
+      "  leo et, sollicitudin scelerisque mauris. Nunc semper",
+      "  dignissim libero, vitae ullamcorper arcu luctus",
+      "  eu.",
+  };
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
+
+TEST_F(WrapStringTest, CustomeIndents)
+{
+  std::vector<string> lines = wrap_string(custom_indents, 72, 5);
+
+  std::vector<string> exp {
+      "                Lorem ipsum dolor      sit amet,",
+      "                consectetur adipiscing elit.",
+  };
+
+  ASSERT_THAT(lines, ContainerEq(exp));
 }
 
 /*
@@ -265,6 +248,6 @@ for (; eb != ee && lb != le; ++eb, ++lb) {
  */
 TEST_F(StringFormatTest, Simple)
 {
-EXPECT_STREQ(std::string("5 + 5 = 10").c_str(), mysqlrouter::string_format("%d + %d = %d", 5, 5, 10).c_str());
-EXPECT_STREQ(std::string("Spam is 5").c_str(), mysqlrouter::string_format("%s is %d", "Spam", 5).c_str());
+  EXPECT_EQ(std::string("5 + 5 = 10"), mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
+  EXPECT_EQ(std::string("Spam is 5"), mysqlrouter::string_format("%s is %d", "Spam", 5));
 }

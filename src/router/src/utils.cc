@@ -23,14 +23,13 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <iostream>
-#include <vector>
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
 const string kValidPortChars = "0123456789";
 
 namespace mysqlrouter {
 
-vector<string> wrap_string(const string to_wrap, size_t width, size_t indent_size) {
+vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_size) {
   size_t curr_pos = 0;
   size_t wrap_pos = 0;
   size_t prev_pos = 0;
@@ -57,7 +56,6 @@ vector<string> wrap_string(const string to_wrap, size_t width, size_t indent_siz
         wrap_pos = work.find_last_of(" ", curr_pos);
       }
       if (wrap_pos != string::npos) {
-        assert(wrap_pos - prev_pos != string::npos);
         res.push_back(indent + work.substr(prev_pos, wrap_pos - prev_pos));
         prev_pos = wrap_pos + 1;  // + 1 to skip space
       } else {
@@ -76,23 +74,23 @@ void substitute_envvar(string &line) {
 
   pos_start = line.find("ENV{");
   if (pos_start == string::npos) {
-    throw mysqlrouter::envvar_no_placeholder("No environment variable placeholder found");
+    throw envvar_no_placeholder("No environment variable placeholder found");
   }
 
   pos_end = line.find("}", pos_start + 4);
   if (pos_end == string::npos) {
-    throw mysqlrouter::envvar_bad_placeholder("Environment placeholder not closed");
+    throw envvar_bad_placeholder("Environment placeholder not closed");
   }
 
   auto env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
   if (env_var.empty()) {
-    throw mysqlrouter::envvar_bad_placeholder("No environment variable name found in placeholder");
+    throw envvar_bad_placeholder("No environment variable name found in placeholder");
   }
 
   auto env_var_value = std::getenv(env_var.c_str());
   if (env_var_value == nullptr) {
     // Environment variable not set
-    throw mysqlrouter::envvar_not_available(string{"Unknown environment variable " + env_var});
+    throw envvar_not_available(string{"Unknown environment variable " + env_var});
   }
 
   line.replace(pos_start, env_var.size() + 5, env_var_value);

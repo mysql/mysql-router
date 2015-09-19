@@ -16,6 +16,7 @@
 */
 
 #include "arg_handler.h"
+#include "mysqlrouter/utils.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -33,7 +34,7 @@ using mysqlrouter::wrap_string;
 using mysqlrouter::string_format;
 
 void CmdArgHandler::add_option(const OptionNames names, const string description, const CmdOptionValueReq value_req,
-                               const string metavar, ActionFunc action) NOEXCEPT {
+                               const string metavar, ActionFunc action) noexcept {
   assert(!names.empty());  // need none empty names container
   for (auto name : names) {
     assert(is_valid_option_name(name));  // valid option names
@@ -43,7 +44,7 @@ void CmdArgHandler::add_option(const OptionNames names, const string description
   options_.emplace_back(names, description, value_req, metavar, action);
 }
 
-void CmdArgHandler::add_option(const CmdOption &other) NOEXCEPT {
+void CmdArgHandler::add_option(const CmdOption &other) noexcept {
   assert(!other.names.empty());  // need none empty names container
   for (auto name : other.names) {
     assert(is_valid_option_name(name));  // valid option names
@@ -53,7 +54,7 @@ void CmdArgHandler::add_option(const CmdOption &other) NOEXCEPT {
   options_.emplace_back(other.names, other.description, other.value_req, other.metavar, other.action);
 }
 
-OptionContainer::iterator CmdArgHandler::find_option(const string name) NOEXCEPT {
+OptionContainer::iterator CmdArgHandler::find_option(const string name) noexcept {
   for (auto opt = options_.begin(); opt != options_.end(); ++opt) {
     auto res = std::find(opt->names.begin(), opt->names.end(), name);
     if (res != opt->names.end()) {
@@ -64,13 +65,13 @@ OptionContainer::iterator CmdArgHandler::find_option(const string name) NOEXCEPT
   return options_.end();
 }
 
-/** @fn CmdArgHandler::is_valid_option_name(const string name) NOEXCEPT
+/** @fn CmdArgHandler::is_valid_option_name(const string name) noexcept
  *
  * @devnote
  * Some compilers, like gcc 4.8, have no support for C++11 regular expression.
  * @enddevnote
  */
-bool CmdArgHandler::is_valid_option_name(const string name) NOEXCEPT {
+bool CmdArgHandler::is_valid_option_name(const string name) noexcept {
   // Handle tokens like -h or -v
   if (name.size() == 2 && name.at(1) != '-') {
     return name.at(0) == '-';
@@ -174,7 +175,7 @@ void CmdArgHandler::process(const vector<string> arguments) {
   }
 }
 
-vector<string> CmdArgHandler::usage_lines(const string prefix, const string rest_metavar, size_t width) NOEXCEPT {
+vector<string> CmdArgHandler::usage_lines(const string prefix, const string rest_metavar, size_t width) noexcept {
   std::stringstream ss;
   vector<string> usage;
 
@@ -244,7 +245,7 @@ vector<string> CmdArgHandler::usage_lines(const string prefix, const string rest
   return result;
 }
 
-vector<string> CmdArgHandler::option_descriptions(const size_t width, const size_t indent) NOEXCEPT {
+vector<string> CmdArgHandler::option_descriptions(const size_t width, const size_t indent) noexcept {
   std::stringstream ss;
   vector<string> desc_lines;
 

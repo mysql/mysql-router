@@ -26,7 +26,7 @@ file(COPY ${CMAKE_SOURCE_DIR}/tests/__init__.py DESTINATION ${CMAKE_BINARY_DIR}/
 
 function(ADD_TEST_FILE FILE)
   set(oneValueArgs MODULE LABEL ENVIRONMENT)
-  set(multiValueArgs LIB_DEPENDS)
+  set(multiValueArgs LIB_DEPENDS INCLUDE_DIRS)
   cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   if(NOT TEST_MODULE)
@@ -41,15 +41,20 @@ function(ADD_TEST_FILE FILE)
   if(test_ext STREQUAL ".cc")
     # Tests written in C++
     get_filename_component(test_target ${FILE} NAME_WE)
-    set(test_target "test_${test_target}")
+    string(REGEX REPLACE "^test_" "" test_target ${test_target})
+    set(test_target "test_${TEST_MODULE}_${test_target}")
     set(test_name "tests/${TEST_MODULE}/${test_target}")
     add_executable(${test_target} ${FILE})
     target_link_libraries(${test_target}
-      gtest gtest_main gmock gmock_main
+      gtest gtest_main gmock gmock_main routertest_helpers
+      router_lib harness-library
       ${CMAKE_THREAD_LIBS_INIT})
     foreach(libtarget ${TEST_LIB_DEPENDS})
-      add_dependencies(${test_target} ${libtarget})
+      #add_dependencies(${test_target} ${libtarget})
       target_link_libraries(${test_target} ${libtarget})
+    endforeach()
+    foreach(include_dir ${TEST_INCLUDE_DIRS})
+      target_include_directories(${test_target} PUBLIC ${include_dir})
     endforeach()
     set_target_properties(${test_target}
       PROPERTIES
@@ -79,7 +84,7 @@ endfunction(ADD_TEST_FILE)
 
 function(ADD_TEST_DIR DIR_NAME)
   set(oneValueArgs MODULE ENVIRONMENT)
-  set(multiValueArgs LIB_DEPENDS)
+  set(multiValueArgs LIB_DEPENDS INCLUDE_DIRS)
   cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   if(NOT TEST_MODULE)
@@ -88,16 +93,19 @@ function(ADD_TEST_DIR DIR_NAME)
 
   get_filename_component(abs_path ${DIR_NAME} ABSOLUTE)
 
-  file(GLOB_RECURSE test_files RELATIVE ${abs_path}
+  file(GLOB test_files RELATIVE ${abs_path}
     ${abs_path}/*.cc
     ${abs_path}/*.py)
 
   foreach(test_file ${test_files})
-    ADD_TEST_FILE(${abs_path}/${test_file}
-      MODULE ${TEST_MODULE}
-      ENVIRONMENT ${TEST_ENVIRONMENT}
-      LIB_DEPENDS ${TEST_LIB_DEPENDS}
-      )
+    if(NOT ${test_file} MATCHES "^helper")
+      ADD_TEST_FILE(${abs_path}/${test_file}
+        MODULE ${TEST_MODULE}
+        ENVIRONMENT ${TEST_ENVIRONMENT}
+        LIB_DEPENDS ${TEST_LIB_DEPENDS}
+        INCLUDE_DIRS ${TEST_INCLUDE_DIRS}
+        )
+    endif()
   endforeach(test_file)
 
 endfunction(ADD_TEST_DIR)

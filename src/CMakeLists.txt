@@ -22,11 +22,9 @@ file(GLOB MODULE_DIRS
 # Load all modules
 foreach(module_name ${MODULE_DIRS})
   set(mod_dir "${CURR_DIR}/${module_name}")
-  if(module_name STREQUAL "harness")
-      # Harness is loaded from the root CMakeLists.txt
-  elseif(IS_DIRECTORY ${mod_dir})
+  if(IS_DIRECTORY ${mod_dir})
     if(EXISTS "${mod_dir}/CMakeLists.txt")
-      message(STATUS "Loading MySQL Router module '${module_name}'")
+      message(STATUS "Loading module '${module_name}'")
       add_subdirectory(${module_name})
     else()
       message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")

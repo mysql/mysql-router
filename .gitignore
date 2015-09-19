@@ -24,7 +24,7 @@
 
 # Folders
 .DS_Store
-/build
+/build*
 /gtest/**
 /gmock/**
 /harness/**

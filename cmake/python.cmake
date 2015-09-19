@@ -15,4 +15,5 @@
 
 # CMake module handling Python dependency
 
+set(Python_ADDITIONAL_VERSION ${PYTHON_MINIMUM_VERSION} 3.3 3.4 3.5)
 find_package(PythonInterp ${PYTHON_MINIMUM_VERSION} REQUIRED)

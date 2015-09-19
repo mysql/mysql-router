@@ -33,6 +33,9 @@ endif()
 include(cmake/settings.cmake)
 
 # Required tools, libraries, etc..
+if(ENABLE_TESTS)
+  include(cmake/python.cmake)
+endif()
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT
@@ -41,18 +44,19 @@ find_package(Threads REQUIRED)
 include(cmake/harness.cmake)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)
-find_package(MySQL 5.6 REQUIRED)
+find_package(MySQL 5.5 REQUIRED)
 include_directories(${CMAKE_BINARY_DIR}/include)
 
 # Enable testing
 if(ENABLE_TESTS)
-  include(cmake/python.cmake)
   enable_testing()
   add_subdirectory(tests)
 endif()
 
 # Compiler & Linker settings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAG}")
+if(${INSTALL_LAYOUT} STREQUAL "STANDALONE")
+  set(CMAKE_INSTALL_RPATH "${PLUGIN_RPATH}")
+endif()
 
 # Configure
 include(cmake/configure.cmake)

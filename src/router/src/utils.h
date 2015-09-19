@@ -29,6 +29,7 @@
 #include <exception>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 #include <vector>
 
 using std::vector;
@@ -81,17 +82,6 @@ public:
   explicit envvar_not_available(const string &what_arg) : envvar_error(what_arg) { }
 };
 
-/** @brief Returns string formatted using given data
- *
- * Returns string formatted using given data accepting the same arguments
- * and format specifies as the typical printf.
- *
- * @param format specify how to format the data
- * @param ... variable argument list containing the data
- * @returns formatted text as string
- */
-string string_format(const char *format, ...);
-
 /** @brief Substitutes placeholders of environment variables in a string
  *
  * Substitutes placeholders of environement variables in a string. A
@@ -123,7 +113,8 @@ void substitute_envvar(string &line);
  * @param indent number of spaces to prefix each line with
  * @return vector of strings
  */
-vector<string> wrap_string(const string str, size_t width, size_t indent);
-}
+vector<string> wrap_string(const string &str, size_t width, size_t indent);
+
+} // namespace mysqlrouter
 
 #endif // ROUTER_UTILS_INCLUDED

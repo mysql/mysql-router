@@ -32,12 +32,11 @@ public:
     UNKNOWN = 0,
     IPV4 = 1,
     IPV6 = 2,
+    INVALID = 9,
   };
 
   TCPAddress(string address = "", uint32_t tcp_port = 0)
-      : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) {
-    init_family();
-  }
+      : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) { }
 
   /** @brief Copy constructor */
   TCPAddress(const TCPAddress &other) : addr(other.addr), port(other.port), ip_family_(other.ip_family_) { }
@@ -56,13 +55,29 @@ public:
   }
 
   /** @brief Move assignment */
-  TCPAddress &operator=(TCPAddress &&other) = default;
+  TCPAddress &operator=(TCPAddress &&other) {
+    string *my_addr = const_cast<string *>(&this->addr);
+    *my_addr = other.addr;
+    uint16_t *my_port = const_cast<uint16_t *>(&this->port);
+    *my_port = other.port;
+    return *this;
+  };
 
   /** @brief Returns the address as a string
    *
    * Returns the address as a string.
+   *
+   * @return instance of std::string
    */
-  string to_string() const;
+  string str() const;
+
+  /** @brief Returns address as pointer to a null-terminated character array
+   *
+   * Returns address as pointer to a null-terminated character array.
+   *
+   * @return null-terminated character array
+   */
+  const char* c_str() const;
 
   /** @brief Compares two address for equality
    *
@@ -76,7 +91,7 @@ public:
    * Returns whether the address and port are valid. This function also
    * detects the family when it was still Family::UNKNOWN.
    */
-  bool is_valid() const;
+  bool is_valid() noexcept;
 
   /** @brief Returns whether the TCPAddress is IPv4
    *
@@ -100,7 +115,7 @@ public:
 
 private:
   /** @brief Initialize the address family */
-  void init_family() noexcept;
+  void detect_family() noexcept;
 
   /** @brief Validates the given port number */
   uint16_t validate_port(uint32_t tcp_port);
@@ -108,9 +123,6 @@ private:
   /** @brief Address family for this IP Address */
   Family ip_family_;
 };
-
-//class Addr final : public TCPAddress {};
-using Addr = TCPAddress;
 
 } // namespace mysqlrouter
 

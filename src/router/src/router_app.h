@@ -112,7 +112,7 @@ public:
   MySQLRouter(const int argc, char** argv);
 
   // Information member function
-  string get_package_name() NOEXCEPT;
+  string get_package_name() noexcept;
 
   /** @brief Returns the MySQL Router version as string
    *
@@ -121,7 +121,7 @@ public:
    *
    * @return string containing the version
    */
-  string get_version() NOEXCEPT;
+  string get_version() noexcept;
 
   /** @brief Returns string version details.
    *
@@ -147,7 +147,7 @@ public:
    *
    * @return a string containing version details
    */
-  string get_version_line() NOEXCEPT;
+  string get_version_line() noexcept;
 
   /** @brief Prepares a command line option
    *
@@ -158,7 +158,7 @@ public:
    * `prepare_command_options`-method using `CmdArgHandler::add_option()`.
    * @endinternal
    */
-  void prepare_command_options() NOEXCEPT;
+  void prepare_command_options() noexcept;
 
   /** @brief Starts the MySQL Router application
    *
@@ -234,7 +234,7 @@ private:
    *
    *     shell> mysqlrouter --help
    */
-  void show_help() NOEXCEPT;
+  void show_help() noexcept;
 
   /** @brief Shows command line usage and option description
    *
@@ -250,10 +250,10 @@ private:
    *
    * @param include_options bool whether we show the options and descriptions
    */
-  void show_usage(bool include_options) NOEXCEPT;
+  void show_usage(bool include_options) noexcept;
 
   /* @overload */
-  void show_usage() NOEXCEPT;
+  void show_usage() noexcept;
 
   /** @brief Sets default configuration file locations
    *
@@ -277,7 +277,7 @@ private:
    *
    *  @param locations a char* with semicolon separated file locations
    */
-  void set_default_config_files(const char *locations) NOEXCEPT;
+  void set_default_config_files(const char *locations) noexcept;
 
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   tuple<const uint8_t, const uint8_t, const uint8_t> version_;
@@ -288,6 +288,8 @@ private:
   std::vector<string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
   vector<string> config_files_;
+  /** @brief PID file location **/
+  string pid_file_path_;
   /** @brief Vector with available and usable configuration files
    *
    * @devnote

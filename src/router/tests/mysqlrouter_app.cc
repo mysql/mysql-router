@@ -230,7 +230,7 @@ TEST_F(AppTest, ConfigFileParseError) {
     MySQLRouter r(argv);
     r.start();
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Unterminated last line"));
+    EXPECT_THAT(exc.what(), HasSubstr("Malformed section header"));
   }
 }
 

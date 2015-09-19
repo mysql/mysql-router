@@ -13,11 +13,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-file(GLOB TEST_DIRS
-     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-     ${CMAKE_CURRENT_SOURCE_DIR}/*)
+add_library(routertest_helpers SHARED
+  helpers/helper_logger.cc
+)
+set_target_properties(routertest_helpers PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
+  INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/tests/helpers/"
+)
 
-foreach(test_dir ${TEST_DIRS})
+foreach(test_dir legal tools)
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})
         ADD_TEST_DIR(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project_tests)
     endif()

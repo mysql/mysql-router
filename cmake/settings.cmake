@@ -26,29 +26,14 @@ set(MYSQL_ROUTER_INI "mysqlrouter.ini"
 # Command line options for CMake
 option(ENABLE_TESTS "Enable Tests" NO)
 option(DOWNLOAD_BOOST "Download Boost C++ Libraries" NO)
+option(WITH_STATIC "Enable static linkage of external libraries" NO)
 
-# Boost Libraries
-set(BOOST_MINIMUM_VERSION "1.58.0"
-  CACHE STRING "Boost Libraries mimimum required version")
-set(WITH_BOOST ${WITH_BOOST} CACHE PATH
-  "Path to Boost installation")
+# MySQL Harness
+set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
 
 # Python
 set(PYTHON_MINIMUM_VERSION "2.7"
   CACHE STRING "Python mimimum required version")
-
-# Google C++ Mocking and Testing Framework
-set(GMOCK_MINIMUM_VERSION "1.7.0"
-  CACHE STRING "Google C++ Testing Framework minimum required version")
-set(GMOCK_DOWNLOAD_URL
-  "http://googlemock.googlecode.com/files/gmock-${GMOCK_MINIMUM_VERSION}.zip"
-  CACHE STRING "Google C++ Mocking Framework download URL")
-set(GMOCK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/harness/ext/gmock/"
-  CACHE STRING "Google C++ Mocking Framework installation")
-set(GTEST_ROOT "${GMOCK_ROOT}/gtest"
-  CACHE STRING "Google C++ Testing Framework installation")
-set(GMOCK_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/gmock-source"
-  CACHE STRING "Google C++ Mocking Framework source (instead of download)")
 
 #
 # Default MySQL Router location and files
@@ -65,8 +50,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} install_prefix)
   # We are using Raw strings (see config.h.in), no double escaping of \\ needed
   set(CONFIG_FILE_LOCATIONS
-    "ENV{PROGRAMDATA}\\MySQL\\MySQL Router ${ver}\\${MYSQL_ROUTER_INI}"
-    "${install_prefix}\\${MYSQL_ROUTER_INI}"
     "ENV{APPDATA}\\${MYSQL_ROUTER_INI}"
   )
   unset(ver)
@@ -74,8 +57,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 else()
   set(CONFIG_FILE_LOCATIONS
     "/etc/mysql/${MYSQL_ROUTER_INI}"
-    "${CMAKE_INSTALL_PREFIX}/etc/${MYSQL_ROUTER_INI}"
-    "ENV{MYSQL_ROUTER_HOME}/${MYSQL_ROUTER_INI}"
     "ENV{HOME}/.${MYSQL_ROUTER_INI}"
   )
 endif()

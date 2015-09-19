@@ -22,10 +22,17 @@ endif()
 
 message(STATUS "Adding MySQL Harness")
 
-set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
 set(ENABLE_HARNESS_PROGRAM NO CACHE BOOL "Harness program is not installed")
 set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
 
 add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)
 
 include_directories(${WITH_HARNESS}/harness/include)
+
+set_target_properties(logger PROPERTIES
+  INSTALL_RPATH "${PLUGIN_RPATH}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+set_target_properties(keepalive PROPERTIES
+  INSTALL_RPATH "${PLUGIN_RPATH}"
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+

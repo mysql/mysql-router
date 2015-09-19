@@ -44,7 +44,7 @@
 
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
-Version:       2.0.0
+Version:       2.0.1
 Release:       1%{?dist}
 License:       Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Group:         Development/Libraries
@@ -98,7 +98,6 @@ necessary to develop MySQL Router applications.
 
 %prep
 %setup -q
-sed -i -e 's/^install/#install/' src/router/CMakeLists.txt
 
 %build
 mkdir release && pushd release
@@ -119,7 +118,7 @@ install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/mysql/mysqlrouter.in
 
 # remove some unwanted files
 rm -rf %{buildroot}%{_includedir}
-rm -rf %{buildroot}/usr/lib/libmysqlharness.{a,so}
+rm -rf %{buildroot}/usr/lib/libmysqlharness.a
 
 %clean
 rm -rf %{buildroot}
@@ -170,13 +169,14 @@ fi
 %{_sysconfdir}/init.d/mysqlrouter
 %endif
 # todo: need support for libdir = /usr/lib64, not just /usr/lib
-/usr/lib/libmysqlharness.so.0
+/usr/lib/libmysql*.so.0
+/usr/lib/libmysqlharness.so
+%{_libdir}/libmysqlrouter.so
 %dir /usr/lib/mysqlrouter
-/usr/lib/mysqlrouter/logger.so
-/usr/lib/mysqlrouter/keepalive.so
+/usr/lib/mysqlrouter/*.so
 %dir %attr(755, mysql, mysql) %{_localstatedir}/log/mysql
 
 %changelog
-* Wed Aug 19 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.0.0-1
+* Wed Aug 19 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.1-1
 - Initial version
 
