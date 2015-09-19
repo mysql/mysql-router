@@ -40,14 +40,13 @@ void TCPAddress::detect_family() noexcept {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  errno = 0;
   err = getaddrinfo(addr.c_str(), nullptr, &hints, &servinfo);
   if (err != 0) {
     // We consider the IP/name to be invalid
     return;
   }
 
-  // Try to setup socket and bind
+  // Get family and IP address
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if (info->ai_family == AF_INET6) {
       ip_family_ = Family::IPV6;

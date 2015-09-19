@@ -13,11 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(../include ../src)
+include_directories(../include ../src ../../../tests/helpers)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "router"
   ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
+
+ADD_TEST_DIR(issues MODULE issues)
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
 foreach(config_file ${config_files})

@@ -74,7 +74,7 @@ protected:
    * @param section Instance of ConfigSection
    * @return the name for this configuration
    */
-  virtual string get_section_name(const ConfigSection *);
+  virtual string get_section_name(const ConfigSection *) const noexcept;
 
   /** @brief Gets the default for the given option
    *

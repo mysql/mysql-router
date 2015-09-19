@@ -21,8 +21,12 @@ using std::invalid_argument;
 
 namespace mysqlrouter {
 
-string BasePluginConfig::get_section_name(const ConfigSection *section) {
-  return section->name + ":" + section->key;
+string BasePluginConfig::get_section_name(const ConfigSection *section) const noexcept {
+  auto name = section->name;
+  if (!section->key.empty()) {
+    name += ":" + section->key;
+  }
+  return name;
 }
 
 string BasePluginConfig::get_option_string(const ConfigSection *section, const string &option) {

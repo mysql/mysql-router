@@ -28,6 +28,7 @@ using std::string;
 using fabric_cache::LookupResult;
 
 const AppInfo *g_app_info;
+static const string kSectionName = "fabric_cache";
 
 static const char *kRoutingRequires[] = {
     "logger",
@@ -40,13 +41,19 @@ static int init(const AppInfo *info) {
     for (auto&& section: info->config->get("fabric_cache")) {
       fabric_cache::g_fabric_cache_config_sections.push_back(section->key);
     }
+
+    for (auto &section: info->config->sections()) {
+      if (section->name == kSectionName) {
+        // Check the configuration
+        FabricCachePluginConfig config(section); // raises on errors
+      }
+    }
   }
 
   return 0;
 }
 
 static void start(const ConfigSection *section) {
-  std::string section_name = section->name + ":" + section->key;
   string name_tag = string();
 
   if (!section->key.empty()) {

@@ -19,6 +19,7 @@
 #define MYSQLROUTER_DATATYPES_INCLUDED
 
 #include <arpa/inet.h>
+#include <iostream>
 #include <string>
 
 using std::string;
@@ -39,7 +40,8 @@ public:
       : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) { }
 
   /** @brief Copy constructor */
-  TCPAddress(const TCPAddress &other) : addr(other.addr), port(other.port), ip_family_(other.ip_family_) { }
+  TCPAddress(const TCPAddress &other)
+      : addr(other.addr), port(other.port), ip_family_(other.ip_family_) { }
 
   /** @brief Move constructor */
   TCPAddress(TCPAddress &&other)
@@ -51,6 +53,8 @@ public:
     *my_addr = other.addr;
     uint16_t *my_port = const_cast<uint16_t *>(&this->port);
     *my_port = other.port;
+    Family *my_family = const_cast<Family *>(&this->ip_family_);
+    *my_family = other.ip_family_;
     return *this;
   }
 
@@ -60,6 +64,8 @@ public:
     *my_addr = other.addr;
     uint16_t *my_port = const_cast<uint16_t *>(&this->port);
     *my_port = other.port;
+    Family *my_family = const_cast<Family *>(&this->ip_family_);
+    *my_family = other.ip_family_;
     return *this;
   };
 
@@ -71,7 +77,7 @@ public:
    */
   string str() const;
 
-  /** @brief Compares two address for equality
+  /** @brief Compares two addresses for equality
    *
    */
   friend bool operator==(const TCPAddress &left, const TCPAddress &right) {

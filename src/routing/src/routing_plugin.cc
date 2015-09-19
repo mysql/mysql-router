@@ -30,12 +30,66 @@
 using std::string;
 
 const AppInfo *g_app_info;
+static const string kSectionName = "routing";
 
 const char *kRoutingRequires[1] = {
     "logger",
 };
 
 static int init(const AppInfo *info) {
+  if (info->config != nullptr) {
+    bool have_fabric_cache = false;
+    bool need_fabric_cache = true;
+    std::vector<TCPAddress> bind_addresses;
+    std::vector<uint16_t> ports;
+    for (auto &section: info->config->sections()) {
+      if (section->name == kSectionName) {
+        // Check the configuration
+        RoutingPluginConfig config(section); // raises on errors
+
+        auto config_addr = config.bind_address;
+        if (!config_addr.is_valid()) {
+          throw std::invalid_argument("invalid IP or name in bind_address '" + config_addr.str() + "'");
+        }
+
+        // Check uniqueness of bind_address and port, using IP address
+        auto found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
+        if (found_addr != bind_addresses.end()) {
+          throw std::invalid_argument("duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+        }
+
+        // Check ADDR_ANY binding on same port
+        if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
+          auto found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
+            return config.bind_address.port == addr.port;
+          });
+          if (found_addr != bind_addresses.end()) {
+            throw std::invalid_argument(
+                "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+          }
+        }
+        bind_addresses.push_back(config.bind_address);
+
+        // We check if we need special plugins based on URI
+        try {
+          auto uri = URI(config.destinations);
+          if (uri.scheme == "fabric+cache") {
+            need_fabric_cache = true;
+          }
+        } catch (URIError) {
+          // No URI, no extra plugin needed
+        }
+      } else if (section->name == "fabric_cache") {
+        // We have fabric_cache
+        have_fabric_cache = true;
+      }
+    }
+
+    // Make sure we have at least one configuration for Fabric Cache when needed
+    if (need_fabric_cache && !have_fabric_cache) {
+      throw std::invalid_argument("Routing needs Fabric Cache, but no none was found in configuration.");
+    }
+  }
   g_app_info = info;
   return 0;
 }

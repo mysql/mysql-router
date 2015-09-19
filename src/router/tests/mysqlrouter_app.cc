@@ -149,20 +149,20 @@ TEST_F(AppTest, CmdLineMultipleConfig) {
 
 TEST_F(AppTest, CmdLineExtraConfig) {
   vector<string> argv = {
-      "--extra-config", stage_dir + "/etc/mysqlrouter.ini"
+      "-c", stage_dir + "/etc/config_a.ini",
+      "--extra-config", stage_dir + "/etc/config_b.ini"
   };
-  ASSERT_THROW({MySQLRouter r(argv);}, std::runtime_error);
-  try {
-    MySQLRouter r(argv);
-  } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr(
-      "Extra configuration files only work when other configuration files are available."));
-  }
+  ASSERT_NO_THROW({MySQLRouter r(argv);});
+  MySQLRouter r(argv);
+  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(3).c_str());
+  ASSERT_THAT(r.default_config_files_, SizeIs(0));
+  ASSERT_THAT(r.config_files_, SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineExtraConfigFailRead) {
   string not_existing = "foobar.ini";
   vector<string> argv = {
+      "-c", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + not_existing,
   };
   ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
@@ -192,6 +192,7 @@ TEST_F(AppTest, CmdLineMultipleExtraConfig) {
 TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
   string duplicate = "config_a.ini";
   vector<string> argv = {
+      "-c", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
       "-a", stage_dir + "/etc/" + duplicate,
       "--extra-config", stage_dir + "/etc/" + duplicate
@@ -202,6 +203,19 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Duplicate configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(duplicate));
+  }
+}
+
+TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
+  string duplicate = "config_a.ini";
+  vector<string> argv = {
+      "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
+  };
+  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files only work when other "));
   }
 }
 
@@ -232,7 +246,7 @@ TEST_F(AppTest, ConfigFileParseError) {
     MySQLRouter r(argv);
     r.start();
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Malformed section header"));
+    EXPECT_THAT(exc.what(), HasSubstr("Configuration error: Malformed section header:"));
   }
 }
 

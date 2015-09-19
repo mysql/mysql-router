@@ -153,6 +153,7 @@ TEST_F(RoutingPluginTests, StartCamelCaseMode) {
   section->set("mode", "ReaD-WRiTe");
 
   harness_plugin_routing.init(&test_app_info);
+
   auto start = harness_plugin_routing.start;
 
   start(section);
@@ -308,12 +309,4 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   start(section);
   ASSERT_THAT(ssout.str(), HasSubstr(
     "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
-}
-
-int main(int argc, char *argv[])
-{
-  cwd = Path(argv[0]).dirname().str();
-
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
 }

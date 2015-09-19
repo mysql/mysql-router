@@ -20,6 +20,7 @@
 
 #include <cassert>
 #include <cstdarg>
+#include <netdb.h>
 #include <sstream>
 #include <string>
 #include <vector>

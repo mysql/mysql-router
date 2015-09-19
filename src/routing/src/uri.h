@@ -61,8 +61,8 @@ public:
    *
    * @param uri URI to be used to read parts
    */
-  URI(const string uri) : scheme(), host(), port(0), username(), password(), path(), query(),
-                          fragment(), uri_(uri) {
+  URI(const string &uri) : scheme(), host(), port(0), username(), password(), path(), query(),
+                           fragment(), uri_(uri) {
     if (!uri.empty()) {
       init_from_uri(uri);
     }
@@ -70,6 +70,14 @@ public:
 
   /** @brief overload */
   URI() : URI("") { };
+
+  /** @brief Sets URI using the given URI string
+   *
+   * @param uri URI as string
+   */
+  void set_uri(const string &uri) {
+    init_from_uri(uri);
+  }
 
   /** @brief Scheme of the URI */
   string scheme;

@@ -24,7 +24,6 @@
 #include "mysqlrouter/utils.h"
 #include <mysqlrouter/routing.h>
 
-#include <exception>
 #include <map>
 #include <string>
 
@@ -33,7 +32,6 @@
 
 using std::map;
 using std::string;
-using std::invalid_argument;
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
 
@@ -45,7 +43,7 @@ public:
    */
   RoutingPluginConfig(const ConfigSection *section)
       : BasePluginConfig(section),
-        destinations(get_option_string(section, "destinations")),
+        destinations(get_option_destinations(section, "destinations")),
         bind_address(get_option_tcp_address(section, "bind_address", true)),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         wait_timeout(get_uint_option<uint16_t>(section, "wait_timeout", 1)),
@@ -56,7 +54,7 @@ public:
 
   bool is_required(const string &option);
 
-  /** @brief `destination` option read from configuration section */
+  /** @brief `destinations` option read from configuration section */
   const string destinations;
   /** @brief `bind_address` option read from configuration section */
   const TCPAddress bind_address;
@@ -73,6 +71,7 @@ protected:
 
 private:
   routing::AccessMode get_option_mode(const ConfigSection *section, const string &option);
+  string get_option_destinations(const ConfigSection *section, const string &option);
 };
 
 #endif // PLUGIN_CONFIG_ROUTING_INCLUDED

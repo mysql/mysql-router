@@ -24,8 +24,11 @@ int main(int argc, char **argv) {
   try {
     MySQLRouter router(argc, argv);
     router.start();
+  } catch(const std::invalid_argument &exc) {
+    std::cerr << "Configuration error: " << exc.what() << std::endl;
+    return 1;
   } catch(const std::runtime_error &exc) {
-    std::cout << "Error: " << exc.what() << std::endl;
+    std::cerr << "Error: " << exc.what() << std::endl;
     return 1;
   }
 
