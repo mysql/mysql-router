@@ -39,9 +39,9 @@ endif()
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT
+include(cmake/harness.cmake) # Harness before Compiler.cmake because of compiler flags
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
-include(cmake/harness.cmake)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)
 find_package(MySQL 5.5 REQUIRED)

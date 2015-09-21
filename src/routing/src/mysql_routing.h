@@ -30,10 +30,6 @@
 #include "destination.h"
 #include "config.h"
 
-class MySQLRouting;
-
-class RoutingPluginConfig;
-
 #include "plugin_config.h"
 
 #include <atomic>
@@ -88,20 +84,17 @@ public:
   /** @brief Default constructor
    *
    * @param port TCP port for listening for incoming connections
-   * @param optional bind_address Bind to particular IP address
-   * @param optional route name
+   * @param optional bind_address bind_address Bind to particular IP address
+   * @param optional route Name of connection routing (can be empty string)
+   * @param optional max_connections Maximum allowed active connections
+   * @param optional wait_timeout Timeout after which idle clients are disconnected
+   * @param optional destination_connect_timeout Timeout trying to connect destination server
    */
-  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address, const string &route_name);
-
-  /** @overload */
-  MySQLRouting(routing::AccessMode &mode, uint16_t port, const string &bind_address)
-      : MySQLRouting(mode, port, bind_address, "") { }
-
-  /** @overload */
-  MySQLRouting(routing::AccessMode &mode, uint16_t port) : MySQLRouting(mode, port, "0.0.0.0", "") { }
-
-  /** @overload */
-  MySQLRouting(const RoutingPluginConfig &config);
+  MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
+               const string &route_name = string{},
+               int max_connections = routing::kDefaultMaxConnections,
+               int wait_timeout = routing::kDefaultWaitTimeout,
+               int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout);
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -145,6 +138,66 @@ public:
 
   /** @brief Descriptive name of the connection routing */
   const string name;
+
+  /** @brief Returns timeout for idling client connection
+   *
+   * @return Timeout in seconds as int
+   */
+  int get_wait_timeout() const noexcept {
+    return wait_timeout_;
+  }
+
+  /** @brief Sets timeout for idling client connection
+   *
+   * Sets timeout for idling clients. Timeout in seconds must be between 1 and
+   * 65535.
+   *
+   * Throws std::invalid_argument when an invalid value was provided.
+   *
+   * @param seconds Timeout in seconds
+   * @return New value as int
+   */
+  int set_wait_timeout(int seconds);
+
+  /** @brief Returns timeout when connecting to destination
+   *
+   * @return Timeout in seconds as int
+   */
+  int get_destination_connect_timeout() const noexcept {
+    return destination_connect_timeout_;
+  }
+
+  /** @brief Sets timeout when connecting to destination
+   *
+   * Sets timeout connecting with destination servers. Timeout in seconds must be between 1 and
+   * 65535.
+   *
+   * Throws std::invalid_argument when an invalid value was provided.
+   *
+   * @param seconds Timeout in seconds
+   * @return New value as int
+   */
+  int set_destination_connect_timeout(int seconds);
+
+  /** @brief Sets maximum active connections
+   *
+   * Sets maximum of active connections. Maximum must be between 1 and
+   * 65535.
+   *
+   * Throws std::invalid_argument when an invalid value was provided.
+   *
+   * @param maximum Max number of connections allowed
+   * @return New value as int
+   */
+  int set_max_connections(int maximum);
+
+  /** @brief Returns maximum active connections
+   *
+   * @return Maximum as int
+   */
+  int get_max_connections() const noexcept {
+    return max_connections_;
+  }
 
 private:
   /** @brief Returns socket descriptor for next MySQL server
@@ -191,9 +244,27 @@ private:
 
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
-  /** @brief Timeout for idling clients */
+  /** @brief Maximum active connections
+   *
+   * Maximum number of incoming connections that will be accepted
+   * by this MySQLRouter instances. There is no maximum for outgoing
+   * connections since it is one-to-one with incoming.
+   */
+  int max_connections_;
+  /** @brief Timeout for idling clients
+   *
+   * The number of seconds we wait for activity on a connection before
+   * closing it. Leaving this option relatively low will help in
+   * saving resources, but this depends on the applications using Router.
+   */
   int wait_timeout_;
-  /** @brief Timeout connecting to destination */
+  /** @brief Timeout connecting to destination
+   *
+   * This timeout is used when trying to connect with a destination
+   * server. When the timeout is reached, another server will be
+   * tried. It is good to leave this time out to 1 second or higher
+   * if using an unstable network.
+   */
   int destination_connect_timeout_;
   /** @brief IP address and TCP port to use when binding service */
   const TCPAddress bind_address_;

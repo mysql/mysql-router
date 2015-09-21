@@ -58,7 +58,7 @@ void TCPAddress::detect_family() noexcept {
 }
 
 uint16_t TCPAddress::validate_port(uint32_t tcp_port) {
-  if (tcp_port > UINT16_MAX) {
+  if (tcp_port < 1 || tcp_port > UINT16_MAX) {
     return 0;
   }
   return static_cast<uint16_t>(tcp_port);

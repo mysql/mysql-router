@@ -40,34 +40,31 @@ using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
 
-MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
-                           const string &route_name)
+
+MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,
+                           const string &route_name,
+                           int max_connections,
+                           int wait_timeout,
+                           int destination_connect_timeout)
     : name(route_name),
       mode_(mode),
-      wait_timeout_(routing::kDefaultWaitTimeout),
-      destination_connect_timeout_(routing::kDefaultDestinationConnectionTimeout),
+      max_connections_(set_max_connections(max_connections)),
+      wait_timeout_(set_wait_timeout(wait_timeout)),
+      destination_connect_timeout_(set_destination_connect_timeout(destination_connect_timeout)),
       bind_address_(TCPAddress(bind_address, port)),
       stopping_(false),
       info_active_routes_(0),
-      info_handled_routes_(0) { }
-
-MySQLRouting::MySQLRouting(const RoutingPluginConfig &config)
-    : name(config.section_name),
-      mode_(config.mode),
-      wait_timeout_(config.wait_timeout),
-      destination_connect_timeout_(routing::kDefaultDestinationConnectionTimeout),
-      bind_address_(config.bind_address),
-      stopping_(false),
-      info_active_routes_(0),
-      info_handled_routes_(0) { }
-
+      info_handled_routes_(0) {
+  if (!bind_address_.port) {
+    throw std::invalid_argument(string_format("Invalid bind address, was '%s', port %d", bind_address.c_str(), port));
+  }
+}
 
 /** @brief Reads from sender and writes it back to receiver using select
  *
  * This function reads data from the sender socket and writes it back
  * to the receiver socket. It use `select`.
  *
- * @param buffer Buffer to use for reading and writing back
  * @param sender Descriptor of the sender
  * @param receiver Descriptor of the receiver
  * @param readfds Read descriptors used with FD_ISSET
@@ -220,9 +217,9 @@ void MySQLRouting::start() {
       continue;
     }
 
-    if (info_active_routes_.load(std::memory_order_relaxed) >= routing::kDefaultMaxConnections) {
+    if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       shutdown(sock_client, SHUT_RDWR);
-      log_warning("%s reached max active connections (%d)", name.c_str(), routing::kDefaultMaxConnections);
+      log_warning("%s reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
     }
 
@@ -416,3 +413,31 @@ int MySQLRouting::get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept {
   return sock;
 }
 
+int MySQLRouting::set_wait_timeout(int seconds) {
+  if (seconds <= 0 || seconds > UINT16_MAX) {
+    auto err = string_format("%s: tried to set wait_timeout using invalid value, was '%d'", name.c_str(), seconds);
+    throw std::invalid_argument(err);
+  }
+  wait_timeout_ = seconds;
+  return wait_timeout_;
+}
+
+int MySQLRouting::set_destination_connect_timeout(int seconds) {
+  if (seconds <= 0 || seconds > UINT16_MAX) {
+    auto err = string_format("%s: tried to set destination_connect_timeout using invalid value, was '%d'", name.c_str(),
+                             seconds);
+    throw std::invalid_argument(err);
+  }
+  destination_connect_timeout_ = seconds;
+  return destination_connect_timeout_;
+}
+
+int MySQLRouting::set_max_connections(int maximum) {
+  if (maximum <= 0 || maximum > UINT16_MAX) {
+    auto err = string_format("%s: tried to set max_connections using invalid value, was '%d'", name.c_str(),
+                             maximum);
+    throw std::invalid_argument(err);
+  }
+  max_connections_ = maximum;
+  return max_connections_;
+}

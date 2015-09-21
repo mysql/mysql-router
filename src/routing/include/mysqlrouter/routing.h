@@ -33,7 +33,7 @@ namespace routing {
 extern const int kDefaultWaitTimeout;
 
 /** @brief Max number of active routes for this routing instance */
-extern const uint16_t kDefaultMaxConnections;
+extern const int kDefaultMaxConnections;
 
 /** @brief Timeout connecting to destination (in seconds)
  *
