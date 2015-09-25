@@ -33,6 +33,12 @@
 #include <string>
 #include <thread>
 
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+using mysql_harness::AppInfo;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::Path;
+using mysql_harness::Plugin;
+
 enum Level {
   LVL_FATAL,
   LVL_ERROR,

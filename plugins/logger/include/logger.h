@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef LOGGER_INCLUDED
-#define LOGGER_INCLUDED
+#ifndef MYSQL_HARNESS_LOGGER_INCLUDED
+#define MYSQL_HARNESS_LOGGER_INCLUDED
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,4 +31,4 @@ void log_debug(const char *fmt, ...);
 }
 #endif
 
-#endif /* LOGGER_INCLUDED */
+#endif /* MYSQL_HARNESS_LOGGER_INCLUDED */

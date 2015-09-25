@@ -35,6 +35,12 @@
 #include "plugin.h"
 #include "logger.h"
 
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+using mysql_harness::AppInfo;
+using mysql_harness::ConfigSection;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::Plugin;
+
 // Keep symbols with external linkage away from global scope so that
 // they do not clash with other symbols.
 namespace {
