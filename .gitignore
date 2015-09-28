@@ -3,8 +3,15 @@
 *.so
 *.a
 
+# Generated files
+harness/include/plugin.h
+
+# Doxygen generated documentation
+doc/**
+
 # Build and Packaging
 build/
+BUILD/
 cmake_install.cmake
 CMakeFiles
 CMakeCache.txt
@@ -15,5 +22,3 @@ CPack*.cmake
 .idea/
 .DS_Store
 
-doc/**
-include/**

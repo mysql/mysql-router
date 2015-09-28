@@ -159,6 +159,7 @@ To define a new plugin, you have to create an instance of the
 
     Plugin example = {
       PLUGIN_ABI_VERSION,
+      ARCHITECTURE_DESCRIPTOR,
       "An example plugin",       // Brief description of plugin
       VERSION_NUMBER(1,0,0),     // Version number of the plugin
 

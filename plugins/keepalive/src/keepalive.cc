@@ -87,12 +87,13 @@ static const char *requires[] = {
 };
 
 Plugin keepalive = {
-    PLUGIN_ABI_VERSION,
-    "Keepalive Plugin",
-    VERSION_NUMBER(0, 0, 1),
-    sizeof(requires)/sizeof(*requires), requires,
-    0, nullptr,
-    init,
-    nullptr,
-    start
+  PLUGIN_ABI_VERSION,
+  ARCHITECTURE_DESCRIPTOR,
+  "Keepalive Plugin",
+  VERSION_NUMBER(0, 0, 1),
+  sizeof(requires)/sizeof(*requires), requires,
+  0, nullptr,
+  init,
+  nullptr,
+  start
 };
