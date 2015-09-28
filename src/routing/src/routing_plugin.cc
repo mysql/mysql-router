@@ -63,6 +63,7 @@ static void start(const ConfigSection *section) {
 
 Plugin harness_plugin_routing = {
     PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
     "Routing MySQL connections between MySQL clients/connectors and servers",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires

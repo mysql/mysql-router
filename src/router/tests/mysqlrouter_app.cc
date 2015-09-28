@@ -79,19 +79,19 @@ protected:
 
 TEST_F(AppTest, DefaultConstructor) {
   MySQLRouter r;
-  ASSERT_STREQ(VERSION, r.get_version().c_str());
+  ASSERT_STREQ(MYSQL_ROUTER_VERSION, r.get_version().c_str());
 }
 
 TEST_F(AppTest, GetVersionAsString) {
   MySQLRouter r;
-  ASSERT_STREQ(VERSION, r.get_version().c_str());
+  ASSERT_STREQ(MYSQL_ROUTER_VERSION, r.get_version().c_str());
 }
 
 TEST_F(AppTest, GetVersionLine) {
   MySQLRouter r;
   ASSERT_THAT(r.get_version_line(), StartsWith(PACKAGE_NAME));
-  ASSERT_THAT(r.get_version_line(), HasSubstr(VERSION));
-  ASSERT_THAT(r.get_version_line(), HasSubstr(VERSION_EDITION));
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION));
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION_EDITION));
   ASSERT_THAT(r.get_version_line(), HasSubstr(PACKAGE_PLATFORM));
   if (PACKAGE_ARCH_64BIT == 1) {
     ASSERT_THAT(r.get_version_line(), HasSubstr("64-bit"));

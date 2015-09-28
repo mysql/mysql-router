@@ -41,9 +41,10 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-MySQLRouter::MySQLRouter(const vector<string> arguments) : version_(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH),
-                                                           arg_handler_(), loader_(), can_start_(false),
-                                                           showing_info_(false) {
+MySQLRouter::MySQLRouter(const vector<string> arguments)
+    : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
+      arg_handler_(), loader_(), can_start_(false),
+      showing_info_(false) {
   init(arguments);
 }
 
@@ -89,7 +90,7 @@ void MySQLRouter::start() {
 
   try {
     loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
-    for (auto&& config_file: available_config_files_) {
+    for (auto &&config_file: available_config_files_) {
       loader_->read(Path(config_file));
     }
   } catch (const syntax_error &err) {
@@ -104,12 +105,12 @@ void MySQLRouter::start() {
     if (pidfile.good()) {
       pidfile << pid << std::endl;
       pidfile.close();
-      std::cout << "PID " << pid <<  " written to " << pid_file_path_ << std::endl;
+      std::cout << "PID " << pid << " written to " << pid_file_path_ << std::endl;
     } else {
-      throw std::runtime_error(string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
+      throw std::runtime_error(
+          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
     }
   }
-
   loader_->start();
 }
 
@@ -134,12 +135,12 @@ void MySQLRouter::set_default_config_files(const char *locations) noexcept {
 }
 
 string MySQLRouter::get_version() noexcept {
-  return string(VERSION);
+  return string(MYSQL_ROUTER_VERSION);
 }
 
 string MySQLRouter::get_version_line() noexcept {
   std::ostringstream os;
-  string edition{VERSION_EDITION};
+  string edition{MYSQL_ROUTER_VERSION_EDITION};
 
   os << PACKAGE_NAME << " v" << get_version();
 

@@ -66,6 +66,7 @@ static void start(const ConfigSection *section) {
 
 Plugin harness_plugin_fabric_cache = {
     PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
     "Fabric Cache, managing information fetched from MySQL Fabric",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
