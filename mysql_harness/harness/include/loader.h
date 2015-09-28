@@ -207,6 +207,12 @@ public:
    */
   void start();
 
+  /**
+   */
+  Path get_log_file() const {
+    return Path::make_path(config_.get_default("logging_folder"), program_, "log");
+  }
+
 private:
   void setup_info();
   void init_all();

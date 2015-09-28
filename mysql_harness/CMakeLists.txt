@@ -43,6 +43,10 @@ set(ENABLE_TESTS OFF CACHE BOOL
 set(WITH_GMOCK "" CACHE PATH
   "Directory containing the Google Mock *source code* (with a CMakeLists.txt file)")
 
+set(HARNESS_PLUGIN_RPATH "${CMAKE_INSTALL_PREFIX}/lib/${HARNESS_NAME}" CACHE PATH
+  "Path with directories where plugins can be found")
+message(STATUS "Path for plugins when installed will be ${HARNESS_PLUGIN_PATH}")
+
 # We include GMock without touching the compile flags. GMock can
 # handle that itself. It will also indirectly create targets for gmock
 # and gtest.
@@ -115,6 +119,7 @@ set(ENABLE_TESTS OFF
 
 include(CPack)
 include(Plugin)
+include(Arch)
 include(Docs)
 
 # Check for C++ 11 support

@@ -33,6 +33,7 @@ static int deinit(const AppInfo*) {
 
 Plugin bad_two = {
   PLUGIN_ABI_VERSION,
+  ARCHITECTURE_DESCRIPTOR,
   "A bad plugin",
   VERSION_NUMBER(1,0,0),
   sizeof(requires)/sizeof(*requires),

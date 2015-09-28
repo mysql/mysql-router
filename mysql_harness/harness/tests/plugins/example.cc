@@ -47,6 +47,7 @@ static void start(const ConfigSection*) {
 
 Plugin example_plugin = {
   PLUGIN_ABI_VERSION,
+  ARCHITECTURE_DESCRIPTOR,
   "An example plugin",
   VERSION_NUMBER(1,0,0),
   sizeof(requires)/sizeof(*requires),

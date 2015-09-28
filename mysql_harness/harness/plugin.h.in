@@ -18,7 +18,8 @@
 #ifndef PLUGIN_INCLUDED
 #define PLUGIN_INCLUDED
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdint>
 
 /* Forward declarations */
 class Config;
@@ -122,7 +123,32 @@ struct Plugin {
    * @see PLUGIN_ABI_VERSION
    */
 
-  int abi_version;
+  uint32_t abi_version;
+
+
+  /**
+   * Architecture descriptor.
+   *
+   * A descriptor for the architecture the plugin was build
+   * for. Normally, `ARCHITECTURE_DESCRIPTOR` should be used.
+   *
+   * The architecture descriptor is a string that contain information
+   * about the architecture the plugin is being compiled with. It need
+   * to match the architecture of the harness.
+   *
+   * The architecture is a C string containing four slash-separated
+   * fields (or a star to denote that this is not checked):
+   *
+   * - CPU
+   * - Operating system
+   * - Naming scheme and calling conventions (essentially the compiler
+   *   being used to build the solution).
+   * - Runtime
+   *
+   * @see ARCHITECTURE_DESCRIPTOR
+   */
+
+  const char* arch_descriptor;
 
 
   /**
@@ -139,7 +165,7 @@ struct Plugin {
    *
    * @see VERSION_NUMBER
    */
-  unsigned long plugin_version;
+  uint32_t plugin_version;
 
   /**
    * Array of names of required plugins.
@@ -170,8 +196,8 @@ struct Plugin {
   /**
    * Array of names of plugins it conflicts with.
    *
-   * The array is defined in a similar way to how the @c requires
-   * array is defined.
+   * The array is defined in a similar way to how the `requires` array
+   * is defined.
    */
 
   size_t conflicts_length;
@@ -201,8 +227,8 @@ struct Plugin {
    * This function is called after module threads have exited but
    * before the module is unloaded.
    *
-   * @pre All @c deinit() functions in modules will required by this
-   * module are called after the @c deinit() function of this module
+   * @pre All `deinit` functions in modules will required by this
+   * module are called after the `deinit` function of this module
    * have exited.
    *
    * @param info Pointer to information about the harness this module
@@ -236,12 +262,21 @@ struct Plugin {
  * @see Plugin
  */
 
-const unsigned int PLUGIN_ABI_VERSION = 0x0100;
+const uint32_t PLUGIN_ABI_VERSION = 0x0100;
+
+/**
+ * Default architecture descriptor.
+ */
+const char* const ARCHITECTURE_DESCRIPTOR = "@HARNESS_ARCH_CPU@/@HARNESS_ARCH_OS@/@HARNESS_ARCH_COMPILER@/@HARNESS_ARCH_RUNTIME@";
 
 /**
  * Macro to create a version number from a major and minor version.
  */
 #define VERSION_NUMBER(MAJ, MIN, PAT) \
   ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
+
+#define VERSION_MAJOR(VER) (((VER) >> 24) & 0xFF)
+#define VERSION_MINOR(VER) (((VER) >> 16) & 0xFF)
+#define VERSION_PATCH(VER) ((VER) & 0xFFFF)
 
 #endif /* PLUGIN_INCLUDED */

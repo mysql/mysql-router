@@ -137,6 +137,7 @@ void log_debug(const char *fmt, ...) {
 
 Plugin logger = {
   PLUGIN_ABI_VERSION,
+  ARCHITECTURE_DESCRIPTOR,
   "Logging functions",
   VERSION_NUMBER(0,0,1),
   0, NULL,                                      // Requires

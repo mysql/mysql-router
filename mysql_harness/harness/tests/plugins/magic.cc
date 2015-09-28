@@ -38,6 +38,7 @@ void do_magic() {
 
 Plugin harness_plugin_magic = {
   PLUGIN_ABI_VERSION,
+  ARCHITECTURE_DESCRIPTOR,
   "A magic plugin",
   VERSION_NUMBER(1,2,3),
   0,

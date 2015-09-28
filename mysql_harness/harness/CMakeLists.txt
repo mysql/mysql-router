@@ -24,6 +24,9 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+configure_file(plugin.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.h
+  ESCAPE_QUOTES @ONLY)
+
 add_library(harness-archive STATIC ${harness_source})
 target_link_libraries(harness-archive dl ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(harness-archive PUBLIC include)
