@@ -56,14 +56,6 @@ string ip_from_addrinfo(struct addrinfo *info);
 std::pair<std::string, int > get_peer_name(int sock);
 
 /**
- * Sets blocking flag for given socket
- *
- * @param sock a socket file descriptor
- * @param blocking whether to set blocking off (false) or on (true)
- */
-void set_socket_blocking(int sock, bool blocking);
-
-/**
  * Splits a string using a delimiter
  *
  * @param data a string to split

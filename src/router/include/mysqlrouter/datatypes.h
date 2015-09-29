@@ -71,14 +71,6 @@ public:
    */
   string str() const;
 
-  /** @brief Returns address as pointer to a null-terminated character array
-   *
-   * Returns address as pointer to a null-terminated character array.
-   *
-   * @return null-terminated character array
-   */
-  const char* c_str() const;
-
   /** @brief Compares two address for equality
    *
    */

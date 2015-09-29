@@ -39,7 +39,7 @@ public:
   virtual int fetch_ttl() = 0;
   virtual map<string, list<ManagedServer>> fetch_servers() = 0;
   virtual map<string, list<ManagedShard>> fetch_shards() = 0;
-  virtual void connect() = 0;
+  virtual bool connect() = 0;
   virtual void disconnect() = 0;
 };
 

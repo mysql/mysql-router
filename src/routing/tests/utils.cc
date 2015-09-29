@@ -22,7 +22,6 @@
 
 #include <exception>
 #include <unistd.h>
-#include <sys/fcntl.h>
 
 using ::testing::ContainerEq;
 using ::testing::Pair;
@@ -80,18 +79,4 @@ EXPECT_THAT(exp, ContainerEq(split_string(";", ';', false)));
 // No trimming
 exp = {"  val1", "val2  "};
 EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
-}
-
-TEST_F(UtilsTests, SetSocketBlocking) {
-int s = socket(PF_INET, SOCK_STREAM, 6);
-ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
-set_socket_blocking(s, false);
-ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-set_socket_blocking(s, true);
-ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0) << std::endl;
-
-fcntl(s, F_SETFL, O_RDONLY);
-set_socket_blocking(s, false);
-ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
 }

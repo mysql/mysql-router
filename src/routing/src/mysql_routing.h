@@ -200,27 +200,6 @@ public:
   }
 
 private:
-  /** @brief Returns socket descriptor for next MySQL server
-   *
-   * Gets information about the next server in the destination
-   * list, tries to conenct and returns the socket server.
-   *
-   * Errors are logged and not raised.
-   *
-   * @return a socket descriptor
-   */
-  int get_destination() noexcept;
-
-  /** @brief Returns socket descriptor of conencted MySQL server
-   *
-   * Returns a socket descriptor for the connection to the MySQL Server or
-   * zero when an error occured.
-   *
-   * @param addr information of the server we connect with
-   * @return a socket descriptor
-   */
-  int get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept;
-
   /** @brief Sets up the service
    *
    * Sets up the service binding to IP addresses and TCP port.

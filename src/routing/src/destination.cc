@@ -17,6 +17,7 @@
 
 #include "destination.h"
 #include "utils.h"
+#include "mysqlrouter/routing.h"
 
 #include <algorithm>
 #include <iostream>
@@ -29,6 +30,7 @@
 
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
+using routing::get_mysql_socket;
 using std::out_of_range;
 using std::runtime_error;
 
@@ -40,7 +42,6 @@ void RouteDestination::add(const TCPAddress dest) {
   if (std::find_if(destinations_.begin(), dest_end, compare) == dest_end) {
     std::lock_guard<std::mutex> lock(mutex_update_);
     destinations_.push_back(dest);
-    post_add();
   }
 }
 
@@ -57,7 +58,6 @@ void RouteDestination::remove(const string &address, uint16_t port) {
   };
   destinations_.erase(std::remove_if(destinations_.begin(), destinations_.end(), func_same), destinations_.end());
 
-  post_remove();
 }
 
 TCPAddress RouteDestination::get(const string &address, uint16_t port) {
@@ -80,23 +80,78 @@ void RouteDestination::clear() {
   }
   std::lock_guard<std::mutex> lock(mutex_update_);
   destinations_.clear();
-  post_remove();
 }
 
-TCPAddress RouteDestination::get_server() noexcept {
+int RouteDestination::get_server_socket(int connect_timeout) noexcept {
+
   if (destinations_.empty()) {
-    return TCPAddress{};
+    return -1;
   }
 
   // With only 1 destination, no need to lock and update the iterator
   if (destinations_.size() == 1) {
-    return destinations_.at(0);
+    return get_mysql_socket(destinations_.at(0), connect_timeout);
   }
 
-  std::lock_guard<std::mutex> lock(mutex_update_);
-  auto result = *destination_iter_++;  // get current and advance one
-  if (destination_iter_ == destinations_.end()) {
-    destination_iter_ = destinations_.begin();
+  // We start the list at the currently available server
+  for (size_t i = current_pos_; i < destinations_.size(); ++i) {
+    // Stop when all destinations are quarantined
+    if (quarantined_.size() == destinations_.size()) {
+      log_debug("No more destinations: all quarantined");
+      break;
+    }
+    if (is_quarantined(i)) {
+      if (i + 1 == destinations_.size()) {
+        i = 0;
+      } else {
+        ++i;
+      }
+    }
+    log_debug("Trying server %s", destinations_.at(i).str().c_str());
+    auto sock = get_mysql_socket(destinations_.at(i), connect_timeout);
+    if (sock != -1) {
+      if (i + 1 == destinations_.size()) {
+        current_pos_ = 0;
+      } else {
+        current_pos_ = i + 1;
+      }
+      return sock;
+    }
+
+    log_info("Quarantine destination server %s", destinations_.at(i).str().c_str());
+    mutex_update_.lock();
+    if (!is_quarantined(i)) {
+      quarantined_.push_back(i);
+    }
+    mutex_update_.unlock();
+    condvar_quarantine_.notify_one();
+
+    // If this was the last destination; go back to the first
+    if (i + 1 == destinations_.size()) {
+      i = -1; // Next iteration will start at 0
+    }
   }
-  return result;
+
+  // We are out of destinations. Next time we will try from the beginning of the list.
+  condvar_quarantine_.notify_one();
+  current_pos_ = 0;
+  return -1;
+}
+
+void RouteDestination::remove_from_quarantine() noexcept {
+  while(!stopping_) {
+    std::unique_lock<std::mutex> lock(mutex_quarantine_);
+    condvar_quarantine_.wait(lock, [&] { return !quarantined_.empty();});
+    for (auto it = quarantined_.begin(); it != quarantined_.end() && !quarantined_.empty(); ++it) {
+      auto sock = get_mysql_socket(destinations_.at(*it), 3, false);
+      if (sock != -1) {
+        log_info("Removing destination server %s from quarantine", destinations_.at(*it).str().c_str());
+        mutex_update_.lock();
+        quarantined_.erase(it);
+        mutex_update_.unlock();
+      }
+    }
+    // Temporize
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+  }
 }

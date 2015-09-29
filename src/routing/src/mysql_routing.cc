@@ -16,18 +16,20 @@
 */
 
 #include "mysql_routing.h"
-#include "destfailover.h"
+#include "dest_first_available.h"
 #include "dest_fabric_cache.h"
 #include "uri.h"
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
 
+#include <algorithm>
 #include <cstring>
 #include <future>
 #include <sstream>
 #include <sys/fcntl.h>
 #include <string>
 #include <memory>
+#include <mysqlrouter/fabric_cache.h>
 
 #include "mysqlrouter/utils.h"
 #include "logger.h"
@@ -91,23 +93,6 @@ ssize_t copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds) {
   return bytes;
 }
 
-int MySQLRouting::get_destination() noexcept {
-
-  if (destination_->empty()) {
-    return 0;
-  }
-
-  destination_->rewind();
-  for (size_t i = 0; i < destination_->size(); ++i) {
-    auto addr = destination_->get_server();  // Validated when added
-    auto s = get_mysql_connection(addr);
-    if (s) {
-      return s;
-    }
-  }
-  return 0;
-}
-
 void MySQLRouting::thd_routing_select(int client) noexcept {
   ssize_t bytes = 0;
   int nfds;
@@ -117,9 +102,9 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   size_t bytes_up = 0;
   string extra_msg;
 
-  int server = get_destination();
+  int server = destination_->get_server_socket(destination_connect_timeout_);
 
-  if (not (server > 0 && client > 0)) {
+  if (!(server > 0 && client > 0)) {
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
     return;
@@ -205,6 +190,8 @@ void MySQLRouting::start() {
 
   log_info("%s started: listening on %s; %s", name.c_str(), bind_address_.str().c_str(),
            routing::get_access_mode_name(mode_).c_str());
+
+  destination_->start();
 
 #ifndef ENABLE_TESTS
   while (!stopping()) {
@@ -293,7 +280,16 @@ void MySQLRouting::setup_service() {
 
 void MySQLRouting::set_destinations_from_uri(const URI &uri) {
   if (uri.scheme == "fabric+cache") {
-    destination_.reset(new DestFabricCacheGroup(uri.host, uri.path[1], mode_, uri.query));
+    auto fabric_cmd = uri.path[0];
+    std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
+    if (fabric_cmd == "group") {
+      if (!fabric_cache::have_cache(uri.host)) {
+        throw runtime_error("Invalid Fabric Cache in URI; was '" + uri.host + "'");
+      }
+      destination_.reset(new DestFabricCacheGroup(uri.host, uri.path[1], mode_, uri.query));
+    } else {
+      throw runtime_error("Invalid Fabric command in URI; was '" + fabric_cmd + "'");
+    }
   } else {
     throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s", uri.scheme.c_str()));
   }
@@ -307,7 +303,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   if (AccessMode::kReadOnly == mode_) {
     destination_.reset(new RouteDestination());
   } else if (AccessMode::kReadWrite == mode_) {
-    destination_.reset(new DestFailover());
+    destination_.reset(new DestFirstAvailable());
   } else {
     throw std::runtime_error("Unknown mode");
   }
@@ -335,82 +331,6 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   if (destination_->size() == 0) {
     throw std::runtime_error("No destinations available");
   }
-}
-
-int MySQLRouting::get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept {
-  fd_set readfds;
-  struct timeval timeout_val;
-
-  struct addrinfo *servinfo, *info, hints;
-  int err;
-  int res, connect_res;
-  int sock = 0;
-  int so_error = 0;
-  socklen_t error_len = sizeof(so_error);
-
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-
-  errno = 0;
-
-  if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
-    log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), gai_strerror(err));
-    return 0;
-  }
-
-  for (info = servinfo; info != nullptr; info = info->ai_next) {
-    // Handle errors from previous try
-    if ((errno > 0 && errno != EINPROGRESS) || so_error) {
-      break;
-    }
-
-    if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      continue;
-    }
-    FD_ZERO(&readfds);
-    FD_SET(sock, &readfds);
-    timeout_val.tv_sec = destination_connect_timeout_;
-    timeout_val.tv_usec = 0;
-
-    // Set non-blocking so we can timeout using select()
-    set_socket_blocking(sock, false);
-    connect_res = connect(sock, info->ai_addr, info->ai_addrlen);
-    if (connect_res == -1 && errno != EINPROGRESS) {
-      continue;
-    }
-
-    res = select(sock + 1, &readfds, nullptr, nullptr, &timeout_val);
-    if (res <= 0) {
-      if (res == 0) {
-        shutdown(sock, SHUT_RDWR);
-        log_debug("Timeout reached connecting with MySQL Server %s", addr.str().c_str());
-        return 0;
-      }
-      continue;
-    }
-
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len);
-    if (FD_ISSET(sock, &readfds) && !so_error) {
-      set_socket_blocking(sock, false);
-      errno = 0;
-      break;
-    }
-  }
-
-  // Handle remaining errors
-  if ((errno > 0 && errno != EINPROGRESS) || so_error) {
-    shutdown(sock, SHUT_RDWR);
-    auto errmsg = string_format("Destination %s %%s (%%d)", addr.str().c_str());
-    if (so_error) {
-      log_debug(errmsg.c_str(), strerror(so_error), so_error);
-    } else {
-      log_debug(errmsg.c_str(), strerror(errno), errno);
-    }
-    return 0;
-  }
-
-  return sock;
 }
 
 int MySQLRouting::set_wait_timeout(int seconds) {

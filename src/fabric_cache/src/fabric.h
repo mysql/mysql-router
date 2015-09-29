@@ -81,8 +81,10 @@ public:
    *
    * Checks first whether we are connected. If not, this method will
    * try indefinitely try to reconnect with the Fabric server.
+   *
+   * @return a boolean to indicate if the connection was successful.
    */
-  void connect() noexcept;
+  bool connect() noexcept;
 
   /** @brief Disconnects from the Fabric server
    *

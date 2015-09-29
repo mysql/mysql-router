@@ -71,21 +71,6 @@ std::pair<std::string, int > get_peer_name(int sock) {
   return std::make_pair(std::string(ipaddr), port);
 }
 
-void set_socket_blocking(int sock, bool blocking) {
-  int flags;
-
-  assert(sock > 0);
-
-  flags = fcntl(sock, F_GETFL, nullptr);
-  assert(flags >= 0);
-  if (blocking) {
-    flags &= ~O_NONBLOCK;
-  } else {
-    flags |= O_NONBLOCK;
-  }
-  fcntl(sock, F_SETFL, flags);
-}
-
 std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {
   std::stringstream ss(data);
   std::string token;

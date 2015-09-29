@@ -77,19 +77,25 @@ void FabricCache::start() {
   // Start the Fabric Cache refresh thread
   auto refresh_loop = [this] {
     while (!terminate_) {
-      refresh();
+      if (fabric_meta_data_->connect()) {
+        refresh();
+      } else {
+        fabric_meta_data_->disconnect();
+      }
       std::this_thread::sleep_for(
           std::chrono::seconds(ttl_ == 0 ? kDefaultTimeToLive : ttl_));
-      fabric_meta_data_->disconnect();
-      fabric_meta_data_->connect();
     }
   };
   thread(refresh_loop).join();
-  // Restart the thread
 }
 
 list<ManagedServer> FabricCache::group_lookup(const string &group_id) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+  auto group = group_data_.find(group_id);
+  if (group == group_data_.end()) {
+    log_error("Fabric Group '%s' not available", group_id.c_str());
+    return {};
+  }
   list<ManagedServer> servers = group_data_[group_id];
   return servers;
 }

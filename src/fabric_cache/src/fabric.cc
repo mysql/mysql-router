@@ -28,11 +28,10 @@
 #include <thread>
 
 #include <mysql.h>
+#include <mysqlrouter/datatypes.h>
 #include "logger.h"
 
 using std::ostringstream;
-
-const int kConnectErrorReportInterval = 5; // consider connection timeout
 
 Fabric::Fabric(const string &host, int port, const string &user,
                const string &password, int connection_timeout,
@@ -47,13 +46,12 @@ Fabric::Fabric(const string &host, int port, const string &user,
   connect();
 }
 
-void Fabric::connect() noexcept {
+bool Fabric::connect() noexcept {
 
-  if (connected_ && mysql_ping(fabric_connection_) > 0) {
-    return;
+  if (connected_ && mysql_ping(fabric_connection_) == 0) {
+    return connected_;
   }
 
-  int attempts = 0;
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   bool reconnect = false;
   auto host = host_;
@@ -62,30 +60,35 @@ void Fabric::connect() noexcept {
     host = "127.0.0.1";
   }
 
-  while (true) {
-    fabric_connection_ = mysql_init(nullptr);
-    mysql_options(fabric_connection_, MYSQL_OPT_CONNECT_TIMEOUT, &connection_timeout_);
-    mysql_options(fabric_connection_, MYSQL_OPT_PROTOCOL, reinterpret_cast<char *> (&protocol));
-    mysql_options(fabric_connection_, MYSQL_OPT_RECONNECT, &reconnect);
-
-    ++attempts;
-    unsigned long client_flags = (
-        CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 | CLIENT_MULTI_RESULTS
-    );
-    if (mysql_real_connect(fabric_connection_, host.c_str(), user_.c_str(),
-                           password_.c_str(), nullptr, static_cast<unsigned int>(port_), nullptr,
-                           client_flags)) {
-      break;
-    }
-
-    if (attempts % kConnectErrorReportInterval == 0 || attempts == 1) {
-      log_error("Failed connecting to Fabric; will retry (%s)", mysql_error(fabric_connection_));
-      attempts = 10;  // reset, but make sure this is not 1 otherwise we get double message
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+  connected_ = false;
+  fabric_connection_ = mysql_init(nullptr);
+  if (!fabric_connection_) {
+    log_error("Failed initializing MySQL client connection");
+    return connected_;
   }
 
-  connected_ = true;
+  // Following would fail only when invalid values are given. It is not possible
+  // for the user to change these values.
+  mysql_options(fabric_connection_, MYSQL_OPT_CONNECT_TIMEOUT, &connection_timeout_);
+  mysql_options(fabric_connection_, MYSQL_OPT_PROTOCOL, reinterpret_cast<char *> (&protocol));
+  mysql_options(fabric_connection_, MYSQL_OPT_RECONNECT, &reconnect);
+
+  const unsigned long client_flags = (
+      CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 | CLIENT_MULTI_RESULTS
+  );
+
+  if (mysql_real_connect(fabric_connection_, host.c_str(), user_.c_str(),
+                         password_.c_str(), nullptr, static_cast<unsigned int>(port_), nullptr,
+                         client_flags)) {
+    if (mysql_ping(fabric_connection_) == 0) {
+      connected_ = true;
+      log_info("Connected with Fabric running on %s", host.c_str());
+    }
+  } else {
+    log_error("Failed connecting with Fabric: %s", mysql_error(fabric_connection_));
+    connected_ = false;
+  }
+  return connected_;
 }
 
 void Fabric::disconnect() noexcept {
@@ -93,11 +96,14 @@ void Fabric::disconnect() noexcept {
   if (fabric_connection_ != nullptr) {
     mysql_close(fabric_connection_);
   }
+  fabric_connection_ = nullptr;
 }
 
 MYSQL_RES *Fabric::fetch_metadata(string &remote_api) {
 
-  connect();
+  if (!connected_) {
+    return nullptr;
+  }
 
   int status = 0;
   ostringstream query;
@@ -176,6 +182,10 @@ map<string, list<ManagedServer>> Fabric::fetch_servers() {
   MYSQL_ROW row = nullptr;
   MYSQL_RES *result = fetch_metadata(api);
 
+  if (!result) {
+    throw fabric_cache::metadata_error("Failed executing " + api);
+  }
+
   while ((row = mysql_fetch_row(result)) != nullptr) {
     ManagedServer s;
     s.server_uuid = get_string(row[0]);
@@ -199,6 +209,10 @@ map<string, list<ManagedShard>> Fabric::fetch_shards() {
 
   MYSQL_ROW row = nullptr;
   MYSQL_RES *result = fetch_metadata(api);
+
+  if (!result) {
+    throw fabric_cache::metadata_error("Failed executing " + api);
+  }
 
   while ((row = mysql_fetch_row(result)) != nullptr) {
     ManagedShard sh;

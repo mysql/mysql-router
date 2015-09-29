@@ -19,6 +19,7 @@
 #include "plugin_config.h"
 
 #include <string>
+#include <thread>
 
 #include "logger.h"
 #include "config_parser.h"
@@ -34,6 +35,13 @@ static const char *kRoutingRequires[] = {
 
 static int init(const AppInfo *info) {
   g_app_info = info;
+
+  if (info && info->config) {
+    for (auto&& section: info->config->get("fabric_cache")) {
+      fabric_cache::g_fabric_cache_config_sections.push_back(section->key);
+    }
+  }
+
   return 0;
 }
 

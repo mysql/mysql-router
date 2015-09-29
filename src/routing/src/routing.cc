@@ -17,6 +17,18 @@
 
 #include "mysqlrouter/routing.h"
 
+#include <cstring>
+#include <netdb.h>
+#include <sys/fcntl.h>
+
+#include "mysqlrouter/utils.h"
+#include "logger.h"
+#include "utils.h"
+
+using mysqlrouter::to_string;
+using mysqlrouter::string_format;
+using mysqlrouter::TCPAddress;
+
 namespace routing {
 
 const int kDefaultWaitTimeout = 300;
@@ -35,6 +47,91 @@ string get_access_mode_name(AccessMode access_mode) noexcept {
     }
   }
   return "";
+}
+
+void set_socket_blocking(int sock, bool blocking) {
+
+  assert(!(sock < 0));
+
+  auto flags = fcntl(sock, F_GETFL, nullptr);
+  assert(flags >= 0);
+  if (blocking) {
+    flags &= ~O_NONBLOCK;
+  } else {
+    flags |= O_NONBLOCK;
+  }
+  fcntl(sock, F_SETFL, flags);
+}
+
+int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
+  fd_set readfds;
+  struct timeval timeout_val;
+
+  struct addrinfo *servinfo, *info, hints;
+
+  int res, connect_res;
+  int so_error = 0;
+  socklen_t error_len = sizeof(so_error);
+
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  if (int err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) {
+    if (log) {
+      log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), gai_strerror(err));
+    }
+    return -1;
+  }
+
+  int sock = -1;
+  errno = 0;
+  for (info = servinfo; info != nullptr; info = info->ai_next) {
+    if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
+      continue;
+    }
+    FD_ZERO(&readfds);
+    FD_SET(sock, &readfds);
+    timeout_val.tv_sec = connect_timeout;
+    timeout_val.tv_usec = 0;
+
+    // Set non-blocking so we can timeout using select()
+    set_socket_blocking(sock, false);
+    connect_res = connect(sock, info->ai_addr, info->ai_addrlen);
+    if (connect_res == -1 && errno != EINPROGRESS) {
+      break;
+    }
+
+    res = select(sock + 1, &readfds, nullptr, nullptr, &timeout_val);
+    if (res <= 0) {
+      if (res == 0) {
+        shutdown(sock, SHUT_RDWR);
+        if (log) {
+          log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
+        }
+        return -1;
+      }
+      break;
+    }
+
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len);
+    if (FD_ISSET(sock, &readfds) && !so_error) {
+      set_socket_blocking(sock, false);
+      break;
+    }
+  }
+
+  // Handle remaining errors
+  if ((errno > 0 && errno != EINPROGRESS) || so_error) {
+    shutdown(sock, SHUT_RDWR);
+    auto err = so_error ? so_error : errno;
+    if (log) {
+      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
+    }
+    return -1;
+  }
+
+  return sock;
 }
 
 } // routing

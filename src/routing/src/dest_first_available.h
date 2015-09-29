@@ -19,17 +19,16 @@
 #define ROUTING_DESTFAILOVER_INCLUDED
 
 #include "destination.h"
+#include "mysqlrouter/routing.h"
 
 #include "logger.h"
 
+using routing::get_mysql_socket;
 using std::runtime_error;
 
-class DestFailover final : public RouteDestination {
+class DestFirstAvailable final : public RouteDestination {
 public:
-  void rewind() noexcept {
-    std::lock_guard<std::mutex> lock(mutex_update_);
-    destination_iter_ = destinations_.begin();
-  }
+  int get_server_socket(int connect_timeout) noexcept;
 };
 
 

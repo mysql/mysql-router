@@ -17,6 +17,7 @@
 
 #include "dest_fabric_cache.h"
 #include "utils.h"
+#include "mysqlrouter/routing.h"
 
 #include <algorithm>
 #include <chrono>
@@ -30,6 +31,7 @@
 #include "logger.h"
 
 using mysqlrouter::to_string;
+using routing::get_mysql_socket;
 using std::out_of_range;
 using std::runtime_error;
 using std::chrono::duration_cast;
@@ -41,78 +43,36 @@ using fabric_cache::ManagedServer;
 
 const int kPopulateErrorReportInterval = 10;
 
-void DestFabricCacheGroup::populate_destinations() {
+std::vector<TCPAddress> DestFabricCacheGroup::get_available() {
+  auto managed_servers = lookup_group(cache_name, ha_group).server_list;
+  std::vector<TCPAddress> available;
 
-  ++ populate_attempts_;
-  try {
-    if (!fabric_cache::have_cache(cache_name)) {
-      // Cache not active
-      if (populate_attempts_ % kPopulateErrorReportInterval == 0 || populate_attempts_ == 1) {
-        log_error("Failed populating from Fabric; will retry");
-        populate_attempts_ = 10;  // reset, but make sure this is not 1 otherwise we get double message
-      }
-      return;
+  for (auto &it: managed_servers) {
+    auto server_status = static_cast<ManagedServer::Status>(it.status);
+    auto server_mode = static_cast<ManagedServer::Mode>(it.mode);
+
+    // Spare and Faulty are not used; skip until next
+    if (!(server_status == ManagedServer::Status::kPrimary ||
+          server_status == ManagedServer::Status::kSecondary)) {
+      continue;
     }
-    populate_attempts_ = 0;
 
-    auto managed_servers = lookup_group(cache_name, ha_group).server_list;
-    clear();
-
-    std::lock_guard<std::mutex> lock(mutex_update_);
-    int c_primary = 0;
-    int c_secondary = 0;
-    for (auto &it: managed_servers) {
-      auto server_status = static_cast<ManagedServer::Status>(it.status);
-      auto server_mode = static_cast<ManagedServer::Mode>(it.mode);
-
-      // Spare and Faulty are not used
-      if (!(server_status == ManagedServer::Status::kPrimary ||
-            server_status == ManagedServer::Status::kSecondary)) {
-        continue;
-      }
-
-      if (server_status == ManagedServer::Status::kPrimary) {
-        ++c_primary;
-      } else {
-        ++c_secondary;
-      }
-
-      if (routing_mode == routing::AccessMode::kReadOnly && server_mode == ManagedServer::Mode::kReadOnly) {
-        // Secondary read-only
-        destinations_.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
-        continue;
-      } else if ((routing_mode == routing::AccessMode::kReadWrite &&
-                  (server_mode == ManagedServer::Mode::kReadWrite ||
-                   server_mode == ManagedServer::Mode::kWriteOnly)) ||
-                 allow_primary_reads_) {
-        // Primary and secondary read-write/write-only
-        destinations_.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
-        continue;
-      }
-    }
-    destination_iter_ = destinations_.begin();
-    if (count_primary_ != c_primary || count_secondary_ != c_secondary) {
-      log_debug("Got %d managed servers in group '%s'; can use %d", managed_servers.size(),
-                ha_group.c_str(), destinations_.size());
-    }
-    count_primary_ = c_primary;
-    count_secondary_ = c_secondary;
-  } catch (const fabric_cache::base_error &exc) {
-    log_error("Failed populating destinations: %s", exc.what());
-  } catch (...) {
-    try {
-      auto exc_ptr = std::current_exception();
-      if (exc_ptr) {
-        std::rethrow_exception(exc_ptr);
-      }
-    } catch (const std::exception &exc) {
-      log_error(exc.what());
+    if (routing_mode == routing::AccessMode::kReadOnly && server_mode == ManagedServer::Mode::kReadOnly) {
+      // Secondary read-only
+      available.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
+    } else if ((routing_mode == routing::AccessMode::kReadWrite &&
+                (server_mode == ManagedServer::Mode::kReadWrite ||
+                 server_mode == ManagedServer::Mode::kWriteOnly)) ||
+               allow_primary_reads_) {
+      // Primary and secondary read-write/write-only
+      available.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
     }
   }
+
+  return available;
 }
 
 void DestFabricCacheGroup::init() {
-  populate_attempts_ = 0;
   auto query_part = uri_query.find("allow_primary_reads");
   if (query_part != uri_query.end()) {
     auto value = query_part->second;
@@ -121,32 +81,21 @@ void DestFabricCacheGroup::init() {
       allow_primary_reads_ = true;
     }
   }
-
-  // Initial population
-  while (!destinations_.size()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    populate_destinations();
-  }
 }
 
-TCPAddress DestFabricCacheGroup::get_server() noexcept {
+int DestFabricCacheGroup::get_server_socket(int connect_timeout) noexcept {
 
-  populate_destinations();
-
-  if (destinations_.empty()) {
-    log_warning("Currently no servers avaialble from Fabric");
-    return TCPAddress();
-  }
-
-  if (destinations_.size() == 1) {
-    return destinations_.at(0);
+  auto available = get_available();
+  if (available.empty()) {
+    return -1;
   }
 
   std::lock_guard<std::mutex> lock(mutex_update_);
-  if (current_pos_ >= destinations_.size()) {
+  ++current_pos_;
+  if (current_pos_ >= available.size()) {
     current_pos_ = 0;
   }
-  auto addr = destinations_.at(current_pos_);
-  ++current_pos_;
-  return addr;
+  mutex_update_.unlock();
+
+  return get_mysql_socket(available.at(current_pos_), connect_timeout);
 }

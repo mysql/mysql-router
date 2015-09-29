@@ -20,12 +20,15 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "mysqlrouter/datatypes.h"
+#include "logger.h"
 
 using mysqlrouter::TCPAddress;
 using std::string;
@@ -44,10 +47,23 @@ using std::string;
 class RouteDestination {
 public:
 
-  using addr_vector = std::vector<TCPAddress>;
+  using AddrVector = std::vector<TCPAddress>;
 
   /** @brief Default constructor */
-  RouteDestination() : destination_iter_(destinations_.begin()) {};
+  RouteDestination() : current_pos_(0), stopping_(false) { };
+
+  /** @brief destructor */
+  ~RouteDestination() {
+    stopping_ = true;
+    if (quarantine_thread_.joinable()) {
+      quarantine_thread_.join();
+    }
+  }
+
+  RouteDestination(const RouteDestination &other) = delete;
+  RouteDestination(RouteDestination &&other) = delete;
+  RouteDestination &operator=(const RouteDestination &other) = delete;
+  RouteDestination &operator=(RouteDestination &&other) = delete;
 
   /** @brief Adds a destination
    *
@@ -60,8 +76,6 @@ public:
 
   /** @overload */
   virtual void add(const string &address, uint16_t port);
-
-
 
   /** @brief Removes a destination
    *
@@ -97,11 +111,12 @@ public:
 
   /** @brief Gets next connection to destination
    *
-   * Get a connection to the next available destination.
+   * Returns a socket descriptor for the connection to the MySQL Server or
+   * -1 when an error occurred.
    *
-   * @return Instance of mysqlrouter::TCPAddress
+   * @return a socket descriptor
    */
-  virtual TCPAddress get_server() noexcept;
+  virtual int get_server_socket(int connect_timeout) noexcept;
 
   /** @brief Gets the number of destinations
    *
@@ -115,57 +130,66 @@ public:
    *
    * @return whether the destination is empty
    */
-  bool empty() noexcept {
+  virtual bool empty() const noexcept {
     return destinations_.empty();
   }
 
-  /** @brief Rewinds iterator to the beginning
+  /** @brief Start the destination threads
    *
-   * By default this method does not do anything.
    */
-  virtual void rewind() noexcept {};
+  virtual void start() {
+    quarantine_thread_ = std::thread(&RouteDestination::remove_from_quarantine, this);
+  }
 
-  addr_vector::iterator begin() {
+  AddrVector::iterator begin() {
     return destinations_.begin();
   }
 
-  addr_vector::const_iterator begin() const {
+  AddrVector::const_iterator begin() const {
     return destinations_.begin();
   }
 
-  addr_vector::iterator end() {
+  AddrVector::iterator end() {
     return destinations_.end();
   }
 
-  addr_vector::const_iterator end() const {
+  AddrVector::const_iterator end() const {
     return destinations_.end();
   }
 
 protected:
-  /** @brief Executes actions after adding destinatino
+  /** @brief Returns whether destination is quarantined
    *
- * By default, the iterator over destinations is
- * reset to the first element.
+   * Uses the given index to check whether the destination is
+   * quarantined.
+   *
+   * @param size_t index of the destination to check
+   * @return True if destination is quarantined
    */
-  virtual void post_add() {
-    destination_iter_ = destinations_.begin();
+  virtual bool is_quarantined(const size_t index) {
+    return std::find(quarantined_.begin(), quarantined_.end(), index) != quarantined_.end();
   }
 
-  /** @brief Executes actions after removing destinatino
- *
- * By default, the iterator over destinations is
- * reset to the first element.
- */
-  virtual void post_remove() {
-    destination_iter_ = destinations_.begin();
-  };
+  virtual void remove_from_quarantine() noexcept;
+
 
   /** @brief List of destinations */
-  addr_vector destinations_;
-  /** @brief Next destination that can be used */
-  addr_vector::iterator destination_iter_;
+  AddrVector destinations_;
+  /** @brief Destination which will be used next */
+  std::atomic<size_t> current_pos_;
+  /** @brief Whether we are stopping */
+  std::atomic<bool> stopping_;
+
   /** @brief Mutex for updating destinations and iterator */
   std::mutex mutex_update_;
+
+
+  /** @brief List of destinations which are quarantined */
+  std::vector<size_t> quarantined_;
+  std::condition_variable condvar_quarantine_;
+  std::mutex mutex_quarantine_;
+  std::thread quarantine_thread_;
+
 };
 
 
