@@ -21,6 +21,7 @@
 #include "filesystem.h"
 #include "config_parser.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cerrno>
