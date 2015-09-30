@@ -22,6 +22,7 @@
 #include "logger.h"
 #include "config_parser.h"
 
+#include <atomic>
 #include <iostream>
 #include <mutex>
 #include <vector>
