@@ -19,16 +19,18 @@
 
 #include "plugin.h"
 #include "filesystem.h"
+#include "config_parser.h"
 
+#include <atomic>
 #include <cassert>
 #include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <sstream>
 #include <string>
 #include <thread>
-#include <atomic>
 
 enum Level {
   LVL_FATAL,
@@ -43,9 +45,41 @@ static const char *const level_str[] = {
   "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", 0
 };
 
+static const std::map<std::string, Level> map_level_str = {
+    {level_str[0], LVL_FATAL},
+    {level_str[1], LVL_ERROR},
+    {level_str[2], LVL_WARNING},
+    {level_str[3], LVL_INFO},
+    {level_str[4], LVL_DEBUG},
+};
+
 static std::atomic<FILE*> g_log_file;
+static std::atomic<int> g_log_level;
 
 static int init(const AppInfo* info) {
+  // Default log level is INFO
+  g_log_level = LVL_INFO;
+
+  if (info && info->config) {
+    auto sections = info->config->get("logger");
+    if (sections.size() != 1) {
+      throw std::invalid_argument("Section [logger] can only appear once");
+    }
+    auto section = sections.front();
+
+    if (section->has("level")) {
+      auto level_value = section->get("level");
+      std::transform(level_value.begin(), level_value.end(), level_value.begin(), ::toupper);
+      auto level = map_level_str.find(level_value);
+      // Invalid values are reported as error
+      if (level == map_level_str.end()) {
+        throw std::invalid_argument(
+            "Log level '" + level_value + "' is not valid; valid are " + level_str[0] + ", " +
+                level_str[1] + ", " + level_str[2] + ", " + level_str[3] + ", or " + level_str[4]);
+      }
+      g_log_level = level->second;
+    }
+  }
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
   if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
@@ -104,6 +138,8 @@ static void log_message(Level level, const char* fmt, va_list ap) {
 // <date> <level> <plugin> <message>
 
 void log_error(const char *fmt, ...) {
+  if (g_log_level < LVL_ERROR)
+    return;
   va_list args;
   va_start(args, fmt);
   log_message(LVL_ERROR, fmt, args);
@@ -112,6 +148,8 @@ void log_error(const char *fmt, ...) {
 
 
 void log_warning(const char *fmt, ...) {
+  if (g_log_level < LVL_WARNING)
+    return;
   va_list args;
   va_start(args, fmt);
   log_message(LVL_WARNING, fmt, args);
@@ -120,6 +158,8 @@ void log_warning(const char *fmt, ...) {
 
 
 void log_info(const char *fmt, ...) {
+  if (g_log_level < LVL_INFO)
+    return;
   va_list args;
   va_start(args, fmt);
   log_message(LVL_INFO, fmt, args);
@@ -128,6 +168,8 @@ void log_info(const char *fmt, ...) {
 
 
 void log_debug(const char *fmt, ...) {
+  if (g_log_level < LVL_DEBUG)
+    return;
   va_list args;
   va_start(args, fmt);
   log_message(LVL_DEBUG, fmt, args);
