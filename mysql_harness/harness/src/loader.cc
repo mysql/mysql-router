@@ -368,3 +368,11 @@ bool Loader::visit(const std::string& designator,
   }
   return true;
 }
+
+void Loader::add_logger(const std::string& default_level) {
+  if (!config_.has("logger")) {
+    auto&& section = config_.add("logger");
+    section.add("library", "logger");
+    section.add("level", default_level);
+  }
+}

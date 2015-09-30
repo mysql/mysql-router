@@ -213,6 +213,13 @@ public:
     return Path::make_path(config_.get_default("logging_folder"), program_, "log");
   }
 
+  /**
+   * Add a configuration section
+   *
+   * @param section ConfigSection instance to add.
+   */
+  void add_logger(const std::string& default_level);
+
 private:
   void setup_info();
   void init_all();
