@@ -111,6 +111,7 @@ void MySQLRouter::start() {
           string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
     }
   }
+  loader_->add_logger("INFO");
   loader_->start();
 }
 
