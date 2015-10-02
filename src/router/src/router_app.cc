@@ -116,7 +116,11 @@ void MySQLRouter::start() {
     }
   }
   loader_->add_logger("INFO");
-  std::cout << "Logging to " << loader_->get_log_file() << std::endl;
+  try {
+    std::cout << "Logging to " << loader_->get_log_file() << std::endl;
+  } catch (...) {
+    // We are logging to console
+  }
   loader_->start();
 }
 
