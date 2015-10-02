@@ -35,12 +35,10 @@ using std::cout;
 using std::endl;
 using std::back_inserter;
 
-std::string g_here;
+Path g_here;
 
 TEST(TestFilesystem, TestPath)
 {
-  Path here = Path(g_here);
-
   // Testing basic path construction
   EXPECT_EQ(Path("/data/logger.cfg"), "/data/logger.cfg");
   EXPECT_EQ(Path("data/logger.cfg"), "data/logger.cfg");
@@ -50,9 +48,6 @@ TEST(TestFilesystem, TestPath)
   EXPECT_EQ(Path("/data/"), "/data");
   EXPECT_EQ(Path("data/"), "data");
   EXPECT_EQ(Path("data////"), "data");
-
-  // Testing error usage
-  EXPECT_THROW({ Path path(""); }, std::runtime_error);
 
   // Testing dirname function
   EXPECT_EQ(Path("foo.cfg").dirname(), ".");
@@ -71,24 +66,48 @@ TEST(TestFilesystem, TestPath)
   EXPECT_EQ(new_path, "data/test");
 
   // Testing file status checking functions
-  EXPECT_EQ(here.join("data").type(),
+  EXPECT_EQ(g_here.join("data").type(),
             Path::FileType::DIRECTORY_FILE);
 
-  EXPECT_EQ(here.join("data/logger.cfg").type(),
+  EXPECT_EQ(g_here.join("data/logger.cfg").type(),
                Path::FileType::REGULAR_FILE);
-  EXPECT_EQ(here.join("data/does-not-exist.cfg").type(),
+  EXPECT_EQ(g_here.join("data/does-not-exist.cfg").type(),
                Path::FileType::FILE_NOT_FOUND);
 
-  EXPECT_TRUE(here.join("data").is_directory());
-  EXPECT_FALSE(here.join("data/logger.cfg").is_directory());
-  EXPECT_FALSE(here.join("data").is_regular());
-  EXPECT_TRUE(here.join("data/logger.cfg").is_regular());
+  EXPECT_TRUE(g_here.join("data").is_directory());
+  EXPECT_FALSE(g_here.join("data/logger.cfg").is_directory());
+  EXPECT_FALSE(g_here.join("data").is_regular());
+  EXPECT_TRUE(g_here.join("data/logger.cfg").is_regular());
 }
+
+TEST(TestFilesystem, EmptyPath) {
+  // Testing error usage
+  EXPECT_THROW({ Path path(""); }, std::invalid_argument);
+
+  // Default-constructed paths should be possible to create, but not
+  // to use.
+  Path path;
+  EXPECT_THROW(path.is_regular(), std::invalid_argument);
+  EXPECT_THROW(path.is_directory(), std::invalid_argument);
+  EXPECT_THROW(path.type(), std::invalid_argument);
+  EXPECT_THROW(path.append(g_here), std::invalid_argument);
+  EXPECT_THROW(path.join(g_here), std::invalid_argument);
+  EXPECT_THROW(path.basename(), std::invalid_argument);
+  EXPECT_THROW(path.dirname(), std::invalid_argument);
+  EXPECT_THROW(g_here.append(path), std::invalid_argument);
+  EXPECT_THROW(g_here.join(path), std::invalid_argument);
+
+  // Once a real path is moved into it, all should be fine.
+  path = g_here;
+  EXPECT_EQ(path, g_here);
+  EXPECT_TRUE(path.is_directory());
+  EXPECT_FALSE(path.is_regular());
+}
+
 
 TEST(TestFilesystem, TestDirectory)
 {
-  Path here(g_here);
-  Directory directory(here.join("data"));
+  Directory directory(g_here.join("data"));
 
   {
     // These are the files in the "data" directory in the test
@@ -97,14 +116,14 @@ TEST(TestFilesystem, TestDirectory)
     // TODO: Do not use the data directory for this but create a
     // dedicated directory for testing this feature.
     std::vector<Path> expect{
-      here.join("data/logger.d"),
-      here.join("data/logger.cfg"),
-      here.join("data/tests-bad-1.cfg"),
-      here.join("data/tests-bad-2.cfg"),
-      here.join("data/tests-bad-3.cfg"),
-      here.join("data/tests-good-1.cfg"),
-      here.join("data/tests-good-2.cfg"),
-      here.join("data/magic-alt.cfg"),
+      g_here.join("data/logger.d"),
+      g_here.join("data/logger.cfg"),
+      g_here.join("data/tests-bad-1.cfg"),
+      g_here.join("data/tests-bad-2.cfg"),
+      g_here.join("data/tests-bad-3.cfg"),
+      g_here.join("data/tests-good-1.cfg"),
+      g_here.join("data/tests-good-2.cfg"),
+      g_here.join("data/magic-alt.cfg"),
     };
 
     decltype(expect) result(directory.begin(), directory.end());
@@ -115,9 +134,9 @@ TEST(TestFilesystem, TestDirectory)
     // These are files in the "data" directory in the test
     // directory. Please update it if you add more files.
     std::vector<Path> expect{
-      here.join("data/tests-bad-1.cfg"),
-      here.join("data/tests-bad-2.cfg"),
-      here.join("data/tests-bad-3.cfg"),
+      g_here.join("data/tests-bad-1.cfg"),
+      g_here.join("data/tests-bad-2.cfg"),
+      g_here.join("data/tests-bad-3.cfg"),
     };
 
     decltype(expect) result(directory.glob("tests-bad*.cfg"), directory.end());
@@ -127,7 +146,7 @@ TEST(TestFilesystem, TestDirectory)
 
 int main(int argc, char *argv[])
 {
-  g_here = Path(argv[0]).dirname().str();
+  g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
