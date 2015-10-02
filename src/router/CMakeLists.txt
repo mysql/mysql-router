@@ -33,7 +33,7 @@ install(FILES ${router_headers}
   DESTINATION "include/mysql/${HARNESS_NAME}")
 
 # Install logging and runtime folder
-if(${INSTALL_LAYOUT} STREQUAL "STANDALONE" AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALONE")
   foreach(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR)
     set(_dir ${INSTALL_${_dirvar}})
     set(_stage_dir ${STAGE_DIR}/${_dirvar})
