@@ -24,9 +24,11 @@ export CXXFLAGS=
 
 override_dh_auto_configure:
 	@echo "RULES.$@"
+	sed 's/@DEB_HOST_MULTIARCH@/$(DEB_HOST_MULTIARCH)/g' \
+	    debian/extra/mysqlrouter.ini.in > debian/extra/mysqlrouter.ini
 	cmake . \
 		-DCMAKE_INSTALL_PREFIX=/usr \
-		-DSYSCONFDIR=/etc/mysql \
+		-DSYSCONFDIR=/etc/mysqlrouter \
 		-DPROJECT_EDITION="GPL community edition" \
 		-DINSTALL_LAYOUT="DEB"
 	touch $@

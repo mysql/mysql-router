@@ -37,9 +37,10 @@ DAEMON=/usr/sbin/mysqlrouter
 DAEMON_OPTIONS=""
 PROCNAME=mysqlrouter
 NAME="MySQL Router"
-PID=/run/mysqlrouter.pid
+RUNTIMEDIR=/var/run/mysqlrouter/
+PID=${RUNTIMEDIR}/mysqlrouter.pid
 STOP_RETRY=3
-LOGDIR=/var/log/mysql
+LOGDIR=/var/log/mysqlrouter
 LOGFILE=${LOGDIR}/mysqlrouter.log
 
 do_start() {
@@ -48,6 +49,13 @@ do_start() {
   start="start-stop-daemon --start --pidfile $PID --exec $DAEMON"
   $start --test -u mysql 1>/dev/null || retval=1
 
+  if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
+  then
+          mkdir ${RUNTIMEDIR}
+          chown mysql:adm ${RUNTIMEDIR}
+          chmod 750 ${RUNTIMEDIR}
+  fi
+
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
   then
           mkdir ${LOGDIR}
@@ -55,7 +63,7 @@ do_start() {
           chmod 750 ${LOGDIR}
   fi
   touch ${LOGFILE}
-  
+
   # Ensure the log file is writable by the own
   chown mysql:adm ${LOGFILE}
   chmod 640 ${LOGFILE}

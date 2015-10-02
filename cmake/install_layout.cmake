@@ -33,10 +33,10 @@
 #    Note: previous layout is now named DEBSRV4
 #
 #  DEBSRV4
-#    Build as per STANDALONE, prefix=/opt/mysql/server-$major.$minor
+#    Build as per STANDALONE, prefix=/opt/mysql/mysql-router-$major.$minor
 #
 #  SVR4
-#    Solaris package layout suitable for pkg* tools, prefix=/opt/mysql/mysql
+#    Solaris package layout suitable for pkg* tools, prefix=/opt/mysql/mysql-router
 #
 #  FREEBSD, GLIBC, OSX, TARGZ
 #    Build with prefix=/usr/local/mysql, create tarball with install prefix="."
@@ -91,16 +91,16 @@ SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}"
 CACHE STRING "Installation directory layout. Options are: TARGZ (as in tar.gz installer), WIN (as in zip installer), STANDALONE, RPM, DEB, DEBSRV4, SVR4, FREEBSD, GLIBC, OSX, SLES")
 
 IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "RPM" OR
-     INSTALL_LAYOUT MATCHES "SLES" OR
-     INSTALL_LAYOUT MATCHES "DEB")
+  IF(INSTALL_LAYOUT STREQUAL "RPM" OR
+     INSTALL_LAYOUT STREQUAL "SLES" OR
+     INSTALL_LAYOUT STREQUAL "DEB")
     SET(default_prefix "/usr")
-  ELSEIF(INSTALL_LAYOUT MATCHES "DEBSVR4")
-    SET(default_prefix "/opt/mysql/mysqlrouter-${PROJECT_VERSION}")
+  ELSEIF(INSTALL_LAYOUT STREQUAL "DEBSVR4")
+    SET(default_prefix "/opt/mysql/router-${PROJECT_VERSION}")
     # This is required to avoid "cpack -GDEB" default of prefix=/usr
     SET(CPACK_SET_DESTDIR ON)
-  ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
-    SET(default_prefix "/opt/mysql/mysqlrouter")
+  ELSEIF(INSTALL_LAYOUT STREQUAL "SVR4")
+    SET(default_prefix "/opt/mysql/router")
   ELSE()
     SET(default_prefix "/usr/local")
   ENDIF()
@@ -114,10 +114,6 @@ IF(UNIX)
     MESSAGE(FATAL_ERROR "Invalid INSTALL_LAYOUT parameter:${INSTALL_LAYOUT}."
     " Choose between ${VALID_INSTALL_LAYOUTS}" )
   ENDIF()
-
-  SET(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc/mysql"
-    CACHE PATH "config directory (for mysqlrouter.ini)")
-  MARK_AS_ADVANCED(SYSCONFDIR)
 ENDIF()
 
 IF(WIN32)
@@ -151,6 +147,9 @@ ENDIF()
 SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 SET(INSTALL_SCRIPTDIR_STANDALONE        "scripts")
+SET(INSTALL_LOGDIR_STANDALONE           "/var/local/mysqlrouter/log")
+SET(INSTALL_CONFIGDIR_STANDALONE        "etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_STANDALONE       "/var/local/mysqlrouter/run")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/mysqlrouter")
@@ -178,6 +177,9 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_STANDALONE ${secure_file_priv_path})
 SET(INSTALL_BINDIR_WIN           "bin")
 SET(INSTALL_SBINDIR_WIN          "bin")
 SET(INSTALL_SCRIPTDIR_WIN        "scripts")
+SET(INSTALL_LOGDIR_WIN           "log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_WIN        ".")
+SET(INSTALL_RUNTIMEDIR_WIN       ".")
 #
 SET(INSTALL_LIBDIR_WIN           "lib")
 SET(INSTALL_PLUGINDIR_WIN        "lib/mysqlrouter")
@@ -205,6 +207,9 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_WIN ${secure_file_priv_path})
 SET(INSTALL_BINDIR_FREEBSD           "bin")
 SET(INSTALL_SBINDIR_FREEBSD          "bin")
 SET(INSTALL_SCRIPTDIR_FREEBSD        "scripts")
+SET(INSTALL_LOGDIR_FREEBSD           "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_FREEBSD        "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_FREEBSD       "/var/run/mysqlrouter")
 #
 SET(INSTALL_LIBDIR_FREEBSD           "lib")
 SET(INSTALL_PLUGINDIR_FREEBSD        "lib/mysqlrouter")
@@ -232,6 +237,9 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_FREEBSD ${secure_file_priv_path})
 SET(INSTALL_BINDIR_GLIBC           "bin")
 SET(INSTALL_SBINDIR_GLIBC          "bin")
 SET(INSTALL_SCRIPTDIR_GLIBC        "scripts")
+SET(INSTALL_LOGDIR_GLIBC           "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_GLIBC        "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_GLIBC       "/var/run/mysqlrouter")
 #
 SET(INSTALL_LIBDIR_GLIBC           "lib")
 SET(INSTALL_PLUGINDIR_GLIBC        "lib/mysqlrouter")
@@ -259,6 +267,10 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_GLIBC ${secure_file_priv_path})
 SET(INSTALL_BINDIR_OSX           "bin")
 SET(INSTALL_SBINDIR_OSX          "bin")
 SET(INSTALL_SCRIPTDIR_OSX        "scripts")
+SET(INSTALL_LOGDIR_OSX           "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_OSX        "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_OSX       "/var/run/mysqlrouter")
+
 #
 SET(INSTALL_LIBDIR_OSX           "lib")
 SET(INSTALL_PLUGINDIR_OSX        "lib/mysqlrouter")
@@ -286,6 +298,9 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_OSX ${secure_file_priv_path})
 SET(INSTALL_BINDIR_TARGZ           "bin")
 SET(INSTALL_SBINDIR_TARGZ          "bin")
 SET(INSTALL_SCRIPTDIR_TARGZ        "scripts")
+SET(INSTALL_LOGDIR_TARGZ           "")
+SET(INSTALL_CONFIGDIR_TARGZ        "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_TARGZ       "/var/run/mysqlrouter")
 #
 SET(INSTALL_LIBDIR_TARGZ           "lib")
 SET(INSTALL_PLUGINDIR_TARGZ        "lib/mysqlrouter")
@@ -317,13 +332,16 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_TARGZ ${secure_file_priv_path})
 SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")
 SET(INSTALL_SCRIPTDIR_RPM               "bin")
+SET(INSTALL_LOGDIR_RPM                  "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_RPM               "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_RPM              "/var/run/mysqlrouter")
 #
 IF(ARCH_64BIT)
   SET(INSTALL_LIBDIR_RPM                "lib64")
-  SET(INSTALL_PLUGINDIR_RPM             "lib64/mysqlrouter/plugin")
+  SET(INSTALL_PLUGINDIR_RPM             "lib64/mysqlrouter")
 ELSE()
   SET(INSTALL_LIBDIR_RPM                "lib")
-  SET(INSTALL_PLUGINDIR_RPM             "lib/mysqlrouter/plugin")
+  SET(INSTALL_PLUGINDIR_RPM             "lib/mysqlrouter")
 ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_RPM              "include/mysql")
@@ -349,13 +367,16 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_RPM     ${secure_file_priv_path})
 SET(INSTALL_BINDIR_SLES                  "bin")
 SET(INSTALL_SBINDIR_SLES                 "sbin")
 SET(INSTALL_SCRIPTDIR_SLES               "bin")
+SET(INSTALL_LOGDIR_SLES                  "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_SLES               "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_SLES              "/var/run/mysqlrouter")
 #
 IF(ARCH_64BIT)
   SET(INSTALL_LIBDIR_SLES                "lib64")
-  SET(INSTALL_PLUGINDIR_SLES             "lib64/mysqlrouter/plugin")
+  SET(INSTALL_PLUGINDIR_SLES             "lib64/mysqlrouter")
 ELSE()
   SET(INSTALL_LIBDIR_SLES                "lib")
-  SET(INSTALL_PLUGINDIR_SLES             "lib/mysqlrouter/plugin")
+  SET(INSTALL_PLUGINDIR_SLES             "lib/mysqlrouter")
 ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_SLES              "include/mysqlrouter")
@@ -381,13 +402,16 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_SLES     ${secure_file_priv_path})
 SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "sbin")
 SET(INSTALL_SCRIPTDIR_DEB               "bin")
+SET(INSTALL_LOGDIR_DEB                  "/var/log/mysqlrouter")
+SET(INSTALL_CONFIGDIR_DEB               "/etc/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_DEB              "/var/run/mysqlrouter")
 #
 IF(ARCH_64BIT)
   SET(INSTALL_LIBDIR_DEB                "lib/x86_64-linux-gnu")
   SET(INSTALL_PLUGINDIR_DEB             "lib/x86_64-linux-gnu/mysqlrouter")
 ELSE()
-  SET(INSTALL_LIBDIR_DEB                "lib")
-  SET(INSTALL_PLUGINDIR_DEB             "lib/mysqlrouter")
+  SET(INSTALL_LIBDIR_DEB                "lib/i386-linux-gnu")
+  SET(INSTALL_PLUGINDIR_DEB             "lib/i386-linux-gnu/mysqlrouter")
 ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include/mysql/router")
@@ -413,6 +437,9 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_DEB     ${secure_file_priv_path})
 SET(INSTALL_BINDIR_DEBSVR4              "bin")
 SET(INSTALL_SBINDIR_DEBSVR4             "bin")
 SET(INSTALL_SCRIPTDIR_DEBSVR4           "scripts")
+SET(INSTALL_LOGDIR_DEBSVR4              "/var/opt/mysqlrouter")
+SET(INSTALL_CONFIGDIR_DEBSVR4           "/etc/opt/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_DEBSVR4          "/var/opt/mysqlrouter")
 #
 SET(INSTALL_LIBDIR_DEBSVR4              "lib")
 SET(INSTALL_PLUGINDIR_DEBSVR4           "lib/mysqlrouter")
@@ -440,9 +467,12 @@ SET(INSTALL_SECURE_FILE_PRIVDIR_DEBSVR4 ${secure_file_priv_path})
 SET(INSTALL_BINDIR_SVR4                 "bin")
 SET(INSTALL_SBINDIR_SVR4                "bin")
 SET(INSTALL_SCRIPTDIR_SVR4              "scripts")
+SET(INSTALL_LOGDIR_SVR4                 "/var/opt/mysqlrouter")
+SET(INSTALL_CONFIGDIR_SVR4              "/etc/opt/mysqlrouter")
+SET(INSTALL_RUNTIMEDIR_SVR4             "/var/opt/mysqlrouter")
 #
 SET(INSTALL_LIBDIR_SVR4                 "lib")
-SET(INSTALL_PLUGINDIR_SVR4              "lib/plugin")
+SET(INSTALL_PLUGINDIR_SVR4              "lib/mysqlrouter")
 #
 SET(INSTALL_INCLUDEDIR_SVR4             "include")
 #
@@ -475,7 +505,7 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # layout is chosen)
 FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
   INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
-  SECURE_FILE_PRIV)
+  SECURE_FILE_PRIV LOG CONFIG RUNTIME)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)

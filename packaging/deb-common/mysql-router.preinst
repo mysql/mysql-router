@@ -17,16 +17,43 @@
 
 . /usr/share/debconf/confmodule
 
-case "$1" in
-	remove)
-		;;
-	purge)
-		set -e
-		db_purge
-		set +e
-		;;
-esac
+# Use home directory of MySQL Server
+LOGDIR=/var/log/mysqlrouter
+MYSQLHOME=/var/lib/mysql
+LOGFILE=${MYSQLLOGDIR}/mysqlrouter.log
 
-#DEBHELPER#
+case "$1" in
+  install)
+
+    set -e
+
+    if [ -x /etc/init.d/mysqlrouter ]; then
+      invoke-rc.d mysqlrouter stop || exit $?
+    fi
+
+    addgroup --quiet --system mysql
+    adduser --quiet --system --ingroup mysql --disabled-login --home ${MYSQLHOME} --shell /bin/false \
+      --gecos "MySQL Server" mysql
+
+    if [ ! -d $LOGDIR ] && [ ! -L $LOGDIR ]; then
+      mkdir $LOGDIR
+      chown mysql:adm $LOGDIR
+      chmod 750 $LOGDIR
+    fi
+    touch $LOGFILE
+    chown mysql:adm $LOGFILE
+    chmod 640 $LOGFILE
+
+    set +e
+    ;;
+
+  upgrade)
+    set -e
+
+    #DEBHELPER#
+
+    set +e
+    ;;
+esac
 
 exit 0

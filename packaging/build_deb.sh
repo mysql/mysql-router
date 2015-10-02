@@ -35,7 +35,7 @@ if [ "$SOURCETAR" = "" ] || [ ! -f $SOURCETAR ]; then
   exit 1
 fi
 SOURCETAR=`realpath $SOURCETAR`
-REPODIR=`dirname $ME`/../..
+REPODIR=`dirname $ME`/..
 REPODIR=`realpath $REPODIR`
 
 # Check if we are where we are supposed to be
@@ -50,6 +50,7 @@ if [ $? -ne 0 ]; then
   echo "Failed getting relesae information. Make sure lsb_release is avialable."
   exit 1
 fi
+DEBCOMMONDIR=$REPODIR/packaging/deb-common
 DEBINFODIR=$REPODIR/packaging/deb-$DEBCODE
 if [ ! -d $DEBINFODIR ]; then
   echo "Debian/Ubuntu with code name $DEBINFODIR is not supported."
@@ -73,9 +74,10 @@ DEBSRCTAR=${PKGNAME}_$VERSION.orig.tar.gz
 mv $TARBASE.tar.gz $DEBSRCTAR
 echo "Renamed TAR to $DEBSRCTAR"
 
-# Unpack Source and copy the appropriated Debian package files
+# Unpack Source and copy the appropriated Debian package files as well as common files
 tar xzf $DEBSRCTAR
-cp -a $DEBINFODIR $TARBASE/debian
+cp -a $DEBCOMMONDIR $TARBASE/debian
+cp -a $DEBINFODIR/* $TARBASE/debian/
 echo "Copied `basename $DEBINFODIR`"
 
 # Build Debian package

@@ -13,5 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-mysql-router-dev: copyright-should-refer-to-common-license-file-for-lgpl
-mysql-router-dev: extra-license-file usr/share/doc/mysql-router-dev/License.txt.gz
+usr/include/mysql/mysqlrouter/*.h
+usr/lib/*/libmysql*.so
+usr/lib/*/libmysql*.a
+
+usr/share/mysql-router/docs/License.txt usr/share/doc/mysql-router-dev
+usr/share/mysql-router/docs/README.txt usr/share/doc/mysql-router-dev

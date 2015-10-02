@@ -39,7 +39,9 @@ endif()
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT
-include(cmake/harness.cmake) # Harness before Compiler.cmake because of compiler flags
+include(cmake/configure.cmake)
+# Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
+include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
@@ -52,14 +54,6 @@ if(ENABLE_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
-
-# Compiler & Linker settings
-if(${INSTALL_LAYOUT} STREQUAL "STANDALONE")
-  set(CMAKE_INSTALL_RPATH "${PLUGIN_RPATH}")
-endif()
-
-# Configure
-include(cmake/configure.cmake)
 
 # Load all modules, including plugins
 add_subdirectory(src)

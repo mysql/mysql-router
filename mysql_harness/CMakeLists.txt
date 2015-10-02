@@ -33,7 +33,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
 set(INSTALL_INCLUDE_DIR "include/mysql/${HARNESS_NAME}" CACHE PATH
-  "Installation directory for harness include files")
+  "Installation directory for Harness include files")
+set(HARNESS_INSTALL_LIBDIR "lib" CACHE PATH
+    "Installation directory for Harness libraries")
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL

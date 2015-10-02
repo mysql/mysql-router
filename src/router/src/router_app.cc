@@ -74,7 +74,11 @@ void MySQLRouter::start() {
   string err_msg = "Configuration error: %s.";
 
   std::map<std::string, std::string> params = {
-      {"program", "mysqlrouter"}
+      {"program", "mysqlrouter"},
+      {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
+      {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
+      {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
+      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)},
   };
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
@@ -112,6 +116,7 @@ void MySQLRouter::start() {
     }
   }
   loader_->add_logger("INFO");
+  std::cout << "Logging to " << loader_->get_log_file() << std::endl;
   loader_->start();
 }
 
@@ -188,7 +193,7 @@ vector<string> MySQLRouter::check_config_files() {
   }
 
   if (result.empty()) {
-    throw std::runtime_error("No valid configuration file available.");
+    throw std::runtime_error("No valid configuration file available. See --help for more information.");
   }
 
   return result;
@@ -262,7 +267,14 @@ void MySQLRouter::show_help() noexcept {
     }
   }
 
-  std::cout << "\n";
+  std::cout << std::endl;
+  std::cout << "Default configuration:" << std::endl;
+  std::cout << "  config_folder  = " << MYSQL_ROUTER_CONFIG_FOLDER << std::endl;
+  std::cout << "  logging_folder = " << MYSQL_ROUTER_LOGGING_FOLDER << std::endl;
+  std::cout << "  plugin_folder  = " << MYSQL_ROUTER_PLUGIN_FOLDER << std::endl;
+  std::cout << "  runtime_folder = " << MYSQL_ROUTER_RUNTIME_FOLDER << std::endl;
+
+  std::cout << std::endl;
 
   show_usage();
 }

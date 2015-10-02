@@ -56,8 +56,8 @@ set_target_properties(harness-archive harness-library PROPERTIES
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
 install(TARGETS harness-archive harness-library
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${HARNESS_INSTALL_LIBDIR})
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

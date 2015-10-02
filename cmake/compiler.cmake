@@ -54,9 +54,3 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 else()
   message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} is not supported")
 endif()
-
-set(PLUGIN_RPATH
-  "${CMAKE_INSTALL_PREFIX}/lib/${HARNESS_NAME}"
-  "${CMAKE_INSTALL_PREFIX}/lib"
-)
-

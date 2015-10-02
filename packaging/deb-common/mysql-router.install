@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -15,18 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-. /usr/share/debconf/confmodule
+usr/sbin/mysqlrouter
+usr/lib/*/libmysql*.so.*
+usr/lib/*/mysqlrouter/*
+usr/share/mysql-router/*
 
-case "$1" in
-	remove)
-		;;
-	purge)
-		set -e
-		db_purge
-		set +e
-		;;
-esac
+debian/extra/mysqlrouter.ini etc/mysqlrouter
 
-#DEBHELPER#
-
-exit 0
+usr/share/mysql-router/docs/License.txt usr/share/doc/mysql-router
+usr/share/mysql-router/docs/README.txt usr/share/doc/mysql-router

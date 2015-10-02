@@ -31,3 +31,27 @@ endif()
 file(GLOB router_headers include/mysqlrouter/*.h)
 install(FILES ${router_headers}
   DESTINATION "include/mysql/${HARNESS_NAME}")
+
+# Install logging and runtime folder
+if(${INSTALL_LAYOUT} STREQUAL "STANDALONE")
+  foreach(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR)
+    set(_dir ${INSTALL_${_dirvar}})
+    set(_stage_dir ${STAGE_DIR}/${_dirvar})
+    file(MAKE_DIRECTORY ${_stage_dir}/${_dir})
+
+    if(IS_ABSOLUTE ${_dir})
+      set(_destination "/")
+    else()
+      set(_destination ${CMAKE_INSTALL_PREFIX})
+    endif()
+
+    file(GLOB _sub_dirs ${_stage_dir}/*)
+
+    install(DIRECTORY ${_sub_dirs} DESTINATION ${_destination}
+      DIRECTORY_PERMISSIONS
+      OWNER_WRITE OWNER_READ OWNER_EXECUTE
+      GROUP_WRITE GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE
+    )
+  endforeach()
+endif()
