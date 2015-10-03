@@ -26,6 +26,7 @@
 #include "plugin.h"
 
 #include "mysql_routing.h"
+#include "plugin_config.h"
 #include "helper_logger.h"
 
 using std::string;
@@ -126,10 +127,13 @@ TEST_F(RoutingPluginTests, StartCorrectSection) {
   harness_plugin_routing.init(&test_app_info);
   auto start = harness_plugin_routing.start;
 
-  start(config_section.get());
+  std::thread thr(start, config_section.get());
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // The event loop will start; we can't cleanly exit at this time
+  thr.detach();
+
   auto log = ssout.str();
   ASSERT_THAT(log, HasSubstr("routing:tests started: listening on 127.0.0.1:15508"));
-  ASSERT_THAT(log, HasSubstr("routing:tests stopped"));
 }
 
 TEST_F(RoutingPluginTests, StartMissingMode) {

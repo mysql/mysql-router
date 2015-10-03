@@ -62,7 +62,7 @@ function(ADD_TEST_FILE FILE)
     add_test(NAME ${test_name}
       COMMAND ${runtime_dir}/${test_target})
     set_tests_properties(${test_name} PROPERTIES
-      ENVIRONMENT "STAGE_DIR=${STAGE_DIR};${TEST_ENVIRONMENT}")
+      ENVIRONMENT "STAGE_DIR=${STAGE_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
   elseif(test_ext STREQUAL ".py")
     # Tests written in Python
     get_filename_component(test_target ${FILE} NAME_WE)

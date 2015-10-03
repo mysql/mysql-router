@@ -193,7 +193,6 @@ void MySQLRouting::start() {
 
   destination_->start();
 
-#ifndef ENABLE_TESTS
   while (!stopping()) {
     if (errno > 0) {
       log_error(strerror(errno));
@@ -220,7 +219,6 @@ void MySQLRouting::start() {
 
     std::thread(&MySQLRouting::thd_routing_select, this, sock_client).detach();
   }
-#endif
 
   log_info("%s stopped", name.c_str());
 }

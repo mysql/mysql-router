@@ -151,11 +151,13 @@ TEST_F(AppTest, CmdLineExtraConfig) {
   vector<string> argv = {
       "--extra-config", stage_dir + "/etc/mysqlrouter.ini"
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_THAT(r.default_config_files_, SizeIs(Ge(2)));
-  ASSERT_THAT(r.config_files_, IsEmpty());
+  ASSERT_THROW({MySQLRouter r(argv);}, std::runtime_error);
+  try {
+    MySQLRouter r(argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr(
+      "Extra configuration files only work when other configuration files are available."));
+  }
 }
 
 TEST_F(AppTest, CmdLineExtraConfigFailRead) {
@@ -174,17 +176,17 @@ TEST_F(AppTest, CmdLineExtraConfigFailRead) {
 
 TEST_F(AppTest, CmdLineMultipleExtraConfig) {
   vector<string> argv = {
-      "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
+      "-c", stage_dir + "/etc/mysqlrouter.ini",
       "-a", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + "/etc/config_b.ini"
   };
   ASSERT_NO_THROW({MySQLRouter r(argv);});
   MySQLRouter r(argv);
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(1).c_str(), argv.at(3).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(2).c_str(), argv.at(5).c_str());
-  ASSERT_THAT(r.default_config_files_, SizeIs(Ge(2)));
-  ASSERT_THAT(r.config_files_, IsEmpty());
+  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
+  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(3).c_str());
+  ASSERT_STREQ(r.extra_config_files_.at(1).c_str(), argv.at(5).c_str());
+  ASSERT_THAT(r.default_config_files_, SizeIs(0));
+  ASSERT_THAT(r.config_files_, SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
