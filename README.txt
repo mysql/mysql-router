@@ -9,45 +9,20 @@ MySQL Router is brought to you by Oracle.
 
 Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
-
-Running Tests
--------------
-
-All tests can be run doing the following:
-
-    shell> mkdir build
-    shell> cd build
-    shell> cmake ..
-    shell> make
-    shell> make test
-
-After running `make`, individual test executables and scripts are available
-in under the folder `tests/`. You can directly execute these tests
-like this:
-
-    shell> ./tests/bin/router/test_mysqlrouter_app
-
-Python tests can be ran as follows:
-
-    shell> PYTHONPATH="." python -B tests/project_tests/copyright.py \
-        --cmake-source-dir ..
-
-
 Documentation
 -------------
 
-For further information about MySQL Router or additional
-documentation, see:
+For further information about MySQL or additional documentation, see:
 
-* The latest information about MySQL: http://www.mysql.com
-* The current MySQL Router documentation: http://dev.mysql.com/doc
+* http://www.mysql.com
+* https://dev.mysql.com/doc/mysql-router/en/
 
-You can browse the MySQL Reference Manual online or download it
+You can browse the MySQL Router Reference Manual online or download it
 in any of several formats at the URL given earlier in this file.
 Source distributions include a local copy of the manual in the
 Docs directory.
 
-Developer documention can be build when Doxygen 1.8.9 or greater
+Developer documentation can be build when Doxygen 1.8.9 or greater
 has been installed:
 
     shell> cd build
