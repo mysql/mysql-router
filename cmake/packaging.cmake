@@ -55,3 +55,10 @@ string(REPLACE "." "\\\\." cpack_source_ignore_files "${cpack_source_ignore_file
 set(CPACK_SOURCE_IGNORE_FILES "${cpack_source_ignore_files}")
 
 include(CPack)
+
+#
+# RPM-based
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/rpm-oel")
+endif()

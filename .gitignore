@@ -40,3 +40,4 @@ commit.txt
 *.patch
 *.diff
 local.cmake
+packages/rpm-*/*.spec

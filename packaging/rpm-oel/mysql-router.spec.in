@@ -44,9 +44,9 @@
 
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
-Version:       2.0.1
+Version:       @PROJECT_VERSION_TEXT@
 Release:       1%{?dist}
-License:       Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved. Under %{?license_type} license as shown in the Description field.
+License:       @ORACLE_COPYRIGHT@ Under %{?license_type} license as shown in the Description field.
 Group:         Development/Libraries
 URL:           https://dev.mysql.com/downloads/router/
 Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}.tar.gz
@@ -101,7 +101,7 @@ necessary to develop MySQL Router applications.
 
 %build
 mkdir release && pushd release
-cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_lib}"
+cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}"
 make %{?_smp_mflags} VERBOSE=1
 popd
 
@@ -110,15 +110,16 @@ rm -rf %{buildroot}
 pushd release
 make DESTDIR=%{buildroot} install
 
-install -d -m 0755 %{buildroot}/%{_localstatedir}/log/mysql
+install -d -m 0755 %{buildroot}/%{_localstatedir}/log/mysqlrouter
+install -d -m 0755 %{buildroot}/%{_localstatedir}/run/mysqlrouter
 
 install -D -p -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 %{SOURCE2} %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
-install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/mysql/mysqlrouter.ini
+install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.ini
 
 # remove some unwanted files
 rm -rf %{buildroot}%{_includedir}
-rm -rf %{buildroot}/usr/lib/libmysqlharness.a
+rm -rf %{buildroot}/%{_libdir}/libmysqlharness.a
 
 %clean
 rm -rf %{buildroot}
@@ -159,8 +160,8 @@ fi
 %files
 %defattr(-, root, root, -)
 %doc License.txt README.txt
-%dir %{_sysconfdir}/mysql
-%config(noreplace) %{_sysconfdir}/mysql/mysqlrouter.ini
+%dir %{_sysconfdir}/mysqlrouter
+%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.ini
 %{_sbindir}/mysqlrouter
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
@@ -168,15 +169,18 @@ fi
 %else
 %{_sysconfdir}/init.d/mysqlrouter
 %endif
-# todo: need support for libdir = /usr/lib64, not just /usr/lib
-/usr/lib/libmysql*.so.0
-/usr/lib/libmysqlharness.so
+%{_libdir}/libmysql*.so.*
+%{_libdir}/libmysqlharness.so
 %{_libdir}/libmysqlrouter.so
-%dir /usr/lib/mysqlrouter
-/usr/lib/mysqlrouter/*.so
-%dir %attr(755, mysql, mysql) %{_localstatedir}/log/mysql
+%dir %{_libdir}/mysqlrouter
+%{_libdir}/mysqlrouter/*.so
+%dir %attr(755, mysql, mysql) %{_localstatedir}/log/mysqlrouter
+%dir %attr(755, mysql, mysql) %{_localstatedir}/run/mysqlrouter
+
+%changelog
+* Fri Oct  2 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.2-1
+- Making version a variable and using _libdir
 
 %changelog
 * Wed Aug 19 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.1-1
 - Initial version
-

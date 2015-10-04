@@ -8,7 +8,7 @@ Type=forking
 User=mysql
 Group=mysql
 
-PIDFile=/run/mysqlrouter.pid
+PIDFile=/var/run/mysqlrouter/mysqlrouter.pid
 
 ExecStart=/usr/sbin/mysqlrouter 
 
