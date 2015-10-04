@@ -73,29 +73,42 @@ std::vector<TCPAddress> DestFabricCacheGroup::get_available() {
 }
 
 void DestFabricCacheGroup::init() {
+
   auto query_part = uri_query.find("allow_primary_reads");
   if (query_part != uri_query.end()) {
-    auto value = query_part->second;
-    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-    if (value == "yes") {
-      allow_primary_reads_ = true;
+    if (routing_mode == routing::AccessMode::kReadOnly) {
+      auto value = query_part->second;
+      std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+      if (value == "yes") {
+        allow_primary_reads_ = true;
+      }
+    } else {
+      log_warning("allow_primary_reads only works with read-only mode");
     }
   }
 }
 
 int DestFabricCacheGroup::get_server_socket(int connect_timeout) noexcept {
 
-  auto available = get_available();
-  if (available.empty()) {
-    return -1;
-  }
+  try {
 
-  std::lock_guard<std::mutex> lock(mutex_update_);
-  ++current_pos_;
-  if (current_pos_ >= available.size()) {
-    current_pos_ = 0;
-  }
-  mutex_update_.unlock();
+    auto available = get_available();
+    if (available.empty()) {
+      return -1;
+    }
 
-  return get_mysql_socket(available.at(current_pos_), connect_timeout);
+    auto next_up = current_pos_;
+    std::lock_guard<std::mutex> lock(mutex_update_);
+    ++current_pos_;
+    if (current_pos_ >= available.size()) {
+      current_pos_ = 0;
+    }
+    mutex_update_.unlock();
+
+    return get_mysql_socket(available.at(next_up), connect_timeout);
+
+  } catch (fabric_cache::base_error) {
+    log_error("Failed getting managed servers from Fabric");
+  }
+  return -1;
 }
