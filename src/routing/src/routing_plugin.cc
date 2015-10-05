@@ -39,7 +39,7 @@ const char *kRoutingRequires[1] = {
 static int init(const AppInfo *info) {
   if (info->config != nullptr) {
     bool have_fabric_cache = false;
-    bool need_fabric_cache = true;
+    bool need_fabric_cache = false;
     std::vector<TCPAddress> bind_addresses;
     std::vector<uint16_t> ports;
     for (auto &section: info->config->sections()) {

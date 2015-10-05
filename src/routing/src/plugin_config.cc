@@ -102,13 +102,7 @@ string RoutingPluginConfig::get_option_destinations(const ConfigSection *section
     if (uri.scheme == "fabric+cache") {
       auto fabric_cmd = uri.path[0];
       std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
-      if (fabric_cmd == "group") {
-        if (!fabric_cache::have_cache(uri.host)) {
-          throw invalid_argument(
-              get_log_prefix(option) + " has an invalid Fabric Cache name in URI; was '" +
-                  uri.host + "'");
-        }
-      } else {
+      if (fabric_cmd != "group") {
         throw invalid_argument(
             get_log_prefix(option) + " has an invalid Fabric command in URI; was '" + fabric_cmd + "'");
       }
