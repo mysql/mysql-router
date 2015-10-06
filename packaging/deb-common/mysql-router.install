@@ -19,6 +19,7 @@ usr/lib/*/mysqlrouter/*
 usr/share/mysql-router/*
 
 debian/extra/mysqlrouter.ini etc/mysqlrouter
+etc/apparmor.d/usr.sbin.mysqlrouter
 
 usr/share/mysql-router/docs/License.txt usr/share/doc/mysql-router
 usr/share/mysql-router/docs/README.txt usr/share/doc/mysql-router

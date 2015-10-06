@@ -53,7 +53,7 @@ Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
 Source3:       mysqlrouter.ini
-BuildRequires: python-devel
+BuildRequires: python
 %if 0%{?commercial}
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
@@ -101,7 +101,8 @@ necessary to develop MySQL Router applications.
 
 %build
 mkdir release && pushd release
-cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}"
+cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}" \
+  -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}"
 make %{?_smp_mflags} VERBOSE=1
 popd
 
@@ -180,6 +181,7 @@ fi
 %changelog
 * Fri Oct  2 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.2-1
 - Making version a variable and using _libdir
+- Adding -DWITH_MYSQL and building libmysqlclient statically in
 
 %changelog
 * Wed Aug 19 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.1-1

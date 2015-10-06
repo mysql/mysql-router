@@ -21,10 +21,17 @@ case "$1" in
 	configure)
 		set -e
 		ldconfig
+		invoke-rc.d mysqlrouter start
 		set +e
 		;;
 
-	abort-upgrade|abort-remove|abort-configure)
+	abort-remove)
+		set -e
+		invoke-rc.d mysqlrouter start
+		set +e
+		;;
+
+	abort-upgrade|abort-configure)
 		;;
 esac
 

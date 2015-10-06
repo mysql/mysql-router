@@ -2,4 +2,4 @@ mysql-router (2.0.2-1debian8) jessie; urgency=low
 
   * initial version
 
- -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Wed,  5 Oct 2015 08:01:55 +0200
+ -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Mon,  5 Oct 2015 08:01:55 +0200

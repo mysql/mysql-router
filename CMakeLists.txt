@@ -32,6 +32,12 @@ endif()
 
 include(cmake/settings.cmake)
 
+# Load Internal
+if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
+  message(STATUS "Loading internal repository")
+  add_subdirectory(internal)
+endif()
+
 # Required tools, libraries, etc..
 if(ENABLE_TESTS)
   include(cmake/python.cmake)
@@ -58,3 +64,16 @@ endif()
 # Load all modules, including plugins
 add_subdirectory(src)
 
+# Sanity checks
+if(GPL)
+  file(READ README.txt _license_check)
+  if(NOT "${_license_check}" MATCHES ".*released under the version 2 of the GNU General Public License.*")
+    message(FATAL_ERROR "README.txt has wrong license.")
+  endif()
+
+  file(READ License.txt _license_check)
+  if(NOT "${_license_check}" MATCHES ".*GNU GENERAL PUBLIC LICENSE*")
+    message(FATAL_ERROR "README.txt has wrong license.")
+  endif()
+  unset(_license_check)
+endif()

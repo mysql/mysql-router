@@ -68,6 +68,8 @@ do_start() {
   chown mysql:adm ${LOGFILE}
   chmod 640 ${LOGFILE}
 
+  /lib/init/apparmor-profile-load usr.sbin.mysqlrouter
+
   $start -m -b --chuid mysql -- $DAEMON_OPTIONS 2>/dev/null || retval=2
 
   case $? in

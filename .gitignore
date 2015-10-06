@@ -30,6 +30,7 @@
 /harness/**
 /doc/html
 /doc/latex
+/mysql-server
 
 # Python
 *__pycache__*

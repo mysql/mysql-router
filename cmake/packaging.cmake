@@ -15,6 +15,9 @@
 
 
 set(CPACK_PACKAGE_NAME "mysql-router")
+if(NOT GPL)
+  MakeNonGPLPackageName(CPACK_PACKAGE_NAME)
+endif()
 set(CPACK_PACKAGE_VENDOR "Oracle")
 set(CPACK_PACKAGE_CONTACT "MySQL Release Engineering <mysql-build@oss.oracle.com>")
 
