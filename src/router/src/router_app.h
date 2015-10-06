@@ -86,12 +86,14 @@ public:
    *
    * Example usage:
    *
-   *     MySQLRouter router(vector<string>({argv + 1, argv + argc}));
+   *     MySQLRouter router(Path(argv[0]).dirname(),
+   *                        vector<string>({argv + 1, argv + argc}));
    *     router.start();
    *
+   * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const vector<string> arguments);
+  MySQLRouter(const Path& origin, const vector<string>& arguments);
 
   /** @brief Constructor with command line arguments
    *
@@ -206,7 +208,7 @@ private:
    *
    * @param arguments command line arguments as vector of strings
    */
-  void init(const vector<string> arguments);
+  void init(const vector<string>& arguments);
 
   /** @brief Finds all valid configuration files
    *
@@ -307,6 +309,14 @@ private:
   bool can_start_;
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
   bool showing_info_;
+
+  /**
+   * Path to origin of executable.
+   *
+   * This variable contain the directory that the executable is
+   * running from.
+   */
+  Path origin_;
 };
 
 #endif // ROUTER_MYSQL_ROUTER_INCLUDED
