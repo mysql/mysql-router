@@ -41,16 +41,22 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-MySQLRouter::MySQLRouter(const vector<string> arguments)
+MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
-      showing_info_(false) {
+      showing_info_(false)
+    , origin_(origin)
+{
   init(arguments);
 }
 
-MySQLRouter::MySQLRouter(const int argc, char **argv) : MySQLRouter(vector<string>({argv + 1, argv + argc})) { }
+MySQLRouter::MySQLRouter(const int argc, char **argv)
+    : MySQLRouter(Path(argv[0]).dirname(),
+                  vector<string>({argv + 1, argv + argc}))
+{
+}
 
-void MySQLRouter::init(vector<string> arguments) {
+void MySQLRouter::init(const vector<string>& arguments) {
   set_default_config_files(CONFIG_FILES);
   prepare_command_options();
   try {
@@ -75,6 +81,7 @@ void MySQLRouter::start() {
 
   std::map<std::string, std::string> params = {
       {"program", "mysqlrouter"},
+      {"origin", origin_.str()},
       {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
       {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
       {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
@@ -271,13 +278,6 @@ void MySQLRouter::show_help() noexcept {
       std::cout << "  " << file << std::endl;
     }
   }
-
-  std::cout << std::endl;
-  std::cout << "Default configuration:" << std::endl;
-  std::cout << "  config_folder  = " << MYSQL_ROUTER_CONFIG_FOLDER << std::endl;
-  std::cout << "  logging_folder = " << MYSQL_ROUTER_LOGGING_FOLDER << std::endl;
-  std::cout << "  plugin_folder  = " << MYSQL_ROUTER_PLUGIN_FOLDER << std::endl;
-  std::cout << "  runtime_folder = " << MYSQL_ROUTER_RUNTIME_FOLDER << std::endl;
 
   std::cout << std::endl;
 

@@ -36,6 +36,7 @@ using std::string;
 using ::testing::StrEq;
 
 string g_cwd;
+Path g_origin;
 
 class Bug21771595 : public ConsoleOutputTest {
 protected:
@@ -69,7 +70,7 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
   c << "wait_timeout=0\n";
   c.close();
 
-  auto r = MySQLRouter({"-c", config_path->str()});
+  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -84,7 +85,7 @@ TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
   c << "[fabric_cache]\naddress=127.0.0.1:99999\n\n";
   c.close();
 
-  auto r = MySQLRouter({"-c", config_path->str()});
+  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -121,6 +122,7 @@ TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {
 }
 
 int main(int argc, char *argv[]) {
+  g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

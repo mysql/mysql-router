@@ -99,5 +99,11 @@ else()
 endif()
 set(CONFIG_FILES ${CONFIG_FILE_LOCATIONS})
 
+if(INSTALL_LAYOUT STREQUAL "STANDALONE")
+  set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
+  set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
+  set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
+endif()
+
 configure_file(config.h.in config.h @ONLY)
 include_directories(${PROJECT_BINARY_DIR})

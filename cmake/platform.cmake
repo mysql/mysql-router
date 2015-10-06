@@ -15,7 +15,7 @@
 
 # Figure out a nice name for Platform and Architecture
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    string(SUBSTRING ${CMAKE_SYSTEM} 7 2 DARWIN_VERSION)
+  string(SUBSTRING ${CMAKE_SYSTEM} 7 2 DARWIN_VERSION)
   if(DARWIN_VERSION STREQUAL "15")
     set(PLATFORM_NAME "OS X v10.11")
   elseif(DARWIN_VERSION STREQUAL "14")
@@ -25,9 +25,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   else()
     message(FATAL_ERROR "Unsupported version of MacOS X")
   endif()
+  set(RPATH_ORIGIN "@executable_path")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
+  set(RPATH_ORIGIN "\$ORIGIN")
   set(PLATFORM_NAME "Windows/Cygwin")
 else()
+  set(RPATH_ORIGIN "\$ORIGIN")
   set(PLATFORM_NAME ${CMAKE_SYSTEM_NAME})
 endif()
 
