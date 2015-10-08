@@ -22,23 +22,18 @@ int DestFirstAvailable::get_server_socket(int connect_timeout) noexcept {
     return -1;
   }
 
-  // With only 1 destination, no need to lock and update the iterator
-  if (destinations_.size() == 1) {
-    return get_mysql_socket(destinations_.at(0), connect_timeout);
-  }
-
   // We start the list at the currently available server
   for (size_t i = current_pos_; i < destinations_.size(); ++i) {
-    auto sock = get_mysql_socket(destinations_.at(i), connect_timeout);
+    auto addr = destinations_.at(i);
+    log_debug("Trying server %s (index %d)", addr.str().c_str(), i);
+    auto sock = get_mysql_socket(addr, connect_timeout);
     if (sock != -1) {
-      std::lock_guard<std::mutex> lock(mutex_update_);
       current_pos_ = i;
       return sock;
     }
   }
 
   // We are out of destinations. Next time we will try from the beginning of the list.
-  std::lock_guard<std::mutex> lock(mutex_update_);
   current_pos_ = 0;
   return -1;
 }

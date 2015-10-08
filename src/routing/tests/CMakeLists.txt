@@ -45,7 +45,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
 ADD_TEST_DIR(issues MODULE issues
-  LIB_DEPENDS routing_tests routing_plugin_tests)
+  LIB_DEPENDS routing_tests routing_plugin_tests
+  INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
 configure_file(data/1route.ini.in ${STAGE_DIR}/etc/routing_1route.ini)

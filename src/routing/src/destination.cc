@@ -20,6 +20,7 @@
 #include "mysqlrouter/routing.h"
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <netdb.h>
 #include <netinet/tcp.h>
@@ -30,9 +31,20 @@
 
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
-using routing::get_mysql_socket;
 using std::out_of_range;
 using std::runtime_error;
+
+// Timeout for trying to connect with quarantined servers
+static const int kQuarantinedConnectTimeout = 1;
+// How long we pause before checking quarantined servers again (seconds)
+static const int kQuarantineCleanupInterval = 3;
+
+RouteDestination::~RouteDestination() {
+  stopping_ = true;
+  if (quarantine_thread_.joinable()) {
+    quarantine_thread_.join();
+  }
+}
 
 void RouteDestination::add(const TCPAddress dest) {
   auto dest_end = destinations_.end();
@@ -85,73 +97,102 @@ void RouteDestination::clear() {
 int RouteDestination::get_server_socket(int connect_timeout) noexcept {
 
   if (destinations_.empty()) {
-    return -1;
-  }
-
-  // With only 1 destination, no need to lock and update the iterator
-  if (destinations_.size() == 1) {
-    return get_mysql_socket(destinations_.at(0), connect_timeout);
+    return -1;  // no destination is available
   }
 
   // We start the list at the currently available server
-  for (size_t i = current_pos_; i < destinations_.size(); ++i) {
-    // Stop when all destinations are quarantined
-    if (quarantined_.size() == destinations_.size()) {
-      log_debug("No more destinations: all quarantined");
-      break;
-    }
+  for (size_t i = current_pos_;
+       quarantined_.size() < destinations_.size() && i < destinations_.size();
+       i = (i+1) % destinations_.size()) {
+
+    // If server is quarantined, skip
     if (is_quarantined(i)) {
-      if (i + 1 == destinations_.size()) {
-        i = 0;
-      } else {
-        ++i;
-      }
+      continue;
     }
-    log_debug("Trying server %s", destinations_.at(i).str().c_str());
+
+    // Try server
+    log_debug("Trying server %s (index %d)", destinations_.at(i).str().c_str(), i);
     auto sock = get_mysql_socket(destinations_.at(i), connect_timeout);
+
     if (sock != -1) {
-      if (i + 1 == destinations_.size()) {
-        current_pos_ = 0;
-      } else {
-        current_pos_ = i + 1;
-      }
+      // Server is available
+      current_pos_ = (i+1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
       return sock;
-    }
-
-    log_info("Quarantine destination server %s", destinations_.at(i).str().c_str());
-    mutex_update_.lock();
-    if (!is_quarantined(i)) {
-      quarantined_.push_back(i);
-    }
-    mutex_update_.unlock();
-    condvar_quarantine_.notify_one();
-
-    // If this was the last destination; go back to the first
-    if (i + 1 == destinations_.size()) {
-      i = -1; // Next iteration will start at 0
+    } else {
+      // We failed to get a connection to the server; we quarantine.
+      add_to_quarantine(i);
+      if (quarantined_.size() == destinations_.size()) {
+        log_debug("No more destinations: all quarantined");
+        break;
+      }
     }
   }
 
-  // We are out of destinations. Next time we will try from the beginning of the list.
-  condvar_quarantine_.notify_one();
   current_pos_ = 0;
-  return -1;
+  return -1; // no destination is available
 }
 
-void RouteDestination::remove_from_quarantine() noexcept {
-  while(!stopping_) {
-    std::unique_lock<std::mutex> lock(mutex_quarantine_);
-    condvar_quarantine_.wait(lock, [&] { return !quarantined_.empty();});
-    for (auto it = quarantined_.begin(); it != quarantined_.end() && !quarantined_.empty(); ++it) {
-      auto sock = get_mysql_socket(destinations_.at(*it), 3, false);
-      if (sock != -1) {
-        log_info("Removing destination server %s from quarantine", destinations_.at(*it).str().c_str());
-        mutex_update_.lock();
-        quarantined_.erase(it);
-        mutex_update_.unlock();
-      }
-    }
-    // Temporize
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect_timeout, const bool log_errors) {
+  return routing::get_mysql_socket(addr, connect_timeout, log_errors);
+}
+
+void RouteDestination::add_to_quarantine(const size_t index) noexcept {
+  assert(index < size());
+  if (index >= size()) {
+    log_debug("Impossible server being quarantined (index %d)", index);
+    return;
   }
+  std::lock_guard<std::mutex> lock(mutex_quarantine_);
+  if (!is_quarantined(index)) {
+    log_debug("Quarantine destination server %s (index %d)", destinations_.at(index).str().c_str(), index);
+    quarantined_.push_back(index);
+    condvar_quarantine_.notify_one();
+  }
+}
+
+void RouteDestination::cleanup_quarantine() noexcept {
+  for (auto it = quarantined_.begin(); it != quarantined_.end();) {
+    if (stopping_) {
+      return;
+    }
+
+    mutex_quarantine_.lock();
+    if (*it >= size()) { // Check if quarantined is index of destinations_
+      // impossible value; lets remove it
+      it = quarantined_.erase(it);
+      continue;
+    }
+
+    auto addr = destinations_.at(*it);
+    mutex_quarantine_.unlock();
+
+    auto sock = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
+
+    std::lock_guard<std::mutex> lock(mutex_quarantine_);
+    if (sock != -1) {
+      shutdown(sock, SHUT_RDWR);
+      close(sock);
+      log_debug("Unquarantine destination server %s (index %d)", addr.str().c_str(), *it);
+      it = quarantined_.erase(it);
+      continue;
+    }
+
+    ++it;
+  }
+}
+
+void RouteDestination::quarantine_manager_thread() noexcept {
+  std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
+  while (!stopping_) {
+    condvar_quarantine_.wait(lock, [this] { return !quarantined_.empty(); });
+    cleanup_quarantine();
+
+    // Temporize
+    std::this_thread::sleep_for(std::chrono::seconds(kQuarantineCleanupInterval));
+  }
+}
+
+const size_t RouteDestination::size_quarantine() {
+  std::lock_guard<std::mutex> lock(mutex_quarantine_);
+  return quarantined_.size();
 }
