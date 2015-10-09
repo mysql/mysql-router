@@ -17,13 +17,18 @@
 
 # Show some help
 if [ "$1" == "--help" ]; then
-  echo "Usage: `basename $0` <rpmbuild arguments>"
+  echo "Usage: `basename $0` [--commercial] <rpmbuild arguments>"
   exit 0
 fi
 
 DEFAULT_RPMBUILD_ARGS="-ba"
 
 ME=$0
+COM=0
+if [ "$1" == "--commercial" ]; then
+  COM=1
+fi
+shift
 RPMBUILDARGS=${@:-$DEFAULT_RPMBUILD_ARGS}
 
 cmake ..
@@ -38,7 +43,12 @@ fi
 WORKDIR=`pwd`/RPMBuild
 LOG=${WORKDIR}/rpmbuild.log
 
-SOURCETAR=`ls mysql-router-*.tar.gz`
+if [ $COM -eq 1 ]; then
+  SOURCETAR=`ls mysql-router-commercial*.tar.gz`
+else
+  SOURCETAR=`ls mysql-router-*.tar.gz`
+fi
+
 if [ "${SOURCETAR}" = "" ] || [ ! -f ${SOURCETAR} ]; then
   echo "Source TAR archive not available"
   exit 1
@@ -69,7 +79,7 @@ cp -a $SOURCETAR ${WORKDIR}/SOURCES
 cp -a packaging/rpm-oel/mysqlrouter.* ${WORKDIR}/SOURCES
 
 rpmbuild -v --define="_topdir ${WORKDIR}" --define="with_mysql ${MYSQL_SERVER}" \
-  --define="_tmppath ${WORKDIR}" ${RPMBUILDARGS} ${SPEC}
+  --define="_tmppath ${WORKDIR}" --define="commercial $COM" ${RPMBUILDARGS} ${SPEC}
 
 set +e
 

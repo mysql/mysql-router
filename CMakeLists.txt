@@ -63,17 +63,3 @@ endif()
 
 # Load all modules, including plugins
 add_subdirectory(src)
-
-# Sanity checks
-if(GPL)
-  file(READ README.txt _license_check)
-  if(NOT "${_license_check}" MATCHES ".*released under the version 2 of the GNU General Public License.*")
-    message(FATAL_ERROR "README.txt has wrong license.")
-  endif()
-
-  file(READ License.txt _license_check)
-  if(NOT "${_license_check}" MATCHES ".*GNU GENERAL PUBLIC LICENSE*")
-    message(FATAL_ERROR "README.txt has wrong license.")
-  endif()
-  unset(_license_check)
-endif()
