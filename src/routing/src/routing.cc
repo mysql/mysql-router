@@ -20,6 +20,7 @@
 #include <cstring>
 #include <netdb.h>
 #include <sys/fcntl.h>
+#include <sys/socket.h>
 
 #include "mysqlrouter/utils.h"
 #include "logger.h"

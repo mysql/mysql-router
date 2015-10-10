@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/fcntl.h>
+#include <sys/socket.h>
 
 void *get_in_addr(struct sockaddr *addr) {
   if (addr->sa_family == AF_INET) {

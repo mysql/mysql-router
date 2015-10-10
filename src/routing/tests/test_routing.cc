@@ -18,6 +18,7 @@
 #include "gmock/gmock.h"
 
 #include <sys/fcntl.h>
+#include <sys/socket.h>
 
 #include "mysqlrouter/routing.h"
 

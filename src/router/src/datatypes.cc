@@ -21,6 +21,7 @@
 #include <netdb.h>
 #include <iostream>
 #include <sstream>
+#include <sys/socket.h>
 
 namespace mysqlrouter {
 
