@@ -116,7 +116,7 @@ TEST_F(AppTest, CmdLineConfig) {
   };
   ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
   MySQLRouter r(g_origin, argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
   ASSERT_THAT(r.default_config_files_, IsEmpty());
   ASSERT_THAT(r.extra_config_files_, IsEmpty());
 }
@@ -156,7 +156,7 @@ TEST_F(AppTest, CmdLineExtraConfig) {
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
   MySQLRouter r(g_origin, argv);
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(3).c_str());
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(argv.at(3).c_str()));
   ASSERT_THAT(r.default_config_files_, SizeIs(0));
   ASSERT_THAT(r.config_files_, SizeIs(1));
 }
@@ -184,9 +184,9 @@ TEST_F(AppTest, CmdLineMultipleExtraConfig) {
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
   MySQLRouter r(g_origin, argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(3).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(1).c_str(), argv.at(5).c_str());
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(argv.at(3).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(1).c_str(), HasSubstr(argv.at(5).c_str()));
   ASSERT_THAT(r.default_config_files_, SizeIs(0));
   ASSERT_THAT(r.config_files_, SizeIs(1));
 }
@@ -261,8 +261,8 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
 
   MySQLRouter r(g_origin, argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), extra_config.c_str());
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(extra_config.c_str()));
 
   r.start();
   auto section = r.loader_->config_.get("logger", "");
