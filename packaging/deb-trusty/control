@@ -21,7 +21,7 @@ Description: MySQL Router server
 
 Package: mysql-router-dev
 Architecture: any
-Depends: libmysqlclient18 (>= 5.5) | libmysqlclient20 (>= 5.7), libmysqlclient-dev, ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: MySQL Router development files
  The MySQL(TM) Router software delivers a fast, multi-threaded way of
  routing connections from MySQL Clients to MySQL Servers. MySQL is a
