@@ -19,6 +19,7 @@
 
 #include <cstring>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 
@@ -118,6 +119,12 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len);
     if (FD_ISSET(sock, &readfds) && !so_error) {
       set_socket_blocking(sock, false);
+
+      int opt_nodelay = 0;
+      if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+        log_debug("Failed setting TCP_NODELAY on client socket");
+        return -1;
+      }
       break;
     }
   }
