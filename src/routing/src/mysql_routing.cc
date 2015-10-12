@@ -107,6 +107,8 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   if (!(server > 0 && client > 0)) {
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
+    close(client);
+    close(server);
     return;
   }
 
@@ -167,6 +169,8 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   // Either client or server terminated
   shutdown(client, SHUT_RDWR);
   shutdown(server, SHUT_RDWR);
+  close(client);
+  close(server);
   // Using more portable stringstream instead of formatting size_t
   --info_active_routes_;
   std::ostringstream os;
@@ -205,6 +209,7 @@ void MySQLRouting::start() {
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       shutdown(sock_client, SHUT_RDWR);
+      close(sock_client);
       log_warning("%s reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
     }

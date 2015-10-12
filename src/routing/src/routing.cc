@@ -108,6 +108,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     if (res <= 0) {
       if (res == 0) {
         shutdown(sock, SHUT_RDWR);
+        close(sock);
         if (log) {
           log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
@@ -132,6 +133,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   // Handle remaining errors
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
     shutdown(sock, SHUT_RDWR);
+    close(sock);
     auto err = so_error ? so_error : errno;
     if (log) {
       log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
