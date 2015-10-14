@@ -58,7 +58,8 @@ else()
   )
 endif()
 
-find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS} PATH_SUFFIXES mysql)
+find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS}
+          PATH_SUFFIXES mysql NO_DEFAULT_PATH)
 if(WITH_STATIC)
   find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a
                PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
