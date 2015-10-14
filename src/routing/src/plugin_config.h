@@ -46,7 +46,6 @@ public:
         destinations(get_option_destinations(section, "destinations")),
         bind_address(get_option_tcp_address(section, "bind_address", true)),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        wait_timeout(get_uint_option<uint16_t>(section, "wait_timeout", 1)),
         mode(get_option_mode(section, "mode")),
         max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)) { }
 
@@ -60,8 +59,6 @@ public:
   const TCPAddress bind_address;
   /** @brief `connect_timeout` option read from configuration section */
   const int connect_timeout;
-  /** @brief `wait_timeout` option read from configuration section */
-  const int wait_timeout;
   /** @brief `mode` option read from configuration section */
   const routing::AccessMode mode;
   /** @brief `max_connections` option read from configuration section */

@@ -46,12 +46,10 @@ using routing::AccessMode;
 MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,
                            const string &route_name,
                            int max_connections,
-                           int wait_timeout,
                            int destination_connect_timeout)
     : name(route_name),
       mode_(mode),
       max_connections_(set_max_connections(max_connections)),
-      wait_timeout_(set_wait_timeout(wait_timeout)),
       destination_connect_timeout_(set_destination_connect_timeout(destination_connect_timeout)),
       bind_address_(TCPAddress(bind_address, port)),
       stopping_(false),
@@ -129,12 +127,10 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
     FD_ZERO(&readfds);
     FD_SET(client, &readfds);
     FD_SET(server, &readfds);
-    timeout_val.tv_sec = wait_timeout_;
-    timeout_val.tv_usec = 0;
 
-    if ((res = select(nfds, &readfds, nullptr, nullptr, &timeout_val)) <= 0) {
+    if ((res = select(nfds, &readfds, nullptr, nullptr, nullptr)) <= 0) {
       if (res == 0) {
-        extra_msg = string("Wait timeout reached (" + to_string(wait_timeout_) + ")");
+        extra_msg = string("Select timed out");
       } else if (errno > 0) {
         extra_msg = string("Select failed with error: " + to_string(strerror(errno)));
       }
@@ -334,15 +330,6 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   if (destination_->size() == 0) {
     throw std::runtime_error("No destinations available");
   }
-}
-
-int MySQLRouting::set_wait_timeout(int seconds) {
-  if (seconds <= 0 || seconds > UINT16_MAX) {
-    auto err = string_format("%s: tried to set wait_timeout using invalid value, was '%d'", name.c_str(), seconds);
-    throw std::invalid_argument(err);
-  }
-  wait_timeout_ = seconds;
-  return wait_timeout_;
 }
 
 int MySQLRouting::set_destination_connect_timeout(int seconds) {

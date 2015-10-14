@@ -18,16 +18,13 @@
 #include "mysqlrouter/routing.h"
 
 #include <cstring>
-#include <netdb.h>
-#include <netinet/tcp.h>
-
 #ifdef __sun
 #include <fcntl.h>
 #else
-
 #include <sys/fcntl.h>
-
 #endif
+#include <netdb.h>
+#include <netinet/tcp.h>
 
 #include <sys/socket.h>
 
@@ -41,7 +38,7 @@ using mysqlrouter::TCPAddress;
 
 namespace routing {
 
-const int kDefaultWaitTimeout = 300;
+const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
 const int kDefaultDestinationConnectionTimeout = 1;
 

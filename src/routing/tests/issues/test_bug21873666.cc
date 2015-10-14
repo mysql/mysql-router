@@ -46,7 +46,6 @@ protected:
 
 TEST_F(Bug21771595, ConstructorDefaults) {
   MySQLRouting r(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test");
-  ASSERT_EQ(r.get_wait_timeout(), routing::kDefaultWaitTimeout);
   ASSERT_EQ(r.get_destination_connect_timeout(), routing::kDefaultDestinationConnectionTimeout);
   ASSERT_EQ(r.get_max_connections(), routing::kDefaultMaxConnections);
 }
@@ -54,11 +53,9 @@ TEST_F(Bug21771595, ConstructorDefaults) {
 TEST_F(Bug21771595, Constructor) {
   auto expect_max_connections = routing::kDefaultMaxConnections - 10;
   auto expect_connect_timeout = routing::kDefaultDestinationConnectionTimeout + 10;
-  auto expect_wait_timeout = routing::kDefaultWaitTimeout + 5;
 
   MySQLRouting r(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test",
-                 expect_max_connections, expect_wait_timeout, expect_connect_timeout);
-  ASSERT_EQ(r.get_wait_timeout(), expect_wait_timeout);
+                 expect_max_connections, expect_connect_timeout);
   ASSERT_EQ(r.get_destination_connect_timeout(), expect_connect_timeout);
   ASSERT_EQ(r.get_max_connections(), expect_max_connections);
 }
@@ -69,14 +66,6 @@ TEST_F(Bug21771595, GetterSetterDestinationConnectionTimeout) {
   auto expected = routing::kDefaultDestinationConnectionTimeout + 1;
   ASSERT_EQ(r.set_destination_connect_timeout(expected), expected);
   ASSERT_EQ(r.get_destination_connect_timeout(), expected);
-}
-
-TEST_F(Bug21771595, GetterSetterWaitTimeout) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test");
-  ASSERT_EQ(r.get_wait_timeout(), routing::kDefaultWaitTimeout);
-  auto expected = routing::kDefaultWaitTimeout + 1;
-  ASSERT_EQ(r.set_wait_timeout(expected), expected);
-  ASSERT_EQ(r.get_wait_timeout(), expected);
 }
 
 TEST_F(Bug21771595, GetterSetterMaxConnections) {
@@ -97,22 +86,8 @@ TEST_F(Bug21771595, InvalidSetterDestinationConnectTimeout) {
     ASSERT_THAT(exc.what(), HasSubstr(
       "tried to set destination_connect_timeout using invalid value, was '0'"));
   }
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test", 1, 1, -1),
+  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test", 1, -1),
       std::invalid_argument);
-}
-
-TEST_F(Bug21771595, InvalidWaitTimeout) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test");
-  ASSERT_THROW(r.set_wait_timeout(-1), std::invalid_argument);
-  ASSERT_THROW(r.set_wait_timeout(UINT16_MAX+1), std::invalid_argument);
-  try {
-    r.set_wait_timeout(0);
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), HasSubstr(
-      "tried to set wait_timeout using invalid value, was '0'"));
-  }
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test", 1, -1, 1),
-               std::invalid_argument);
 }
 
 TEST_F(Bug21771595, InvalidMaxConnections) {
@@ -125,7 +100,7 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
     ASSERT_THAT(exc.what(), HasSubstr(
       "tried to set max_connections using invalid value, was '0'"));
   }
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test", 0, 1, 1),
+  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, "127.0.0.1", "test", 0, 1),
     std::invalid_argument);
 }
 

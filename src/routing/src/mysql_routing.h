@@ -70,7 +70,6 @@ using std::string;
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
  *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
- *   r.wait_timeout = 200;
  *   r.destination_connect_timeout = 1;
  *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
  *   r.start();
@@ -87,13 +86,11 @@ public:
    * @param optional bind_address bind_address Bind to particular IP address
    * @param optional route Name of connection routing (can be empty string)
    * @param optional max_connections Maximum allowed active connections
-   * @param optional wait_timeout Timeout after which idle clients are disconnected
    * @param optional destination_connect_timeout Timeout trying to connect destination server
    */
   MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
-               int wait_timeout = routing::kDefaultWaitTimeout,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout);
 
   /** @brief Starts the service and accept incoming connections
@@ -138,26 +135,6 @@ public:
 
   /** @brief Descriptive name of the connection routing */
   const string name;
-
-  /** @brief Returns timeout for idling client connection
-   *
-   * @return Timeout in seconds as int
-   */
-  int get_wait_timeout() const noexcept {
-    return wait_timeout_;
-  }
-
-  /** @brief Sets timeout for idling client connection
-   *
-   * Sets timeout for idling clients. Timeout in seconds must be between 1 and
-   * 65535.
-   *
-   * Throws std::invalid_argument when an invalid value was provided.
-   *
-   * @param seconds Timeout in seconds
-   * @return New value as int
-   */
-  int set_wait_timeout(int seconds);
 
   /** @brief Returns timeout when connecting to destination
    *
@@ -230,13 +207,6 @@ private:
    * connections since it is one-to-one with incoming.
    */
   int max_connections_;
-  /** @brief Timeout for idling clients
-   *
-   * The number of seconds we wait for activity on a connection before
-   * closing it. Leaving this option relatively low will help in
-   * saving resources, but this depends on the applications using Router.
-   */
-  int wait_timeout_;
   /** @brief Timeout connecting to destination
    *
    * This timeout is used when trying to connect with a destination

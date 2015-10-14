@@ -264,31 +264,6 @@ TEST_F(RoutingPluginTests, StartConnectTimeoutSetNegative) {
       "connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '-1'"));
 }
 
-TEST_F(RoutingPluginTests, StartWaitTimeoutSetNegative) {
-  auto section = config_section.get();
-  section->set("wait_timeout", "-1");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr(
-      "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '-1'"));
-}
-
-TEST_F(RoutingPluginTests, StartGetUINT16ConversionFailing) {
-  auto section = config_section.get();
-  section->set("wait_timeout", "spam");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr(
-      "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was 'spam'"));
-}
 
 TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   auto section = config_section.get();
@@ -302,11 +277,4 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   auto log = ssout.str();
   ASSERT_THAT(log, HasSubstr(
       "option connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
-
-  section->set("connect_timeout", "1");
-  section->set("wait_timeout", "0");
-
-  start(section);
-  ASSERT_THAT(ssout.str(), HasSubstr(
-    "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
 }

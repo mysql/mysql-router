@@ -67,7 +67,7 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
   c << "[routing]\nbind_address=127.0.0.1:7001\ndestinations=127.0.0.1:3306\nmode=read-only\n";
-  c << "wait_timeout=0\n";
+  c << "connect_timeout=0\n";
   c.close();
 
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
@@ -75,7 +75,7 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "option wait_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
+      "option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
   }
 }
 
@@ -98,14 +98,14 @@ TEST_F(Bug21771595, AppExecRoutingInvalidTimeout) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
   c << "[routing]\nbind_address=127.0.0.1:7001\ndestinations=127.0.0.1:3306\nmode=read-only\n";
-  c << "wait_timeout=0\n";
+  c << "connect_timeout=0\n";
   c.close();
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
 
   ASSERT_EQ(cmd_result.exit_code, 1);
   ASSERT_THAT(cmd_result.output, StrEq(
-    "Configuration error: option wait_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'\n"));
+    "Configuration error: option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'\n"));
 }
 
 TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {

@@ -101,7 +101,7 @@ static void start(const ConfigSection *section) {
     RoutingPluginConfig config(section);
     config.section_name = name;
     MySQLRouting r(config.mode, config.bind_address.port,
-                   config.bind_address.addr, name, config.max_connections, config.wait_timeout, config.connect_timeout);
+                   config.bind_address.addr, name, config.max_connections, config.connect_timeout);
     try {
       r.set_destinations_from_uri(URI(config.destinations));
     } catch (URIError) {

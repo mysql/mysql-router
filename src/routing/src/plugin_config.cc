@@ -33,7 +33,6 @@ string RoutingPluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
       {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
-      {"wait_timeout",    to_string(routing::kDefaultWaitTimeout)},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
   };
 
