@@ -117,7 +117,7 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
 
   std::string info = string_format("%s [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
                                    s_ip.first.c_str(), s_ip.second);
-  log_info(info.c_str());
+  log_debug(info.c_str());
   ++info_handled_routes_;
   ++info_active_routes_;
 
