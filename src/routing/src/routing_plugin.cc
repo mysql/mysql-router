@@ -44,18 +44,34 @@ static int init(const AppInfo *info) {
     std::vector<uint16_t> ports;
     for (auto &section: info->config->sections()) {
       if (section->name == kSectionName) {
+        string err_prefix = mysqlrouter::string_format("in [%s%s%s]: ", section->name.c_str(),
+                                                       section->key.empty() ? "" : ":",
+                                                       section->key.c_str());
         // Check the configuration
         RoutingPluginConfig config(section); // raises on errors
 
         auto config_addr = config.bind_address;
+
+        // either default_port or bind_address is required
+        if (config.default_port < 0 && !section->has("bind_address")) {
+          throw std::invalid_argument(err_prefix + "either default_port or bind_address is required");
+        }
+
+        // no default_port and bind_address has no valid port
+        if (config.default_port < 0 &&
+            !(section->has("bind_address") && config.bind_address.port > 0)) {
+          throw std::invalid_argument(err_prefix + "no default_port, and TCP port in bind_address is not valid");
+        }
+
         if (!config_addr.is_valid()) {
-          throw std::invalid_argument("invalid IP or name in bind_address '" + config_addr.str() + "'");
+          throw std::invalid_argument(err_prefix + "invalid IP or name in bind_address '" + config_addr.str() + "'");
         }
 
         // Check uniqueness of bind_address and port, using IP address
         auto found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
         if (found_addr != bind_addresses.end()) {
-          throw std::invalid_argument("duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+          throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
+                                        config.bind_address.str() + "'");
         }
 
         // Check ADDR_ANY binding on same port
@@ -65,7 +81,7 @@ static int init(const AppInfo *info) {
           });
           if (found_addr != bind_addresses.end()) {
             throw std::invalid_argument(
-                "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+                err_prefix + "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
           }
         }
         bind_addresses.push_back(config.bind_address);

@@ -41,6 +41,7 @@ namespace routing {
 const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
 const int kDefaultDestinationConnectionTimeout = 1;
+const string kDefaultBindAddress = "127.0.0.1";
 
 const std::map<string, AccessMode> kAccessModeNames = {
     {"read-write", AccessMode::kReadWrite},

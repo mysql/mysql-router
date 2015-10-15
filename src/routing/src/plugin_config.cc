@@ -32,6 +32,7 @@ using std::vector;
 string RoutingPluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
+      {"bind_address", to_string(routing::kDefaultBindAddress)},
       {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
   };
@@ -45,7 +46,6 @@ string RoutingPluginConfig::get_default(const string &option) {
 
 bool RoutingPluginConfig::is_required(const string &option) {
   const vector<string> required{
-      "bind_address",
       "mode",
       "destinations",
   };

@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include)
+include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
+  ../../../tests/helpers)
 
 add_library(routing_tests SHARED ${ROUTING_SOURCE_FILES})
 target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache)

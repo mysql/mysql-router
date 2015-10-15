@@ -43,6 +43,12 @@ extern const int kDefaultMaxConnections;
  */
 extern const int kDefaultDestinationConnectionTimeout;
 
+/** @brief Default bind address
+ *
+ */
+extern const string kDefaultBindAddress;
+
+
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
   kReadWrite = 1,
