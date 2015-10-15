@@ -28,10 +28,6 @@
 %global dist            .sles12
 %endif
 
-%if 0%{?suse_version} == 1110
-%global dist            .sles11
-%endif
-
 %if 0%{?commercial}
 %global license_type    Commercial
 %global product_suffix  -commercial
@@ -57,6 +53,9 @@ BuildRequires: python
 %if 0%{?commercial}
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
+%endif
+%if 0%{?suse_version} >= 1210
+BuildRequires: systemd-rpm-macros
 %endif
 BuildRoot:     %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 %if 0%{?systemd}
@@ -129,34 +128,34 @@ rm -rf %{buildroot}
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
+%if 0%{?suse_version}
+%service_add_pre mysqlrouter.service
+%endif
+
 
 %post
 /sbin/ldconfig
-%if 0%{?systemd}
-%systemd_post mysqlrouter.service
+%if 0%{?suse_version}
+%service_add_post mysqlrouter.service
+/usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysqlrouter.conf >/dev/null 2>&1 || :
 %else
-/sbin/chkconfig --add mysqlrouter
+%systemd_post mysqlrouter.service
 %endif
 
 %preun
-%if 0%{?systemd}
-%systemd_preun mysqlrouter.service
+%if 0%{?suse_version}
+%service_del_preun mysqlrouter.service
 %else
-if [ "$1" = 0 ]; then
-    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqlrouter
-fi
+%systemd_preun mysqlrouter.service
 %endif
 
 %postun
-%if 0%{?systemd}
-%systemd_postun_with_restart mysqlrouter.service
-%else
-if [ $1 -ge 1 ]; then
-    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
-fi
-%endif
 /sbin/ldconfig
+%if 0%{?suse_version}
+%service_del_postun mysqlrouter.service
+%else
+%systemd_postun_with_restart mysqlrouter.service
+%endif
 
 %files
 %defattr(-, root, root, -)
@@ -179,7 +178,8 @@ fi
 %dir %attr(755, mysql, mysql) %{_localstatedir}/run/mysqlrouter
 
 %changelog
-* Fri Oct  2 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.2-1
+* Thu Oct 15 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.2-1
+- Added pre and postun scripts for sles
 - Making version a variable and using _libdir
 - Adding -DWITH_MYSQL and building libmysqlclient statically in
 
