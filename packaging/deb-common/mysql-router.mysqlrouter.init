@@ -6,9 +6,9 @@
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start / Stop MySQL Router server 
+# Short-Description: Start / Stop MySQL Router
 # Description:       This service script facilitates startup and shutdown of
-#                    mysqlrouter server.
+#                    MySQL Router.
 ### END INIT INFO
 
 # Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
@@ -32,7 +32,7 @@
 
 . /lib/lsb/init-functions
 
-DESC="Start / Stop MySQL Router server"
+DESC="Start / Stop MySQL Router"
 DAEMON=/usr/sbin/mysqlrouter
 DAEMON_OPTIONS=""
 PROCNAME=mysqlrouter

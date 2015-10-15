@@ -14,7 +14,7 @@ Package: mysql-router
 Architecture: any
 Pre-Depends: debconf, adduser
 Depends: ${misc:Depends}, ${shlibs:Depends}, apparmor
-Description: MySQL Router server
+Description: MySQL Router
  The MySQL(TM) Router software delivers a fast, multi-threaded way of
  routing connections from MySQL Clients to MySQL Servers. MySQL is a
  trademark of Oracle.
