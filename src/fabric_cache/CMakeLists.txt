@@ -35,12 +35,14 @@ add_harness_plugin(fabric_cache SOURCES
   REQUIRES logger router_lib)
 
 target_link_libraries(fabric_cache ${MySQL_LIBRARIES})
-
 file(GLOB fabric_cache_headers include/mysqlrouter/*.h)
 install(FILES ${fabric_cache_headers}
   DESTINATION include/mysql/${HARNESS_NAME})
 
 add_executable(cache_test fabric_cache_dev.cc)
 target_link_libraries(cache_test fabric_cache ${MySQL_LIBRARIES})
+if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+  target_link_libraries(cache_test -lnsl -lsocket)
+endif()
 set_target_properties(cache_test PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)

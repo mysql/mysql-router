@@ -20,7 +20,15 @@
 #include <cstring>
 #include <netdb.h>
 #include <netinet/tcp.h>
+
+#ifdef __sun
+#include <fcntl.h>
+#else
+
 #include <sys/fcntl.h>
+
+#endif
+
 #include <sys/socket.h>
 
 #include "mysqlrouter/utils.h"

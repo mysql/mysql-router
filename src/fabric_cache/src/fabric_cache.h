@@ -33,7 +33,6 @@
 
 using std::string;
 using std::thread;
-using std::mutex;
 using fabric_cache::ManagedServer;
 using fabric_cache::ManagedShard;
 
@@ -130,7 +129,7 @@ private:
 
   thread refresh_thread_;
 
-  mutex cache_refreshing_mutex_;
+  std::mutex cache_refreshing_mutex_;
 };
 
 #endif // FABRIC_CACHE_FABRIC_CACHE_INCLUDED
