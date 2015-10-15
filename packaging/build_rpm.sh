@@ -25,13 +25,15 @@ DEFAULT_RPMBUILD_ARGS="-ba"
 
 ME=$0
 COM=0
+GPL=1
 if [ "$1" == "--commercial" ]; then
   COM=1
+  GPL=0
 fi
 shift
 RPMBUILDARGS=${@:-$DEFAULT_RPMBUILD_ARGS}
 
-cmake ..
+cmake .. -DGPL=${GPL}
 make package_source
 SPEC="mysql-router.spec"
 
@@ -80,6 +82,9 @@ cp -a packaging/rpm-oel/mysqlrouter.* ${WORKDIR}/SOURCES
 
 rpmbuild -v --define="_topdir ${WORKDIR}" --define="with_mysql ${MYSQL_SERVER}" \
   --define="_tmppath ${WORKDIR}" --define="commercial $COM" ${RPMBUILDARGS} ${SPEC}
+
+mv ${WORKDIR}/RPMS/*.rpm .
+mv ${WORKDIR}/SRPMS/*.rpm .
 
 set +e
 
