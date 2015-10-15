@@ -48,10 +48,18 @@ public:
    *                           fabric server should timeout.
    * @param connection_attempts The number of times a connection to fabric must be
    *                            attempted, when a connection attempt fails.
-   * */
+   *
+   */
   Fabric(const string &host, int port, const string &user,
          const string &password, int connection_timeout,
          int connection_attempts);
+
+  /** @brief Destructor
+   *
+   * Disconnect and release the connection to the fabric node.
+   */
+  ~Fabric();
+
 
   /** @brief Returns relation between group ID and list of servers
    *

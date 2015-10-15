@@ -36,6 +36,10 @@ using std::ostringstream;
 Fabric::Fabric(const string &host, int port, const string &user,
                const string &password, int connection_timeout,
                int connection_attempts) {
+  this->fabric_connection_ = nullptr;
+  this->fabric_uuid_ = "";
+  this->ttl_ = 0;
+  this->message_ = "";
   this->host_ = host;
   this->port_ = port;
   this->user_ = user;
@@ -44,6 +48,14 @@ Fabric::Fabric(const string &host, int port, const string &user,
   this->connection_attempts_ = connection_attempts;
 
   connect();
+}
+
+/** @brief Destructor
+ *
+ * Disconnect and release the connection to the fabric node.
+ */
+Fabric::~Fabric() {
+  disconnect();
 }
 
 bool Fabric::connect() noexcept {
@@ -60,7 +72,7 @@ bool Fabric::connect() noexcept {
     host = "127.0.0.1";
   }
 
-  connected_ = false;
+  disconnect();
   fabric_connection_ = mysql_init(nullptr);
   if (!fabric_connection_) {
     log_error("Failed initializing MySQL client connection");
