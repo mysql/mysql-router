@@ -34,7 +34,6 @@
 %global project_edition "-DPROJECT_EDITION=\"Commercial\""
 %else
 %global license_type    GPLv2
-%global project_edition ""
 %endif
 
 %{!?with_systemd:       %global systemd 1}
@@ -103,7 +102,7 @@ necessary to develop MySQL Router applications.
 %build
 mkdir release && pushd release
 cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}" \
-  -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{project_edition}
+  -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition}
 make %{?_smp_mflags} VERBOSE=1
 popd
 
