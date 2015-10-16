@@ -39,15 +39,22 @@ void cache_init(const string &cache_name, const string &host, const int port,
     return;
   }
 
-  std::lock_guard<std::mutex> lock(fabrix_caches_mutex);
-  g_fabric_caches.emplace(
-      static_cast<string>(cache_name),
-      std::unique_ptr<FabricCache>(
-          new FabricCache(host, port, user, password, 1, 1))
-  );
+  {
+    // scope for lock_guard
+    std::lock_guard<std::mutex> lock(fabrix_caches_mutex);
+    g_fabric_caches.emplace(std::make_pair(
+        cache_name,
+        std::unique_ptr<FabricCache>(
+            new FabricCache(host, port, user, password, 1, 1)))
+    );
+  }
 
   auto cache = g_fabric_caches.find(cache_name);
-  cache->second->start();
+  if (cache == g_fabric_caches.end()) {
+    log_info("Failed starting: %s", cache_name.c_str());
+  } else {
+    cache->second->start();
+  }
 }
 
 bool have_cache(const string &cache_name) {

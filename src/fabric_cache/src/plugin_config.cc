@@ -34,7 +34,6 @@ string FabricCachePluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
       {"address",  fabric_cache::kDefaultFabricAddress},
-      {"user",     fabric_cache::kDefaultFabricUser},
       {"password", fabric_cache::kDefaultFabricPassword},
   };
 
@@ -47,6 +46,7 @@ string FabricCachePluginConfig::get_default(const string &option) {
 
 bool FabricCachePluginConfig::is_required(const string &option) {
   const vector<string> required{
+      "user",
   };
 
   return std::find(required.begin(), required.end(), option) != required.end();
