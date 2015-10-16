@@ -211,6 +211,8 @@ map<string, list<ManagedServer>> Fabric::fetch_servers() {
     server_map[s.group_id].push_back(s);
   }
 
+  mysql_free_result(result);
+
   return server_map;
 }
 
@@ -242,6 +244,8 @@ map<string, list<ManagedShard>> Fabric::fetch_shards() {
     string fully_qualified_table_name = ss.str();
     shard_map[fully_qualified_table_name].push_back(sh);
   }
+
+  mysql_free_result(result);
 
   return shard_map;
 }
