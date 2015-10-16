@@ -117,6 +117,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
         if (log) {
           log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
+        freeaddrinfo(servinfo);
         return -1;
       }
       break;
@@ -129,11 +130,13 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
       int opt_nodelay = 0;
       if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
         log_debug("Failed setting TCP_NODELAY on client socket");
+        freeaddrinfo(servinfo);
         return -1;
       }
       break;
     }
   }
+  freeaddrinfo(servinfo);
 
   // Handle remaining errors
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
