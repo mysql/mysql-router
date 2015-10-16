@@ -92,9 +92,9 @@ static int init(const AppInfo *info) {
       FabricCachePluginConfig config(section); // raises on errors
       fabric_cache::g_fabric_cache_config_sections.push_back(section->key);
 
-      if (section->has("password") && !section->get("password").empty()) {
+      if (section->has("password")) {
         throw std::invalid_argument(
-            "A value for 'password' is not allowed in the configuration file. "
+            "'password' option is not allowed in the configuration file. "
                 "Router will prompt for password instead.");
       }
 
