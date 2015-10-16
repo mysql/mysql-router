@@ -34,7 +34,6 @@ string FabricCachePluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
       {"address",  fabric_cache::kDefaultFabricAddress},
-      {"password", fabric_cache::kDefaultFabricPassword},
   };
 
   auto it = defaults.find(option);

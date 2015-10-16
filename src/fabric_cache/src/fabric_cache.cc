@@ -59,9 +59,14 @@ FabricCache::FabricCache(string host, int port, string user, string password,
                          int connection_timeout, int connection_attempts) {
   fabric_meta_data_ = get_instance(host, port, user, password,
                                    connection_timeout, connection_attempts);
-  fetch_data();
-  group_data_ = group_data_temp_;
-  shard_data_ = shard_data_temp_;
+  try {
+    fetch_data();
+    group_data_ = group_data_temp_;
+    shard_data_ = shard_data_temp_;
+  } catch (const fabric_cache::base_error &exc) {
+    // Not being able to fetch data in constructor is OK
+  }
+
   ttl_ = kDefaultTimeToLive;
   terminate_ = false;
 }
@@ -93,7 +98,7 @@ list<ManagedServer> FabricCache::group_lookup(const string &group_id) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
   auto group = group_data_.find(group_id);
   if (group == group_data_.end()) {
-    log_error("Fabric Group '%s' not available", group_id.c_str());
+    log_debug("Fabric Group '%s' not available", group_id.c_str());
     return {};
   }
   list<ManagedServer> servers = group_data_[group_id];

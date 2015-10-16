@@ -16,6 +16,7 @@
 */
 
 #include "fabric.h"
+#include "fabric_cache.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -46,6 +47,7 @@ Fabric::Fabric(const string &host, int port, const string &user,
   this->password_ = password;
   this->connection_timeout_ = connection_timeout;
   this->connection_attempts_ = connection_attempts;
+  this->reconnect_tries_ = 0;
 
   connect();
 }
@@ -95,9 +97,14 @@ bool Fabric::connect() noexcept {
     if (mysql_ping(fabric_connection_) == 0) {
       connected_ = true;
       log_info("Connected with Fabric running on %s", host.c_str());
+      reconnect_tries_ = 0;
     }
   } else {
-    log_error("Failed connecting with Fabric: %s", mysql_error(fabric_connection_));
+    // We log every 5th retries (time between retry depends on TTL set in Fabric or default)
+    if (!(reconnect_tries_ % 5)) {
+      log_error("Failed connecting with Fabric: %s", mysql_error(fabric_connection_));
+    }
+    ++reconnect_tries_;
     connected_ = false;
   }
   return connected_;
