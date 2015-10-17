@@ -142,7 +142,11 @@ public:
    *
    */
   virtual void start() {
-    quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
+    if (!quarantine_thread_.joinable()) {
+      quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
+    } else {
+      log_debug("Tried to restart quarantine thread");
+    }
   }
 
   AddrVector::iterator begin() {
@@ -187,6 +191,9 @@ protected:
    *
    * This method is meant to run in a thread and calling the
    * `cleanup_quarantine()` method.
+   *
+   * The caller is responsible for locking and unlocking the
+   * mutex `mutex_quarantine_`.
    *
    */
   virtual void quarantine_manager_thread() noexcept;
