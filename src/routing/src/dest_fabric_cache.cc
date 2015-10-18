@@ -98,15 +98,17 @@ int DestFabricCacheGroup::get_server_socket(int connect_timeout) noexcept {
     }
 
     auto next_up = current_pos_;
+    if (next_up >= available.size()) {
+      next_up = 0;
+      current_pos_ = 0;
+    }
+
     std::lock_guard<std::mutex> lock(mutex_update_);
     ++current_pos_;
     if (current_pos_ >= available.size()) {
       current_pos_ = 0;
     }
-    mutex_update_.unlock();
-
     return get_mysql_socket(available.at(next_up), connect_timeout);
-
   } catch (fabric_cache::base_error) {
     log_error("Failed getting managed servers from Fabric");
   }
