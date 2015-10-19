@@ -24,6 +24,7 @@
 #include <iostream>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#include <sys/socket.h>
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
