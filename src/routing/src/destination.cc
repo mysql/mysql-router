@@ -37,6 +37,8 @@ using std::out_of_range;
 static const int kQuarantinedConnectTimeout = 1;
 // How long we pause before checking quarantined servers again (seconds)
 static const int kQuarantineCleanupInterval = 3;
+// Make sure Quarantine Manager Thread is run even with nothing in quarantine
+static const int kTimeoutQuarantineConditional = 2;
 
 RouteDestination::~RouteDestination() {
 
@@ -185,11 +187,14 @@ void RouteDestination::cleanup_quarantine() noexcept {
 void RouteDestination::quarantine_manager_thread() noexcept {
   std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
   while (!stopping_) {
-    condvar_quarantine_.wait(lock, [this] { return !quarantined_.empty(); });
-    cleanup_quarantine();
+    condvar_quarantine_.wait_for(lock, std::chrono::seconds(kTimeoutQuarantineConditional),
+                                 [this] { return !quarantined_.empty(); });
 
-    // Temporize
-    std::this_thread::sleep_for(std::chrono::seconds(kQuarantineCleanupInterval));
+    if (!stopping_) {
+      cleanup_quarantine();
+      // Temporize
+      std::this_thread::sleep_for(std::chrono::seconds(kQuarantineCleanupInterval));
+    }
   }
 }
 
