@@ -134,7 +134,7 @@ private:
   // Boolean variable indicates if a connection to fabric has been established.
   bool connected_ = false;
 
-  // How many times we tried to reconnected
+  // How many times we tried to reconnected (for logging purposes)
   size_t reconnect_tries_;
 };
 

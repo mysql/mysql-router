@@ -68,13 +68,12 @@ bool Fabric::connect() noexcept {
 
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   bool reconnect = false;
-  auto host = host_;
+  connected_ = false;
 
-  if (host == "localhost") {
-    host = "127.0.0.1";
-  }
+  const string host(host_ == "localhost" ? "127.0.0.1" : host_);
 
   disconnect();
+  assert(fabric_connection_ == nullptr);
   fabric_connection_ = mysql_init(nullptr);
   if (!fabric_connection_) {
     log_error("Failed initializing MySQL client connection");
@@ -101,10 +100,11 @@ bool Fabric::connect() noexcept {
     }
   } else {
     // We log every 5th retries (time between retry depends on TTL set in Fabric or default)
-    if (!(reconnect_tries_ % 5)) {
-      log_error("Failed connecting with Fabric: %s", mysql_error(fabric_connection_));
+    if (reconnect_tries_++ % 5 == 0) {
+      log_error("Failed connecting with Fabric: %s (tried %d time%s)",
+                mysql_error(fabric_connection_), reconnect_tries_,
+                (reconnect_tries_ > 1) ? "s" : "");
     }
-    ++reconnect_tries_;
     connected_ = false;
   }
   return connected_;
