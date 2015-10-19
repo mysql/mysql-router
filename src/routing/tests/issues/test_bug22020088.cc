@@ -79,7 +79,7 @@ TEST_F(Bug22020088, MissingBindAddressAndDefaultPort) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "in [routing]: either default_port or bind_address is required"));
+      "in [routing]: either bind_port or bind_address is required"));
   }
 }
 
@@ -95,7 +95,7 @@ TEST_F(Bug22020088, MissingPortInBindAddress) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-     "in [routing]: no default_port, and TCP port in bind_address is not valid"));
+     "in [routing]: no bind_port, and TCP port in bind_address is not valid"));
   }
 }
 
@@ -118,7 +118,7 @@ TEST_F(Bug22020088, InvalidPortInBindAddress) {
 TEST_F(Bug22020088, InvalidDefaultPort) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\ndefault_port=23123124123123\n";
+  c << "[routing]\nbind_port=23123124123123\n";
   c << kDefaultRoutingConfig;
   c.close();
 
@@ -127,7 +127,7 @@ TEST_F(Bug22020088, InvalidDefaultPort) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-     "option default_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'"));
+     "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'"));
   }
 }
 

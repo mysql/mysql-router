@@ -52,15 +52,15 @@ static int init(const AppInfo *info) {
 
         auto config_addr = config.bind_address;
 
-        // either default_port or bind_address is required
-        if (config.default_port < 0 && !section->has("bind_address")) {
-          throw std::invalid_argument(err_prefix + "either default_port or bind_address is required");
+        // either bind_port or bind_address is required
+        if (config.bind_port < 0 && !section->has("bind_address")) {
+          throw std::invalid_argument(err_prefix + "either bind_port or bind_address is required");
         }
 
-        // no default_port and bind_address has no valid port
-        if (config.default_port < 0 &&
+        // no bind_port and bind_address has no valid port
+        if (config.bind_port < 0 &&
             !(section->has("bind_address") && config.bind_address.port > 0)) {
-          throw std::invalid_argument(err_prefix + "no default_port, and TCP port in bind_address is not valid");
+          throw std::invalid_argument(err_prefix + "no bind_port, and TCP port in bind_address is not valid");
         }
 
         if (!config_addr.is_valid()) {

@@ -44,8 +44,8 @@ public:
   RoutingPluginConfig(const ConfigSection *section)
       : BasePluginConfig(section),
         destinations(get_option_destinations(section, "destinations")),
-        default_port(get_option_tcp_port(section, "default_port")),
-        bind_address(get_option_tcp_address(section, "bind_address", false, default_port)),
+        bind_port(get_option_tcp_port(section, "bind_port")),
+        bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         mode(get_option_mode(section, "mode")),
         max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)) {
@@ -57,8 +57,8 @@ public:
 
   /** @brief `destinations` option read from configuration section */
   const string destinations;
-  /** @brief `port` option read from configuration section */
-  const int default_port;
+  /** @brief `bind_port` option read from configuration section */
+  const int bind_port;
   /** @brief `bind_address` option read from configuration section */
   const TCPAddress bind_address;
   /** @brief `connect_timeout` option read from configuration section */
