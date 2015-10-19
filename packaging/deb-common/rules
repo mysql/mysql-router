@@ -30,7 +30,7 @@ override_dh_auto_configure:
 		debian/extra/apparmor-profile.in > debian/extra/apparmor-profile
 	cmake . \
 		-DCMAKE_INSTALL_PREFIX=/usr \
-		-DSYSCONFDIR=/etc/mysqlrouter \
+		-DROUTER_CONFIGDIR=/etc/mysqlrouter \
 		-DPROJECT_EDITION="GPL community edition" \
 		-DINSTALL_LAYOUT="DEB" \
 		-DWITH_STATIC=yes

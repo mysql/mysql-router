@@ -18,21 +18,17 @@
 . /usr/share/debconf/confmodule
 
 case "$1" in
-	configure)
-		set -e
-		ldconfig
-		invoke-rc.d mysqlrouter start
-		set +e
-		;;
+  configure)
+    set -e
+    ldconfig
+    set +e
+    ;;
 
-	abort-remove)
-		set -e
-		invoke-rc.d mysqlrouter start
-		set +e
-		;;
+  abort-remove)
+    ;;
 
-	abort-upgrade|abort-configure)
-		;;
+  abort-upgrade|abort-configure)
+    ;;
 esac
 
 #DEBHELPER#

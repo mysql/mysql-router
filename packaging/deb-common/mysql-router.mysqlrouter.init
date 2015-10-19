@@ -44,8 +44,15 @@ LOGDIR=/var/log/mysqlrouter
 LOGFILE=${LOGDIR}/mysqlrouter.log
 
 do_start() {
+
   local retval=0
   log_daemon_msg "Starting MySQL Router"
+
+  if [ ! -x $DAEMON ]; then
+    log_end_msg 1
+    return 0
+  fi
+
   start="start-stop-daemon --start --pidfile $PID --exec $DAEMON"
   $start --test -u mysql 1>/dev/null || retval=1
 
@@ -76,7 +83,7 @@ do_start() {
     0) log_end_msg 0 ;;
     1)
       log_warning_msg "already running"
-      log_end_msg 0s
+      log_end_msg 0
       ;;
     2) log_end_msg 1 ;;  # failure
   esac
@@ -88,6 +95,12 @@ do_stop() {
   local retval
 
   log_daemon_msg "Stopping $NAME"
+
+  if [ ! -x $DAEMON ]; then
+    log_end_msg 1
+    return 0
+  fi
+
   start-stop-daemon --stop --quiet --retry=$STOP_RETRY --pidfile $PID --name $PROCNAME
   retval=$?
 

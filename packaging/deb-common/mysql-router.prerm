@@ -18,14 +18,11 @@
 set -e
 
 case "$1" in
-        remove)
-                set -e
-		            invoke-rc.d mysqlrouter stop
-                set +e
-                ;;
+  remove)
+    ;;
 
-        abort-upgrade|abort-remove|abort-configure)
-                ;;
+  abort-upgrade|abort-remove|abort-configure)
+    ;;
 esac
 	
 
