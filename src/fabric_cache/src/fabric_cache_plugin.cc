@@ -88,6 +88,11 @@ static int init(const AppInfo *info) {
   g_app_info = info;
 
   if (info && info->config) {
+
+    if (info->config->get(kSectionName).size() > 1) {
+      throw std::invalid_argument("Router supports only 1 fabric_cache section.");
+    }
+
     for (auto &section: info->config->get(kSectionName)) {
       FabricCachePluginConfig config(section); // raises on errors
       fabric_cache::g_fabric_cache_config_sections.push_back(section->key);
