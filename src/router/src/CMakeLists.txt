@@ -28,15 +28,19 @@ set(lib_source_files
 set(source_files main.cc)
 
 add_library(router_lib SHARED ${lib_source_files})
-target_link_libraries(router_lib ${CMAKE_DL_LIBS} harness-library logger)
+target_link_libraries(router_lib ${CMAKE_DL_LIBS} harness-library)
 target_include_directories(router_lib PUBLIC ../include)
 set_target_properties(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
   OUTPUT_NAME "mysqlrouter"
+  SOVERSION 1
 )
 
 add_executable(${MYSQL_ROUTER_TARGET} ${source_files})
 target_link_libraries(${MYSQL_ROUTER_TARGET} ${CMAKE_DL_LIBS} router_lib harness-library)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+  target_link_libraries(${MYSQL_ROUTER_TARGET} -lnsl -lsocket)
+endif()
 set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)
 

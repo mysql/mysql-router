@@ -26,6 +26,7 @@
 using std::get;
 using ::testing::StrEq;
 using ::testing::ContainerEq;
+using ::testing::IsEmpty;
 
 class URITests: public ::testing::Test {
 protected:
@@ -213,4 +214,18 @@ TEST_F(URITests, ConstructorWithURI)
 TEST_F(URITests, ConstructorWithURIFail)
 {
   ASSERT_THROW(new URI("ham$$://scott:tiger@host.example.com:3306/path/to/sys?key1=val1"), URIError);
+}
+
+TEST_F(URITests, SetURI)
+{
+  URI u("ham://scott:tiger@host.example.com:3306/path/to/sys?key1=val1");
+  u.set_uri("spam://spamhost.example.com");
+  ASSERT_EQ(u.scheme, string("spam"));
+  ASSERT_EQ(u.host, string("spamhost.example.com"));
+  ASSERT_EQ(u.port, 0);
+  ASSERT_EQ(u.username, string());
+  ASSERT_EQ(u.password, string());
+  ASSERT_THAT(u.path, IsEmpty());
+  ASSERT_THAT(u.query, IsEmpty());
+  ASSERT_EQ(u.fragment, string());
 }

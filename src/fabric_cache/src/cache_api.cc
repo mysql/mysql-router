@@ -30,6 +30,7 @@ const uint16_t kDefaultFabricPort = 32275;
 const string kDefaultFabricAddress{"127.0.0.1:" + mysqlrouter::to_string(kDefaultFabricPort)};
 const string kDefaultFabricUser = "";
 const string kDefaultFabricPassword = "";
+std::vector<string> g_fabric_cache_config_sections{};
 
 void cache_init(const string &cache_name, const string &host, const int port,
                 const string &user,
@@ -38,19 +39,27 @@ void cache_init(const string &cache_name, const string &host, const int port,
     return;
   }
 
-  std::lock_guard<std::mutex> lock(fabrix_caches_mutex);
-  g_fabric_caches.emplace(
-      static_cast<string>(cache_name),
-      std::unique_ptr<FabricCache>(
-          new FabricCache(host, port, user, password, 1, 1))
-  );
+  {
+    // scope for lock_guard
+    std::lock_guard<std::mutex> lock(fabrix_caches_mutex);
+    g_fabric_caches.emplace(std::make_pair(
+        cache_name,
+        std::unique_ptr<FabricCache>(
+            new FabricCache(host, port, user, password, 1, 1)))
+    );
+  }
 
   auto cache = g_fabric_caches.find(cache_name);
-  cache->second->start();
+  if (cache == g_fabric_caches.end()) {
+    log_info("Failed starting: %s", cache_name.c_str());
+  } else {
+    cache->second->start();
+  }
 }
 
 bool have_cache(const string &cache_name) {
-  return g_fabric_caches.find(cache_name) != g_fabric_caches.end();
+  auto cache = std::find(g_fabric_cache_config_sections.begin(), g_fabric_cache_config_sections.end(), cache_name);
+  return cache != g_fabric_cache_config_sections.end();
 }
 
 LookupResult lookup_group(const string &cache_name, const string &group_id) {

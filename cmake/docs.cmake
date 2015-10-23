@@ -21,7 +21,7 @@ if (DOXYGEN_FOUND)
   configure_file(doc/doxygen.cfg.in ${CMAKE_BINARY_DIR}/doc/doxgen.cfg @ONLY)
 
   foreach(f router_footer.html router_header.html router_doxygen.css)
-    file(COPY ${CMAKE_SOURCE_DIR}/doc/${f} DESTINATION ${CMAKE_BINARY_DIR}/doc/${f})
+    file(COPY ${CMAKE_SOURCE_DIR}/doc/${f} DESTINATION ${CMAKE_BINARY_DIR}/doc)
   endforeach()
 
   add_custom_target(doc ${DOXYGEN_EXECUTABLE} doc/doxgen.cfg

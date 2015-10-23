@@ -18,21 +18,26 @@ find_package(Threads REQUIRED)
 set(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
   src/filesystem-posix.cc)
+set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+  
 file(GLOB harness_headers include/*.h)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+configure_file(plugin.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.h
+  ESCAPE_QUOTES @ONLY)
+
 add_library(harness-archive STATIC ${harness_source})
-target_link_libraries(harness-archive dl ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(harness-archive ${common_libraries})
 target_include_directories(harness-archive PUBLIC include)
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(PUBLIC harness-archive "-pthread")
 endif()
 
 add_library(harness-library SHARED ${harness_source})
-target_link_libraries(harness-library dl ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(harness-library ${common_libraries})
 target_include_directories(harness-library PUBLIC include)
 
 # This is the harness containing a basic main function.
@@ -41,7 +46,7 @@ if(ENABLE_HARNESS_PROGRAM)
   set_target_properties(harness-program PROPERTIES
     OUTPUT_NAME harness)
   target_link_libraries(harness-program
-    dl ${CMAKE_THREAD_LIBS_INIT} harness-library)
+    ${common_libraries} harness-library)
   install(TARGETS harness-program RUNTIME DESTINATION bin)
 endif()
 
@@ -53,8 +58,8 @@ set_target_properties(harness-archive harness-library PROPERTIES
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
 install(TARGETS harness-archive harness-library
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}
+        ARCHIVE DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

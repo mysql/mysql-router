@@ -75,7 +75,7 @@ protected:
   Config config;
 };
 
-std::string g_here;
+Path g_here;
 
 TEST_F(ConfigTest, TestEmpty)
 {
@@ -327,17 +327,15 @@ TEST(TestConfig, ConfigUpdate) {
 
 TEST(TestConfig, ConfigReadBasic)
 {
-  Path here(g_here);
-
   // Here are three different sources of configurations that should
   // all be identical. One is a single file, one is a directory, and
   // one is a stream.
 
   Config dir_config = Config(Config::allow_keys);
-  dir_config.read(here.join("data/logger.d"), "*.cfg");
+  dir_config.read(g_here.join("data/logger.d"), "*.cfg");
 
   Config file_config = Config(Config::allow_keys);
-  file_config.read(here.join("data/logger.cfg"));
+  file_config.read(g_here.join("data/logger.cfg"));
 
   const char *const config_string =
     ("[DEFAULT]\n"
@@ -367,10 +365,8 @@ TEST(TestConfig, ConfigReadBasic)
 // read entries.
 TEST(TestConfig, ConfigReadOverwrite)
 {
-  Path here(g_here);
-
   Config config = Config(Config::allow_keys);
-  config.read(here.join("data/logger.d"), "*.cfg");
+  config.read(g_here.join("data/logger.d"), "*.cfg");
   EXPECT_EQ("Some kind of", config.get("magic", "").get("message"));
 
   // Non-existent options should still throw an exception
@@ -379,7 +375,7 @@ TEST(TestConfig, ConfigReadOverwrite)
     EXPECT_THROW(section.get("not-in-section"), bad_option);
   }
 
-  config.read(here.join("data/magic-alt.cfg"));
+  config.read(g_here.join("data/magic-alt.cfg"));
   EXPECT_EQ("Another message", config.get("magic", "").get("message"));
 
   // Non-existent options should still throw an exception
@@ -392,7 +388,7 @@ TEST(TestConfig, ConfigReadOverwrite)
 
 int main(int argc, char *argv[])
 {
-  g_here = Path(argv[0]).dirname().str();
+  g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

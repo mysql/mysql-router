@@ -21,6 +21,7 @@
 #include <netdb.h>
 #include <iostream>
 #include <sstream>
+#include <sys/socket.h>
 
 namespace mysqlrouter {
 
@@ -40,14 +41,13 @@ void TCPAddress::detect_family() noexcept {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  errno = 0;
   err = getaddrinfo(addr.c_str(), nullptr, &hints, &servinfo);
   if (err != 0) {
     // We consider the IP/name to be invalid
     return;
   }
 
-  // Try to setup socket and bind
+  // Get family and IP address
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if (info->ai_family == AF_INET6) {
       ip_family_ = Family::IPV6;
@@ -55,10 +55,11 @@ void TCPAddress::detect_family() noexcept {
       ip_family_ = Family::IPV4;
     }
   }
+  freeaddrinfo(servinfo);
 }
 
 uint16_t TCPAddress::validate_port(uint32_t tcp_port) {
-  if (tcp_port > UINT16_MAX) {
+  if (tcp_port < 1 || tcp_port > UINT16_MAX) {
     return 0;
   }
   return static_cast<uint16_t>(tcp_port);

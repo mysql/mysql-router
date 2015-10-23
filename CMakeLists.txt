@@ -32,6 +32,12 @@ endif()
 
 include(cmake/settings.cmake)
 
+# Load Internal
+if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
+  message(STATUS "Loading internal repository")
+  add_subdirectory(internal)
+endif()
+
 # Required tools, libraries, etc..
 if(ENABLE_TESTS)
   include(cmake/python.cmake)
@@ -39,9 +45,11 @@ endif()
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT
+include(cmake/configure.cmake)
+# Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
+include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
-include(cmake/harness.cmake)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)
 find_package(MySQL 5.5 REQUIRED)
@@ -53,14 +61,5 @@ if(ENABLE_TESTS)
   add_subdirectory(tests)
 endif()
 
-# Compiler & Linker settings
-if(${INSTALL_LAYOUT} STREQUAL "STANDALONE")
-  set(CMAKE_INSTALL_RPATH "${PLUGIN_RPATH}")
-endif()
-
-# Configure
-include(cmake/configure.cmake)
-
 # Load all modules, including plugins
 add_subdirectory(src)
-

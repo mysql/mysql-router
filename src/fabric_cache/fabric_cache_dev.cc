@@ -26,12 +26,13 @@ const string kDefaultTestShardTable = "db1.t1";  // db1.t1
 const string kTestShardKey = "100";  // 100
 const string kDefaultFabricHost = "127.0.0.1";  // 127.0.0.1
 const string kDefaultFabricUser = "admin";  // admin
-const string kDefaultFabricPassword = "hello";  // admin
+const string kDefaultFabricPassword = "";  //
 const int kDefaultFabricPort = 32275; // 32275
 const int kTotalRuns = 1;
 
 using std::cout;
 using std::endl;
+using std::thread;
 using fabric_cache::ManagedServer;
 
 void print_server_dump(list<ManagedServer> server_list) {
@@ -69,19 +70,26 @@ int main() {
   list<ManagedServer> server_list_2;
   string cache_name = "maintest";
   try {
-    fabric_cache::cache_init(cache_name, kDefaultFabricHost, kDefaultFabricPort, kDefaultFabricUser, kDefaultFabricPassword);
+    thread connect_thread(
+      fabric_cache::cache_init, cache_name, kDefaultFabricHost,
+      kDefaultFabricPort, kDefaultFabricUser, kDefaultFabricPassword);
+    connect_thread.detach();
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   } catch (const fabric_cache::base_error &exc) {
     cout << exc.what() << endl;
     return 0;
   }
 
   int runs = kTotalRuns;
-  while (--runs > 0) {
+  while (runs-- > 0) {
     std::cout << "Runs to go " << runs << std::endl;
     try {
-      server_list_1 = fabric_cache::lookup_group(cache_name, kDefaultTestGroup).server_list;
+      server_list_1 = fabric_cache::lookup_group(cache_name, kDefaultTestGroup).
+        server_list;
       print_server_condensed(server_list_1);
-      server_list_2 = fabric_cache::lookup_shard(cache_name, kDefaultTestShardTable, kTestShardKey).server_list;
+      server_list_2 = fabric_cache::lookup_shard(cache_name,
+                                                 kDefaultTestShardTable,
+                                                 kTestShardKey).server_list;
       print_server_condensed(server_list_1);
     } catch (const fabric_cache::base_error &exc) {
       cout << exc.what() << endl;

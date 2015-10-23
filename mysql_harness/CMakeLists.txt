@@ -32,8 +32,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 # Basic variables
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
-set(INSTALL_INCLUDE_DIR "include/mysql/${HARNESS_NAME}" CACHE PATH
-  "Installation directory for harness include files")
+
+set(HARNESS_INSTALL_LIBRARY_DIR "lib" CACHE PATH
+    "Installation directory for Harness libraries")
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
@@ -42,6 +43,10 @@ set(ENABLE_TESTS OFF CACHE BOOL
   "Enable unit tests when building")
 set(WITH_GMOCK "" CACHE PATH
   "Directory containing the Google Mock *source code* (with a CMakeLists.txt file)")
+
+set(HARNESS_PLUGIN_RPATH "${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}" CACHE PATH
+  "Path with directories where plugins can be found")
+message(STATUS "Harness will install plugins in ${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}")
 
 # We include GMock without touching the compile flags. GMock can
 # handle that itself. It will also indirectly create targets for gmock
@@ -115,6 +120,7 @@ set(ENABLE_TESTS OFF
 
 include(CPack)
 include(Plugin)
+include(Arch)
 include(Docs)
 
 # Check for C++ 11 support

@@ -51,6 +51,9 @@ public:
      * that the file was not found. */
     STATUS_ERROR,
 
+    /** Empty path was given */
+    EMPTY_PATH,
+
     /** The file was not found. */
     FILE_NOT_FOUND,
 
@@ -78,14 +81,19 @@ public:
     /** The type of the file is unknown, either because it was not
      * fetched yet or because stat(2) reported something else than the
      * above. */
-    TYPE_UNKNOWN
+    TYPE_UNKNOWN,
   };
 
   friend std::ostream& operator<<(std::ostream& out, FileType type);
 
   /**
    * Construct a path
+   *
+   * @param path Non-empty string denoting the path.
    */
+  Path();
+
+  /** @overload */
   Path(const std::string& path);
 
   /** @overload */
@@ -97,11 +105,6 @@ public:
   static Path make_path(const Path& directory,
                         const std::string& basename,
                         const std::string& extension);
-
-  Path& operator=(const Path& rhs) {
-    path_ = rhs.path_;
-    return *this;
-  }
 
   bool operator==(const Path& rhs) const {
     return path_ == rhs.path_;
@@ -216,11 +219,13 @@ public:
    *
    * @return Instance of std::string containing the path.
    */
-  const std::string& str() const {
+  const std::string& str() const noexcept {
     return path_;
   }
 
 private:
+  void validate_non_empty_path() const;
+
   std::string path_;
   mutable FileType type_;
 };

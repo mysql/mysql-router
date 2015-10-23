@@ -175,7 +175,7 @@ static URIQuery parse_query(const string &uri, const char delimiter) {
   pos = uri.find('?', pos + 3);
   if (pos == string::npos) {
     // No query
-    return {};
+    return URIQuery();
   }
 
   pos_end = uri.find('#', pos + 1);

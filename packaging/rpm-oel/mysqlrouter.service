@@ -4,11 +4,11 @@ After=syslog.target
 After=network.target
 
 [Service]
-Type=forking
+Type=simple
 User=mysql
 Group=mysql
 
-PIDFile=/run/mysqlrouter.pid
+PIDFile=/var/run/mysqlrouter/mysqlrouter.pid
 
 ExecStart=/usr/sbin/mysqlrouter 
 

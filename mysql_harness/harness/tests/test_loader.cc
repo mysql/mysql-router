@@ -15,10 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// Redefine the accessor to check internals
-#define private public
 #include "loader.h"
-#undef private
 
 #include "exception.h"
 #include "filesystem.h"
@@ -45,18 +42,16 @@
 using std::cout;
 using std::endl;
 
-std::string g_here;
+Path g_here;
 
 class LoaderTest
   : public ::testing::TestWithParam<const char*>
 {
 protected:
   virtual void SetUp() {
-    Path here = Path(g_here);
-
     std::map<std::string, std::string> params;
     params["program"] = "harness";
-    params["prefix"] = here.c_str();
+    params["prefix"] = g_here.c_str();
 
     loader = new Loader("harness", params);
   }
@@ -121,7 +116,7 @@ const char *good_cfgs[] = {
 INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest, ::testing::ValuesIn(good_cfgs));
 
 TEST_P(LoaderTest, BadSection) {
-  EXPECT_THROW(loader->read(Path(g_here).join(GetParam())), bad_section);
+  EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
 }
 
 const char *bad_cfgs[] = {
@@ -134,7 +129,7 @@ INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest, ::testing::ValuesIn(bad_cfgs)
 
 int main(int argc, char *argv[])
 {
-  g_here = Path(argv[0]).dirname().str();
+  g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

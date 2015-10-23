@@ -27,6 +27,7 @@ set(MYSQL_ROUTER_INI "mysqlrouter.ini"
 option(ENABLE_TESTS "Enable Tests" NO)
 option(DOWNLOAD_BOOST "Download Boost C++ Libraries" NO)
 option(WITH_STATIC "Enable static linkage of external libraries" NO)
+option(GPL "Produce GNU GPLv2 source and binaries" YES)
 
 # MySQL Harness
 set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
@@ -34,29 +35,3 @@ set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
 # Python
 set(PYTHON_MINIMUM_VERSION "2.7"
   CACHE STRING "Python mimimum required version")
-
-#
-# Default MySQL Router location and files
-#
-
-# SYSCONFDIR can be set by the user
-if(NOT DEFINED SYSCONFDIR)
-  set(SYSCONFDIR)
-endif()
-
-# Default configuration file locations (similar to MySQL Server)
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(ver "${MySQLRouter_VERSION_MAJOR}.${MySQLRouter_VERSION_MINOR}")
-  file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} install_prefix)
-  # We are using Raw strings (see config.h.in), no double escaping of \\ needed
-  set(CONFIG_FILE_LOCATIONS
-    "ENV{APPDATA}\\${MYSQL_ROUTER_INI}"
-  )
-  unset(ver)
-  unset(install_prefix)
-else()
-  set(CONFIG_FILE_LOCATIONS
-    "/etc/mysql/${MYSQL_ROUTER_INI}"
-    "ENV{HOME}/.${MYSQL_ROUTER_INI}"
-  )
-endif()

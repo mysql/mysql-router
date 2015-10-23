@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/fcntl.h>
+#include <sys/socket.h>
 
 void *get_in_addr(struct sockaddr *addr) {
   if (addr->sa_family == AF_INET) {
@@ -69,21 +70,6 @@ std::pair<std::string, int > get_peer_name(int sock) {
   }
 
   return std::make_pair(std::string(ipaddr), port);
-}
-
-void set_socket_blocking(int sock, bool blocking) {
-  int flags;
-
-  assert(sock > 0);
-
-  flags = fcntl(sock, F_GETFL, nullptr);
-  assert(flags >= 0);
-  if (blocking) {
-    flags &= ~O_NONBLOCK;
-  } else {
-    flags |= O_NONBLOCK;
-  }
-  fcntl(sock, F_SETFL, flags);
 }
 
 std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {

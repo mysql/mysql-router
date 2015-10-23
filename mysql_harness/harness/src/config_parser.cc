@@ -330,11 +330,11 @@ Config::add(const std::string& section, const std::string& key)
   {
     ostringstream buffer;
     if (key.empty())
-      buffer << "Section '" << section << "' given more than once. "
-             << "Please use keys to give multiple sections. "
-             << "For example '" << section << ":one' and '"
-             << section << ":two' to give two sections for plugin '"
-             << section << "'";
+        buffer << "Section '" << section << "' given more than once. "
+               << "Please use keys to give multiple sections. "
+               << "For example '" << section << ":one' and '"
+               << section << ":two' to give two sections for plugin '"
+               << section << "'";
     else
       buffer << "Section '" << section << ":" << key << "' already exists";
     throw bad_section(buffer.str());
@@ -489,7 +489,6 @@ void Config::do_read_stream(std::istream& input)
 
   if (input.gcount() > 0)
     throw syntax_error("Unterminated last line");
-
 }
 
 

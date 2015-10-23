@@ -1,0 +1,29 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+mysql-router: copyright-should-refer-to-common-license-file-for-lgpl
+mysql-router: package-name-doesnt-match-sonames
+mysql-router: extra-license-file usr/share/doc/mysql-router/License.txt.gz
+mysql-router: extra-license-file usr/share/mysql-router/docs/License.txt
+mysql-router: maintainer-script-ignores-errors postinst
+
+# We need the RPATH defined in Plugins
+mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/fabric_cache.so lib/x86_64-linux-gnu/mysqlrouter
+mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/keepalive.so /usr/lib/mysqlrouter
+mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/logger.so /usr/lib/mysqlrouter
+mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/routing.so lib/x86_64-linux-gnu/mysqlrouter
+
+# Documentation is online
+mysql-router: binary-without-manpage usr/sbin/mysqlrouter

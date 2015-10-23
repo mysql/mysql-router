@@ -30,10 +30,6 @@
 #include "destination.h"
 #include "config.h"
 
-class MySQLRouting;
-
-class RoutingPluginConfig;
-
 #include "plugin_config.h"
 
 #include <atomic>
@@ -74,7 +70,6 @@ using std::string;
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
  *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
- *   r.wait_timeout = 200;
  *   r.destination_connect_timeout = 1;
  *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
  *   r.start();
@@ -88,20 +83,15 @@ public:
   /** @brief Default constructor
    *
    * @param port TCP port for listening for incoming connections
-   * @param optional bind_address Bind to particular IP address
-   * @param optional route name
+   * @param optional bind_address bind_address Bind to particular IP address
+   * @param optional route Name of connection routing (can be empty string)
+   * @param optional max_connections Maximum allowed active connections
+   * @param optional destination_connect_timeout Timeout trying to connect destination server
    */
-  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address, const string &route_name);
-
-  /** @overload */
-  MySQLRouting(routing::AccessMode &mode, uint16_t port, const string &bind_address)
-      : MySQLRouting(mode, port, bind_address, "") { }
-
-  /** @overload */
-  MySQLRouting(routing::AccessMode &mode, uint16_t port) : MySQLRouting(mode, port, "0.0.0.0", "") { }
-
-  /** @overload */
-  MySQLRouting(const RoutingPluginConfig &config);
+  MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
+               const string &route_name = string{},
+               int max_connections = routing::kDefaultMaxConnections,
+               int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout);
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -146,28 +136,47 @@ public:
   /** @brief Descriptive name of the connection routing */
   const string name;
 
+  /** @brief Returns timeout when connecting to destination
+   *
+   * @return Timeout in seconds as int
+   */
+  int get_destination_connect_timeout() const noexcept {
+    return destination_connect_timeout_;
+  }
+
+  /** @brief Sets timeout when connecting to destination
+   *
+   * Sets timeout connecting with destination servers. Timeout in seconds must be between 1 and
+   * 65535.
+   *
+   * Throws std::invalid_argument when an invalid value was provided.
+   *
+   * @param seconds Timeout in seconds
+   * @return New value as int
+   */
+  int set_destination_connect_timeout(int seconds);
+
+  /** @brief Sets maximum active connections
+   *
+   * Sets maximum of active connections. Maximum must be between 1 and
+   * 65535.
+   *
+   * Throws std::invalid_argument when an invalid value was provided.
+   *
+   * @param maximum Max number of connections allowed
+   * @return New value as int
+   */
+  int set_max_connections(int maximum);
+
+  /** @brief Returns maximum active connections
+   *
+   * @return Maximum as int
+   */
+  int get_max_connections() const noexcept {
+    return max_connections_;
+  }
+
 private:
-  /** @brief Returns socket descriptor for next MySQL server
-   *
-   * Gets information about the next server in the destination
-   * list, tries to conenct and returns the socket server.
-   *
-   * Errors are logged and not raised.
-   *
-   * @return a socket descriptor
-   */
-  int get_destination() noexcept;
-
-  /** @brief Returns socket descriptor of conencted MySQL server
-   *
-   * Returns a socket descriptor for the connection to the MySQL Server or
-   * zero when an error occured.
-   *
-   * @param addr information of the server we connect with
-   * @return a socket descriptor
-   */
-  int get_mysql_connection(mysqlrouter::TCPAddress addr) noexcept;
-
   /** @brief Sets up the service
    *
    * Sets up the service binding to IP addresses and TCP port.
@@ -191,9 +200,20 @@ private:
 
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
-  /** @brief Timeout for idling clients */
-  int wait_timeout_;
-  /** @brief Timeout connecting to destination */
+  /** @brief Maximum active connections
+   *
+   * Maximum number of incoming connections that will be accepted
+   * by this MySQLRouter instances. There is no maximum for outgoing
+   * connections since it is one-to-one with incoming.
+   */
+  int max_connections_;
+  /** @brief Timeout connecting to destination
+   *
+   * This timeout is used when trying to connect with a destination
+   * server. When the timeout is reached, another server will be
+   * tried. It is good to leave this time out to 1 second or higher
+   * if using an unstable network.
+   */
   int destination_connect_timeout_;
   /** @brief IP address and TCP port to use when binding service */
   const TCPAddress bind_address_;

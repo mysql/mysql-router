@@ -17,12 +17,16 @@
 
 #include "loader.h"
 
-#include "plugin.h"
-#include "utilities.h"
+////////////////////////////////////////
+// Package include files
 #include "designator.h"
 #include "exception.h"
 #include "filesystem.h"
+#include "plugin.h"
+#include "utilities.h"
 
+////////////////////////////////////////
+// Standard include files
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -363,4 +367,12 @@ bool Loader::visit(const std::string& designator,
     }
   }
   return true;
+}
+
+void Loader::add_logger(const std::string& default_level) {
+  if (!config_.has("logger")) {
+    auto&& section = config_.add("logger");
+    section.add("library", "logger");
+    section.add("level", default_level);
+  }
 }

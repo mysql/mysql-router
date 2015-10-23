@@ -18,6 +18,8 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "mysqlrouter/datatypes.h"
+
 #include <map>
 #include <string>
 
@@ -33,13 +35,19 @@ namespace routing {
 extern const int kDefaultWaitTimeout;
 
 /** @brief Max number of active routes for this routing instance */
-extern const uint16_t kDefaultMaxConnections;
+extern const int kDefaultMaxConnections;
 
 /** @brief Timeout connecting to destination (in seconds)
  *
  * Constant defining how long we wait to establish connection with the server before we give up.
  */
 extern const int kDefaultDestinationConnectionTimeout;
+
+/** @brief Default bind address
+ *
+ */
+extern const string kDefaultBindAddress;
+
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
@@ -59,6 +67,26 @@ extern const std::map<string, AccessMode> kAccessModeNames;
  * @return Name of access mode as std::string or empty string
  */
 string get_access_mode_name(AccessMode access_mode) noexcept;
+
+/**
+ * Sets blocking flag for given socket
+ *
+ * @param sock a socket file descriptor
+ * @param blocking whether to set blocking off (false) or on (true)
+ */
+void set_socket_blocking(int sock, bool blocking);
+
+/** @brief Returns socket descriptor of connected MySQL server
+ *
+ * Returns a socket descriptor for the connection to the MySQL Server or
+ * -1 when an error occurred.
+ *
+ * @param addr information of the server we connect with
+ * @param connect_timeout number of seconds waiting for connection
+ * @param log whether to log errors or not
+ * @return a socket descriptor
+ */
+int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept;
 
 }
 

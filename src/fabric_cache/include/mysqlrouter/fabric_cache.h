@@ -36,6 +36,8 @@ extern const string kDefaultFabricAddress;
 extern const string kDefaultFabricUser;
 extern const string kDefaultFabricPassword;
 
+extern std::vector<string> g_fabric_cache_config_sections;
+
 /** @class ManagedServer
  *
  * Class ManagedServer represents a server managed by MySQL Fabric.
@@ -183,6 +185,8 @@ void cache_init(const string &cache_name, const string &host, const int port,
  * @return bool
  **/
 bool have_cache(const string &cache_name);
+
+
 
 /** @brief Returns list of managed server in a HA group
  *

@@ -48,6 +48,8 @@ const string get_cwd() {
   return string(buffer);
 }
 
+Path g_origin;
+
 class AppTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
@@ -79,19 +81,19 @@ protected:
 
 TEST_F(AppTest, DefaultConstructor) {
   MySQLRouter r;
-  ASSERT_STREQ(VERSION, r.get_version().c_str());
+  ASSERT_STREQ(MYSQL_ROUTER_VERSION, r.get_version().c_str());
 }
 
 TEST_F(AppTest, GetVersionAsString) {
   MySQLRouter r;
-  ASSERT_STREQ(VERSION, r.get_version().c_str());
+  ASSERT_STREQ(MYSQL_ROUTER_VERSION, r.get_version().c_str());
 }
 
 TEST_F(AppTest, GetVersionLine) {
   MySQLRouter r;
   ASSERT_THAT(r.get_version_line(), StartsWith(PACKAGE_NAME));
-  ASSERT_THAT(r.get_version_line(), HasSubstr(VERSION));
-  ASSERT_THAT(r.get_version_line(), HasSubstr(VERSION_EDITION));
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION));
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION_EDITION));
   ASSERT_THAT(r.get_version_line(), HasSubstr(PACKAGE_PLATFORM));
   if (PACKAGE_ARCH_64BIT == 1) {
     ASSERT_THAT(r.get_version_line(), HasSubstr("64-bit"));
@@ -112,9 +114,9 @@ TEST_F(AppTest, CmdLineConfig) {
   vector<string> argv = {
       "--config", stage_dir + "/etc/mysqlrouter.ini"
   };
-  ASSERT_NO_THROW({ MySQLRouter r(argv); });
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
+  ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
+  MySQLRouter r(g_origin, argv);
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
   ASSERT_THAT(r.default_config_files_, IsEmpty());
   ASSERT_THAT(r.extra_config_files_, IsEmpty());
 }
@@ -124,9 +126,9 @@ TEST_F(AppTest, CmdLineConfigFailRead) {
   vector<string> argv = {
       "--config", stage_dir + not_existing,
   };
-  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
-    MySQLRouter r(argv);
+    MySQLRouter r(g_origin, argv);
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(not_existing));
@@ -139,9 +141,9 @@ TEST_F(AppTest, CmdLineMultipleConfig) {
       "-c", stage_dir + "/etc/config_a.ini",
       "--config", stage_dir + "/etc/config_b.ini"
   };
-  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
-    MySQLRouter r(argv);
+    MySQLRouter r(g_origin, argv);
   } catch (const std::runtime_error &exc) {
     ASSERT_THAT(exc.what(), HasSubstr("can only be used once"));
   }
@@ -149,23 +151,25 @@ TEST_F(AppTest, CmdLineMultipleConfig) {
 
 TEST_F(AppTest, CmdLineExtraConfig) {
   vector<string> argv = {
-      "--extra-config", stage_dir + "/etc/mysqlrouter.ini"
+      "-c", stage_dir + "/etc/config_a.ini",
+      "--extra-config", stage_dir + "/etc/config_b.ini"
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_THAT(r.default_config_files_, SizeIs(Ge(2)));
-  ASSERT_THAT(r.config_files_, IsEmpty());
+  ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
+  MySQLRouter r(g_origin, argv);
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(argv.at(3).c_str()));
+  ASSERT_THAT(r.default_config_files_, SizeIs(0));
+  ASSERT_THAT(r.config_files_, SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineExtraConfigFailRead) {
   string not_existing = "foobar.ini";
   vector<string> argv = {
+      "-c", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + not_existing,
   };
-  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
-    MySQLRouter r(argv);
+    MySQLRouter r(g_origin, argv);
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(not_existing));
@@ -174,32 +178,46 @@ TEST_F(AppTest, CmdLineExtraConfigFailRead) {
 
 TEST_F(AppTest, CmdLineMultipleExtraConfig) {
   vector<string> argv = {
-      "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
+      "-c", stage_dir + "/etc/mysqlrouter.ini",
       "-a", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + "/etc/config_b.ini"
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(1).c_str(), argv.at(3).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(2).c_str(), argv.at(5).c_str());
-  ASSERT_THAT(r.default_config_files_, SizeIs(Ge(2)));
-  ASSERT_THAT(r.config_files_, IsEmpty());
+  ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
+  MySQLRouter r(g_origin, argv);
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(argv.at(3).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(1).c_str(), HasSubstr(argv.at(5).c_str()));
+  ASSERT_THAT(r.default_config_files_, SizeIs(0));
+  ASSERT_THAT(r.config_files_, SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
   string duplicate = "config_a.ini";
   vector<string> argv = {
+      "-c", stage_dir + "/etc/config_a.ini",
       "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
       "-a", stage_dir + "/etc/" + duplicate,
       "--extra-config", stage_dir + "/etc/" + duplicate
   };
-  ASSERT_THROW({ MySQLRouter r(argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
-    MySQLRouter r(argv);
+    MySQLRouter r(g_origin, argv);
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Duplicate configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(duplicate));
+  }
+}
+
+TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
+  string duplicate = "config_a.ini";
+  vector<string> argv = {
+      "--extra-config", stage_dir + "/etc/mysqlrouter.ini",
+  };
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(g_origin, argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files only work when other "));
   }
 }
 
@@ -208,7 +226,7 @@ TEST_F(AppTest, CmdLineVersion) {
 
   reset_ssout();
 
-  MySQLRouter r(argv);
+  MySQLRouter r(g_origin, argv);
   ASSERT_THAT(ssout.str(), StartsWith(r.get_version_line()));
 }
 
@@ -217,7 +235,7 @@ TEST_F(AppTest, CmdLineVersionShort) {
 
   reset_ssout();
 
-  MySQLRouter r(argv);
+  MySQLRouter r(g_origin, argv);
   ASSERT_THAT(ssout.str(), StartsWith("MySQL Router"));
 }
 
@@ -225,12 +243,12 @@ TEST_F(AppTest, ConfigFileParseError) {
   vector<string> argv = {
       "--config", stage_dir + "/etc/parse_error.ini",
   };
-  ASSERT_THROW({ MySQLRouter r(argv); r.start(); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); r.start(); }, std::runtime_error);
   try {
-    MySQLRouter r(argv);
+    MySQLRouter r(g_origin, argv);
     r.start();
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Malformed section header"));
+    EXPECT_THAT(exc.what(), HasSubstr("Configuration error: Malformed section header:"));
   }
 }
 
@@ -240,11 +258,11 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
       "--config", stage_dir + "/etc/mysqlrouter.ini",
       "--extra-config=" + extra_config
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
+  ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
 
-  MySQLRouter r(argv);
-  ASSERT_STREQ(r.config_files_.at(0).c_str(), argv.at(1).c_str());
-  ASSERT_STREQ(r.extra_config_files_.at(0).c_str(), extra_config.c_str());
+  MySQLRouter r(g_origin, argv);
+  ASSERT_THAT(r.config_files_.at(0).c_str(), HasSubstr(argv.at(1).c_str()));
+  ASSERT_THAT(r.extra_config_files_.at(0).c_str(), HasSubstr(extra_config.c_str()));
 
   r.start();
   auto section = r.loader_->config_.get("logger", "");
@@ -256,8 +274,8 @@ TEST_F(AppTest, CanStartTrue) {
   vector<string> argv = {
       "--config", stage_dir + "/etc/mysqlrouter.ini",
   };
-  ASSERT_NO_THROW({MySQLRouter r(argv);});
-  MySQLRouter r(argv);
+  ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
+  MySQLRouter r(g_origin, argv);
   ASSERT_TRUE(r.can_start_);
 }
 
@@ -315,3 +333,11 @@ TEST_F(AppTest, ShowingInfoFalse) {
     }
   }
 }
+
+
+int main(int argc, char *argv[]) {
+  g_origin = Path(argv[0]).dirname();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+

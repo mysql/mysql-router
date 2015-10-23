@@ -15,6 +15,9 @@
 
 
 set(CPACK_PACKAGE_NAME "mysql-router")
+if(NOT GPL)
+  MakeNonGPLPackageName(CPACK_PACKAGE_NAME)
+endif()
 set(CPACK_PACKAGE_VENDOR "Oracle")
 set(CPACK_PACKAGE_CONTACT "MySQL Release Engineering <mysql-build@oss.oracle.com>")
 
@@ -55,3 +58,10 @@ string(REPLACE "." "\\\\." cpack_source_ignore_files "${cpack_source_ignore_file
 set(CPACK_SOURCE_IGNORE_FILES "${cpack_source_ignore_files}")
 
 include(CPack)
+
+#
+# RPM-based
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/rpm-oel")
+endif()

@@ -39,14 +39,24 @@ namespace {
   const std::string extsep(".");
 }
 
+void Path::validate_non_empty_path() const {
+  if (type_ == FileType::EMPTY_PATH)
+    throw std::invalid_argument("Empty path");
+}
+
+Path::Path()
+    : type_(FileType::EMPTY_PATH)
+{
+}
+
 Path::Path(const char* path)
-  : Path(std::string(path))
+    : Path(std::string(path))
 {
 }
 
 Path::Path(const std::string& path)
-  : path_(path)
-  , type_(FileType::TYPE_UNKNOWN)
+    : path_(path)
+    , type_(FileType::TYPE_UNKNOWN)
 {
   std::string::size_type pos = path_.find_last_not_of(dirsep);
   if (pos != std::string::npos)
@@ -54,13 +64,14 @@ Path::Path(const std::string& path)
   else if (path_.size() > 0)
     path_.erase(1);
   else
-    throw std::runtime_error("Empty path");
+    throw std::invalid_argument("Empty path");
 }
 
 
 Path::FileType
 Path::type(bool refresh) const
 {
+  validate_non_empty_path();
   if (type_ == FileType::TYPE_UNKNOWN || refresh)
   {
     struct stat stat_buf;
@@ -105,16 +116,20 @@ Path::type(bool refresh) const
 
 bool Path::is_directory() const
 {
+  validate_non_empty_path();
   return type() == FileType::DIRECTORY_FILE;
 }
 
 bool Path::is_regular() const
 {
+  validate_non_empty_path();
   return type() == FileType::REGULAR_FILE;
 }
 
 void Path::append(const Path& other)
 {
+  validate_non_empty_path();
+  other.validate_non_empty_path();
   path_.append(dirsep + other.path_);
   type_ = FileType::TYPE_UNKNOWN;
 }
@@ -122,6 +137,8 @@ void Path::append(const Path& other)
 
 Path Path::join(const Path& other) const
 {
+  validate_non_empty_path();
+  other.validate_non_empty_path();
   Path result(*this);
   result.append(other);
   return result;
@@ -130,6 +147,7 @@ Path Path::join(const Path& other) const
 
 Path Path::basename() const
 {
+  validate_non_empty_path();
   std::string::size_type pos = path_.find_last_of(dirsep);
   if (pos == std::string::npos)
     return *this;
@@ -141,6 +159,7 @@ Path Path::basename() const
 
 Path Path::dirname() const
 {
+  validate_non_empty_path();
   std::string::size_type pos = path_.find_last_of(dirsep);
   if (pos == std::string::npos)
     return Path(".");

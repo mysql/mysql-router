@@ -91,11 +91,18 @@ bool CmdArgHandler::is_valid_option_name(const string name) noexcept {
     }
 
     // First 2 characters after -- must be alpha
-    if (!(isalpha(name.at(2)) && isalpha(name.at(2)))) {
+    if (!(isalpha(name.at(2)) && isalpha(name.at(3)))) {
       return false;
     }
 
+    if (name.size() == 4) {
+      return true;
+    }
+
     // Rest can be either alpha, dash or underscore
+    if (name.size() == 4) {
+      return true;
+    }
     return std::find_if(name.begin() + 4, name.end(),
                         [](char c) {
                           return isalpha(c) || c == '-' || c == '_';

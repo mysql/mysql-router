@@ -59,11 +59,10 @@ FabricCache::FabricCache(string host, int port, string user, string password,
                          int connection_timeout, int connection_attempts) {
   fabric_meta_data_ = get_instance(host, port, user, password,
                                    connection_timeout, connection_attempts);
-  fetch_data();
-  group_data_ = group_data_temp_;
-  shard_data_ = shard_data_temp_;
   ttl_ = kDefaultTimeToLive;
   terminate_ = false;
+
+  refresh();
 }
 
 FabricCache::~FabricCache() {
@@ -77,19 +76,25 @@ void FabricCache::start() {
   // Start the Fabric Cache refresh thread
   auto refresh_loop = [this] {
     while (!terminate_) {
-      refresh();
+      if (fabric_meta_data_->connect()) {
+        refresh();
+      } else {
+        fabric_meta_data_->disconnect();
+      }
       std::this_thread::sleep_for(
           std::chrono::seconds(ttl_ == 0 ? kDefaultTimeToLive : ttl_));
-      fabric_meta_data_->disconnect();
-      fabric_meta_data_->connect();
     }
   };
   thread(refresh_loop).join();
-  // Restart the thread
 }
 
 list<ManagedServer> FabricCache::group_lookup(const string &group_id) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+  auto group = group_data_.find(group_id);
+  if (group == group_data_.end()) {
+    log_warning("Fabric Group '%s' not available", group_id.c_str());
+    return {};
+  }
   list<ManagedServer> servers = group_data_[group_id];
   return servers;
 }

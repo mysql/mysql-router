@@ -18,6 +18,7 @@ set(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_fabric_cache.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_first_available.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/uri.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
 )

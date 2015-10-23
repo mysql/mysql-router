@@ -60,9 +60,31 @@ public:
   /** @brief Move assignment */
   DestFabricCacheGroup &operator=(DestFabricCacheGroup &&) = delete;
 
-  mysqlrouter::TCPAddress get_server() noexcept;
+  int get_server_socket(int connect_timeout) noexcept;
 
   void add(const string &, uint16_t) { }
+
+  /** @brief Returns whether there are destination servers
+   *
+   * The empty() method always returns false for Fabric Cache.
+   *
+   * Checking whether the Fabric Cache is empty for given destination
+   * might be to expensive. We leave this to the get_server() method.
+   *
+   * @return Always returns False for Fabric Cache destination.
+   */
+  bool empty() const noexcept {
+    return false;
+  }
+
+  /** @brief Prepares destinations
+   *
+   * Prepares the list of destination by fetching data from the
+   * Fabric Cache.
+   */
+  void prepare() noexcept {
+    destinations_ = get_available();
+  }
 
   /** @brief The Fabric Cache to use
    *
@@ -112,18 +134,17 @@ private:
    */
   void init();
 
-  /** @brief Populates destinations from Fabric Cache
+  /** @brief Gets available destinations from Fabric Cache
    *
-   * This method populates the destinations using Fabric Cache information. It uses
+   * This method gets the destinations using Fabric Cache information. It uses
    * the `fabric_cache::lookup_group()` function to get a list of current managed
    * servers.
    *
    */
-  void populate_destinations();
+  std::vector<TCPAddress> get_available();
 
   /** @brief Whether we allow a read operations going to the primary (master) */
   bool allow_primary_reads_;
-  int populate_attempts_;
   size_t current_pos_;
   int count_secondary_;
   int count_primary_;

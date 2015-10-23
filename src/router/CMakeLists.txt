@@ -24,10 +24,47 @@ if(ENABLE_TESTS)
 endif()
 
 if(INSTALL_DOCDIR)
+  if(NOT GPL)
+    InstallCommercialReadmeLicense()
+  endif()
   install(FILES ${CMAKE_SOURCE_DIR}/README.txt DESTINATION ${INSTALL_DOCDIR})
   install(FILES ${CMAKE_SOURCE_DIR}/License.txt DESTINATION ${INSTALL_DOCDIR})
+  install(FILES ${CMAKE_SOURCE_DIR}/doc/sample_mysqlrouter.ini DESTINATION ${INSTALL_DOCDIR})
+  if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALONE")
+    if(GPL)
+      install(FILES ${CMAKE_SOURCE_DIR}/packaging/deb-common/mysql-router.mysqlrouter.init
+        DESTINATION ${INSTALL_DOCDIR} RENAME sample_mysqlrouter.init)
+    else()
+      install(FILES ${CMAKE_SOURCE_DIR}/internal/packaging/deb-common-commercial/mysql-router.mysqlrouter.init
+        DESTINATION ${INSTALL_DOCDIR} RENAME sample_mysqlrouter.init)
+    endif()
+  endif()
 endif()
 
 file(GLOB router_headers include/mysqlrouter/*.h)
 install(FILES ${router_headers}
   DESTINATION "include/mysql/${HARNESS_NAME}")
+
+# Install logging and runtime folder
+if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALONE")
+  foreach(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR)
+    set(_dir ${INSTALL_${_dirvar}})
+    set(_stage_dir ${STAGE_DIR}/${_dirvar})
+    file(MAKE_DIRECTORY ${_stage_dir}/${_dir})
+
+    if(IS_ABSOLUTE ${_dir})
+      set(_destination "/")
+    else()
+      set(_destination ${CMAKE_INSTALL_PREFIX})
+    endif()
+
+    file(GLOB _sub_dirs ${_stage_dir}/*)
+
+    install(DIRECTORY ${_sub_dirs} DESTINATION ${_destination}
+      DIRECTORY_PERMISSIONS
+      OWNER_WRITE OWNER_READ OWNER_EXECUTE
+      GROUP_WRITE GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE
+    )
+  endforeach()
+endif()

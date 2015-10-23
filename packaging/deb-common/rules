@@ -1,0 +1,61 @@
+#!/usr/bin/make -f
+
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+%:
+	dh $@
+
+export DH_VERBOSE=1
+export CFLAGS=
+export CXXFLAGS=
+
+override_dh_auto_configure:
+	@echo "RULES.$@"
+	sed 's/@DEB_HOST_MULTIARCH@/$(DEB_HOST_MULTIARCH)/g' \
+		debian/extra/mysqlrouter.ini.in > debian/extra/mysqlrouter.ini
+	sed 's/@DEB_HOST_MULTIARCH@/$(DEB_HOST_MULTIARCH)/g' \
+		debian/extra/apparmor-profile.in > debian/extra/apparmor-profile
+	cmake . \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DROUTER_CONFIGDIR=/etc/mysqlrouter \
+		-DPROJECT_EDITION="GPL community edition" \
+		-DINSTALL_LAYOUT="DEB" \
+		-DWITH_STATIC=yes
+	touch $@
+
+override_dh_auto_build:
+	@echo "RULES.$@"
+	$(MAKE) -j8
+	touch $@
+
+override_dh_auto_test:
+	@echo "RULES.$@"
+	echo "No tests run"
+	touch $@
+
+override_dh_auto_install:
+	@echo "RULES.$@"
+	dh_auto_install --destdir=debian/tmp
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile \
+		debian/tmp/etc/apparmor.d/usr.sbin.mysqlrouter
+	touch $@
+
+override_dh_installinit:
+	@echo "RULES.$@"
+	dh_apparmor -pmysql-community-router --profile-name=usr.sbin.mysqlrouter
+	dh_installinit --name=mysqlrouter -u"defaults 19 21"
+	touch $@
+

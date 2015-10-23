@@ -41,15 +41,22 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-MySQLRouter::MySQLRouter(const vector<string> arguments) : version_(VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH),
-                                                           arg_handler_(), loader_(), can_start_(false),
-                                                           showing_info_(false) {
+MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
+    : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
+      arg_handler_(), loader_(), can_start_(false),
+      showing_info_(false)
+    , origin_(origin)
+{
   init(arguments);
 }
 
-MySQLRouter::MySQLRouter(const int argc, char **argv) : MySQLRouter(vector<string>({argv + 1, argv + argc})) { }
+MySQLRouter::MySQLRouter(const int argc, char **argv)
+    : MySQLRouter(Path(argv[0]).dirname(),
+                  vector<string>({argv + 1, argv + argc}))
+{
+}
 
-void MySQLRouter::init(vector<string> arguments) {
+void MySQLRouter::init(const vector<string>& arguments) {
   set_default_config_files(CONFIG_FILES);
   prepare_command_options();
   try {
@@ -73,7 +80,12 @@ void MySQLRouter::start() {
   string err_msg = "Configuration error: %s.";
 
   std::map<std::string, std::string> params = {
-      {"program", "mysqlrouter"}
+      {"program", "mysqlrouter"},
+      {"origin", origin_.str()},
+      {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
+      {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
+      {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
+      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)},
   };
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
@@ -89,7 +101,7 @@ void MySQLRouter::start() {
 
   try {
     loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
-    for (auto&& config_file: available_config_files_) {
+    for (auto &&config_file: available_config_files_) {
       loader_->read(Path(config_file));
     }
   } catch (const syntax_error &err) {
@@ -104,12 +116,19 @@ void MySQLRouter::start() {
     if (pidfile.good()) {
       pidfile << pid << std::endl;
       pidfile.close();
-      std::cout << "PID " << pid <<  " written to " << pid_file_path_ << std::endl;
+      std::cout << "PID " << pid << " written to " << pid_file_path_ << std::endl;
     } else {
-      throw std::runtime_error(string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
+      throw std::runtime_error(
+          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
     }
   }
-
+  loader_->add_logger("INFO");
+  try {
+    auto log_file = loader_->get_log_file();
+    std::cout << "Logging to " << log_file << std::endl;
+  } catch (...) {
+    // We are logging to console
+  }
   loader_->start();
 }
 
@@ -134,12 +153,12 @@ void MySQLRouter::set_default_config_files(const char *locations) noexcept {
 }
 
 string MySQLRouter::get_version() noexcept {
-  return string(VERSION);
+  return string(MYSQL_ROUTER_VERSION);
 }
 
 string MySQLRouter::get_version_line() noexcept {
   std::ostringstream os;
-  string edition{VERSION_EDITION};
+  string edition{MYSQL_ROUTER_VERSION_EDITION};
 
   os << PACKAGE_NAME << " v" << get_version();
 
@@ -186,7 +205,7 @@ vector<string> MySQLRouter::check_config_files() {
   }
 
   if (result.empty()) {
-    throw std::runtime_error("No valid configuration file available.");
+    throw std::runtime_error("No valid configuration file available. See --help for more information.");
   }
 
   return result;
@@ -260,7 +279,7 @@ void MySQLRouter::show_help() noexcept {
     }
   }
 
-  std::cout << "\n";
+  std::cout << std::endl;
 
   show_usage();
 }
