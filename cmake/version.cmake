@@ -16,7 +16,7 @@
 # Version information of MySQL Router
 
 # Change following when releasing
-set(PROJECT_VERSION_TEXT "2.0.2")
+set(PROJECT_VERSION_TEXT "2.0.3")
 set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
 
 # Nothing hereunder needs change when releasing
