@@ -63,12 +63,13 @@ while getopts "ho:f" option; do
 done
 
 # Check whether we are where we are supposed to be running
-if [ ! -f src/router/src/librouter_test_lib.so ]; then
+if [ ! -d src/router/src/CMakeFiles/mysqlrouter.dir/ ] || [ ! -f Testing/Temporary/LastTest.log ]; then
   errecho "Please make sure you run this script in the build folder of MySQL Router"
   errecho "and 'make && make test' was run."
   exit 1
 fi
-if [ ! -f src/router/src/CMakeFiles/router_test_lib.dir/router_app.cc.gcno ]; then
+gcno_cnt=`find . -name *.gcno 2>/dev/null | grep -c gcno`
+if [ $gcno_cnt -lt 20 ]; then
     errecho "CMake options -DENABLE_TESTS=yes and -DENABLE_GCOV=yes should be used."
     exit 1
 fi
@@ -109,7 +110,7 @@ if [ ! -s $GCOVINFO ]; then
 fi
 
 # Remove folders for which we do not want to generate coverage statistics
-$LCOV -q --remove $GCOVINFO "/usr*" "*gmock*" -o $GCOVINFO
+$LCOV -q --remove $GCOVINFO "/usr*" "*mysql_harness*" "*tests/helpers*" -o $GCOVINFO
 if [ $? -ne 0 ]; then
   errecho "Failed executing $LCOV while removing folders from coverage information"
   exit 1

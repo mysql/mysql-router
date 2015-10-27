@@ -18,14 +18,17 @@
 . /usr/share/debconf/confmodule
 
 case "$1" in
-	configure)
-		set -e
-		ldconfig
-		set +e
-		;;
+  configure)
+    set -e
+    ldconfig
+    set +e
+    ;;
 
-	abort-upgrade|abort-remove|abort-configure)
-		;;
+  abort-remove)
+    ;;
+
+  abort-upgrade|abort-configure)
+    ;;
 esac
 
 #DEBHELPER#

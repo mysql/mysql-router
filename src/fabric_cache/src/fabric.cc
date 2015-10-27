@@ -16,6 +16,7 @@
 */
 
 #include "fabric.h"
+#include "fabric_cache.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -36,14 +37,27 @@ using std::ostringstream;
 Fabric::Fabric(const string &host, int port, const string &user,
                const string &password, int connection_timeout,
                int connection_attempts) {
+  this->fabric_connection_ = nullptr;
+  this->fabric_uuid_ = "";
+  this->ttl_ = 0;
+  this->message_ = "";
   this->host_ = host;
   this->port_ = port;
   this->user_ = user;
   this->password_ = password;
   this->connection_timeout_ = connection_timeout;
   this->connection_attempts_ = connection_attempts;
+  this->reconnect_tries_ = 0;
 
   connect();
+}
+
+/** @brief Destructor
+ *
+ * Disconnect and release the connection to the fabric node.
+ */
+Fabric::~Fabric() {
+  disconnect();
 }
 
 bool Fabric::connect() noexcept {
@@ -54,13 +68,12 @@ bool Fabric::connect() noexcept {
 
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   bool reconnect = false;
-  auto host = host_;
-
-  if (host == "localhost") {
-    host = "127.0.0.1";
-  }
-
   connected_ = false;
+
+  const string host(host_ == "localhost" ? "127.0.0.1" : host_);
+
+  disconnect();
+  assert(fabric_connection_ == nullptr);
   fabric_connection_ = mysql_init(nullptr);
   if (!fabric_connection_) {
     log_error("Failed initializing MySQL client connection");
@@ -83,9 +96,15 @@ bool Fabric::connect() noexcept {
     if (mysql_ping(fabric_connection_) == 0) {
       connected_ = true;
       log_info("Connected with Fabric running on %s", host.c_str());
+      reconnect_tries_ = 0;
     }
   } else {
-    log_error("Failed connecting with Fabric: %s", mysql_error(fabric_connection_));
+    // We log every 5th retries (time between retry depends on TTL set in Fabric or default)
+    if (reconnect_tries_++ % 5 == 0) {
+      log_error("Failed connecting with Fabric: %s (tried %d time%s)",
+                mysql_error(fabric_connection_), reconnect_tries_,
+                (reconnect_tries_ > 1) ? "s" : "");
+    }
     connected_ = false;
   }
   return connected_;
@@ -199,6 +218,8 @@ map<string, list<ManagedServer>> Fabric::fetch_servers() {
     server_map[s.group_id].push_back(s);
   }
 
+  mysql_free_result(result);
+
   return server_map;
 }
 
@@ -230,6 +251,8 @@ map<string, list<ManagedShard>> Fabric::fetch_shards() {
     string fully_qualified_table_name = ss.str();
     shard_map[fully_qualified_table_name].push_back(sh);
   }
+
+  mysql_free_result(result);
 
   return shard_map;
 }

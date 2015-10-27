@@ -40,6 +40,7 @@ if(WIN32)
 else()
   set(WITH_MYSQL "/usr/local/mysql" CACHE PATH "Installation path of MySQL Client Libraries")
   set(MySQL_LIBRARY_PATHS
+    ${CMAKE_BINARY_DIR}/../mysql-server/lib
     ${WITH_MYSQL}/lib
     /usr/local/mysql/lib
     /usr/local/lib
@@ -49,6 +50,7 @@ else()
     /usr/lib
   )
   set(MySQL_INCLUDE_PATHS
+    ${CMAKE_BINARY_DIR}/../mysql-server/include
     ${WITH_MYSQL}/include
     /usr/local/mysql/include
     /usr/local/include
@@ -56,7 +58,8 @@ else()
   )
 endif()
 
-find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS} PATH_SUFFIXES mysql)
+find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS}
+          PATH_SUFFIXES mysql NO_DEFAULT_PATH)
 if(WITH_STATIC)
   find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a
                PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql

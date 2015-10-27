@@ -159,7 +159,10 @@ protected:
    * @param require_port Whether a TCP port is required
    * @return mysqlrouter::TCPAddress
    */
-  TCPAddress get_option_tcp_address(const ConfigSection *section, const string &option, bool require_port);
+  TCPAddress get_option_tcp_address(const ConfigSection *section, const string &option,
+                                    bool require_port = false, int default_port = -1);
+
+  int get_option_tcp_port(const ConfigSection *section, const string &option);
 
 };
 

@@ -46,12 +46,10 @@ using routing::AccessMode;
 MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,
                            const string &route_name,
                            int max_connections,
-                           int wait_timeout,
                            int destination_connect_timeout)
     : name(route_name),
       mode_(mode),
       max_connections_(set_max_connections(max_connections)),
-      wait_timeout_(set_wait_timeout(wait_timeout)),
       destination_connect_timeout_(set_destination_connect_timeout(destination_connect_timeout)),
       bind_address_(TCPAddress(bind_address, port)),
       stopping_(false),
@@ -107,6 +105,8 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   if (!(server > 0 && client > 0)) {
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
+    close(client);
+    close(server);
     return;
   }
 
@@ -115,7 +115,7 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
 
   std::string info = string_format("%s [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
                                    s_ip.first.c_str(), s_ip.second);
-  log_info(info.c_str());
+  log_debug(info.c_str());
   ++info_handled_routes_;
   ++info_active_routes_;
 
@@ -127,12 +127,10 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
     FD_ZERO(&readfds);
     FD_SET(client, &readfds);
     FD_SET(server, &readfds);
-    timeout_val.tv_sec = wait_timeout_;
-    timeout_val.tv_usec = 0;
 
-    if ((res = select(nfds, &readfds, nullptr, nullptr, &timeout_val)) <= 0) {
+    if ((res = select(nfds, &readfds, nullptr, nullptr, nullptr)) <= 0) {
       if (res == 0) {
-        extra_msg = string("Wait timeout reached (" + to_string(wait_timeout_) + ")");
+        extra_msg = string("Select timed out");
       } else if (errno > 0) {
         extra_msg = string("Select failed with error: " + to_string(strerror(errno)));
       }
@@ -167,6 +165,8 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   // Either client or server terminated
   shutdown(client, SHUT_RDWR);
   shutdown(server, SHUT_RDWR);
+  close(client);
+  close(server);
   // Using more portable stringstream instead of formatting size_t
   --info_active_routes_;
   std::ostringstream os;
@@ -205,6 +205,7 @@ void MySQLRouting::start() {
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       shutdown(sock_client, SHUT_RDWR);
+      close(sock_client);
       log_warning("%s reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
     }
@@ -329,15 +330,6 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   if (destination_->size() == 0) {
     throw std::runtime_error("No destinations available");
   }
-}
-
-int MySQLRouting::set_wait_timeout(int seconds) {
-  if (seconds <= 0 || seconds > UINT16_MAX) {
-    auto err = string_format("%s: tried to set wait_timeout using invalid value, was '%d'", name.c_str(), seconds);
-    throw std::invalid_argument(err);
-  }
-  wait_timeout_ = seconds;
-  return wait_timeout_;
 }
 
 int MySQLRouting::set_destination_connect_timeout(int seconds) {

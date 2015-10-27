@@ -32,6 +32,12 @@ endif()
 
 include(cmake/settings.cmake)
 
+# Load Internal
+if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
+  message(STATUS "Loading internal repository")
+  add_subdirectory(internal)
+endif()
+
 # Required tools, libraries, etc..
 if(ENABLE_TESTS)
   include(cmake/python.cmake)
@@ -57,4 +63,3 @@ endif()
 
 # Load all modules, including plugins
 add_subdirectory(src)
-

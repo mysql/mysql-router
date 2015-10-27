@@ -54,13 +54,8 @@ public:
   /** @brief Default constructor */
   RouteDestination() : current_pos_(0), stopping_(false) { };
 
-  /** @brief destructor */
-  ~RouteDestination() {
-    stopping_ = true;
-    if (quarantine_thread_.joinable()) {
-      quarantine_thread_.join();
-    }
-  }
+  /** @brief Destructor */
+  ~RouteDestination();
 
   RouteDestination(const RouteDestination &other) = delete;
   RouteDestination(RouteDestination &&other) = delete;
@@ -114,7 +109,8 @@ public:
   /** @brief Gets next connection to destination
    *
    * Returns a socket descriptor for the connection to the MySQL Server or
-   * -1 when an error occurred.
+   * -1 when an error occurred, which means that no destination was
+   * available.
    *
    * @return a socket descriptor
    */
@@ -136,11 +132,21 @@ public:
     return destinations_.empty();
   }
 
+  /** @brief Returns number of quarantined servers
+   *
+   * @return size_t
+   */
+  const size_t size_quarantine();
+
   /** @brief Start the destination threads
    *
    */
   virtual void start() {
-    quarantine_thread_ = std::thread(&RouteDestination::remove_from_quarantine, this);
+    if (!quarantine_thread_.joinable()) {
+      quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
+    } else {
+      log_debug("Tried to restart quarantine thread");
+    }
   }
 
   AddrVector::iterator begin() {
@@ -172,26 +178,77 @@ protected:
     return std::find(quarantined_.begin(), quarantined_.end(), index) != quarantined_.end();
   }
 
-  virtual void remove_from_quarantine() noexcept;
+  /** @brief Adds server to quarantine
+   *
+   * Adds the given server address to the quarantine list. The index argument
+   * is the index of the server in the destination list.
+   *
+   * @param index Index of the destination
+   */
+  virtual void add_to_quarantine(size_t index) noexcept;
 
+  /** @brief Worker checking and removing servers from quarantine
+   *
+   * This method is meant to run in a thread and calling the
+   * `cleanup_quarantine()` method.
+   *
+   * The caller is responsible for locking and unlocking the
+   * mutex `mutex_quarantine_`.
+   *
+   */
+  virtual void quarantine_manager_thread() noexcept;
+
+  /** @brief Checks and removes servers from quarantine
+   *
+   * This method removes servers from quarantine while trying to establish
+   * a connection. It is used in a seperate thread and will update the
+   * quarantine list, and will keep trying until the list is empty.
+   * A conditional variable is used to notify the thread servers were
+   * quarantined.
+   *
+   */
+  virtual void cleanup_quarantine() noexcept;
+
+  /** @brief Returns socket descriptor of connected MySQL server
+   *
+   * Returns a socket descriptor for the connection to the MySQL Server or
+   * -1 when an error occurred.
+   *
+   * This method uses the free function routing::get_mysql_socket.
+   *
+   * @param addr information of the server we connect with
+   * @param connect_timeout number of seconds waiting for connection
+   * @param log whether to log errors or not
+   * @return a socket descriptor
+   */
+  virtual int get_mysql_socket(const TCPAddress &addr, int connect_timeout, bool log_errors = true);
 
   /** @brief List of destinations */
   AddrVector destinations_;
+
   /** @brief Destination which will be used next */
   std::atomic<size_t> current_pos_;
+
   /** @brief Whether we are stopping */
-  std::atomic<bool> stopping_;
+  std::atomic_bool stopping_;
 
   /** @brief Mutex for updating destinations and iterator */
   std::mutex mutex_update_;
 
-
   /** @brief List of destinations which are quarantined */
   std::vector<size_t> quarantined_;
-  std::condition_variable condvar_quarantine_;
-  std::mutex mutex_quarantine_;
-  std::thread quarantine_thread_;
 
+  /** @brief Conditional variable blocking quarantine manager thread */
+  std::condition_variable condvar_quarantine_;
+
+  /** @brief Mutex for quarantine manager thread */
+  std::mutex mutex_quarantine_manager_;
+
+  /** @brief Mutex for updating quarantine */
+  std::mutex mutex_quarantine_;
+
+  /** @brief Quarantine manager thread */
+  std::thread quarantine_thread_;
 };
 
 

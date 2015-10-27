@@ -22,6 +22,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <string>
+#include <sys/wait.h>
 
 CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr) {
   std::string app_cmd(cmd);

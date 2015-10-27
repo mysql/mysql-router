@@ -44,11 +44,12 @@ public:
   RoutingPluginConfig(const ConfigSection *section)
       : BasePluginConfig(section),
         destinations(get_option_destinations(section, "destinations")),
-        bind_address(get_option_tcp_address(section, "bind_address", true)),
+        bind_port(get_option_tcp_port(section, "bind_port")),
+        bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        wait_timeout(get_uint_option<uint16_t>(section, "wait_timeout", 1)),
         mode(get_option_mode(section, "mode")),
-        max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)) { }
+        max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)) {
+  }
 
   string get_default(const string &option);
 
@@ -56,12 +57,12 @@ public:
 
   /** @brief `destinations` option read from configuration section */
   const string destinations;
+  /** @brief `bind_port` option read from configuration section */
+  const int bind_port;
   /** @brief `bind_address` option read from configuration section */
   const TCPAddress bind_address;
   /** @brief `connect_timeout` option read from configuration section */
   const int connect_timeout;
-  /** @brief `wait_timeout` option read from configuration section */
-  const int wait_timeout;
   /** @brief `mode` option read from configuration section */
   const routing::AccessMode mode;
   /** @brief `max_connections` option read from configuration section */

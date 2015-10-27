@@ -65,7 +65,7 @@ static void log_message(Level level, const char *fmt, va_list ap) {
 
   std::ostringstream log_entry;
   log_entry << setw(19) << time_buf << " " << setw(7) << level_str[level]
-            << " [" << setw(7) << thread_id << "] " << message << std::endl;
+            << " [" << setw(7) << thread_id << "] " << message << "\n";
 
   std::cout << log_entry.str();
 }

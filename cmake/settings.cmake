@@ -27,6 +27,7 @@ set(MYSQL_ROUTER_INI "mysqlrouter.ini"
 option(ENABLE_TESTS "Enable Tests" NO)
 option(DOWNLOAD_BOOST "Download Boost C++ Libraries" NO)
 option(WITH_STATIC "Enable static linkage of external libraries" NO)
+option(GPL "Produce GNU GPLv2 source and binaries" YES)
 
 # MySQL Harness
 set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")

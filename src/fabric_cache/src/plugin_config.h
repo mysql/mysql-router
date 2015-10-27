@@ -42,8 +42,7 @@ public:
   FabricCachePluginConfig(const ConfigSection *section)
       : BasePluginConfig(section),
         address(get_option_tcp_address(section, "address", fabric_cache::kDefaultFabricPort)),
-        user(get_option_string(section, "user")),
-        password(get_option_string(section, "password")) { }
+        user(get_option_string(section, "user")) { }
 
   string get_default(const string &option);
   bool is_required(const string &option);
@@ -52,8 +51,6 @@ public:
   const mysqlrouter::TCPAddress address;
   /** @brief User used for authenticating with MySQL Fabric */
   const string user;
-  /** @brief Password used for authenticating with MySQL Fabric */
-  const string password;
 
 private:
   /** @brief Gets a TCP address using the given option

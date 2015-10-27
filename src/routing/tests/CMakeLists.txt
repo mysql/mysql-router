@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include)
+include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
+  ../../../tests/helpers)
 
 add_library(routing_tests SHARED ${ROUTING_SOURCE_FILES})
 target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache)
@@ -45,7 +46,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
 ADD_TEST_DIR(issues MODULE issues
-  LIB_DEPENDS routing_tests routing_plugin_tests)
+  LIB_DEPENDS routing_tests routing_plugin_tests
+  INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
 configure_file(data/1route.ini.in ${STAGE_DIR}/etc/routing_1route.ini)

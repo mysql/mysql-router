@@ -16,19 +16,21 @@
 */
 
 /**
- * BUG21771595 Exit application on configuration errors
+ * BUG22020088
  *
  */
 
 #include "gtest_consoleoutput.h"
 #include "cmd_exec.h"
-#include "router_app.h"
+#include "../../../router/src/router_app.h"
 #include "config_parser.h"
 #include "plugin.h"
 
 #include <fstream>
 #include <memory>
+#include <future>
 #include <string>
+#include <thread>
 
 #include "gmock/gmock.h"
 
@@ -38,7 +40,10 @@ using ::testing::StrEq;
 string g_cwd;
 Path g_origin;
 
-class Bug21771595 : public ConsoleOutputTest {
+// Used in tests; does not change for each test.
+const string kDefaultRoutingConfig = "\ndestinations=127.0.0.1:3306\nmode=read-only\n";
+
+class Bug22020088 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
     ConsoleOutputTest::SetUp();
@@ -55,7 +60,6 @@ protected:
       ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
       ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
       ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
-      ofs_config << "[logger]" << "\n\n";
       ofs_config.close();
     }
   }
@@ -63,11 +67,11 @@ protected:
   std::unique_ptr<Path> config_path;
 };
 
-TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
+TEST_F(Bug22020088, MissingBindAddressAndDefaultPort) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\nbind_address=127.0.0.1:7001\ndestinations=127.0.0.1:3306\nmode=read-only\n";
-  c << "connect_timeout=0\n";
+  c << "[routing]\n";
+  c << kDefaultRoutingConfig;
   c.close();
 
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
@@ -75,14 +79,15 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
+      "in [routing]: either bind_port or bind_address is required"));
   }
 }
 
-TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
+TEST_F(Bug22020088, MissingPortInBindAddress) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[fabric_cache]\naddress=127.0.0.1:99999\n\n";
+  c << "[routing]\nbind_address=127.0.0.1\n";
+  c << kDefaultRoutingConfig;
   c.close();
 
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
@@ -90,36 +95,42 @@ TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "option address in [fabric_cache] is incorrect (invalid TCP port: impossible port number)"));
+     "in [routing]: no bind_port, and TCP port in bind_address is not valid"));
   }
 }
 
-TEST_F(Bug21771595, AppExecRoutingInvalidTimeout) {
+TEST_F(Bug22020088, InvalidPortInBindAddress) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\nbind_address=127.0.0.1:7001\ndestinations=127.0.0.1:3306\nmode=read-only\n";
-  c << "connect_timeout=0\n";
+  c << "[routing]\nbind_address=127.0.0.1:999292\n";
+  c << kDefaultRoutingConfig;
   c.close();
-  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
-  auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_EQ(cmd_result.exit_code, 1);
-  ASSERT_THAT(cmd_result.output, StrEq(
-    "Configuration error: option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'\n"));
+  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  try {
+    r.start();
+  } catch (const std::invalid_argument &exc) {
+    ASSERT_THAT(exc.what(), StrEq(
+     "option bind_address in [routing] is incorrect (invalid TCP port: invalid characters or too long)"));
+  }
 }
 
-TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {
+TEST_F(Bug22020088, InvalidDefaultPort) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[fabric_cache]\naddress=127.0.0.1:99999\n\n";
+  c << "[routing]\nbind_port=23123124123123\n";
+  c << kDefaultRoutingConfig;
   c.close();
-  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
-  auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_EQ(cmd_result.exit_code, 1);
-  ASSERT_THAT(cmd_result.output, StrEq(
-  "Configuration error: option address in [fabric_cache] is incorrect (invalid TCP port: impossible port number)\n"));
+  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  try {
+    r.start();
+  } catch (const std::invalid_argument &exc) {
+    ASSERT_THAT(exc.what(), StrEq(
+     "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'"));
+  }
 }
+
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();

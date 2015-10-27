@@ -18,8 +18,15 @@
 #include "mysqlrouter/routing.h"
 
 #include <cstring>
-#include <netdb.h>
+#ifdef __sun
+#include <fcntl.h>
+#else
 #include <sys/fcntl.h>
+#endif
+#include <netdb.h>
+#include <netinet/tcp.h>
+
+#include <sys/socket.h>
 
 #include "mysqlrouter/utils.h"
 #include "logger.h"
@@ -31,9 +38,10 @@ using mysqlrouter::TCPAddress;
 
 namespace routing {
 
-const int kDefaultWaitTimeout = 300;
+const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
 const int kDefaultDestinationConnectionTimeout = 1;
+const string kDefaultBindAddress = "127.0.0.1";
 
 const std::map<string, AccessMode> kAccessModeNames = {
     {"read-write", AccessMode::kReadWrite},
@@ -106,9 +114,11 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     if (res <= 0) {
       if (res == 0) {
         shutdown(sock, SHUT_RDWR);
+        close(sock);
         if (log) {
           log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
+        freeaddrinfo(servinfo);
         return -1;
       }
       break;
@@ -117,13 +127,22 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len);
     if (FD_ISSET(sock, &readfds) && !so_error) {
       set_socket_blocking(sock, false);
+
+      int opt_nodelay = 0;
+      if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+        log_debug("Failed setting TCP_NODELAY on client socket");
+        freeaddrinfo(servinfo);
+        return -1;
+      }
       break;
     }
   }
+  freeaddrinfo(servinfo);
 
   // Handle remaining errors
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
     shutdown(sock, SHUT_RDWR);
+    close(sock);
     auto err = so_error ? so_error : errno;
     if (log) {
       log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);

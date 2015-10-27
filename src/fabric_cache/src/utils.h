@@ -19,6 +19,7 @@
 #define FABRIC_CACHE_UTILS_INCLUDED
 
 #include <string>
+#include <time.h>
 
 using std::string;
 

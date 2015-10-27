@@ -21,6 +21,7 @@
 #include <netdb.h>
 #include <iostream>
 #include <sstream>
+#include <sys/socket.h>
 
 namespace mysqlrouter {
 
@@ -54,6 +55,7 @@ void TCPAddress::detect_family() noexcept {
       ip_family_ = Family::IPV4;
     }
   }
+  freeaddrinfo(servinfo);
 }
 
 uint16_t TCPAddress::validate_port(uint32_t tcp_port) {

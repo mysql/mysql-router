@@ -17,6 +17,15 @@
 
 set -e
 
+case "$1" in
+  remove)
+    ;;
+
+  abort-upgrade|abort-remove|abort-configure)
+    ;;
+esac
+	
+
 #DEBHELPER#
 
 set +e

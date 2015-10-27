@@ -1,5 +1,5 @@
-mysql-router (2.0.1-1ubuntu14.04) trusty; urgency=low
+mysql-router (2.0.2-1ubuntu14.04) trusty; urgency=low
 
   * initial version
 
- -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Wed,  9 Sep 2015 21:01:55 +0100
+ -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Mon,  5 Oct 2015 08:01:55 +0200

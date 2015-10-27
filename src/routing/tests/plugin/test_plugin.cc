@@ -174,30 +174,6 @@ TEST_F(RoutingPluginTests, StartMissingDestination) {
   ASSERT_THAT(log, HasSubstr("option destinations in [routing:tests] is required and needs a value"));
 }
 
-TEST_F(RoutingPluginTests, StartMissingBindAddress) {
-  auto section = config_section.get();
-  section->set("bind_address", "");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr("option bind_address in [routing:tests] is required and needs a value"));
-}
-
-TEST_F(RoutingPluginTests, StartMissingBindAddressPort) {
-  auto section = config_section.get();
-  section->set("bind_address", "127.0.0.1");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr("option bind_address in [routing:tests] is incorrect (TCP port missing)"));
-}
-
 TEST_F(RoutingPluginTests, StartImpossiblePortNumber) {
   auto section = config_section.get();
   section->set("bind_address", "127.0.0.1:99999");  // impossible IP address
@@ -222,19 +198,6 @@ TEST_F(RoutingPluginTests, StartImpossibleIPAddress) {
   auto log = ssout.str();
   ASSERT_THAT(log, HasSubstr(
       "routing:tests: Setting up service using 512.512.512.512:3306: Failed getting address information"));
-}
-
-TEST_F(RoutingPluginTests, StartEmptyBindAddress) {
-  auto section = config_section.get();
-  section->set("bind_address", "");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr(
-      "option bind_address in [routing:tests] is required and needs a value"));
 }
 
 TEST_F(RoutingPluginTests, StartWithBindAddressInDestinations) {
@@ -264,31 +227,6 @@ TEST_F(RoutingPluginTests, StartConnectTimeoutSetNegative) {
       "connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '-1'"));
 }
 
-TEST_F(RoutingPluginTests, StartWaitTimeoutSetNegative) {
-  auto section = config_section.get();
-  section->set("wait_timeout", "-1");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr(
-      "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '-1'"));
-}
-
-TEST_F(RoutingPluginTests, StartGetUINT16ConversionFailing) {
-  auto section = config_section.get();
-  section->set("wait_timeout", "spam");
-
-  harness_plugin_routing.init(&test_app_info);
-  auto start = harness_plugin_routing.start;
-
-  start(section);
-  auto log = ssout.str();
-  ASSERT_THAT(log, HasSubstr(
-      "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was 'spam'"));
-}
 
 TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   auto section = config_section.get();
@@ -302,11 +240,4 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   auto log = ssout.str();
   ASSERT_THAT(log, HasSubstr(
       "option connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
-
-  section->set("connect_timeout", "1");
-  section->set("wait_timeout", "0");
-
-  start(section);
-  ASSERT_THAT(ssout.str(), HasSubstr(
-    "option wait_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
 }

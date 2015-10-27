@@ -48,10 +48,18 @@ public:
    *                           fabric server should timeout.
    * @param connection_attempts The number of times a connection to fabric must be
    *                            attempted, when a connection attempt fails.
-   * */
+   *
+   */
   Fabric(const string &host, int port, const string &user,
          const string &password, int connection_timeout,
          int connection_attempts);
+
+  /** @brief Destructor
+   *
+   * Disconnect and release the connection to the fabric node.
+   */
+  ~Fabric();
+
 
   /** @brief Returns relation between group ID and list of servers
    *
@@ -125,6 +133,9 @@ private:
 
   // Boolean variable indicates if a connection to fabric has been established.
   bool connected_ = false;
+
+  // How many times we tried to reconnected (for logging purposes)
+  size_t reconnect_tries_;
 };
 
 #endif // FABRIC_CACHE_FABRIC_INCLUDED

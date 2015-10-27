@@ -1,15 +1,15 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: MySQL Router 2.0.0
+Upstream-Name: MySQL Router 2.0
 Upstream-Contact: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Source: http://dev.mysql.com/
 
 Files: *
 Copyright: 2015, Oracle and/or its affiliates. All rights reserved.
 License: GPL-2
- This is a release of MySQL, a dual-license SQL database server.
+ This is a release of MySQL Router, release dual-licensed.
  For the avoidance of doubt, this particular copy of the software
  is released under the version 2 of the GNU General Public License.
- MySQL is brought to you by Oracle.
+ MySQL Router is brought to you by Oracle.
  .
  MySQL FOSS License Exception
  We want free and open source software applications under certain
