@@ -22,8 +22,6 @@ function(CHECK_CXX11)
 
   if(support_11)
     set(CXX11_FLAG "-std=c++11" PARENT_SCOPE)
-  elseif(support_0x)
-    set(CXX11_FLAG "-std=c++0x" PARENT_SCOPE)
   else()
     message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} does not support C++11 standard")
   endif()
