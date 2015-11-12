@@ -37,7 +37,9 @@ public:
   };
 
   TCPAddress(string address = "", uint32_t tcp_port = 0)
-      : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) { }
+      : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) {
+    detect_family();
+  }
 
   /** @brief Copy constructor */
   TCPAddress(const TCPAddress &other)
