@@ -109,8 +109,11 @@ int RouteDestination::get_server_socket(int connect_timeout) noexcept {
        i = (i+1) % destinations_.size()) {
 
     // If server is quarantined, skip
-    if (is_quarantined(i)) {
-      continue;
+    {
+      std::lock_guard<std::mutex> lock(mutex_quarantine_);
+      if (is_quarantined(i)) {
+        continue;
+      }
     }
 
     // Try server
