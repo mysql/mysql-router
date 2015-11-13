@@ -184,6 +184,5 @@ rm -rf %{buildroot}
 - Making version a variable and using _libdir
 - Adding -DWITH_MYSQL and building libmysqlclient statically in
 
-%changelog
 * Wed Aug 19 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.1-1
 - Initial version
