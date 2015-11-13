@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -24,6 +24,8 @@
 #include <memory>
 
 #include "mysqlrouter/utils.h"
+
+namespace mysqlrouter {
 
 const string kValidSchemeChars = "abcdefghijklmnopqrstuvwxyz0123456789+-."; // scheme is lowered first
 const string kValidPortChars = "0123456789";
@@ -115,7 +117,7 @@ static URIAuthority parse_authority(const string uri) {
   pos = host_port.find(':');
   if (pos != string::npos) {
     try {
-      tmp_port = mysqlrouter::get_tcp_port(host_port.substr(pos + 1, authority.size() - (pos + 1)));
+      tmp_port = get_tcp_port(host_port.substr(pos + 1, authority.size() - (pos + 1)));
     } catch (const std::runtime_error &exc) {
       throw URIError("invalid port: " + string(exc.what()));
     }
@@ -216,7 +218,7 @@ void URI::init_from_uri(const string uri) {
     tmp_query = parse_query(uri);
     tmp_fragment = parse_fragment(uri);
   } catch (const URIError &exc) {
-    throw URIError(mysqlrouter::string_format("invalid url: %s", exc.what()));
+    throw URIError(string_format("invalid url: %s", exc.what()));
   }
 
   scheme = tmp_scheme;
@@ -237,3 +239,5 @@ URIQuery t_parse_query(const string &uri, const char delimiter) {return parse_qu
 URIQuery t_parse_query(const string &uri) {return parse_query(uri);};
 string t_parse_fragment(const string &uri) { return parse_fragment(uri);};
 #endif
+
+} // namespace mysqlrouter

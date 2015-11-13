@@ -29,6 +29,8 @@
 
 using std::string;
 
+namespace mysqlrouter {
+
 using URIAuthority = std::tuple<string, uint16_t, string, string>; // host, port, username, password
 using URIPath = std::vector<string>;
 using URIQuery = std::map<string, string>;
@@ -121,5 +123,7 @@ URIQuery t_parse_query(const string &uri, const char delimiter);
 URIQuery t_parse_query(const string &uri);
 string t_parse_fragment(const string &uri);
 #endif
+
+} // namespace mysqlrouter
 
 #endif // URI_ROUTING_INCLUDED

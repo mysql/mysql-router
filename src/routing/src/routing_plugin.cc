@@ -28,6 +28,7 @@
 #include <vector>
 
 using std::string;
+using mysqlrouter::URIError;
 
 const AppInfo *g_app_info;
 static const string kSectionName = "routing";

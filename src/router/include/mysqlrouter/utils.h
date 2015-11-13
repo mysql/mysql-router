@@ -73,6 +73,19 @@ std::pair<string, uint16_t> split_addr_port(const string data);
  */
 uint16_t get_tcp_port(const string& data);
 
+/** @brief Splits a string using a delimiter
+ *
+ * Splits a string using the given delimiter. When allow_empty
+ * is true (default), tokens can be empty, and will be included
+ * as empty in the result.
+ *
+ * @param data a string to split
+ * @param delimiter a char used as delimiter
+ * @param bool whether to allow empty tokens or not (default true)
+ * @return std::vector<string> containing tokens
+ */
+std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty = true);
+
 } // namespace mysqlrouter
 
 #endif // MYSQLROUTER_UTILS_INCLUDED

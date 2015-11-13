@@ -28,6 +28,8 @@
 
 using std::invalid_argument;
 using std::vector;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
 
 string RoutingPluginConfig::get_default(const string &option) {
 

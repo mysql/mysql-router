@@ -18,7 +18,7 @@
 #include "mysql_routing.h"
 #include "dest_first_available.h"
 #include "dest_fabric_cache.h"
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
 
@@ -41,6 +41,9 @@ using std::runtime_error;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
 
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,

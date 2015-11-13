@@ -23,6 +23,10 @@ const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
 
 using mysqlrouter::split_addr_port;
 using mysqlrouter::get_tcp_port;
+using mysqlrouter::split_string;
+using ::testing::ContainerEq;
+using ::testing::Pair;
+using std::string;
 
 class SplitAddrPortTest: public ::testing::Test {
 protected:
@@ -75,4 +79,59 @@ TEST_F(GetTCPPortTest, GetTCPPortFail) {
   ASSERT_THROW(get_tcp_port(":3306"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("99999999"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("abcdef"), std::runtime_error);
+}
+
+class UtilsTests: public ::testing::Test {
+protected:
+  virtual void SetUp() {
+  }
+};
+
+TEST_F(UtilsTests, SplitStringWithEmpty) {
+std::vector<string> exp;
+std::string tcase;
+
+exp = {"val1", "val2"};
+EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';')));
+
+exp = {"", "val1", "val2"};
+EXPECT_THAT(exp, ContainerEq(split_string(";val1;val2", ';')));
+
+exp = {"val1", "val2", ""};
+EXPECT_THAT(exp, ContainerEq(split_string("val1;val2;", ';')));
+
+exp = {};
+EXPECT_THAT(exp, ContainerEq(split_string("", ';')));
+
+exp = {"", ""};
+EXPECT_THAT(exp, ContainerEq(split_string(";", ';')));
+
+// No trimming
+exp = {"  val1", "val2  "};
+EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&')));
+
+}
+
+TEST_F(UtilsTests, SplitStringWithoutEmpty) {
+std::vector<string> exp;
+std::string tcase;
+
+exp = {"val1", "val2"};
+EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';', false)));
+
+exp = {"val1", "val2"};
+EXPECT_THAT(exp, ContainerEq(split_string(";val1;val2", ';', false)));
+
+exp = {"val1", "val2"};
+EXPECT_THAT(exp, ContainerEq(split_string("val1;val2;", ';', false)));
+
+exp = {};
+EXPECT_THAT(exp, ContainerEq(split_string("", ';', false)));
+
+exp = {};
+EXPECT_THAT(exp, ContainerEq(split_string(";", ';', false)));
+
+// No trimming
+exp = {"  val1", "val2  "};
+EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
 }

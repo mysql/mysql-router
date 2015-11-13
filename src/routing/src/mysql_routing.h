@@ -47,6 +47,7 @@
 #include "mysqlrouter/datatypes.h"
 
 using std::string;
+using mysqlrouter::URI;
 
 /** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers

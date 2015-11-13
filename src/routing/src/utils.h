@@ -55,17 +55,4 @@ string ip_from_addrinfo(struct addrinfo *info);
  */
 std::pair<std::string, int > get_peer_name(int sock);
 
-/**
- * Splits a string using a delimiter
- *
- * @param data a string to split
- * @param delimiter a char used as delimiter
- * @param bool whether to allow empty tokens or not (default true)
- * @return std::vector<string> containing tokens
- */
-std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty);
-
-/** @overload */
-std::vector<string> split_string(const string& data, const char delimiter);
-
 #endif // UTILS_ROUTING_INCLUDED
