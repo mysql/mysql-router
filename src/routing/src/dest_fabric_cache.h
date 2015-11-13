@@ -20,7 +20,7 @@
 
 #include "destination.h"
 #include "mysql_routing.h"
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 
 #include <thread>
 
@@ -30,6 +30,7 @@
 using std::runtime_error;
 using std::chrono::system_clock;
 using mysqlrouter::TCPAddress;
+using mysqlrouter::URIQuery;
 
 const int kDefaultRefreshInterval = 3;
 

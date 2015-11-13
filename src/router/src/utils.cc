@@ -184,4 +184,29 @@ uint16_t get_tcp_port(const string &data) {
   return static_cast<uint16_t>(port);
 }
 
+std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {
+  std::stringstream ss(data);
+  std::string token;
+  std::vector<string> result;
+
+  if (data.empty()) {
+    return {};
+  }
+
+  while (std::getline(ss, token, delimiter)) {
+    if (token.empty() && !allow_empty) {
+      // Skip empty
+      continue;
+    }
+    result.push_back(token);
+  }
+
+  // When last character is delimiter, it denotes an empty token
+  if (allow_empty && data.back() == delimiter) {
+    result.push_back("");
+  }
+
+  return result;
+}
+
 } // namespace mysqlrouter

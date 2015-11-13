@@ -19,7 +19,7 @@
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
 #include "utils.h"
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include <mysqlrouter/routing.h>
@@ -34,6 +34,9 @@ using std::map;
 using std::string;
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
 public:

@@ -22,6 +22,7 @@ set(lib_source_files
   router_app.cc
   arg_handler.cc
   utils.cc
+  uri.cc
   datatypes.cc
   plugin_config.cc)
 
