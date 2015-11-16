@@ -50,15 +50,15 @@ class TestConsoleOutput(unittest.TestCase):
             years = "2015, %d," % date.today().year
 
         output = check_output([self.app_bin, '--help']).split('\n')
-        self.assertTrue(output[0].startswith("Copyright "))
-        self.assertTrue(years in output[0])
+        self.assertTrue(output[1].startswith("Copyright "))
+        self.assertTrue(years in output[1])
 
     def test_help_trademark(self):
         """WL8480: --help contains trademark notice
         """
         needle = "Oracle is a registered trademark "
         output = check_output([self.app_bin, '--help']).split('\n')
-        self.assertTrue(output[2].startswith(needle))
+        self.assertTrue(output[3].startswith(needle))
 
     def test_help_config_files_list(self):
         """WL8480: --help lists default configuration files
