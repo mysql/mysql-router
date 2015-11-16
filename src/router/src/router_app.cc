@@ -261,6 +261,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
 void MySQLRouter::show_help() noexcept {
   FILE *fp;
+  std::cout << get_version_line() << std::endl;
   std::cout << WELCOME << std::endl;
 
   for (auto line: wrap_string("Configuration read from the following files in the given order"
