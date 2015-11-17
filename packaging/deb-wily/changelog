@@ -1,0 +1,5 @@
+mysql-router (2.1.0-1ubuntu15.10) wily; urgency=low
+
+  * initial version
+
+ -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Thu, 31 Mar 2016 11:03:55 +0200
