@@ -22,5 +22,6 @@ else()
 endif()
 
 configure_file(mysqlrouter.ini.in ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.ini @only)
+configure_file(mysqlrouter.init ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.init @only)
 configure_file(mysqlrouter.service ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.service @only)
 configure_file(mysqlrouter.tmpfiles.d ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.tmpfiles.d @only)
