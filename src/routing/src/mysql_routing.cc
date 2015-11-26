@@ -46,7 +46,7 @@ using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 
 
-MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,
+MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
                            const string &route_name,
                            int max_connections,
                            int destination_connect_timeout)
@@ -98,7 +98,6 @@ void MySQLRouting::thd_routing_select(int client) noexcept {
   ssize_t bytes = 0;
   int nfds;
   int res;
-  struct timeval timeout_val;
   size_t bytes_down = 0;
   size_t bytes_up = 0;
   string extra_msg;

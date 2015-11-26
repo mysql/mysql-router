@@ -202,7 +202,7 @@ void RouteDestination::quarantine_manager_thread() noexcept {
   }
 }
 
-const size_t RouteDestination::size_quarantine() {
+size_t RouteDestination::size_quarantine() {
   std::lock_guard<std::mutex> lock(mutex_quarantine_);
   return quarantined_.size();
 }

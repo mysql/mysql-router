@@ -89,7 +89,7 @@ public:
    * @param optional max_connections Maximum allowed active connections
    * @param optional destination_connect_timeout Timeout trying to connect destination server
    */
-  MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
+  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address = string{"0.0.0.0"},
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout);

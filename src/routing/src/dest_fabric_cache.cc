@@ -41,8 +41,6 @@ using std::chrono::seconds;
 using fabric_cache::lookup_group;
 using fabric_cache::ManagedServer;
 
-const int kPopulateErrorReportInterval = 10;
-
 std::vector<TCPAddress> DestFabricCacheGroup::get_available() {
   auto managed_servers = lookup_group(cache_name, ha_group).server_list;
   std::vector<TCPAddress> available;

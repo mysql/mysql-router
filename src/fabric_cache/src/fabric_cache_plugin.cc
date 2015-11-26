@@ -70,7 +70,7 @@ const string prompt_password(const string &prompt) {
   std::cout << prompt << ": ";
 
   // prevent showing input
-  console.c_lflag &= ~ECHO;
+  console.c_lflag &= ~(uint)ECHO;
   tcsetattr(STDIN_FILENO, TCSANOW, &console);
 
   string result;

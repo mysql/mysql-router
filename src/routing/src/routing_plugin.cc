@@ -74,10 +74,9 @@ static int init(const AppInfo *info) {
           throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
                                         config.bind_address.str() + "'");
         }
-
         // Check ADDR_ANY binding on same port
-        if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
-          auto found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
+        else if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
+          found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
             return config.bind_address.port == addr.port;
           });
           if (found_addr != bind_addresses.end()) {
