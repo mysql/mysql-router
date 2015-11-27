@@ -50,21 +50,28 @@ start () {
     [ -e $logfile ] || touch $logfile
     chown mysql:mysql $logfile
     export ROUTER_PID=$pidfile
-    echo -n $"Starting $prog: "
-    daemon --user mysql $exec &
+    daemon --user mysql $exec >/dev/null 2>&1 &
     ret=$?
-    [ $ret -eq "0" ] && touch /var/lock/subsys/$prog
-    echo
+    if [ $ret -eq "0" ]; then
+	action $"Starting $prog: " /bin/true
+	touch /var/lock/subsys/$prog
+    else
+	action $"Starting $prog: " /bin/false
+    fi
     return $ret
 }
 
 stop () {
     [ -f /var/lock/subsys/$prog ] || return 0
-    echo -n "Killing $prog: "
-    killproc mysqlrouter
-    echo
-    rm -f $pidfile
-    rm -f /var/lock/subsys/$prog
+    killproc mysqlrouter >/dev/null 2>&1
+    ret=$?
+    if [ $ret -eq "0" ]; then
+	rm -f $pidfile
+	rm -f /var/lock/subsys/$prog
+	action $"Stopping $prog: " /bin/true
+    else
+	ation $"Stopping $prog: " /bin/false
+    fi
 }
 
 restart ()  {
