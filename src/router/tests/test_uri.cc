@@ -20,7 +20,6 @@
 
 #include <exception>
 
-#define private public
 #include "mysqlrouter/uri.h"
 
 using std::get;

@@ -40,8 +40,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX11_FLAG}")
 
-  message("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # Overview of MSVC versions: http://www.cmake.org/cmake/help/v3.3/variable/MSVC_VERSION.html
   if("${MSVC_VERSION}" VERSION_LESS 1800)

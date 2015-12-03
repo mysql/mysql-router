@@ -182,6 +182,50 @@ public:
    */
   void start();
 
+  /** @brief Gets list of default configuration files
+   *
+   * Returns a list of configuration files which will be read (if available)
+   * by default.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_default_config_files() const noexcept {
+    return default_config_files_;
+  }
+
+  /** @brief Gets list of configuration files passed using command line
+   *
+   * Returns a list of configuration files which were passed through command
+   * line options.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_config_files() const noexcept {
+    return config_files_;
+  }
+
+  /** @brief Gets list of extra configuration files passed using command line
+   *
+   * Returns a list of extra configuration files which were passed through command
+   * line options.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_extra_config_files() const noexcept {
+    return extra_config_files_;
+  }
+
+  /** @brief Gets list of used configuration files
+   *
+   * Returns a list of configuration files which were used to read
+   * the configuration.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>&  get_used_config_files() const noexcept {
+    return available_config_files_;
+  }
+
 private:
 
   /** @brief Initializes the MySQL Router application
@@ -289,7 +333,7 @@ private:
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
-  vector<string> config_files_;
+  std::vector<string> config_files_;
   /** @brief PID file location **/
   string pid_file_path_;
   /** @brief Vector with available and usable configuration files

@@ -28,7 +28,19 @@
 #include <thread>
 #include <vector>
 
+//ignore GMock warnings
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#pragma clang diagnostic ignored "-Wsign-compare"
+#endif
+
 #include "gmock/gmock.h"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 #include "config_parser.h"
 #include "helper_logger.h"
 

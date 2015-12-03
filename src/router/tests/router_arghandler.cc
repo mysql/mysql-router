@@ -15,7 +15,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+//ignore GMock warnings
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#endif
+
 #include "gmock/gmock.h"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #include <cstdint>
 #include <cstdio>
@@ -23,8 +33,6 @@
 #include <streambuf>
 #include <vector>
 #include <unistd.h>
-
-#define private public
 
 #include "../src/arg_handler.h"
 
@@ -110,11 +118,12 @@ TEST_F(ArgHandlerTest, AddOption) {
   CmdArgHandler c;
   auto opt = cmd_options.at(0);
   c.add_option(opt.names, opt.description, opt.value_req, opt.metavar, opt.action);
-  ASSERT_THAT(c.options_, SizeIs(1));
-  ASSERT_THAT(c.options_.at(0).names, ContainerEq(opt.names));
-  ASSERT_THAT(c.options_.at(0).description, StrEq(opt.description));
-  ASSERT_THAT(c.options_.at(0).value_req, opt.value_req);
-  ASSERT_THAT(c.options_.at(0).metavar, opt.metavar);
+  auto options = c.get_options();
+  ASSERT_THAT(options, SizeIs(1));
+  ASSERT_THAT(options.at(0).names, ContainerEq(opt.names));
+  ASSERT_THAT(options.at(0).description, StrEq(opt.description));
+  ASSERT_THAT(options.at(0).value_req, opt.value_req);
+  ASSERT_THAT(options.at(0).metavar, opt.metavar);
 }
 
 TEST_F(ArgHandlerTest, AddOptionWithAction) {
@@ -122,9 +131,10 @@ TEST_F(ArgHandlerTest, AddOptionWithAction) {
   string value = "the value";
 
   c.add_option(cmd_options.at(1));
-  ASSERT_THAT(c.options_, SizeIs(1));
-  ASSERT_TRUE(nullptr != c.options_.at(0).action);
-  std::bind(c.options_.at(0).action, value)();
+  auto options = c.get_options();
+  ASSERT_THAT(options, SizeIs(1));
+  ASSERT_TRUE(nullptr != options.at(0).action);
+  std::bind(options.at(0).action, value)();
   ASSERT_EQ(action_result, value);
 }
 
@@ -133,10 +143,11 @@ TEST_F(ArgHandlerTest, FindOption) {
   for (auto &opt: cmd_options) {
     c.add_option(opt);
   }
-  ASSERT_EQ(&(*c.find_option("-a")), &c.options_.at(0));
-  ASSERT_EQ(&(*c.find_option("--novalue-a")), &c.options_.at(0));
-  ASSERT_EQ(&(*c.find_option("-b")), &c.options_.at(1));
-  ASSERT_EQ(c.find_option("--non-existing-options"), c.options_.end());
+  auto options = c.get_options();
+  ASSERT_THAT((*c.find_option("-a")).names, ContainerEq(options.at(0).names));
+  ASSERT_THAT((*c.find_option("--novalue-a")).names, ContainerEq(options.at(0).names));
+  ASSERT_THAT((*c.find_option("-b")).names, ContainerEq(options.at(1).names));
+  ASSERT_EQ(c.find_option("--non-existing-options"), c.end());
 }
 
 TEST_F(ArgHandlerTest, IsValidOptionNameValids) {
@@ -261,7 +272,7 @@ TEST_F(ArgHandlerTest, ProcessRestArguments) {
   args = {"--novalue-a"};
   args.insert(args.end(), rest.begin(), rest.end());
   c.process(args);
-  ASSERT_THAT(c.rest_arguments_, ContainerEq(rest));
+  ASSERT_THAT(c.get_rest_arguments(), ContainerEq(rest));
 
   rest.clear();
   args.clear();
@@ -269,14 +280,14 @@ TEST_F(ArgHandlerTest, ProcessRestArguments) {
   args = {"--optional-b", "some"};
   args.insert(args.end(), rest.begin(), rest.end());
   c.process(args);
-  ASSERT_THAT(c.rest_arguments_, ContainerEq(rest));
+  ASSERT_THAT(c.get_rest_arguments(), ContainerEq(rest));
 
   rest.clear();
   args.clear();
   rest = {"rest", "values"};
   args = {"rest", "-b", "some", "values"};
   c.process(args);
-  ASSERT_THAT(c.rest_arguments_, ContainerEq(rest));
+  ASSERT_THAT(c.get_rest_arguments(), ContainerEq(rest));
 }
 
 TEST_F(ArgHandlerTest, ProcessNotAllowedRestArguments) {

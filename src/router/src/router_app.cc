@@ -44,8 +44,7 @@ using mysqlrouter::wrap_string;
 MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
-      showing_info_(false)
-    , origin_(origin)
+      showing_info_(false), origin_(origin)
 {
   init(arguments);
 }
@@ -74,8 +73,12 @@ void MySQLRouter::init(const vector<string>& arguments) {
 }
 
 void MySQLRouter::start() {
-  if (!can_start_) {
+  if (showing_info_) {
+    // when we are showing info like --help or --version, we do not throw
     return;
+  }
+  if (!can_start_) {
+    throw std::runtime_error("Can not start");
   }
   string err_msg = "Configuration error: %s.";
 

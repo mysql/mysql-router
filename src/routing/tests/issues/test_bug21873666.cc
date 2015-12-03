@@ -27,7 +27,18 @@
 #include <memory>
 #include <string>
 
+//ignore GMock warnings
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wconversion"
+#endif
+
 #include "gmock/gmock.h"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 #include "config_parser.h"
 
 #include "mysql_routing.h"
@@ -105,11 +116,9 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
 }
 
 TEST_F(Bug21771595, InvalidPort) {
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 99999, "127.0.0.1", "test"), std::invalid_argument);
   ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 0, "127.0.0.1", "test"), std::invalid_argument);
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, UINT16_MAX+1, "127.0.0.1", "test"), std::invalid_argument);
   try {
-    MySQLRouting r(routing::AccessMode::kReadOnly, -1, "127.0.0.1", "test");
+    MySQLRouting r(routing::AccessMode::kReadOnly, (uint16_t)-1, "127.0.0.1", "test");
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), HasSubstr("Invalid bind address, was '127.0.0.1', port -1"));
   }

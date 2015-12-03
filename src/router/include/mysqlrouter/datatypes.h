@@ -108,6 +108,14 @@ public:
     return false;
   }
 
+  /* @brief Returns the address family
+   *
+   * returns TCPAddress::Family
+   */
+  Family get_family() const noexcept {
+    return ip_family_;
+  }
+
   /** @brief Network name IP */
   const string addr;
   /** @brief TCP port */

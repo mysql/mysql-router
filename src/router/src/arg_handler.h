@@ -341,6 +341,16 @@ public:
     options_.clear();
   }
 
+  /** @brief Gets all registered options
+   *
+   * Returns as a reference to a vector of CmdOption objects.
+   *
+   * @return std::vector<CmdOption>
+   */
+  const std::vector<CmdOption>& get_options() const noexcept {
+    return options_;
+  }
+
   /** @brief Returns the rest arguments
    *
    * Returns the rest arguments.
@@ -349,7 +359,7 @@ public:
    *
    * @return vector of strings
    */
-  vector<string> get_rest_arguments() {
+  const vector<string>& get_rest_arguments() const noexcept {
     return rest_arguments_;
   }
 
