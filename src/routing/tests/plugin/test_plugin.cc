@@ -101,7 +101,6 @@ protected:
   std::stringstream ssout;
 
 private:
-  FILE *log_fp_;
   string log_file_;
   std::streambuf *orig_cout_;
 };
