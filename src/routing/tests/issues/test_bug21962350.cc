@@ -32,7 +32,6 @@
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-conversion"
-#pragma clang diagnostic ignored "-Wsign-compare"
 #endif
 
 #include "gmock/gmock.h"
@@ -87,32 +86,37 @@ private:
 };
 
 TEST_F(Bug21962350, AddToQuarantine) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
+  d.add_to_quarantine(static_cast<size_t>(0));
   ASSERT_THAT(ssout.str(), HasSubstr("Quarantine destination server s1.example.com:3306"));
-  d.add_to_quarantine(1);
-  ASSERT_EQ(2, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(1));
+  exp = 2;
+  ASSERT_EQ(exp, d.size_quarantine());
   ASSERT_THAT(ssout.str(), HasSubstr("s2.example.com:3306"));
-  d.add_to_quarantine(2);
+  d.add_to_quarantine(static_cast<size_t>(2));
   ASSERT_THAT(ssout.str(), HasSubstr("s3.example.com:3306"));
-  ASSERT_EQ(3, d.size_quarantine());
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 
 TEST_F(Bug21962350, CleanupQuarantine) {
-  MockRouteDestination d;
+  size_t exp;
+  ::testing::NiceMock<MockRouteDestination> d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(1);
-  d.add_to_quarantine(2);
-  ASSERT_EQ(3, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(1));
+  d.add_to_quarantine(static_cast<size_t>(2));
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 
   EXPECT_CALL(d, get_mysql_socket(_, _, _)).Times(4)
     .WillOnce(Return(100))
@@ -121,46 +125,54 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     .WillOnce(Return(200));
   d.cleanup_quarantine();
   // Second is still failing
-  ASSERT_EQ(1, d.size_quarantine());
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
   // Next clean up should remove s2.example.com
   d.cleanup_quarantine();
-  ASSERT_EQ(0, d.size_quarantine());
+  exp = 0;
+  ASSERT_EQ(exp,d.size_quarantine());
   ASSERT_THAT(ssout.str(), HasSubstr("Unquarantine destination server s2.example.com:3306"));
 }
 
 TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(2);
-  d.add_to_quarantine(1);
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(2));
+  d.add_to_quarantine(static_cast<size_t>(1));
 
-  ASSERT_EQ(3, d.size_quarantine());
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 TEST_F(Bug21962350, QuarantineServerNonExisting) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  ASSERT_DEATH(d.add_to_quarantine(999), ".*(index < size()).*");
-  ASSERT_EQ(0, d.size_quarantine());
+  ASSERT_DEATH(d.add_to_quarantine(static_cast<size_t>(999)), ".*(index < size()).*");
+  exp = 0;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 TEST_F(Bug21962350, AlreadyQuarantinedServer) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(1);
-  d.add_to_quarantine(1);
-  ASSERT_EQ(1, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(1));
+  d.add_to_quarantine(static_cast<size_t>(1));
+  exp = 1;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 std::vector<TCPAddress> const Bug21962350::servers  {

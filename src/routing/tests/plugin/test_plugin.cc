@@ -15,17 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-//ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-compare"
-#endif
-
 #include "gmock/gmock.h"
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #include <chrono>
 #include <fstream>
@@ -106,16 +96,17 @@ private:
 };
 
 TEST_F(RoutingPluginTests, PluginConstants) {
-  ASSERT_EQ(sizeof(kRoutingRequires)/sizeof(*kRoutingRequires), 1);
+  size_t exp = 1;
+  ASSERT_EQ(exp, sizeof(kRoutingRequires)/sizeof(*kRoutingRequires));
   ASSERT_THAT(kRoutingRequires[0], StrEq("logger"));
 }
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0100);
-  ASSERT_EQ(harness_plugin_routing.plugin_version, VERSION_NUMBER(0, 0, 1));
-  ASSERT_EQ(harness_plugin_routing.requires_length, 1);
+  ASSERT_EQ(harness_plugin_routing.abi_version, static_cast<uint32_t>(0x0100));
+  ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
+  ASSERT_EQ(harness_plugin_routing.requires_length, static_cast<size_t>(1));
   ASSERT_THAT(harness_plugin_routing.requires[0], StrEq("logger"));
-  ASSERT_EQ(harness_plugin_routing.conflicts_length, 0);
+  ASSERT_EQ(harness_plugin_routing.conflicts_length, static_cast<size_t>(0));
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
   ASSERT_THAT(harness_plugin_routing.deinit, IsNull());
   ASSERT_THAT(harness_plugin_routing.brief,

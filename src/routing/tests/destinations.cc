@@ -15,18 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-//ignore GMock and GTest warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-compare"
-#endif
-
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #include <functional>
 #include <iostream>
@@ -49,33 +39,42 @@ protected:
 TEST_F(RouteDestinationTest, Constructor)
 {
   RouteDestination d;
-  ASSERT_EQ(d.size(), 0);
+  size_t exp = 0;
+  ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RouteDestinationTest, Add)
 {
+  size_t exp;
   RouteDestination d;
+  exp = 1;
   d.add("addr1", 1);
-  ASSERT_EQ(d.size(), 1);
+  ASSERT_EQ(exp, d.size());
+  exp = 2;
   d.add("addr2", 2);
-  ASSERT_EQ(d.size(), 2);
+  ASSERT_EQ(exp, d.size());
 
   // Already added destination
   d.add("addr1", 1);
-  ASSERT_EQ(d.size(), 2);
+  exp = 2;
+  ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RouteDestinationTest, Remove)
 {
+  size_t exp;
   RouteDestination d;
   d.add("addr1", 1);
   d.add("addr99", 99);
   d.add("addr2", 2);
-  ASSERT_EQ(d.size(), 3);
+  exp = 3;
+  ASSERT_EQ(exp, d.size());
   d.remove("addr99", 99);
-  ASSERT_EQ(d.size(), 2);
+  exp = 2;
+  ASSERT_EQ(exp, d.size());
   d.remove("addr99", 99);
-  ASSERT_EQ(d.size(), 2);
+  exp = 2;
+  ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RouteDestinationTest, Get)
@@ -96,23 +95,30 @@ TEST_F(RouteDestinationTest, Get)
 
 TEST_F(RouteDestinationTest, Size)
 {
+  size_t exp;
   RouteDestination d;
-  ASSERT_EQ(d.size(), 0);
+  exp = 0;
+  ASSERT_EQ(exp, d.size());
   d.add("addr1", 1);
-  ASSERT_EQ(d.size(), 1);
+  exp = 1;
+  ASSERT_EQ(exp, d.size());
   d.remove("addr1", 1);
-  ASSERT_EQ(d.size(), 0);
+  exp = 0;
+  ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RouteDestinationTest, RemoveAll)
 {
+  size_t exp;
   RouteDestination d;
 
   d.add("addr1", 1);
   d.add("addr2", 2);
   d.add("addr3", 3);
-  ASSERT_EQ(d.size(), 3);
+  exp = 3;
+  ASSERT_EQ(exp, d.size());
 
   d.clear();
-  ASSERT_EQ(d.size(), 0);
+  exp = 0;
+  ASSERT_EQ(exp, d.size());
 }
