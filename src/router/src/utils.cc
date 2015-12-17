@@ -23,6 +23,7 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <iostream>
+#include <cctype>
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
 const string kValidPortChars = "0123456789";
@@ -113,10 +114,11 @@ string string_format(const char *format, ...) {
   return string(buf.begin(), buf.end() - 1);
 }
 
-std::pair<string, uint16_t> split_addr_port(const string data) {
+std::pair<string, uint16_t> split_addr_port(string data) {
   size_t pos;
   string addr;
   uint16_t port = 0;
+  trim(data);
 
   if (data.at(0) == '[') {
     // IPv6 with port
@@ -207,6 +209,19 @@ std::vector<string> split_string(const string& data, const char delimiter, bool 
   }
 
   return result;
+}
+
+void left_trim(string& str) {
+  str.erase(str.begin(), std::find_if_not(str.begin(), str.end(), ::isspace));
+}
+
+void right_trim(string& str) {
+  str.erase(std::find_if_not(str.rbegin(), str.rend(), ::isspace).base(), str.end());
+}
+
+void trim(string& str) {
+  left_trim(str);
+  right_trim(str);
 }
 
 } // namespace mysqlrouter

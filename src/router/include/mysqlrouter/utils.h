@@ -86,6 +86,27 @@ uint16_t get_tcp_port(const string& data);
  */
 std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty = true);
 
+/**
+ * Removes leading whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void left_trim(string& str);
+
+/**
+ * Removes trailing whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void right_trim(string& str);
+
+/**
+ * Removes both leading and trailing whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void trim(string& str);
+
 } // namespace mysqlrouter
 
 #endif // MYSQLROUTER_UTILS_INCLUDED
