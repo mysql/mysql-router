@@ -125,7 +125,7 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     .WillOnce(Return(200));
   d.cleanup_quarantine();
   // Second is still failing
-  exp = 3;
+  exp = 1;
   ASSERT_EQ(exp, d.size_quarantine());
   // Next clean up should remove s2.example.com
   d.cleanup_quarantine();

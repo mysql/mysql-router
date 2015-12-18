@@ -50,7 +50,7 @@ Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
 Source3:       mysqlrouter.ini
-BuildRequires: python
+BuildRequires:
 %if 0%{?commercial}
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}

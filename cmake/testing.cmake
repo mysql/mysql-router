@@ -21,9 +21,6 @@ foreach(dir etc;run;log;bin;lib)
   file(MAKE_DIRECTORY ${STAGE_DIR}/${dir})
 endforeach()
 
-# We make sure the tests/__init__.py is available for running tests
-file(COPY ${CMAKE_SOURCE_DIR}/tests/__init__.py DESTINATION ${CMAKE_BINARY_DIR}/tests/)
-
 function(ADD_TEST_FILE FILE)
   set(oneValueArgs MODULE LABEL ENVIRONMENT)
   set(multiValueArgs LIB_DEPENDS INCLUDE_DIRS)
@@ -62,20 +59,8 @@ function(ADD_TEST_FILE FILE)
     add_test(NAME ${test_name}
       COMMAND ${runtime_dir}/${test_target})
     set_tests_properties(${test_name} PROPERTIES
-      ENVIRONMENT "STAGE_DIR=${STAGE_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
-  elseif(test_ext STREQUAL ".py")
-    # Tests written in Python
-    get_filename_component(test_target ${FILE} NAME_WE)
-    get_filename_component(test_script ${FILE} NAME)
-    set(test_target "test_python_${test_target}")
-    set(test_name "tests/${TEST_MODULE}/${test_target}")
-    add_test(NAME ${test_name}
-      COMMAND ${PYTHON_EXECUTABLE} -B ${runtime_dir}/${test_script})
-
-    add_custom_target(${test_target} ALL
-       COMMAND ${CMAKE_COMMAND} -E copy ${FILE} ${runtime_dir})
-    set_tests_properties(${test_name} PROPERTIES
-      ENVIRONMENT "CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};PYTHONPATH=${CMAKE_SOURCE_DIR};STAGE_DIR=${STAGE_DIR};${TEST_ENVIRONMENT}")
+      ENVIRONMENT
+        "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
   else()
     message(ERROR "Unknown test type; file '${FILE}'")
   endif()
@@ -94,8 +79,7 @@ function(ADD_TEST_DIR DIR_NAME)
   get_filename_component(abs_path ${DIR_NAME} ABSOLUTE)
 
   file(GLOB test_files RELATIVE ${abs_path}
-    ${abs_path}/*.cc
-    ${abs_path}/*.py)
+    ${abs_path}/*.cc)
 
   foreach(test_file ${test_files})
     if(NOT ${test_file} MATCHES "^helper")

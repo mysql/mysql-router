@@ -39,9 +39,6 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
 endif()
 
 # Required tools, libraries, etc..
-if(ENABLE_TESTS)
-  include(cmake/python.cmake)
-endif()
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT

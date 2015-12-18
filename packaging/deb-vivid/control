@@ -7,8 +7,7 @@ Homepage: http://www.mysql.com/
 Build-Depends: cmake,
  debhelper (>= 9.0.0),
  dh-apparmor,
- fakeroot, lsb-release,
- python
+ fakeroot, lsb-release
 
 Package: mysql-router
 Architecture: any
