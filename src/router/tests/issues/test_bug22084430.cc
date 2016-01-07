@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ TEST_F(Bug22084430, LogCorrectIPv4Address) {
   std::map<std::string, TCPAddress> address{
     {"127.0.0.1:7002", TCPAddress ("127.0.0.1", 7002)},
     {"192.168.1.128:8329", TCPAddress ("192.168.1.128", 8329)},
-    {"localhost:80", TCPAddress ("localhost", 80)},
   };
 
   for (auto &it: address) {

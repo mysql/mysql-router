@@ -7,7 +7,7 @@ For the avoidance of doubt, this particular copy of the software
 is released under the version 2 of the GNU General Public License.
 MySQL Router is brought to you by Oracle.
 
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
 Documentation
 -------------

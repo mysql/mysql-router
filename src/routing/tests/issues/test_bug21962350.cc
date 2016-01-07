@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -109,7 +109,8 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     .WillOnce(Return(200));
   d.cleanup_quarantine();
   // Second is still failing
-  ASSERT_EQ(1, d.size_quarantine());
+  size_t exp = 1;
+  ASSERT_EQ(exp, d.size_quarantine());
   // Next clean up should remove s2.example.com
   d.cleanup_quarantine();
   ASSERT_EQ(0, d.size_quarantine());
