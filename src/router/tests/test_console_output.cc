@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,7 +56,6 @@ class ConsoleOutputTest : public ::testing::Test {
 };
 
 TEST_F(ConsoleOutputTest, Copyright) {
-  bool found = false;
   int last_year = 0;
 
   if (g_in_git_repo) {
@@ -70,7 +69,6 @@ TEST_F(ConsoleOutputTest, Copyright) {
 
   for (auto &line: g_help_output) {
     if (starts_with(line, "Copyright")) {
-      found = true;
       ASSERT_THAT(line, ::testing::HasSubstr(std::to_string(kFirstYear) + ",")) << "Start year not in copyright";
       // following is checked only when in Git repository
       if (last_year > kFirstYear) {
@@ -82,11 +80,9 @@ TEST_F(ConsoleOutputTest, Copyright) {
 }
 
 TEST_F(ConsoleOutputTest, Trademark) {
-  bool found = false;
 
   for (auto &line: g_help_output) {
     if (starts_with(line, "Oracle is a registered trademark of Oracle")) {
-      found = true;
       break;
     }
   }

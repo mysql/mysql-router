@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -132,8 +132,8 @@ void prepare_git_tracked_files() {
         g_git_tracked_files.push_back(GitInfo{
             Path(tracked_file),
             // Both first and year last modification could be the same
-            std::stoi(result.output.substr(0, 4)),
-            std::stoi(result.output.substr(result.output.size() - 10, 4))
+            std::stoi(result.output.substr(result.output.size() - 10, 4)),
+            std::stoi(result.output.substr(0, 4))
         });
       } catch (...) {
         std::cerr << "Failed conversion: " << result.output << " , " << tracked_file << std::endl;
@@ -171,14 +171,14 @@ TEST_F(CheckLegal, Copyright) {
         // Check first year of first commit is in the copyright
         needle = std::to_string(it.year_first_commit) + ",";
         if (line.find(needle) == std::string::npos) {
-          problem = "First commit year not present";
-          break;
-        }
-        // Then check modification year
-        if (it.year_first_commit != it.year_last_commit) {
-          needle = std::to_string(it.year_first_commit) + ",";
+          problem = std::string("First commit year ") + std::to_string(it.year_first_commit)
+                    + std::string(" not present");
+        } else if (it.year_first_commit != it.year_last_commit) {
+          // Then check modification year
+          needle = std::to_string(it.year_last_commit) + ",";
           if (line.find(needle) == std::string::npos) {
-            problem = "Last modification year not present";
+            problem = std::string("Last modification year ") + std::to_string(it.year_last_commit) +
+                      std::string(" not present");
           }
         }
         break;
