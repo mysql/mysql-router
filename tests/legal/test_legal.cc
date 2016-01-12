@@ -112,13 +112,21 @@ void prepare_git_tracked_files() {
   }
   // Get all files in the Git repository
   std::ostringstream os_cmd;
-  os_cmd << "git ls-files --error-unmatch " << g_source_dir;
-  auto result = cmd_exec(os_cmd.str());
+  // For Git v1.7 we need to change directory first
+  os_cmd << "git ls-files --error-unmatch";
+  auto result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
   std::istringstream cmd_output(result.output);
   std::string tracked_file;
 
   while (std::getline(cmd_output, tracked_file, '\n')) {
-    tracked_file = std::string(realpath(tracked_file.c_str(), nullptr));
+    Path tmp_path(g_source_dir);
+    tmp_path.append(tracked_file);
+    char *real_path = realpath(tmp_path.c_str(), nullptr);
+    if (!real_path) {
+      std::cerr << "realpath failed for " << tracked_file << ": " << strerror(errno) << std::endl;
+      continue;
+    }
+    tracked_file = std::string(realpath(tmp_path.c_str(), nullptr));
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
       os_cmd << "git log --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;

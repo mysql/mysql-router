@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,11 +44,17 @@ struct CmdExecResult {
  * Executes the given command and returns the result. If include_stderr
  * is true, messages going to STDERR are included in the output.
  *
+ * When working_dir is provided, we change first to the given directory
+ * and executed the command from there. We return to previous folder
+ * when done.
+ *
  * @param cmd Command to executed
  * @param include_stderr Include STDERR messages in output
+ * @param working_dir Working directory
  * @return Returns CmdExecResult
  */
-CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr = false);
+CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr = false,
+                       std::string working_dir = "");
 
 
 #endif // MYSQLROUTER_TESTS_APP_EXEC_INCLUDED

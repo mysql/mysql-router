@@ -43,9 +43,22 @@ Path get_envvar_path(const std::string &envvar, Path alternative);
  *
  * Uses `getcwd()` and returns the current working directory as as std::string.
  *
+ * Throws std::runtime_error on errors.
+ *
  * @return std::string
  */
 const std::string get_cwd();
+
+/** @brief Changes the current working directory
+ *
+ * Uses `chdir()` to change the current working directory. When succesfully
+ * change to the folder, the old working directory is returned.
+ *
+ * Throws std::runtime_error on errors.
+ *
+ * @return std::string
+ */
+const std::string change_cwd(std::string &dir);
 
 /** @brief Checks whether string ends with the specified suffix
  *
