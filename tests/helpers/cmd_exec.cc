@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "cmd_exec.h"
+#include "router_test_helpers.h"
 
 #include <stdexcept>
 #include <cerrno>
@@ -23,11 +24,18 @@
 #include <stdio.h>
 #include <string>
 #include <sys/wait.h>
+#include <unistd.h>
 
-CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr) {
+CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr, std::string working_dir) {
   std::string app_cmd(cmd);
+  std::string orig_cwd{};
+
   if (include_stderr) {
     app_cmd += " 2>&1";
+  }
+
+  if (!working_dir.empty()) {
+    orig_cwd = change_cwd(working_dir);
   }
 
   auto ld_lib_path = std::getenv("LD_LIBRARY_PATH");
@@ -57,6 +65,10 @@ CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr) {
       break;
     }
     output += cmd_output;
+  }
+
+  if (!orig_cwd.empty()) {
+    change_cwd(orig_cwd);
   }
 
   int code = pclose(fp);

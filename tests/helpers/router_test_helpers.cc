@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
 #include "cmd_exec.h"
 
 #include <stdexcept>
+#include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 
 Path get_cmake_source_dir() {
@@ -53,8 +55,18 @@ Path get_envvar_path(const std::string &envvar, Path alternative = Path()) {
 
 const std::string get_cwd() {
   char buffer[FILENAME_MAX];
-  getcwd(buffer, FILENAME_MAX);
+  if (!getcwd(buffer, FILENAME_MAX)) {
+    throw std::runtime_error("getcwd failed: " + std::string(strerror(errno)));
+  }
   return std::string(buffer);
+}
+
+const std::string change_cwd(std::string &dir) {
+  auto cwd = get_cwd();
+  if (chdir(dir.c_str()) == -1) {
+    throw std::runtime_error("chdir failed: " + std::string(strerror(errno)));
+  }
+  return cwd;
 }
 
 bool ends_with(const std::string &str, const std::string &suffix) {

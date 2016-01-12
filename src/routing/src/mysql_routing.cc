@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -196,12 +196,8 @@ void MySQLRouting::start() {
   destination_->start();
 
   while (!stopping()) {
-    if (errno > 0) {
-      log_error(strerror(errno));
-      errno = 0;
-    }
-
     if ((sock_client = accept(sock_server_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+      log_error("%s client accept error: %s", name.c_str(), strerror(errno));
       continue;
     }
 
@@ -213,10 +209,12 @@ void MySQLRouting::start() {
     }
 
     if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+      log_error("%s client setsocketopt error: %s", name.c_str(), strerror(errno));
       continue;
     }
 
     if (inet_ntop(AF_INET6, &client_addr, client_ip, sizeof client_ip) == nullptr) {
+      log_error("%s client inet_ntop error: %s", name.c_str(), strerror(errno));
       continue;
     }
 
@@ -249,22 +247,18 @@ void MySQLRouting::setup_service() {
 
   // Try to setup socket and bind
   for (info = servinfo; info != nullptr; info = info->ai_next) {
-    if (errno > 0) {
-      throw std::runtime_error(strerror(errno));
-    }
-
     if ((sock_server_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      continue;
+      throw std::runtime_error(strerror(errno));
     }
 
     option_value = 1;
     if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int)) == -1) {
-      continue;
+      throw std::runtime_error(strerror(errno));
     }
 
     if (::bind(sock_server_, info->ai_addr, info->ai_addrlen) == -1) {
       close(sock_server_);
-      continue;
+      throw std::runtime_error(strerror(errno));
     }
     break;
   }
