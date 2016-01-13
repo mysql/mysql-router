@@ -15,7 +15,7 @@
 
 project(harness)
 
-cmake_minimum_required (VERSION 2.8.9)
+cmake_minimum_required (VERSION 2.8.12)
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.0")
   cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
