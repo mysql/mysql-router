@@ -111,13 +111,19 @@ static int init(const AppInfo *info) {
 }
 
 static void start(const ConfigSection *section) {
-  auto name = section->name + ":" + section->key;
+  string name;
+  if (!section->key.empty()) {
+    name = section->name + ":" + section->key;
+  } else {
+    name = section->name;
+  }
 
   try {
     RoutingPluginConfig config(section);
     config.section_name = name;
     MySQLRouting r(config.mode, config.bind_address.port,
-                   config.bind_address.addr, name, config.max_connections, config.connect_timeout);
+                   config.bind_address.addr, name, config.max_connections, config.connect_timeout,
+                   config.max_connect_errors, config.client_connect_timeout);
     try {
       r.set_destinations_from_uri(URI(config.destinations));
     } catch (URIError) {

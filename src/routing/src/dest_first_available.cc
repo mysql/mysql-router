@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 #include "dest_first_available.h"
 
-int DestFirstAvailable::get_server_socket(int connect_timeout) noexcept {
+int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
   if (destinations_.empty()) {
     return -1;
   }
@@ -34,6 +34,7 @@ int DestFirstAvailable::get_server_socket(int connect_timeout) noexcept {
   }
 
   // We are out of destinations. Next time we will try from the beginning of the list.
+  *error = errno;
   current_pos_ = 0;
   return -1;
 }

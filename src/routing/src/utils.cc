@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/fcntl.h>
@@ -70,4 +71,41 @@ std::pair<std::string, int > get_peer_name(int sock) {
   }
 
   return std::make_pair(std::string(ipaddr), port);
+}
+
+std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {
+  std::stringstream ss(data);
+  std::string token;
+  std::vector<string> result;
+
+  if (data.empty()) {
+    return {};
+  }
+
+  while (std::getline(ss, token, delimiter)) {
+    if (token.empty() && not allow_empty) {
+      // Skip empty
+      continue;
+    }
+    result.push_back(token);
+  }
+
+  // When last character is delimiter, it denotes an empty token
+  if (allow_empty && data.back() == delimiter) {
+    result.push_back("");
+  }
+
+  return result;
+}
+
+std::vector<string> split_string(const string& data, const char delimiter) {
+  return split_string(data, delimiter, true);
+}
+
+std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr) {
+  std::array<uint8_t, 16> result;
+  for (int i = 0; i < 16; ++i) {
+    std::memcpy(result.data(), addr.s6_addr, 16);
+  }
+  return result;
 }
