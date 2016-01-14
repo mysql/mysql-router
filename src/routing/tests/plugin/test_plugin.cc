@@ -65,6 +65,8 @@ protected:
     destinations = "127.0.0.1:3306";
     mode = "read-only";
     connect_timeout = "1";
+    client_connect_timeout = "9";
+    max_connect_errors = "100";
   }
 
   bool in_missing(std::vector<std::string> missing, std::string needle) {
@@ -92,6 +94,12 @@ protected:
       if (!in_missing(missing, "connect_timeout")) {
         ofs_config << "connect_timeout = " << connect_timeout << "\n";
       }
+      if (!in_missing(missing, "client_connect_timeout")) {
+        ofs_config << "client_connect_timeout = " << client_connect_timeout << "\n";
+      }
+      if (!in_missing(missing, "max_connect_errors")) {
+        ofs_config << "max_connect_errors = " << max_connect_errors << "\n";
+      }
 
       // Following is an incorrect [routing] entry. If the above is valid, this
       // will make sure Router stops.
@@ -109,7 +117,7 @@ protected:
       if (errno != ENOENT) {
         // File missing is OK.
         std::cerr << "Failed removing " << config_path->str()
-          << ": " << strerror(errno) << "(" << errno << ")" << std::endl;
+        << ": " << strerror(errno) << "(" << errno << ")" << std::endl;
       }
     }
     ConsoleOutputTest::TearDown();
@@ -124,6 +132,8 @@ protected:
   string destinations = "127.0.0.1:3306";
   string mode = "read-only";
   string connect_timeout = "1";
+  string client_connect_timeout = "9";
+  string max_connect_errors = "100";
 
   std::unique_ptr<Path> config_path;
   std::string cmd;
@@ -237,6 +247,34 @@ TEST_F(RoutingPluginTests, StartConnectTimeoutSetNegative) {
               HasSubstr("connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '-1'"));
 }
 
+TEST_F(RoutingPluginTests, StartClientConnectTimeoutSetIncorrectly) {
+  {
+    client_connect_timeout = "1";
+    reset_config();
+    auto cmd_result = cmd_exec(cmd, true);
+    ASSERT_THAT(cmd_result.output, HasSubstr(
+        "option client_connect_timeout in [routing:tests] needs value between 2 and 31536000 inclusive, was '1'"));
+  }
+
+  {
+    client_connect_timeout = "31536001";  // 31536000 is maximum
+    reset_config();
+    auto cmd_result = cmd_exec(cmd, true);
+    ASSERT_THAT(cmd_result.output, HasSubstr(
+        "option client_connect_timeout in [routing:tests] needs "
+            "value between 2 and 31536000 inclusive, was '31536001'"));
+  }
+}
+
+TEST_F(RoutingPluginTests, StartMaxConnectErrorsSetIncorrectly) {
+  {
+    max_connect_errors = "0";
+    reset_config();
+    auto cmd_result = cmd_exec(cmd, true);
+    ASSERT_THAT(cmd_result.output, HasSubstr(
+        "option max_connect_errors in [routing:tests] needs value between 1 and 4294967295 inclusive, was '0'"));
+  }
+}
 
 TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
 

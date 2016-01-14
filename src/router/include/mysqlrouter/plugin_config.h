@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -126,7 +126,8 @@ protected:
    * @return mysqlrouter::TCPAddress
    */
   template<typename T>
-  T get_uint_option(const ConfigSection *section, const string &option, T min_value = 0) {
+  T get_uint_option(const ConfigSection *section, const string &option,
+                    T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
     string value = get_option_string(section, option);
 
     long result;
@@ -134,10 +135,11 @@ protected:
     errno = 0;
     result = std::strtol(value.c_str(), &rest, 0);
 
-    if (errno > 0 || *rest != '\0' || result > UINT16_MAX || result < min_value) {
+    if (errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
+        (max_value > 0 && result > max_value)) {
       std::ostringstream os;
       os << get_log_prefix(option) << " needs value between " << min_value << " and "
-         << to_string(std::numeric_limits<T>::max()) << " inclusive";
+         << to_string(max_value) << " inclusive";
       if (!value.empty()) {
         os << ", was '" << value << "'";
       }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,10 +19,13 @@
 
 #include "mysqlrouter/utils.h"
 
+#include <vector>
+
 const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
 
 using mysqlrouter::split_addr_port;
 using mysqlrouter::get_tcp_port;
+using mysqlrouter::hexdump;
 using mysqlrouter::split_string;
 using ::testing::ContainerEq;
 using ::testing::Pair;
@@ -79,6 +82,42 @@ TEST_F(GetTCPPortTest, GetTCPPortFail) {
   ASSERT_THROW(get_tcp_port(":3306"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("99999999"), std::runtime_error);
   ASSERT_THROW(get_tcp_port("abcdef"), std::runtime_error);
+}
+
+class HexDumpTest: public ::testing::Test { };
+
+TEST_F(HexDumpTest, UsingCharArray) {
+  const unsigned char buffer[4] = "abc";
+  EXPECT_EQ("61 62 63 \n", hexdump(buffer, 3, 0));
+}
+
+TEST_F(HexDumpTest, UsingVector) {
+  std::vector<uint8_t> buffer = {'a', 'b', 'c'};
+  EXPECT_EQ("61 62 63 \n", hexdump(&buffer[0], 3, 0));
+}
+
+TEST_F(HexDumpTest, Literals) {
+  const unsigned char buffer[4] = "abc";
+  EXPECT_EQ(" a  b  c \n", hexdump(buffer, 3, 0, true));
+  EXPECT_EQ("61 62 63 \n", hexdump(buffer, 3, 0, false));
+}
+
+TEST_F(HexDumpTest, Count) {
+  const unsigned char buffer[7] = "abcdef";
+  EXPECT_EQ(" a  b  c  d  e  f \n", hexdump(buffer, 6, 0, true));
+  EXPECT_EQ(" a  b  c \n", hexdump(buffer, 3, 0, true));
+}
+
+TEST_F(HexDumpTest, Start) {
+  const unsigned char buffer[7] = "abcdef";
+  EXPECT_EQ(" a  b  c  d  e  f \n", hexdump(buffer, 6, 0, true));
+  EXPECT_EQ(" d  e  f \n", hexdump(buffer, 3, 3, true));
+}
+
+TEST_F(HexDumpTest, MultiLine) {
+  const unsigned char buffer[33] = "abcdefgh12345678ABCDEFGH12345678";
+  EXPECT_EQ(" a  b  c  d  e  f  g  h 31 32 33 34 35 36 37 38\n A  B  C  D  E  F  G  H 31 32 33 34 35 36 37 38\n",
+            hexdump(buffer, 32, 0, true));
 }
 
 class UtilsTests: public ::testing::Test {

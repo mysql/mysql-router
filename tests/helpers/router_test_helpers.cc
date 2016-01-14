@@ -30,6 +30,7 @@ Path get_cmake_source_dir() {
   if (env_value == nullptr) {
     // try a few places
     result = Path(get_cwd()).join("..");
+    result = Path(realpath(result.c_str(), nullptr));
   } else {
     result = Path(realpath(env_value, nullptr));
   }

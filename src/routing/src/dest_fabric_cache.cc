@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ void DestFabricCacheGroup::init() {
   }
 }
 
-int DestFabricCacheGroup::get_server_socket(int connect_timeout) noexcept {
+int DestFabricCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
 
   try {
 
@@ -112,5 +112,7 @@ int DestFabricCacheGroup::get_server_socket(int connect_timeout) noexcept {
   } catch (fabric_cache::base_error) {
     log_error("Failed getting managed servers from Fabric");
   }
+
+  *error = errno;
   return -1;
 }

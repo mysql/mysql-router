@@ -37,6 +37,9 @@ string RoutingPluginConfig::get_default(const string &option) {
       {"bind_address", to_string(routing::kDefaultBindAddress)},
       {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
+      {"max_connect_errors", to_string(routing::kDefaultMaxConnectErrors)},
+      {"client_connect_timeout", to_string(routing::kDefaultClientConnectTimeout)},
+      {"net_buffer_length", to_string(routing::kDefaultNetBufferLength)},
   };
 
   auto it = defaults.find(option);

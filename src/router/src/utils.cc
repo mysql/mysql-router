@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <cassert>
 #include <cstdarg>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <cctype>
 
@@ -222,6 +223,37 @@ void right_trim(string& str) {
 void trim(string& str) {
   left_trim(str);
   right_trim(str);
+}
+
+string hexdump(const unsigned char *buffer, size_t count, long start, bool literals) {
+  std::ostringstream os;
+
+  using std::setfill;
+  using std::setw;
+  using std::hex;
+
+  int w = 16;
+  buffer += start;
+  size_t n = 0;
+  for (const unsigned char *ptr = buffer; n < count; ++n, ++ptr ) {
+    if (literals && ((*ptr >= 0x41 && *ptr <= 0x5a) || (*ptr >= 61 && *ptr <= 0x7a))) {
+      os << setfill(' ') << setw(2) << *ptr;
+    } else {
+      os << setfill('0') << setw(2) << hex << static_cast<int>(*ptr);
+    }
+    if (w == 1) {
+      os << std::endl;
+      w = 16;
+    } else {
+      os << " ";
+      --w;
+    }
+  }
+  // Make sure there is always a new line on the last line
+  if (w < 16) {
+    os << std::endl;
+  }
+  return os.str();
 }
 
 } // namespace mysqlrouter

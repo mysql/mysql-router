@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(../include ../src ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
-  ../../../tests/helpers)
+include_directories(
+  ../include
+  ../src
+  ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
+  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
+  ../../../tests/helpers
+)
 
 add_library(routing_tests SHARED ${ROUTING_SOURCE_FILES})
-target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache)
+target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache mysql_protocol)
 set_target_properties(routing_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing PRIVATE ${include_dirs})

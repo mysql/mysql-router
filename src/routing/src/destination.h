@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,9 +112,11 @@ public:
    * -1 when an error occurred, which means that no destination was
    * available.
    *
+   * @param connect_timeout About of seconds before timing out
+   * @param error Pointer to int for storing errno
    * @return a socket descriptor
    */
-  virtual int get_server_socket(int connect_timeout) noexcept;
+  virtual int get_server_socket(int connect_timeout, int *error) noexcept;
 
   /** @brief Gets the number of destinations
    *

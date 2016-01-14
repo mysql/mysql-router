@@ -163,6 +163,8 @@ class CheckLegal : public ::testing::Test {
 TEST_F(CheckLegal, Copyright) {
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
+  std::vector<std::string> problems;
+
   for (auto &it: g_git_tracked_files) {
     std::ifstream curr_file(it.file.str());
 
@@ -177,7 +179,7 @@ TEST_F(CheckLegal, Copyright) {
           && ends_with(line, "Oracle and/or its affiliates. All rights reserved.")) {
         found = true;
         // Check first year of first commit is in the copyright
-        needle = std::to_string(it.year_first_commit) + ",";
+        needle = "(c) " + std::to_string(it.year_first_commit) + ",";
         if (line.find(needle) == std::string::npos) {
           problem = std::string("First commit year ") + std::to_string(it.year_first_commit)
                     + std::string(" not present");
@@ -198,7 +200,18 @@ TEST_F(CheckLegal, Copyright) {
       problem = "No copyright statement";
     }
 
-    EXPECT_TRUE(problem.empty()) << "Problem in " << it.file << ": " << problem;
+    if (!problem.empty()) {
+      std::string tmp = it.file.str();
+      tmp.erase(0, g_source_dir.str().size() + 1);
+      problems.push_back(tmp + ": " + problem);
+    }
+  }
+
+  if (!problems.empty()) {
+    std::string tmp{"\nCopyright issues in " + g_source_dir.str() + ":\n"};
+    std::ostringstream ostr;
+    std::copy(problems.begin(), problems.end(), std::ostream_iterator<std::string>(ostr, "\n"));
+    EXPECT_TRUE(problems.empty()) << tmp << ostr.str();
   }
 }
 
