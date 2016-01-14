@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -92,8 +92,9 @@ Plugin keepalive = {
   "Keepalive Plugin",
   VERSION_NUMBER(0, 0, 1),
   sizeof(requires)/sizeof(*requires), requires,
-  0, nullptr,
-  init,
-  nullptr,
-  start
+  0, nullptr,  // conflicts
+  init,        // init
+  nullptr,     // deinit
+  start,       // start
+  nullptr,     // stop
 };
