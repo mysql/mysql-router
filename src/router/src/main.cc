@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
   } catch(const std::runtime_error &exc) {
     std::cerr << "Error: " << exc.what() << std::endl;
     return 1;
+  } catch (const syntax_error &exc) {
+    std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
   }
 
   return 0;
