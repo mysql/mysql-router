@@ -404,10 +404,9 @@ void Config::do_read_file(const Path& path)
 void Config::do_read_stream(std::istream& input)
 {
   ConfigSection *current = NULL;
-  char buf[256];
-  while (!input.getline(buf, sizeof(buf)).eof())
+  std::string line;
+  while (getline(input, line))
   {
-    std::string line(buf);
     strip(line);
 
     // Skip empty lines and comment lines.
@@ -487,7 +486,7 @@ void Config::do_read_stream(std::istream& input)
     }
   }
 
-  if (input.gcount() > 0)
+  if (line.size() > 0)
     throw syntax_error("Unterminated last line");
 }
 

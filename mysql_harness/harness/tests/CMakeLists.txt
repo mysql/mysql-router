@@ -55,6 +55,8 @@ add_harness_test(TestUtilities SOURCES test_utilities.cc)
 add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
 add_harness_test(TestConfig SOURCES test_config.cc)
 
+add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
+
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
 foreach(_template ${_templates})
