@@ -117,7 +117,8 @@ string RoutingPluginConfig::get_option_destinations(const ConfigSection *section
 
     mysqlrouter::trim(value);
     if (value.back() == delimiter || value.front() == delimiter) {
-      throw invalid_argument(get_log_prefix(option) + ": empty value found in CSV list (was '" + value + "')");
+      throw invalid_argument(get_log_prefix(option) +
+                                 ": empty address found in destination list (was '" + value + "')");
     }
 
     std::stringstream ss(value);
@@ -126,7 +127,8 @@ string RoutingPluginConfig::get_option_destinations(const ConfigSection *section
     while (std::getline(ss, part, delimiter)) {
       mysqlrouter::trim(part);
       if (part.empty()) {
-        throw invalid_argument(get_log_prefix(option) + ": empty address found in destination list");
+        throw invalid_argument(get_log_prefix(option) +
+                                   ": empty address found in destination list (was '" + value + "')");
       }
       info = mysqlrouter::split_addr_port(part);
       if (info.second == 0) {
