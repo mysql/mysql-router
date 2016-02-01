@@ -129,7 +129,7 @@ void prepare_git_tracked_files() {
     tracked_file = std::string(realpath(tmp_path.c_str(), nullptr));
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
-      os_cmd << "git log --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
+      os_cmd << "git log master --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
       result = cmd_exec(os_cmd.str());
       // Result should contain at least 1 line with a year.
       if (result.output.size() < 10) {
