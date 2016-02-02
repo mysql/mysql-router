@@ -25,8 +25,6 @@ using std::string;
 
 namespace mysql_protocol {
 
-const unsigned int Packet::kMaxAllowedSize = 1073741824;
-
 Packet::Packet(const vector_t &buffer, uint32_t capabilities, bool allow_partial)
     : vector(buffer), sequence_id_(0),
       payload_size_(0), capability_flags_(capabilities) {

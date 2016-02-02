@@ -39,9 +39,6 @@
 #include "mysqlrouter/utils.h"
 #include "logger.h"
 
-using std::cout;
-using std::cerr;
-using std::endl;
 using std::runtime_error;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
@@ -79,6 +76,14 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string
  * This function reads data from the sender socket and writes it back
  * to the receiver socket. It use `select`.
  *
+ * Checking the handshaking is done when the client first connects and
+ * the server sends its handshake. The client replies and the server
+ * should reply with an OK (or Error) packet. This packet should be
+ * packet number 2. For secure connections, however, the client asks
+ * to switch to SSL and we can not check further packages (we can not
+ * decrypt). When SSL switch is detected, this function will set pktnr
+ * to 2, so we assume the handshaking was OK.
+ *
  * @param sender Descriptor of the sender
  * @param receiver Descriptor of the receiver
  * @param readfds Read descriptors used with FD_ISSET
@@ -89,12 +94,12 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string
  * @return 0 on success; -1 on error
  */
 int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
-                                mysql_protocol::Packet::vector &buffer, uint8_t *curr_pktnr,
+                                mysql_protocol::Packet::vector_t &buffer, int *curr_pktnr,
                                 bool handshake_done, size_t *report_bytes_read) {
   assert(curr_pktnr);
   assert(report_bytes_read);
   ssize_t res = 0;
-  uint8_t pktnr = 0;
+  int pktnr = 0;
   auto buffer_length = buffer.size();
 
   size_t bytes_read = 0;
@@ -102,39 +107,39 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
   if (FD_ISSET(sender, readfds)) {
     if ((res = read(sender, &buffer.front(), buffer_length)) <= 0) {
       if (res == -1) {
-        log_debug("sender read failed; aborting (%s)", strerror(errno));
+        log_debug("sender read failed: (%d %s)", errno, strerror(errno));
       }
       return -1;
     }
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
-      // Check packet integrity when handshaking
-      // Make sure we at least 4 bytes. We can't continue with not having the header
-      while (bytes_read < 4) {
-        if ((res = read(sender, &buffer.back(), buffer_length - bytes_read)) <= 0) {
-          log_debug("Reading packet header failed; aborting (%s)", strerror(errno));
-          return -1;
-        }
-        bytes_read += static_cast<size_t>(res);
+      // Check packet integrity when handshaking. When packet number is 2, then we assume
+      // handshaking is satisfied. For secure connections, we stop when client asks to
+      // switch to SSL.
+      // The caller should set handshake_done to true when packet number is 2.
+      if (bytes_read < mysql_protocol::Packet::kHeaderSize) {
+        // We need packet which is at least 4 bytes
+        return -1;
       }
       pktnr = buffer[3];
-      assert(buffer.size() >= 4);
-      if (pktnr != 0 && (pktnr != *curr_pktnr + 1)) {
-        log_debug("Received incorrect packet number; aborting (%s)", strerror(errno));
+      if (*curr_pktnr > 0 && pktnr != *curr_pktnr + 1) {
+        log_debug("Received incorrect packet number; aborting (was %d)", pktnr);
         return -1;
-      } else {
-        auto pkt_size = mysql_protocol::Packet(buffer).get_payload_size() + 4;
-        if (pkt_size > buffer_length) {
-          log_error("Handshake bigger than net buffer length; aborting (was %zu bytes)", pkt_size);
+      }
+
+      // We are dealing with the handshake response from client
+      if (pktnr == 1) {
+        // if client is switching to SSL, we are not continuing any checks
+        uint32_t capabilities = 0;
+        try {
+          auto pkt = mysql_protocol::Packet(buffer);
+          capabilities = pkt.get_int<uint32_t>(4);
+        } catch (const mysql_protocol::packet_error &exc) {
+          log_debug(exc.what());
           return -1;
         }
-        // Read possible more bytes from the writer to complete the packet
-        while (bytes_read < pkt_size) {
-          if ((res = read(sender, &buffer.back(), buffer_length - bytes_read)) <= 0) {
-            log_debug("Read rest of packet failed; aborting (%s)", strerror(errno));
-            return -1;
-          }
-          bytes_read += static_cast<size_t>(res);
+        if (capabilities & mysql_protocol::kClientSSL) {
+          pktnr = 2;  // Setting to 2, we tell the caller that handshaking is done
         }
       }
     }
@@ -184,7 +189,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   size_t bytes_up = 0;
   size_t bytes_read = 0;
   string extra_msg = "";
-  mysql_protocol::Packet::vector buffer(net_buffer_length_);
+  mysql_protocol::Packet::vector_t buffer(net_buffer_length_);
   bool handshake_done = false;
 
   int server = destination_->get_server_socket(destination_connect_timeout_, &error);
@@ -211,7 +216,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 
   nfds = std::max(client, server) + 1;
 
-  uint8_t pktnr = 0;
+  int pktnr = 0;
   while (true) {
     fd_set readfds;
     fd_set errfds;
@@ -242,6 +247,10 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
       break;
     }
 
+    if (!handshake_done && pktnr == 2) {
+      handshake_done = true;
+    }
+
     // Handle traffic from Server to Client
     // Note: Server _always_ talks first
     if (copy_mysql_protocol_packets(server, client,
@@ -252,8 +261,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     }
     bytes_up += bytes_read;
 
-    if (pktnr == 2 && !handshake_done) {
-      // Hanshake looks finished. Packets checked any longer.
+    if (!handshake_done && pktnr == 2) {
       handshake_done = true;
     }
 
