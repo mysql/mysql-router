@@ -38,8 +38,11 @@ class Packet : public std::vector<uint8_t> {
  public:
   using vector_t = std::vector<uint8_t>;
 
-  /** @brief Default of max_allowed_packet defined by the MySQL Server */
-  static const unsigned int kMaxAllowedSize;
+  /** @brief Header length of packets */
+  static const unsigned int kHeaderSize{4};
+
+  /** @brief Default of max_allowed_packet defined by the MySQL Server (2^30) */
+  static const unsigned int kMaxAllowedSize{1073741824};
 
   /** @brief Constructor */
   Packet() : Packet(0, 0) { }

@@ -20,12 +20,24 @@
 
 namespace mysql_protocol {
 
+// Capability flags are prefixed with `CLIENT_`.
+// - See https://dev.mysql.com/doc/internals/en/capability-flags.html
+// - See also MySQL Server source include/mysql_com.h
+// - using uint32_t because transmitted as 4 byte long integer
+
 /** @brief CLIENT_PROTOCOL_41
  *
  * Server: Supports the 4.1 protocol.
  * Client: Uses the 4.1 protocol.
  */
 const uint32_t kClientProtocol41 = 0x00000200;
+
+/** @brief CLIENT_SSL
+ *
+ * Server: Supports SSL.
+ * Client: Switch to SSL.
+ */
+const uint32_t kClientSSL = 0x00000800;
 
 } // mysql_protocol
 
