@@ -158,8 +158,6 @@ endif()
 # Check for basic functions
 find_package(Threads REQUIRED)
 
-include(Coverage)
-
 if(ENABLE_TESTS)
   enable_testing()
   add_subdirectory(shared)
