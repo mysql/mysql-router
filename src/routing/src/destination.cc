@@ -134,7 +134,9 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
         add_to_quarantine(i);
         if (quarantined_.size() == destinations_.size()) {
           log_debug("No more destinations: all quarantined");
+          break;
         }
+        continue; // try another destination
       }
       break;
     }
