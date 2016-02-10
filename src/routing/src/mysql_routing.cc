@@ -32,6 +32,10 @@
 #include <netinet/in.h>
 #include <sstream>
 #include <sys/fcntl.h>
+#include <sys/types.h>
+#undef __FD_SETSIZE
+#define __FD_SETSIZE 4096
+#include <sys/select.h>
 #include <string>
 
 #include "mysqlrouter/fabric_cache.h"
@@ -111,6 +115,7 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
       }
       return -1;
     }
+    errno = 0;
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
       // Check packet integrity when handshaking. When packet number is 2, then we assume
@@ -125,6 +130,17 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
       if (*curr_pktnr > 0 && pktnr != *curr_pktnr + 1) {
         log_debug("Received incorrect packet number; aborting (was %d)", pktnr);
         return -1;
+      }
+
+      if (buffer[4] == 0xff) {
+        // We got error from MySQL Server while handshaking
+        // We do not consider this a failed handshake
+        auto server_error = mysql_protocol::ErrorPacket(buffer);
+        write(receiver, server_error.data(), server_error.size());
+        // receiver socket closed by caller
+        *curr_pktnr = 2; // we assume handshaking is done though there was an error
+        *report_bytes_read = bytes_read;
+        return 0;
       }
 
       // We are dealing with the handshake response from client
@@ -262,7 +278,9 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     if (copy_mysql_protocol_packets(server, client,
                                     &readfds, buffer, &pktnr,
                                     handshake_done, &bytes_read) == -1) {
-      extra_msg = string("Copy server-client failed: " + to_string(strerror(errno)));
+      if (errno > 0) {
+        extra_msg = string("Copy server-client failed: " + to_string(strerror(errno)));
+      }
       break;
     }
     bytes_up += bytes_read;
