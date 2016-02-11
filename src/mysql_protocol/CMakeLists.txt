@@ -24,13 +24,10 @@ set(include_dirs
   include
   )
 
-add_library(mysql_protocol SHARED ${SOURCE_FILES})
-target_link_libraries(mysql_protocol router_lib)
+add_harness_plugin(mysql_protocol
+  SOURCES ${SOURCE_FILES}
+  REQUIRES router_lib logger)
 target_include_directories(mysql_protocol PRIVATE ${include_dirs})
-
-install(TARGETS mysql_protocol
-  LIBRARY DESTINATION ${INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${INSTALL_LIBDIR})
 
 file(GLOB mysqlv10_headers include/mysqlrouter/*.h)
 install(FILES ${mysqlv10_headers}
