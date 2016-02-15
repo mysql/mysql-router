@@ -95,7 +95,7 @@ class Packet : public std::vector<uint8_t> {
   virtual ~Packet() { }
 
   /** @brief Copy Constructor */
-  Packet(const Packet &other) = default;
+  Packet(const Packet&) = default;
 
   /** @brief Move Constructor */
   Packet(Packet &&other) : vector(std::move(other)), sequence_id_(other.get_sequence_id()),
@@ -107,7 +107,7 @@ class Packet : public std::vector<uint8_t> {
   }
 
   /** @brief Copy Assignment */
-  Packet &operator=(const Packet &other) = default;
+  Packet &operator=(const Packet &) = default;
 
   /** @brief Move Assigment */
   Packet &operator=(Packet &&other) {
