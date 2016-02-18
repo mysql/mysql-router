@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,11 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef PLUGIN_INCLUDED
-#define PLUGIN_INCLUDED
+#ifndef MYSQL_HARNESS_PLUGIN_INCLUDED
+#define MYSQL_HARNESS_PLUGIN_INCLUDED
 
 #include <cstdlib>
 #include <cstdint>
+
+namespace mysql_harness {
 
 /* Forward declarations */
 class Config;
@@ -28,6 +30,8 @@ class ConfigSection;
 
 /**
  * Structure with information about the harness.
+ *
+ * @ingroup Loader
  *
  * This structure is made available to plugins so that they can get
  * information about the plugin harness.
@@ -103,6 +107,8 @@ struct AppInfo {
 /**
  * Structure containing information about the plugin.
  *
+ * @ingroup Loader
+ *
  * The name of the plugin is give by the filename.
  */
 
@@ -118,7 +124,16 @@ struct Plugin {
    *
    * The least significant byte contain the minor version, the second
    * least significant byte contain the major version of the
-   * interface.
+   * interface. The most significant two bytes are unused and should
+   * be set to zero.
+   *
+   * @note Whenever new callbacks are added but none of the existing
+   * ones are changed, the minor version will be stepped. If the
+   * existing functions are changed in an incompatible way (something
+   * that could break the calling conventions for a platform), the
+   * major version will be stepped. Typically, the major version have
+   * to be stepped whenever parameters to existing functions are
+   * changed, but there are exceptions.
    *
    * @see PLUGIN_ABI_VERSION
    */
@@ -142,7 +157,7 @@ struct Plugin {
    * - CPU
    * - Operating system
    * - Naming scheme and calling conventions (essentially the compiler
-   *   being used to build the solution).
+   *   and version of compiler being used to build the solution).
    * - Runtime
    *
    * @see ARCHITECTURE_DESCRIPTOR
@@ -250,11 +265,27 @@ struct Plugin {
    */
 
   void (*start)(const ConfigSection* section);
+
+
+  /**
+   * Module thread stop function.
+   *
+   * If this field is non-NULL, the plugin can handle forced stop. The
+   * stop functions of different plugins are called in an arbitrary
+   * order, so no expectations on the stop order should be made.
+   *
+   * @param section Pointer to the section that is being stopped. You
+   * can find both the name and the key in this class.
+   */
+
+  void (*stop)(const ConfigSection* section);
 };
 
 
 /**
  * Current version of the library.
+ *
+ * @ingroup Loader
  *
  * This constant is the version of the plugin interface in use. This
  * should be used when initializing the module structure.
@@ -262,15 +293,19 @@ struct Plugin {
  * @see Plugin
  */
 
-const uint32_t PLUGIN_ABI_VERSION = 0x0100;
+const uint32_t PLUGIN_ABI_VERSION = 0x0101;
 
 /**
  * Default architecture descriptor.
+ *
+ * @ingroup Loader
  */
-const char* const ARCHITECTURE_DESCRIPTOR = "@HARNESS_ARCH_CPU@/@HARNESS_ARCH_OS@/@HARNESS_ARCH_COMPILER@/@HARNESS_ARCH_RUNTIME@";
+const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HARNESS_ARCH_OS@/@MYSQL_HARNESS_ARCH_COMPILER@/@MYSQL_HARNESS_ARCH_RUNTIME@";
 
 /**
  * Macro to create a version number from a major and minor version.
+ *
+ * @ingroup Loader
  */
 #define VERSION_NUMBER(MAJ, MIN, PAT) \
   ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
@@ -279,4 +314,6 @@ const char* const ARCHITECTURE_DESCRIPTOR = "@HARNESS_ARCH_CPU@/@HARNESS_ARCH_OS
 #define VERSION_MINOR(VER) (((VER) >> 16) & 0xFF)
 #define VERSION_PATCH(VER) ((VER) & 0xFFFF)
 
-#endif /* PLUGIN_INCLUDED */
+}
+
+#endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */

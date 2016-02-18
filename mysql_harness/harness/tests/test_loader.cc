@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,10 @@
 #include "utilities.h"
 
 ////////////////////////////////////////
+// Test plugin include files
+#include "magic.h"
+
+////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
 
@@ -41,6 +45,11 @@
 
 using std::cout;
 using std::endl;
+
+using mysql_harness::Loader;
+using mysql_harness::Path;
+using mysql_harness::Plugin;
+using mysql_harness::bad_section;
 
 Path g_here;
 
@@ -117,6 +126,16 @@ INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest, ::testing::ValuesIn(good
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
+}
+
+TEST(TestStart, StartFailure) {
+  std::map<std::string, std::string> params;
+  params["program"] = "harness";
+  params["prefix"] = g_here.c_str();
+
+  Loader loader("harness", params);
+  loader.read(g_here.join("data/tests-start-1.cfg"));
+  EXPECT_THROW(loader.start(), bad_suki);
 }
 
 const char *bad_cfgs[] = {

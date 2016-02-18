@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,9 @@
 using std::cout;
 using std::endl;
 using std::back_inserter;
+
+using mysql_harness::Path;
+using mysql_harness::Directory;
 
 Path g_here;
 
@@ -123,6 +126,7 @@ TEST(TestFilesystem, TestDirectory)
       g_here.join("data/tests-bad-3.cfg"),
       g_here.join("data/tests-good-1.cfg"),
       g_here.join("data/tests-good-2.cfg"),
+      g_here.join("data/tests-start-1.cfg"),
       g_here.join("data/magic-alt.cfg"),
     };
 

@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef CONFIG_PARSER_INCLUDED
-#define CONFIG_PARSER_INCLUDED
+#ifndef MYSQL_HARNESS_CONFIG_PARSER_INCLUDED
+#define MYSQL_HARNESS_CONFIG_PARSER_INCLUDED
 
 #include <functional>
 #include <list>
@@ -25,11 +25,15 @@
 #include <vector>
 #include <stdexcept>
 
+namespace mysql_harness {
+
 class ConfigSection;
 class Path;
 
 /**
  * Exception thrown for syntax errors.
+ *
+ * @ingroup ConfigParser
  */
 
 class syntax_error : public std::logic_error {
@@ -42,6 +46,8 @@ public:
 
 /**
  * Exception thrown for section problems.
+ *
+ * @ingroup ConfigParser
  */
 
 class bad_section : public std::runtime_error
@@ -56,6 +62,8 @@ public:
 
 /**
  * Exception thrown for option problems.
+ *
+ * @ingroup ConfigParser
  */
 
 class bad_option : public std::runtime_error
@@ -70,6 +78,8 @@ public:
 
 /**
  * Configuration section.
+ *
+ * @ingroup ConfigParser
  *
  * A named configuration file section with a zero or more
  * configuration file options.
@@ -138,6 +148,8 @@ private:
 
 /**
  * Configuration.
+ *
+ * @ingroup ConfigParser
  *
  * A configuration consisting of named configuration sections.
  *
@@ -381,4 +393,6 @@ protected:
   unsigned int flags_;
 };
 
-#endif /* CONFIG_PARSER_INCLUDED */
+}
+
+#endif /* MYSQL_HARNESS_CONFIG_PARSER_INCLUDED */

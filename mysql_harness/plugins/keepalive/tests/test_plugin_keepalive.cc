@@ -37,7 +37,10 @@
 using std::cout;
 using std::endl;
 
-std::string g_here;
+using mysql_harness::Loader;
+using mysql_harness::Path;
+
+Path g_here;
 
 class KeepalivePluginTest : public ::testing::Test {
 protected:

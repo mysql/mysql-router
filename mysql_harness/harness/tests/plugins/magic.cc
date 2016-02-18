@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,12 +15,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "magic.h"
+
 #include "plugin.h"
 #include "logger.h"
 #include "config_parser.h"
 
 #include <cstdlib>
 #include <iostream>
+
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+using mysql_harness::AppInfo;
+using mysql_harness::ConfigSection;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::Plugin;
 
 const AppInfo* g_info;
 const ConfigSection* g_section;
@@ -36,6 +44,11 @@ void do_magic() {
   log_info("%s", message.c_str());
 }
 
+static void start(const ConfigSection* section) {
+  if (section->get("suki") == "bad")
+    throw bad_suki("The suki was bad, please throw away");
+}
+
 Plugin harness_plugin_magic = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
@@ -46,6 +59,7 @@ Plugin harness_plugin_magic = {
   0,
   nullptr,
   init,
-  nullptr,                                      // deinit
-  nullptr,                                      // start
+  nullptr,  // deinit
+  start,    // start
+  nullptr,  // stop
 };

@@ -39,6 +39,8 @@ namespace {
   const std::string extsep(".");
 }
 
+namespace mysql_harness {
+
 void Path::validate_non_empty_path() const {
   if (type_ == FileType::EMPTY_PATH)
     throw std::invalid_argument("Empty path");
@@ -317,4 +319,6 @@ Path::make_path(const Path& dir,
                 const std::string& ext)
 {
   return dir.join(base + extsep + ext);
+}
+
 }

@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef UTILITIES_INCLUDED
-#define UTILITIES_INCLUDED
+#ifndef MYSQL_HARNESS_UTILITIES_INCLUDED
+#define MYSQL_HARNESS_UTILITIES_INCLUDED
 
 #include <string>
 
@@ -199,4 +199,4 @@ find_range_first(const Map& assoc,
 
 void strip(std::string& str, const char* chars = " \t\n\r\f\v");
 
-#endif /* UTILITIES_INCLUDED */
+#endif /* MYSQL_HARNESS_UTILITIES_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,25 +15,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef LOADER_INCLUDED
-#define LOADER_INCLUDED
+#ifndef MYSQL_HARNESS_LOADER_INCLUDED
+#define MYSQL_HARNESS_LOADER_INCLUDED
 
 #include "config_parser.h"
 #include "filesystem.h"
 #include "plugin.h"
 
+#include <exception>
+#include <future>
 #include <istream>
 #include <list>
 #include <map>
-#include <thread>
+#include <queue>
 #include <set>
 #include <string>
+
+namespace mysql_harness {
 
 struct Plugin;
 class Path;
 
 /**
  * Configuration file handler for the loader.
+ *
+ * @ingroup Loader
  *
  * Specialized version of the config file read that do some extra
  * checks after reading the configuration file.
@@ -57,6 +63,8 @@ public:
 
 /**
  * Loader class.
+ *
+ * @ingroup Loader
  *
  * The loader class is responsible for managing the life-cycle of
  * plugins in the harness. Each plugin goes through five steps in the
@@ -224,6 +232,7 @@ private:
   void setup_info();
   void init_all();
   void start_all();
+  void stop_all();
   void deinit_all();
 
   /**
@@ -250,7 +259,7 @@ private:
   };
 
   typedef std::map<std::string, PluginInfo> PluginMap;
-  typedef std::vector<std::thread> SessionList;
+  typedef std::vector<std::future<std::exception_ptr>> SessionList;
 
   // Init order is important, so keep config_ first.
 
@@ -269,6 +278,10 @@ private:
    */
   SessionList sessions_;
 
+  std::queue<size_t> done_sessions_;
+  std::mutex done_mutex_;
+  std::condition_variable done_cond_;
+
   /**
    * Initialization order.
    */
@@ -282,4 +295,6 @@ private:
   AppInfo appinfo_;
 };
 
-#endif /* LOADER_INCLUDED */
+}
+
+#endif /* MYSQL_HARNESS_LOADER_INCLUDED */

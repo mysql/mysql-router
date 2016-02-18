@@ -15,37 +15,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "plugin.h"
+#ifndef MAGIC_INCLUDED
+#define MAGIC_INCLUDED
 
-using mysql_harness::AppInfo;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+#include <stdexcept>
 
-static const char* requires[] = {
-  // This plugin do not exist
-  "foobar",
+class bad_suki : public std::runtime_error {
+ public:
+  explicit bad_suki(const std::string& msg) : std::runtime_error(msg) {}
 };
 
-static int init(const AppInfo*) {
-  return 0;
-}
-
-static int deinit(const AppInfo*) {
-  return 0;
-}
-
-Plugin bad_one = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "A bad plugin",
-  VERSION_NUMBER(1,0,0),
-  sizeof(requires)/sizeof(*requires),
-  requires,
-  0,
-  nullptr,
-  init,
-  deinit,
-  nullptr,  // start
-  nullptr,  // stop
-};
+#endif /* MAGIC_INCLUDED */

@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef DESIGNATOR_INCLUDED
-#define DESIGNATOR_INCLUDED
+#ifndef MYSQL_HARNESS_DESIGNATOR_INCLUDED
+#define MYSQL_HARNESS_DESIGNATOR_INCLUDED
 
 #include <string>
 #include <vector>
@@ -159,4 +159,4 @@ private:
 
 };
 
-#endif /* DESIGNATOR_INCLUDED */
+#endif /* MYSQL_HARNESS_DESIGNATOR_INCLUDED */

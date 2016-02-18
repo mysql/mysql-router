@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef FILESYSTEM_INCLUDED
-#define FILESYSTEM_INCLUDED
+#ifndef MYSQL_HARNESS_FILESYSTEM_INCLUDED
+#define MYSQL_HARNESS_FILESYSTEM_INCLUDED
 
 #include <string>
 
@@ -25,10 +25,12 @@
 /**
  * @defgroup Filesystem Platform-independent file system operations
  *
- * Abstractions for file system operations.
+ * This module contain platform-independent file system operations.
  */
 
-/**
+namespace mysql_harness {
+
+/** @ingroup Filesystem
  * Class representing a path in a file system.
  *
  * Paths are used to access files in the file system and can be either
@@ -233,6 +235,8 @@ private:
 /**
  * Class representing a directory in a file system.
  *
+ * @ingroup Filesystem
+ *
  * In addition to being a refinement of `Path`, it also have functions
  * that make it act like a container of paths and support iterating
  * over the entries in a directory.
@@ -286,8 +290,9 @@ public:
 
   /**
    * Construct a directory instance.
-   * 
-   * Construct a directory instance in different ways depending on the version of the constructor used.
+   *
+   * Construct a directory instance in different ways depending on the
+   * version of the constructor used.
    */
   Directory(const std::string& path)
     : Path(path)
@@ -320,4 +325,6 @@ public:
   DirectoryIterator glob(const std::string& glob);
 };
 
-#endif /* FILESYSTEM_INCLUDED */
+}
+
+#endif /* MYSQL_HARNESS_FILESYSTEM_INCLUDED */

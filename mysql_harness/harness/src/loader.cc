@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,17 +30,27 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <exception>
 #include <map>
+#include <queue>
 #include <set>
-#include <string>
-#include <vector>
 #include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include <dlfcn.h>
 #include <unistd.h>
 
+/**
+ * @defgroup Loader Plugin loader
+ *
+ * Plugin loader for loading and working with plugins.
+ */
+
 using std::ostringstream;
+
+namespace mysql_harness {
 
 void LoaderConfig::fill_and_check()
 {
@@ -158,7 +168,12 @@ Plugin* Loader::load_from(const std::string& plugin_name,
   if ((plugin->abi_version & 0xFF00) != (PLUGIN_ABI_VERSION & 0xFF00) ||
       (plugin->abi_version & 0xFF) > (PLUGIN_ABI_VERSION & 0xFF))
   {
-    throw bad_plugin("Bad ABI version");
+    ostringstream buffer;
+    buffer.setf(std::ios::hex, std::ios::basefield);
+    buffer.setf(std::ios::showbase);
+    buffer << "Bad ABI version - plugin version: " << plugin->abi_version
+           << ", loader version: " << PLUGIN_ABI_VERSION;
+    throw bad_plugin(buffer.str());
   }
 
   // Recursively load dependent modules, we skip NULL entries since
@@ -288,19 +303,60 @@ void Loader::init_all()
 void Loader::start_all()
 {
   // Start all the threads
-  for (auto&& section: config_.sections())
-  {
+  int stoppable_jobs = 0;
+  for (auto&& section: config_.sections()) {
     auto& plugin = plugins_.at(section->name);
     void (*fptr)(const ConfigSection*) = plugin.plugin->start;
-    if (fptr)
-      sessions_.push_back(std::thread(fptr, section));
+    if (fptr) {
+      auto dispatch = [&section,fptr,this](size_t position){
+        std::exception_ptr eptr;
+        try {
+          fptr(section);
+        } catch (...) {
+          eptr = std::current_exception();
+        }
+
+        {
+          std::lock_guard<std::mutex> lock(done_mutex_);
+          done_sessions_.push(position);
+        }
+
+        done_cond_.notify_all();
+        return eptr;
+      };
+      auto fut = std::async(std::launch::async, dispatch, sessions_.size());
+      sessions_.push_back(std::move(fut));
+      if (plugin.plugin->stop == nullptr)
+        ++stoppable_jobs;
+    }
   }
 
-  // Reap all the threads
-  for (auto&& session : sessions_)
-  {
-    assert(session.joinable());
-    session.join();
+  std::exception_ptr except;
+  while (stoppable_jobs-- > 0) {
+    std::unique_lock<std::mutex> lock(done_mutex_);
+    done_cond_.wait(lock, [this]{ return done_sessions_.size() > 0; });
+    auto idx = done_sessions_.front();
+    done_sessions_.pop();
+    std::exception_ptr eptr = sessions_[idx].get();
+    if (eptr && !except) {
+      stop_all();
+      except = eptr;
+    }
+  }
+
+  // We just throw the first exception that was raised. If there are
+  // other exceptions, they are ignored.
+  if (except)
+    std::rethrow_exception(except);
+}
+
+void Loader::stop_all() {
+  for (auto&& section: config_.sections()) {
+    auto& plugin = plugins_.at(section->name);
+    void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
+    if (fptr) {
+      fptr(section);
+    }
   }
 }
 
@@ -312,6 +368,7 @@ void Loader::deinit_all() {
       info.plugin->deinit(&appinfo_);
   }
 }
+
 
 enum {
   UNVISITED,
@@ -375,4 +432,6 @@ void Loader::add_logger(const std::string& default_level) {
     section.add("library", "logger");
     section.add("level", default_level);
   }
+}
+
 }

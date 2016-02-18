@@ -34,6 +34,13 @@
 #include <iostream>
 #include <sstream>
 
+using mysql_harness::Config;
+using mysql_harness::Path;
+using mysql_harness::ConfigSection;
+using mysql_harness::bad_section;
+using mysql_harness::bad_option;
+
+namespace mysql_harness {
 
 bool operator==(const Config& lhs, const Config& rhs)
 {
@@ -57,6 +64,8 @@ bool operator==(const Config& lhs, const Config& rhs)
 
   // Compare the elements of the sorted vectors
   return std::equal(lhs_vec.begin(), lhs_vec.end(), rhs_vec.begin());
+}
+
 }
 
 void PrintTo(const Config& config, std::ostream& out) {

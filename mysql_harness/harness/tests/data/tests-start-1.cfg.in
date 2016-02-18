@@ -1,0 +1,13 @@
+[DEFAULT]
+logging_folder = {prefix}/var/log/{program}
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
+runtime_folder = {prefix}/var/run/{program}
+config_folder = {prefix}/var/run/{program}
+
+[logger]
+library = logger
+
+[magic]
+library = magic
+message = It is some kind of magic
+suki = bad

@@ -34,6 +34,9 @@
 #include <cstring>
 #include <string>
 
+using mysql_harness::Path;
+using mysql_harness::Loader;
+
 static void
 print_usage_and_exit(int, char *argv[],
                      const std::string& message = "")

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,12 @@
 #include <cstdlib>
 
 #include <unistd.h>
+
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+using mysql_harness::AppInfo;
+using mysql_harness::ConfigSection;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::Plugin;
 
 static const char* requires[] = {
   "magic (>>1.0)",
@@ -53,9 +59,10 @@ Plugin example_plugin = {
   sizeof(requires)/sizeof(*requires),
   requires,
   0,
-  nullptr,
-  init,
-  deinit,
-  start,
+  nullptr,  // conflicts
+  init,     // init
+  deinit,   // deinit
+  start,    // start
+  nullptr,  // stop
 };
 
