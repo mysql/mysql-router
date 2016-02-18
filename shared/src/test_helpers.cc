@@ -22,7 +22,7 @@
 ::testing::AssertionResult
 AssertLoaderSectionAvailable(const char *loader_expr,
                              const char *section_expr,
-                             Loader* loader,
+                             mysql_harness::Loader* loader,
                              const std::string& section_name)
 {
   auto lst = loader->available();

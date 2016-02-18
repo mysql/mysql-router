@@ -15,20 +15,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef HELPERS_INCLUDED
-#define HELPERS_INCLUDED
+#ifndef MYSQL_HARNESS_HELPERS_INCLUDED
+#define MYSQL_HARNESS_HELPERS_INCLUDED
 
 // Third-party headers
 #include "gtest/gtest.h"
+
+#include "loader.h"
 
 // Standard headers
 #include <algorithm>
 #include <string>
 #include <vector>
 #include <list>
-
-// Forward declarations
-class Loader;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
@@ -96,10 +95,10 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
 ::testing::AssertionResult
 AssertLoaderSectionAvailable(const char *loader_expr,
                              const char *section_expr,
-                             Loader* loader,
+                             mysql_harness::Loader* loader,
                              const std::string& section_name);
 
 #define EXPECT_SECTION_AVAILABLE(S, L)  \
   EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
 
-#endif /* HELPERS_INCLUDED */
+#endif /* MYSQL_HARNESS_HELPERS_INCLUDED */

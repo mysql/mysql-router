@@ -9,7 +9,7 @@ life-cycles.
 For the avoidance of doubt, this particular copy of the software is
 released under the version 2 of the GNU General Public License.
 
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
 Building
 --------
@@ -51,12 +51,17 @@ harness, the harness library, the header files for writing plugins,
 and the available plugins that were not marked with `NO_INSTALL` (see
 below).
 
+If you want to provide a different install prefix, you can do that by
+setting the `CMAKE_INSTALL_PREFIX`:
+
+    cmake . -DCMAKE_INSTALL_PREFIX=~/tmp
+
 
 Running
 -------
 
 To start the harness, you need a configuration file. You can find an
-example in `data/main.cfg`:
+example in `data/main.ini`:
 
     # Example configuration file
 
@@ -80,7 +85,7 @@ in to all plugins.
 To run the harness, just provide the configuration file as the only
 argument:
 
-    harness /etc/mysql/harness/main.cfg
+    harness /etc/mysql/harness/main.ini
 
 Note that the harness read directories for logging, configuration,
 etc. from the configuration file so you have to make sure these are
