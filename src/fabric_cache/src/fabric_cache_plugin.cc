@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ using mysqlrouter::TCPAddress;
 using std::string;
 
 
-const AppInfo *g_app_info;
+const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "fabric_cache";
 
 static const char *kRoutingRequires[] = {
@@ -84,7 +84,7 @@ const string prompt_password(const string &prompt) {
   return result;
 }
 
-static int init(const AppInfo *info) {
+static int init(const mysql_harness::AppInfo *info) {
   g_app_info = info;
 
   if (info && info->config) {
@@ -121,7 +121,7 @@ static int init(const AppInfo *info) {
   return 0;
 }
 
-static void start(const ConfigSection *section) {
+static void start(const mysql_harness::ConfigSection *section) {
   string name_tag = string();
 
   if (!section->key.empty()) {
@@ -153,14 +153,15 @@ static void start(const ConfigSection *section) {
   }
 }
 
-Plugin harness_plugin_fabric_cache = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+mysql_harness::Plugin harness_plugin_fabric_cache = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Fabric Cache, managing information fetched from MySQL Fabric",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
     0, NULL,                                      // Conflicts
     init,
     NULL,
-    start                                        // start
+    start,                                       // start
+    NULL                                         // stop
 };

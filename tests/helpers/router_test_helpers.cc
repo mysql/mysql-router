@@ -24,6 +24,8 @@
 #include <cstring>
 #include <unistd.h>
 
+using mysql_harness::Path;
+
 Path get_cmake_source_dir() {
   char *env_value = std::getenv("CMAKE_SOURCE_DIR");
   Path result;

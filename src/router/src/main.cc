@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   } catch(const std::runtime_error &exc) {
     std::cerr << "Error: " << exc.what() << std::endl;
     return 1;
-  } catch (const syntax_error &exc) {
+  } catch (const mysql_harness::syntax_error &exc) {
     std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
   }
 

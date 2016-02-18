@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ public:
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const Path& origin, const vector<string>& arguments);
+  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments);
 
   /** @brief Constructor with command line arguments
    *
@@ -348,7 +348,7 @@ private:
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;
   /** @brief Harness loader **/
-  std::unique_ptr<Loader> loader_;
+  std::unique_ptr<mysql_harness::Loader> loader_;
   /** @brief Whether the MySQLRouter can start or not **/
   bool can_start_;
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
@@ -360,7 +360,7 @@ private:
    * This variable contain the directory that the executable is
    * running from.
    */
-  Path origin_;
+  mysql_harness::Path origin_;
 };
 
 #endif // ROUTER_MYSQL_ROUTER_INCLUDED

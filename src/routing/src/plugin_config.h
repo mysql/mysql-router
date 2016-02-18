@@ -44,7 +44,7 @@ public:
    *
    * @param section from configuration file provided as ConfigSection
    */
-  RoutingPluginConfig(const ConfigSection *section)
+  RoutingPluginConfig(const mysql_harness::ConfigSection *section)
       : BasePluginConfig(section),
         destinations(get_option_destinations(section, "destinations")),
         bind_port(get_option_tcp_port(section, "bind_port")),
@@ -82,8 +82,8 @@ public:
 protected:
 
 private:
-  routing::AccessMode get_option_mode(const ConfigSection *section, const string &option);
-  string get_option_destinations(const ConfigSection *section, const string &option);
+  routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const string &option);
+  string get_option_destinations(const mysql_harness::ConfigSection *section, const string &option);
 };
 
 #endif // PLUGIN_CONFIG_ROUTING_INCLUDED

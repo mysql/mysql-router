@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,25 +26,28 @@
 #include "gmock/gmock.h"
 
 class Bug22062859 : public ::testing::Test {
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  virtual void SetUp() { }
+
+  virtual void TearDown() { }
 };
 
 TEST_F(Bug22062859, IgnoreSpacesInDestinations) {
   std::stringstream c;
 
   c << "[routing:c]\n"
-    << "bind_address = 127.0.0.1:7006\n"
-    << "destinations = localhost:13005,localhost:13003, localhost:13004"
-    << ",   localhost:1300,   localhost  ,localhost , localhost         \n"
-    << "mode = read-only\n";
+  << "bind_address = 127.0.0.1:7006\n"
+  << "destinations = localhost:13005,localhost:13003, localhost:13004"
+  << ",   localhost:1300,   localhost  ,localhost , localhost         \n"
+  << "mode = read-only\n";
 
-  Config config(Config::allow_keys);
+  mysql_harness::Config config(mysql_harness::Config::allow_keys);
   std::istringstream input(c.str());
   config.read(input);
 
-  EXPECT_NO_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  });
+  EXPECT_NO_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }
+  );
 }

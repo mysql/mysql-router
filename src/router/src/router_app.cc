@@ -41,7 +41,7 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
+MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
       showing_info_(false), origin_(origin)
@@ -50,7 +50,7 @@ MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
 }
 
 MySQLRouter::MySQLRouter(const int argc, char **argv)
-    : MySQLRouter(Path(argv[0]).dirname(),
+    : MySQLRouter(mysql_harness::Path(argv[0]).dirname(),
                   vector<string>({argv + 1, argv + argc}))
 {
 }
@@ -96,18 +96,18 @@ void MySQLRouter::start() {
   auto pid_file_env = std::getenv("ROUTER_PID");
   if (pid_file_env != nullptr) {
     pid_file_path_ = pid_file_env;
-    Path pid_file_path(pid_file_path_);
+    mysql_harness::Path pid_file_path(pid_file_path_);
     if (pid_file_path.is_regular()) {
       throw std::runtime_error(string_format("PID file %s found. Already running?", pid_file_path_.c_str()));
     }
   }
 
   try {
-    loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
+    loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("mysqlrouter", params));
     for (auto &&config_file: available_config_files_) {
-      loader_->read(Path(config_file));
+      loader_->read(mysql_harness::Path(config_file));
     }
-  } catch (const syntax_error &err) {
+  } catch (const mysql_harness::syntax_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
@@ -127,7 +127,7 @@ void MySQLRouter::start() {
   }
   loader_->add_logger("INFO");
 
-  std::list<Config::SectionKey> plugins = loader_->available();
+  std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
   if (plugins.size() < 2) {
     std::cout << "MySQL Router not configured to load or start any plugin. Exiting." << std::endl;
     return;

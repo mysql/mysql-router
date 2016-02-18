@@ -30,14 +30,14 @@
 using std::string;
 using mysqlrouter::URIError;
 
-const AppInfo *g_app_info;
+const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
 
 const char *kRoutingRequires[1] = {
     "logger",
 };
 
-static int init(const AppInfo *info) {
+static int init(const mysql_harness::AppInfo *info) {
   if (info->config != nullptr) {
     bool have_fabric_cache = false;
     bool need_fabric_cache = false;
@@ -110,7 +110,7 @@ static int init(const AppInfo *info) {
   return 0;
 }
 
-static void start(const ConfigSection *section) {
+static void start(const mysql_harness::ConfigSection *section) {
   string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
@@ -138,14 +138,15 @@ static void start(const ConfigSection *section) {
   }
 }
 
-Plugin harness_plugin_routing = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+mysql_harness::Plugin harness_plugin_routing = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Routing MySQL connections between MySQL clients/connectors and servers",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
     0, nullptr,                                  // Conflicts
     init,
     nullptr,
-    start                                        // start
+    start,                                       // start
+    nullptr                                      // stop
 };

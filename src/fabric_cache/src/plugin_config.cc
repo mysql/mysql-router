@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ bool FabricCachePluginConfig::is_required(const string &option) {
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
-mysqlrouter::TCPAddress FabricCachePluginConfig::get_option_tcp_address(const ConfigSection *section,
+mysqlrouter::TCPAddress FabricCachePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                                         const string &option,
                                                                         uint16_t default_port) {
   auto value = get_option_string(section, option);

@@ -42,13 +42,13 @@ using ::testing::NotNull;
 using ::testing::StrEq;
 
 // define what is available in routing_plugin.cc
-extern Plugin harness_plugin_routing;
-extern const AppInfo *g_app_info;
+extern mysql_harness::Plugin harness_plugin_routing;
+extern const mysql_harness::AppInfo *g_app_info;
 extern const char *kRoutingRequires[1];
 
-int init(const AppInfo *info);
+int init(const mysql_harness::AppInfo *info);
 
-void start(const ConfigSection *section);
+void start(const mysql_harness::ConfigSection *section);
 
 string g_cwd;
 Path g_origin;
@@ -147,7 +147,7 @@ TEST_F(RoutingPluginTests, PluginConstants) {
 }
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, static_cast<uint32_t>(0x0100));
+  ASSERT_EQ(harness_plugin_routing.abi_version, static_cast<uint32_t>(0x0101));
   ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
   ASSERT_EQ(harness_plugin_routing.requires_length, static_cast<size_t>(1));
   ASSERT_THAT(harness_plugin_routing.requires[0], StrEq("logger"));
@@ -161,7 +161,7 @@ TEST_F(RoutingPluginTests, PluginObject) {
 TEST_F(RoutingPluginTests, InitAppInfo) {
   ASSERT_THAT(g_app_info, IsNull());
 
-  AppInfo test_app_info{
+  mysql_harness::AppInfo test_app_info{
       program.c_str(),
       plugindir.c_str(),
       logdir.c_str(),

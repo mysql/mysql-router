@@ -28,6 +28,8 @@
 
 #include "gmock/gmock.h"
 
+using mysql_harness::Path;
+
 struct GitInfo {
   Path file;
   int year_first_commit;

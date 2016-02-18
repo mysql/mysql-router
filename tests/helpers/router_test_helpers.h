@@ -24,7 +24,7 @@
  *
  * @return mysql_harness::Path
  */
-Path get_cmake_source_dir();
+mysql_harness::Path get_cmake_source_dir();
 
 /** @brief Gets environment variable as path
  *
@@ -37,7 +37,7 @@ Path get_cmake_source_dir();
  * @param Path Alternative Path when environment variable is not available
  * @return mysql_harness::Path
  */
-Path get_envvar_path(const std::string &envvar, Path alternative);
+mysql_harness::Path get_envvar_path(const std::string &envvar, mysql_harness::Path alternative);
 
 /** @brief Returns the current working directory
  *

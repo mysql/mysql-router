@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ using std::invalid_argument;
 
 namespace mysqlrouter {
 
-string BasePluginConfig::get_section_name(const ConfigSection *section) const noexcept {
+string BasePluginConfig::get_section_name(const mysql_harness::ConfigSection *section) const noexcept {
   auto name = section->name;
   if (!section->key.empty()) {
     name += ":" + section->key;
@@ -29,13 +29,13 @@ string BasePluginConfig::get_section_name(const ConfigSection *section) const no
   return name;
 }
 
-string BasePluginConfig::get_option_string(const ConfigSection *section, const string &option) {
+string BasePluginConfig::get_option_string(const mysql_harness::ConfigSection *section, const string &option) {
   bool required = is_required(option);
   string value;
 
   try {
     value = section->get(option);
-  } catch (const bad_option &exc) {
+  } catch (const mysql_harness::bad_option &exc) {
     if (required) {
       throw invalid_argument(get_log_prefix(option) + " is required");
     }
@@ -55,7 +55,7 @@ string BasePluginConfig::get_log_prefix(const string &option) const noexcept {
   return "option " + option + " in [" + section_name + "]";
 }
 
-TCPAddress BasePluginConfig::get_option_tcp_address(const ConfigSection *section,
+TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                     const string &option,
                                                     bool require_port,
                                                     int default_port) {
@@ -82,7 +82,7 @@ TCPAddress BasePluginConfig::get_option_tcp_address(const ConfigSection *section
 
 }
 
-int BasePluginConfig::get_option_tcp_port(const ConfigSection *section,
+int BasePluginConfig::get_option_tcp_port(const mysql_harness::ConfigSection *section,
                                           const string &option) {
   auto value = get_option_string(section, option);
 

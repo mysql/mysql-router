@@ -60,21 +60,21 @@ public:
    * @param section Instance of ConfigSection
    * @return Option value as std::string
    */
-  string get_option_string(const ConfigSection *section, const string &option);
+  string get_option_string(const mysql_harness::ConfigSection *section, const string &option);
 
   /** @brief Name of the section */
   string section_name;
 
 protected:
   /** @brief Constructor for derived classes */
-  BasePluginConfig(const ConfigSection *section) : section_name(get_section_name(section)) {}
+  BasePluginConfig(const mysql_harness::ConfigSection *section) : section_name(get_section_name(section)) {}
 
   /** @brief Generate the name for this configuration
    *
    * @param section Instance of ConfigSection
    * @return the name for this configuration
    */
-  virtual string get_section_name(const ConfigSection *) const noexcept;
+  virtual string get_section_name(const mysql_harness::ConfigSection *) const noexcept;
 
   /** @brief Gets the default for the given option
    *
@@ -126,7 +126,7 @@ protected:
    * @return mysqlrouter::TCPAddress
    */
   template<typename T>
-  T get_uint_option(const ConfigSection *section, const string &option,
+  T get_uint_option(const mysql_harness::ConfigSection *section, const string &option,
                     T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
     string value = get_option_string(section, option);
 
@@ -161,10 +161,10 @@ protected:
    * @param require_port Whether a TCP port is required
    * @return mysqlrouter::TCPAddress
    */
-  TCPAddress get_option_tcp_address(const ConfigSection *section, const string &option,
+  TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const string &option,
                                     bool require_port = false, int default_port = -1);
 
-  int get_option_tcp_port(const ConfigSection *section, const string &option);
+  int get_option_tcp_port(const mysql_harness::ConfigSection *section, const string &option);
 
 };
 
