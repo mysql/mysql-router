@@ -320,7 +320,7 @@ void MySQLRouting::start() {
   struct sockaddr_in6 client_addr;
   socklen_t sin_size = sizeof client_addr;
   char client_ip[INET6_ADDRSTRLEN];
-  int opt_nodelay = 0;
+  int opt_nodelay = 1;
 
   try {
     setup_service();

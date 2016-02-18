@@ -85,7 +85,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 
   struct addrinfo *servinfo, *info, hints;
 
-  int opt_nodelay = 0;
+  int opt_nodelay = 1;
   int res;
   int so_error = 0;
   int sock = -1;
