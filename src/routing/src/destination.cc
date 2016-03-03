@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ void RouteDestination::clear() {
   destinations_.clear();
 }
 
-int RouteDestination::get_server_socket(int connect_timeout) noexcept {
+int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
 
   if (destinations_.empty()) {
     return -1;  // no destination is available
@@ -109,8 +109,11 @@ int RouteDestination::get_server_socket(int connect_timeout) noexcept {
        i = (i+1) % destinations_.size()) {
 
     // If server is quarantined, skip
-    if (is_quarantined(i)) {
-      continue;
+    {
+      std::lock_guard<std::mutex> lock(mutex_quarantine_);
+      if (is_quarantined(i)) {
+        continue;
+      }
     }
 
     // Try server
@@ -121,16 +124,21 @@ int RouteDestination::get_server_socket(int connect_timeout) noexcept {
 
     if (sock != -1) {
       // Server is available
-      current_pos_ = (i+1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
+      current_pos_ = (i + 1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
       return sock;
     } else {
-      // We failed to get a connection to the server; we quarantine.
-      std::lock_guard<std::mutex> lock(mutex_quarantine_);
-      add_to_quarantine(i);
-      if (quarantined_.size() == destinations_.size()) {
-        log_debug("No more destinations: all quarantined");
-        break;
+      *error = errno;
+      if (errno != ENFILE && errno != EMFILE) {
+        // We failed to get a connection to the server; we quarantine.
+        std::lock_guard<std::mutex> lock(mutex_quarantine_);
+        add_to_quarantine(i);
+        if (quarantined_.size() == destinations_.size()) {
+          log_debug("No more destinations: all quarantined");
+          break;
+        }
+        continue; // try another destination
       }
+      break;
     }
   }
 

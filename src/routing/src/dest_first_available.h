@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ using std::runtime_error;
 
 class DestFirstAvailable final : public RouteDestination {
 public:
-  int get_server_socket(int connect_timeout) noexcept;
+  int get_server_socket(int connect_timeout, int *error) noexcept;
 };
 
 

@@ -42,15 +42,18 @@
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
 Version:       @PROJECT_VERSION_TEXT@
-Release:       1%{?dist}
+Release:       1%{?commercial:.1}%{?dist}
 License:       @ORACLE_COPYRIGHT@ Under %{?license_type} license as shown in the Description field.
-Group:         Development/Libraries
+Group:         Applications/Databases
 URL:           https://dev.mysql.com/downloads/router/
 Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}.tar.gz
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
-Source3:       mysqlrouter.ini
-BuildRequires: python
+Source3:       mysqlrouter.init
+Source4:       mysqlrouter.ini
+BuildRequires: cmake
+%{?el6:BuildRequires:  devtoolset-3-gcc}
+%{?el6:BuildRequires:  devtoolset-3-gcc-c++}
 %if 0%{?commercial}
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
@@ -101,6 +104,8 @@ necessary to develop MySQL Router applications.
 
 %build
 mkdir release && pushd release
+%{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
+%{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}" \
   -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition}
 make %{?_smp_mflags} VERBOSE=1
@@ -109,14 +114,20 @@ popd
 %install
 rm -rf %{buildroot}
 pushd release
+%{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
+%{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 make DESTDIR=%{buildroot} install
 
 install -d -m 0755 %{buildroot}/%{_localstatedir}/log/mysqlrouter
 install -d -m 0755 %{buildroot}/%{_localstatedir}/run/mysqlrouter
 
+%if 0%{?systemd}
 install -D -p -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 %{SOURCE2} %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
-install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.ini
+%else
+install -D -p -m 0755 %{SOURCE3} %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
+%endif
+install -D -p -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.ini
 
 # remove some unwanted files
 rm -rf %{buildroot}%{_includedir}
@@ -133,30 +144,46 @@ rm -rf %{buildroot}
 %service_add_pre mysqlrouter.service
 %endif
 
-
 %post
 /sbin/ldconfig
+%if 0%{?systemd}
 %if 0%{?suse_version}
 %service_add_post mysqlrouter.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysqlrouter.conf >/dev/null 2>&1 || :
 %else
 %systemd_post mysqlrouter.service
-%endif
+%endif # suse_version
+%else
+/sbin/chkconfig --add mysqlrouter
+%endif # systemd
 
 %preun
+%if 0%{?systemd}
 %if 0%{?suse_version}
 %service_del_preun mysqlrouter.service
 %else
 %systemd_preun mysqlrouter.service
-%endif
+%endif # suse_version
+%else
+if [ "$1" = 0 ]; then
+    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysqlrouter
+fi
+%endif # systemd
 
 %postun
 /sbin/ldconfig
+%if 0%{?systemd}
 %if 0%{?suse_version}
 %service_del_postun mysqlrouter.service
 %else
 %systemd_postun_with_restart mysqlrouter.service
-%endif
+%endif # suse_version
+%else
+if [ $1 -ge 1 ]; then
+    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
+fi
+%endif # systemd
 
 %files
 %defattr(-, root, root, -)
@@ -179,11 +206,14 @@ rm -rf %{buildroot}
 %dir %attr(755, mysql, mysql) %{_localstatedir}/run/mysqlrouter
 
 %changelog
+* Thu Nov 26 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.0.3-1
+- Add support for el6
+- Fix group and buildreq
+
 * Thu Oct 15 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.2-1
 - Added pre and postun scripts for sles
 - Making version a variable and using _libdir
 - Adding -DWITH_MYSQL and building libmysqlclient statically in
 
-%changelog
 * Wed Aug 19 2015 Geert Vanderkelen <geert.vanderkelen@oracle.com> - 2.0.1-1
 - Initial version

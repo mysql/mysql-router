@@ -21,12 +21,29 @@
 #include <exception>
 
 #define private public
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 
 using std::get;
 using ::testing::StrEq;
 using ::testing::ContainerEq;
 using ::testing::IsEmpty;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
+using mysqlrouter::URIAuthority;
+using mysqlrouter::URIPath;
+using mysqlrouter::URIQuery;
+
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
+using mysqlrouter::URIAuthority;
+using mysqlrouter::URIPath;
+using mysqlrouter::t_parse_scheme;
+using mysqlrouter::t_parse_authority;
+using mysqlrouter::t_parse_path;
+using mysqlrouter::t_parse_query;
+using mysqlrouter::t_parse_fragment;
 
 class URITests: public ::testing::Test {
 protected:
@@ -50,78 +67,78 @@ TEST_F(URITests, Constructor)
 TEST_F(URITests, ParseScheme)
 {
   URI u;
-  ASSERT_THAT(t_parse_scheme("ham:"), StrEq("ham"));
-  ASSERT_THAT(t_parse_scheme("HAM:"), StrEq("ham"));
-  ASSERT_THAT(t_parse_scheme("MySQL+Fabric:"), StrEq("mysql+fabric"));
-  ASSERT_THAT(t_parse_scheme("MySQL.Fabric:"), StrEq("mysql.fabric"));
-  ASSERT_THAT(t_parse_scheme("MySQL-Fabric:"), StrEq("mysql-fabric"));
+  ASSERT_THAT(mysqlrouter::t_parse_scheme("ham:"), StrEq("ham"));
+  ASSERT_THAT(mysqlrouter::t_parse_scheme("HAM:"), StrEq("ham"));
+  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL+Fabric:"), StrEq("mysql+fabric"));
+  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL.Fabric:"), StrEq("mysql.fabric"));
+  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL-Fabric:"), StrEq("mysql-fabric"));
 }
 
 TEST_F(URITests, ParseSchemeFail)
 {
-  ASSERT_THROW(t_parse_scheme("ham"), URIError);
-  ASSERT_THROW(t_parse_scheme("ham$$:"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_scheme("ham"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_scheme("ham$$:"), URIError);
 }
 
 TEST_F(URITests, ParseAuthority)
 {
   URIAuthority auth;
 
-  auth = t_parse_authority("ham://spam.example.com");
+  auth = mysqlrouter::t_parse_authority("ham://spam.example.com");
   ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
   ASSERT_EQ(get<1>(auth), 0);
   ASSERT_TRUE(get<2>(auth).empty());
   ASSERT_TRUE(get<3>(auth).empty());
 
-  auth = t_parse_authority("ham://spam.example.com");
+  auth = mysqlrouter::t_parse_authority("ham://spam.example.com");
   ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
 
-  auth = t_parse_authority("ham://scott@spam.example.com/");
-  ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
-  ASSERT_THAT(get<2>(auth), StrEq("scott"));
-  ASSERT_TRUE(get<3>(auth).empty());
-
-  auth = t_parse_authority("ham://scott:@spam.example.com/");
+  auth = mysqlrouter::t_parse_authority("ham://scott@spam.example.com/");
   ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
   ASSERT_THAT(get<2>(auth), StrEq("scott"));
   ASSERT_TRUE(get<3>(auth).empty());
 
-  auth = t_parse_authority("ham://:@spam.example.com");
+  auth = mysqlrouter::t_parse_authority("ham://scott:@spam.example.com/");
+  ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
+  ASSERT_THAT(get<2>(auth), StrEq("scott"));
+  ASSERT_TRUE(get<3>(auth).empty());
+
+  auth = mysqlrouter::t_parse_authority("ham://:@spam.example.com");
   ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
   ASSERT_TRUE(get<2>(auth).empty());
   ASSERT_TRUE(get<3>(auth).empty());
 
-  auth = t_parse_authority("ham://scott:tiger@spam.example.com:3306/");
+  auth = mysqlrouter::t_parse_authority("ham://scott:tiger@spam.example.com:3306/");
   ASSERT_THAT(get<0>(auth), StrEq("spam.example.com"));
   ASSERT_EQ(get<1>(auth), 3306);
   ASSERT_THAT(get<2>(auth), StrEq("scott"));
   ASSERT_THAT(get<3>(auth), StrEq("tiger"));
 
-  auth = t_parse_authority("ham://spam.example.com:/");
+  auth = mysqlrouter::t_parse_authority("ham://spam.example.com:/");
   ASSERT_EQ(get<1>(auth), 0);
-  auth = t_parse_authority("ham://spam.example.com:3306/");
+  auth = mysqlrouter::t_parse_authority("ham://spam.example.com:3306/");
   ASSERT_EQ(get<1>(auth), 3306);
 }
 
 TEST_F(URITests, ParseAuthorityFail)
 {
-  ASSERT_THROW(t_parse_authority("ham"), URIError);
-  ASSERT_THROW(t_parse_authority("ham://spam.example.com:999999/"), URIError);
-  ASSERT_THROW(t_parse_authority("ham://:3306/"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_authority("ham"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_authority("ham://spam.example.com:999999/"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_authority("ham://:3306/"), URIError);
 }
 
 TEST_F(URITests, ParseAuthorityEmpty)
 {
-  URIAuthority a = t_parse_authority("ham://");
+  URIAuthority a = mysqlrouter::t_parse_authority("ham://");
   ASSERT_THAT(get<0>(a), StrEq(""));
-  a = t_parse_authority("ham:///");
+  a = mysqlrouter::t_parse_authority("ham:///");
   ASSERT_THAT(get<0>(a), StrEq(""));
 }
 
 TEST_F(URITests, ParsePath)
 {
   URIPath p;
-  p = t_parse_path("ham://scott:tiger@spam.example.com:3306/the/way/to/go");
+  p = mysqlrouter::t_parse_path("ham://scott:tiger@spam.example.com:3306/the/way/to/go");
   ASSERT_THAT(p.at(0), StrEq("the"));
   ASSERT_THAT(p.at(1), StrEq("way"));
   ASSERT_THAT(p.at(2), StrEq("to"));
@@ -129,25 +146,25 @@ TEST_F(URITests, ParsePath)
   ASSERT_THROW(p.at(4), std::out_of_range);
   p.clear();
   
-  p = t_parse_path("ham://scott:tiger@spam.example.com:3306/withslashatend/");
+  p = mysqlrouter::t_parse_path("ham://scott:tiger@spam.example.com:3306/withslashatend/");
   ASSERT_THAT(p.at(0), StrEq("withslashatend"));
   ASSERT_THROW(p.at(1), std::out_of_range);
   p.clear();
   
-  p = t_parse_path("ham://scott:tiger@spam.example.com:3306/double//slash/");
+  p = mysqlrouter::t_parse_path("ham://scott:tiger@spam.example.com:3306/double//slash/");
   ASSERT_THAT(p.at(0), StrEq("double"));
   ASSERT_THAT(p.at(1), StrEq("slash"));
   ASSERT_THROW(p.at(2), std::out_of_range);
   p.clear();
   
-  p = t_parse_path("file:///path/to/file");
+  p = mysqlrouter::t_parse_path("file:///path/to/file");
   ASSERT_THAT(p.at(2), StrEq("file"));
   p.clear();
-  p = t_parse_path("ham://example.com");
+  p = mysqlrouter::t_parse_path("ham://example.com");
   ASSERT_THROW(p.at(0), std::out_of_range);
   p.clear();
   
-  p = t_parse_path("ham://example.com/path/to/?key1=val2");
+  p = mysqlrouter::t_parse_path("ham://example.com/path/to/?key1=val2");
   ASSERT_THAT(p.at(0), StrEq("path"));
   ASSERT_THAT(p.at(1), StrEq("to"));
   ASSERT_THROW(p.at(2), std::out_of_range);
@@ -156,22 +173,22 @@ TEST_F(URITests, ParsePath)
 
 TEST_F(URITests, ParsePathFail)
 {
-  ASSERT_THROW(t_parse_path("ham"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_path("ham"), URIError);
 }
 
 TEST_F(URITests, ParseQuery)
 {
   URIQuery q;
 
-  q = t_parse_query("ham://example.com?key1=val1&key2=val2", URI::query_delimiter);
+  q = mysqlrouter::t_parse_query("ham://example.com?key1=val1&key2=val2", URI::query_delimiter);
   ASSERT_THAT(q["key1"], StrEq("val1"));
   ASSERT_THAT(q["key2"], StrEq("val2"));
   
-  q = t_parse_query("ham://example.com/path/to/?key1=val1&key2=", '&');
+  q = mysqlrouter::t_parse_query("ham://example.com/path/to/?key1=val1&key2=", '&');
   ASSERT_THAT(q["key1"], StrEq("val1"));
   ASSERT_THAT(q["key2"], StrEq(""));
   
-  q = t_parse_query("ham://example.com?key1=val1#foo");
+  q = mysqlrouter::t_parse_query("ham://example.com?key1=val1#foo");
   ASSERT_THAT(q["key1"], StrEq("val1"));
 }
 
@@ -179,22 +196,22 @@ TEST_F(URITests, ParseQueryFail)
 {
   std::string f;
   
-  f = t_parse_fragment("ham://example.com?key1=val1#foo");
+  f = mysqlrouter::t_parse_fragment("ham://example.com?key1=val1#foo");
   ASSERT_THAT(f, StrEq("foo"));
   
-  f = t_parse_fragment("ham://example.com#foo");
+  f = mysqlrouter::t_parse_fragment("ham://example.com#foo");
   ASSERT_THAT(f, StrEq("foo"));
   
-  f = t_parse_fragment("ham://example.com#");
+  f = mysqlrouter::t_parse_fragment("ham://example.com#");
   ASSERT_TRUE(f.empty());
   
-  f = t_parse_fragment("ham://example.com");
+  f = mysqlrouter::t_parse_fragment("ham://example.com");
   ASSERT_TRUE(f.empty());
 }
 
 TEST_F(URITests, ParseFragmentFail)
 {
-  ASSERT_THROW(t_parse_fragment("ham"), URIError);
+  ASSERT_THROW(mysqlrouter::t_parse_fragment("ham"), URIError);
 }
 
 TEST_F(URITests, ConstructorWithURI)

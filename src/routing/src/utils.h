@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef UTILS_ROUTING_INCLUDED
 #define UTILS_ROUTING_INCLUDED
 
+#include <array>
 #include <iostream>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -67,5 +68,15 @@ std::vector<string> split_string(const string& data, const char delimiter, bool 
 
 /** @overload */
 std::vector<string> split_string(const string& data, const char delimiter);
+
+/** @brief Converts IPv6 in6_addr to std::array
+ *
+ * Converts a IPv6 address stored in a in6_addr struct to a
+ * std::array of size 16.
+ *
+ * @param addr a in6_addr struct
+ * @return std::array<uint8_t, 16>
+ */
+std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
 
 #endif // UTILS_ROUTING_INCLUDED

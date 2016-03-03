@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,6 +53,16 @@ TEST_F(RoutingTests, GetAccessLiteralName) {
   using routing::get_access_mode_name;
   ASSERT_THAT(get_access_mode_name(AccessMode::kReadWrite), StrEq("read-write"));
   ASSERT_THAT(get_access_mode_name(AccessMode::kReadOnly), StrEq("read-only"));
+}
+
+TEST_F(RoutingTests, Defaults) {
+  ASSERT_EQ(routing::kDefaultWaitTimeout, 0);
+  ASSERT_EQ(routing::kDefaultMaxConnections, 512);
+  ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout, 1);
+  ASSERT_EQ(routing::kDefaultBindAddress, "127.0.0.1");
+  ASSERT_EQ(routing::kDefaultNetBufferLength, 16384U);
+  ASSERT_EQ(routing::kDefaultMaxConnectErrors, 100ULL);
+  ASSERT_EQ(routing::kDefaultClientConnectTimeout, 9UL);
 }
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 
 #include <atomic>
 #include <arpa/inet.h>
+#include <array>
 #include <iostream>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -47,6 +48,7 @@
 #include "mysqlrouter/datatypes.h"
 
 using std::string;
+using mysqlrouter::URI;
 
 /** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers
@@ -87,11 +89,16 @@ public:
    * @param optional route Name of connection routing (can be empty string)
    * @param optional max_connections Maximum allowed active connections
    * @param optional destination_connect_timeout Timeout trying to connect destination server
+   * @param optional max_connect_errors Maximum connect or handshake errors per host
+   * @param optional connect_timeout Timeout waiting for handshake response
    */
   MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
-               int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout);
+               int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
+               unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
+               unsigned int connect_timeout = routing::kDefaultClientConnectTimeout,
+               unsigned int net_buffer_length = routing::kDefaultNetBufferLength);
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -168,6 +175,34 @@ public:
    */
   int set_max_connections(int maximum);
 
+  /** @brief Checks and if needed, blocks a host from using this routing
+   *
+   * Blocks a host from using this routing adding its IP address to the
+   * list of blocked hosts when the maximum client errors has been
+   * reached. Each call of this function will increment the number of
+   * times it was called with the client IP address.
+   *
+   * When a client host is actually blocked, true will be returned,
+   * otherwise false.
+   *
+   * @param client_ip_array IP address as array[16] of uint8_t
+   * @param client_ip_str IP address as string (for logging purposes)
+   * @param server Server file descriptor to wish to send
+   *               fake handshake reply (default is not to send anything)
+   * @return bool
+   */
+  bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
+                         const string &client_ip_str, int server = -1);
+
+  /** @brief Returns a copy of the list of blocked client hosts
+   *
+   * Returns a copy of the list of the blocked client hosts.
+   */
+  const std::vector<std::array<uint8_t, 16>> get_blocked_client_hosts() {
+    std::lock_guard<std::mutex> lock(mutex_auth_errors_);
+    return std::vector<std::array<uint8_t, 16>>(blocked_client_hosts_);
+  }
+
   /** @brief Returns maximum active connections
    *
    * @return Maximum as int
@@ -194,9 +229,10 @@ private:
    * Errors are logged.
    *
    * @param client socket descriptor fo the client connection
+   * @param client_addr IP address as sin6_addr struct
    * @param timeout timeout in seconds
    */
-  void thd_routing_select(int client) noexcept;
+  void routing_select_thread(int client, const in6_addr client_addr) noexcept;
 
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
@@ -215,6 +251,12 @@ private:
    * if using an unstable network.
    */
   int destination_connect_timeout_;
+  /** @brief Max connect errors blocking hosts when handshake not completed */
+  unsigned long long max_connect_errors_;
+  /** @brief Timeout waiting for handshake response from client */
+  unsigned int client_connect_timeout_;
+  /** @brief Size of buffer to store receiving packets */
+  unsigned int net_buffer_length_;
   /** @brief IP address and TCP port to use when binding service */
   const TCPAddress bind_address_;
   /** @brief Socket descriptor of the service */
@@ -227,6 +269,11 @@ private:
   std::atomic<uint16_t> info_active_routes_;
   /** @brief Number of handled routes */
   std::atomic<uint64_t> info_handled_routes_;
+
+  /** @brief Authentication error counters for IPv4 or IPv6 hosts */
+  std::mutex mutex_auth_errors_;
+  std::map<std::array<uint8_t, 16>, size_t> auth_error_counters_;
+  std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 };
 
 

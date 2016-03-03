@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@ set(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_fabric_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_first_available.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/uri.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
 )
 
@@ -33,12 +32,13 @@ set(include_dirs
   ${CMAKE_SOURCE_DIR}/src/router/include
   ${CMAKE_SOURCE_DIR}/src/routing/include
   ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
+  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
 )
 
 # The Plugin
 add_harness_plugin(routing
         SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
-        REQUIRES logger)
+        REQUIRES logger mysql_protocol)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")

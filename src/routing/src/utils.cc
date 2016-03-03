@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/fcntl.h>
@@ -99,4 +100,12 @@ std::vector<string> split_string(const string& data, const char delimiter, bool 
 
 std::vector<string> split_string(const string& data, const char delimiter) {
   return split_string(data, delimiter, true);
+}
+
+std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr) {
+  std::array<uint8_t, 16> result;
+  for (int i = 0; i < 16; ++i) {
+    std::memcpy(result.data(), addr.s6_addr, 16);
+  }
+  return result;
 }

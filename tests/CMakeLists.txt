@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,15 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-include_directories(helpers)
+include_directories(helpers
+  ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
+  )
 
 add_library(routertest_helpers SHARED
   helpers/helper_logger.cc
   helpers/cmd_exec.cc
+  helpers/router_test_helpers.cc
 )
+target_link_libraries(routertest_helpers harness-library)
 set_target_properties(routertest_helpers PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
-  INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/tests/helpers/"
+  INCLUDE_DIRECTORIES
+    "${CMAKE_SOURCE_DIR}/tests/helpers/;${CMAKE_SOURCE_DIR}/mysql_harness/harness/include"
 )
 
 foreach(test_dir legal tools)

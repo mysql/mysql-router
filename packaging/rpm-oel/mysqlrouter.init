@@ -1,0 +1,113 @@
+#! /bin/bash
+#
+# mysqlrouter	This shell script takes care of starting and stopping
+#		the MySQL Router
+#
+# chkconfig: 2345 66 34
+# description: MySQL Router
+# processname: mysqlrouter
+# config: /etc/mysqlrouter/mysqlrouter.ini
+# pidfile: /var/run/mysqlrouter/mysqlrouter.pid
+#
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+#
+# Maintainer: MySQL Release Engineering <mysql-build@oss.oracle.com>
+#
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration
+. /etc/sysconfig/network
+
+exec=/usr/sbin/mysqlrouter
+prog=mysqlrouter
+piddir=/var/run/mysqlrouter
+pidfile=/var/run/mysqlrouter/mysqlrouter.pid
+logdir=/var/log/mysqlrouter
+logfile=$logdir/mysqlrouter.log
+lockfile=/var/lock/subsys/$prog
+
+start () {
+    [ -d $piddir ] || mkdir -p $piddir
+    chown mysql:mysql $piddir
+    [ -d $logdir ] || mkdir -p $logdir
+    chown mysql:mysql $logdir
+    [ -e $logfile ] || touch $logfile
+    chown mysql:mysql $logfile
+    export ROUTER_PID=$pidfile
+    daemon --user mysql $exec >/dev/null 2>&1 &
+    ret=$?
+    if [ $ret -eq "0" ]; then
+	action $"Starting $prog: " /bin/true
+	touch /var/lock/subsys/$prog
+    else
+	action $"Starting $prog: " /bin/false
+    fi
+    return $ret
+}
+
+stop () {
+    [ -f /var/lock/subsys/$prog ] || return 0
+    killproc mysqlrouter >/dev/null 2>&1
+    ret=$?
+    if [ $ret -eq "0" ]; then
+	rm -f $pidfile
+	rm -f /var/lock/subsys/$prog
+	action $"Stopping $prog: " /bin/true
+    else
+	ation $"Stopping $prog: " /bin/false
+    fi
+}
+
+restart ()  {
+    stop
+    start
+}
+
+condrestart () {
+    [ -e /var/lock/subsys/$prog ] && restart || return 0
+}
+
+case "$1" in
+    start)
+	start
+	;;
+    stop)
+	stop
+	;;
+    status)
+	status -p "$pidfile" $prog
+	;;
+    restart)
+	restart
+	;;
+    condrestart|try-restart)
+	condrestart
+	;;
+    reload)
+	exit 3
+	;;
+    force-reload)
+	restart
+	;;
+    *)
+	echo $"Usage: $0 {start|stop|status|condrestart|try-restart|reload|force-reload}"
+	exit 2
+esac
+
+exit $?

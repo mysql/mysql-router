@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,6 +72,54 @@ std::pair<string, uint16_t> split_addr_port(const string data);
  * @return uint16_t the TCP port number
  */
 uint16_t get_tcp_port(const string& data);
+
+/** @brief Splits a string using a delimiter
+ *
+ * Splits a string using the given delimiter. When allow_empty
+ * is true (default), tokens can be empty, and will be included
+ * as empty in the result.
+ *
+ * @param data a string to split
+ * @param delimiter a char used as delimiter
+ * @param bool whether to allow empty tokens or not (default true)
+ * @return std::vector<string> containing tokens
+ */
+std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty = true);
+
+/**
+ * Removes leading whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void left_trim(string& str);
+
+/**
+ * Removes trailing whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void right_trim(string& str);
+
+/**
+ * Removes both leading and trailing whitespaces from the string
+ *
+ * @param str the string to be trimmed
+ */
+void trim(string& str);
+
+/** @brief Dumps buffer as hex values
+ *
+ * Debugging function which dumps the given buffer as hex values
+ * in rows of 16 bytes. When literals is true, characters in a-z
+ * or A-Z, are printed as-is.
+ *
+ * @param buffer char array or front of vector<uint8_t>
+ * @param count number of bytes to dump
+ * @param start from where to start dumping
+ * @param literals whether to show a-zA-Z as-is
+ * @return string containing the dump
+ */
+string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
 
 } // namespace mysqlrouter
 

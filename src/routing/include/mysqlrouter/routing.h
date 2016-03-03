@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,11 +43,35 @@ extern const int kDefaultMaxConnections;
  */
 extern const int kDefaultDestinationConnectionTimeout;
 
+/** @brief Maximum connect or handshake errors per host
+ *
+ * Maximum connect or handshake errors after which a host will be
+ * blocked. Such errors can happen when the client does not reply
+ * the handshake, sends an incorrect packet, or garbage.
+ *
+ */
+extern const unsigned long long kDefaultMaxConnectErrors;
+
 /** @brief Default bind address
  *
  */
 extern const string kDefaultBindAddress;
 
+/** @brief Default net buffer length
+ *
+ * Default network buffer length which can be set in the MySQL Server.
+ *
+ * This should match the default of the latest MySQL Server.
+ */
+extern const unsigned int kDefaultNetBufferLength;
+
+/** @brief Timeout waiting for handshake response from client
+ *
+ * The number of seconds that MySQL Router waits for a handshake response.
+ * The default value is 9 seconds (default MySQL Server minus 1).
+ *
+ */
+extern const unsigned int kDefaultClientConnectTimeout;
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {

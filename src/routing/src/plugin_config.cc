@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 
 using std::invalid_argument;
 using std::vector;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
 
 string RoutingPluginConfig::get_default(const string &option) {
 
@@ -35,6 +37,9 @@ string RoutingPluginConfig::get_default(const string &option) {
       {"bind_address", to_string(routing::kDefaultBindAddress)},
       {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
+      {"max_connect_errors", to_string(routing::kDefaultMaxConnectErrors)},
+      {"client_connect_timeout", to_string(routing::kDefaultClientConnectTimeout)},
+      {"net_buffer_length", to_string(routing::kDefaultNetBufferLength)},
   };
 
   auto it = defaults.find(option);
@@ -111,10 +116,23 @@ string RoutingPluginConfig::get_option_destinations(const ConfigSection *section
     }
     return value;
   } catch (URIError) {
+    char delimiter = ',';
+
+    mysqlrouter::trim(value);
+    if (value.back() == delimiter || value.front() == delimiter) {
+      throw invalid_argument(get_log_prefix(option) +
+                                 ": empty address found in destination list (was '" + value + "')");
+    }
+
     std::stringstream ss(value);
     std::string part;
     std::pair<std::string, uint16_t> info;
-    while (std::getline(ss, part, ',')) {
+    while (std::getline(ss, part, delimiter)) {
+      mysqlrouter::trim(part);
+      if (part.empty()) {
+        throw invalid_argument(get_log_prefix(option) +
+                                   ": empty address found in destination list (was '" + value + "')");
+      }
       info = mysqlrouter::split_addr_port(part);
       if (info.second == 0) {
         info.second = 3306;
@@ -124,6 +142,7 @@ string RoutingPluginConfig::get_option_destinations(const ConfigSection *section
         throw invalid_argument(get_log_prefix(option) + " has an invalid destination address '" + addr.str() + "'");
       }
     }
+
   }
 
   return value;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <vector>
 
 using std::string;
+using mysqlrouter::URIError;
 
 const AppInfo *g_app_info;
 static const string kSectionName = "routing";
@@ -111,13 +112,19 @@ static int init(const AppInfo *info) {
 }
 
 static void start(const ConfigSection *section) {
-  auto name = section->name + ":" + section->key;
+  string name;
+  if (!section->key.empty()) {
+    name = section->name + ":" + section->key;
+  } else {
+    name = section->name;
+  }
 
   try {
     RoutingPluginConfig config(section);
     config.section_name = name;
     MySQLRouting r(config.mode, config.bind_address.port,
-                   config.bind_address.addr, name, config.max_connections, config.connect_timeout);
+                   config.bind_address.addr, name, config.max_connections, config.connect_timeout,
+                   config.max_connect_errors, config.client_connect_timeout);
     try {
       r.set_destinations_from_uri(URI(config.destinations));
     } catch (URIError) {
@@ -127,7 +134,7 @@ static void start(const ConfigSection *section) {
   } catch (const std::invalid_argument &exc) {
     log_error(exc.what());
     return;
-  } catch (const std::exception &exc) {
+  } catch (const std::runtime_error &exc) {
     log_error("%s: %s", name.c_str(), exc.what());
   }
 }

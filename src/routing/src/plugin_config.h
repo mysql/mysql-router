@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
 #include "utils.h"
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include <mysqlrouter/routing.h>
@@ -34,6 +34,9 @@ using std::map;
 using std::string;
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
 public:
@@ -48,8 +51,10 @@ public:
         bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         mode(get_option_mode(section, "mode")),
-        max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)) {
-  }
+        max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)),
+        max_connect_errors(get_uint_option<uint>(section, "max_connect_errors", 1, UINT32_MAX)),
+        client_connect_timeout(get_uint_option<uint>(section, "client_connect_timeout", 2, 31536000)),
+        net_buffer_length(get_uint_option<uint>(section, "net_buffer_length", 1024, 1048576)) { }
 
   string get_default(const string &option);
 
@@ -67,6 +72,12 @@ public:
   const routing::AccessMode mode;
   /** @brief `max_connections` option read from configuration section */
   const int max_connections;
+  /** @brief `max_connect_errors` option read from configuration section */
+  const unsigned long long max_connect_errors;
+  /** @brief `client_connect_timeout` option read from configuration section */
+  const unsigned int client_connect_timeout;
+  /** @brief Size of buffer to receive packets */
+  const unsigned int net_buffer_length;
 
 protected:
 

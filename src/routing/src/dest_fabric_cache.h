@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 #include "destination.h"
 #include "mysql_routing.h"
-#include "uri.h"
+#include "mysqlrouter/uri.h"
 
 #include <thread>
 
@@ -30,6 +30,7 @@
 using std::runtime_error;
 using std::chrono::system_clock;
 using mysqlrouter::TCPAddress;
+using mysqlrouter::URIQuery;
 
 const int kDefaultRefreshInterval = 3;
 
@@ -60,7 +61,7 @@ public:
   /** @brief Move assignment */
   DestFabricCacheGroup &operator=(DestFabricCacheGroup &&) = delete;
 
-  int get_server_socket(int connect_timeout) noexcept;
+  int get_server_socket(int connect_timeout, int *error) noexcept;
 
   void add(const string &, uint16_t) { }
 
