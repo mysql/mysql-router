@@ -28,6 +28,51 @@ If you want to do an out-of-source build, the procedure is:
     make
 
 
+Building and running the unit tests
+-----------------------------------
+
+To build the unit tests:
+
+    cmake <path-to-source> -DENABLE_TESTS=1
+
+To run the tests
+
+    make test
+
+
+Coverage information
+--------------------
+
+To build so that coverage information is generated:
+
+    cmake <path-to-source> -DENABLE_COVERAGE=1
+
+To get coverage information, just run the program or the unit tests
+(do not forget to enable the unit tests if you want to run them). Once
+you have collected coverage information, you can generate an HTML
+report in `<build-dir>/coverage/html` using:
+
+    make coverage-html
+
+There are three variables to control where the information is
+collected and where the reports are written:
+
+- `GCOV_BASE_DIR` is a cache variable with the full path to a base
+  directory for the coverage information.
+
+  It defaults to `${CMAKE_BUILD_DIR}/coverage`.
+  
+- `GCOV_INFO_FILE` is a cache varible with the full path to the info
+  file for the collected coverage information.
+
+  It defaults to `${GCOV_BASE_DIR}/coverage.info`.
+  
+- `GCOV_HTML_DIR` is a cache variable with the full path to the
+  directory where the HTML coverage report will be generated.
+
+  It defaults to `${GCOV_BASE_DIR}/html`.
+
+
 Documentation
 -------------
 

@@ -122,6 +122,7 @@ include(CPack)
 include(Plugin)
 include(Arch)
 include(Docs)
+include(Coverage)
 
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)
