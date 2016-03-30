@@ -89,7 +89,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   int res;
   int so_error = 0;
   int sock = -1;
-  socklen_t error_len = sizeof(so_error);
+  socklen_t error_len = static_cast<socklen_t>(sizeof(so_error));
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -169,7 +169,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   }
 
   set_socket_blocking(sock, false);
-  if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+  if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
     log_debug("Failed setting TCP_NODELAY on client socket");
     return -1;
   }

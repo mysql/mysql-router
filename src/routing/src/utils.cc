@@ -55,19 +55,19 @@ std::pair<std::string, int > get_peer_name(int sock) {
   char ipaddr[INET6_ADDRSTRLEN];  // Will also store IPv4
   int port;
 
-  sock_len = sizeof addr;
+  sock_len = static_cast<socklen_t>(sizeof addr);
   getpeername(sock, (struct sockaddr*)&addr, &sock_len);
 
   if (addr.ss_family == AF_INET6) {
     // IPv6
     auto *sin6 = (struct sockaddr_in6 *)&addr;
     port = ntohs(sin6->sin6_port);
-    inet_ntop(AF_INET6, &sin6->sin6_addr, ipaddr, sizeof ipaddr);
+    inet_ntop(AF_INET6, &sin6->sin6_addr, ipaddr, static_cast<socklen_t>(sizeof ipaddr));
   } else {
     // IPv4
     auto *sin4 = (struct sockaddr_in *)&addr;
     port = ntohs(sin4->sin_port);
-    inet_ntop(AF_INET, &sin4->sin_addr, ipaddr, sizeof ipaddr);
+    inet_ntop(AF_INET, &sin4->sin_addr, ipaddr, static_cast<socklen_t>(sizeof ipaddr));
   }
 
   return std::make_pair(std::string(ipaddr), port);

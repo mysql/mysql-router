@@ -317,7 +317,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 void MySQLRouting::start() {
   int sock_client;
   struct sockaddr_in6 client_addr;
-  socklen_t sin_size = sizeof client_addr;
+  socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
   char client_ip[INET6_ADDRSTRLEN];
   int opt_nodelay = 0;
 
@@ -342,7 +342,7 @@ void MySQLRouting::start() {
       continue;
     }
 
-    if (inet_ntop(AF_INET6, &client_addr, client_ip, sizeof(client_ip)) == nullptr) {
+    if (inet_ntop(AF_INET6, &client_addr, client_ip, static_cast<socklen_t>(sizeof(client_ip))) == nullptr) {
       log_error("[%s] inet_ntop failed: %s", name.c_str(), strerror(errno));
       continue;
     }
@@ -364,7 +364,7 @@ void MySQLRouting::start() {
       continue;
     }
 
-    if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+    if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
       log_error("[%s] client setsockopt error: %s", name.c_str(), strerror(errno));
       continue;
     }
@@ -404,7 +404,7 @@ void MySQLRouting::setup_service() {
     }
 
     option_value = 1;
-    if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int)) == -1) {
+    if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, &option_value, static_cast<socklen_t>(sizeof(int))) == -1) {
       throw std::runtime_error(strerror(errno));
     }
 

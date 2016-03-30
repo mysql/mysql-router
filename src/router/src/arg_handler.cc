@@ -218,7 +218,7 @@ vector<string> CmdArgHandler::usage_lines(const string prefix, const string rest
     ss.clear();
     ss.str(string());
     ss << "[" << rest_metavar << "]";
-    usage.push_back(std::move(ss.str()));
+    usage.push_back(ss.str());
   }
 
   ss.clear();
