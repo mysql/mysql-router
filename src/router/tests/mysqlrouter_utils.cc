@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -94,55 +94,49 @@ ASSERT_STREQ(exp.c_str(), test.c_str());
 
 TEST_F(SubstituteEnvVarTest, SimpleMiddleOfString)
 {
-string exp {"ham/" + env_value + "/spam"};
-string test {"ham/ENV{" + env_name + "}/spam"};
-substitute_envvar(test);
-ASSERT_STREQ(exp.c_str(), test.c_str());
+  string exp {"ham/" + env_value + "/spam"};
+  string test {"ham/ENV{" + env_name + "}/spam"};
+  bool ok = substitute_envvar(test);
+
+  ASSERT_TRUE(ok);
+  ASSERT_STREQ(exp.c_str(), test.c_str());
 }
 
 TEST_F(SubstituteEnvVarTest, NoPlaceholder)
 {
-string test {"hamspam"};
-ASSERT_THROW(substitute_envvar(test), mysqlrouter::envvar_no_placeholder);
-try {
-  substitute_envvar(test);
-} catch (const mysqlrouter::envvar_no_placeholder &err) {
-  EXPECT_STREQ("No environment variable placeholder found", err.what());
-}
+  string test {"hamspam"};
+  bool ok = substitute_envvar(test);  // nothing to do -> ok, just a no-op
+
+  ASSERT_TRUE(ok);
+  ASSERT_STREQ("hamspam", test.c_str());  // no error, value should be left intact
 }
 
 TEST_F(SubstituteEnvVarTest, UnclosedPlaceholder)
 {
-string env_test {"hamENV{" + env_name + "spam"};
-ASSERT_THROW(substitute_envvar(env_test), mysqlrouter::envvar_bad_placeholder);
-try {
-  substitute_envvar(env_test);
-} catch (const mysqlrouter::envvar_bad_placeholder &err) {
-  EXPECT_STREQ("Environment placeholder not closed", err.what());
-}
+  string test {"hamENV{" + env_name + "spam"};
+  bool ok = substitute_envvar(test);
+
+  ASSERT_FALSE(ok);
+  // value of test is now undefined
 }
 
 TEST_F(SubstituteEnvVarTest, EmptyVariableName)
 {
-string env_test {"hamENV{}spam"};
-ASSERT_THROW(substitute_envvar(env_test), mysqlrouter::envvar_bad_placeholder);
-try {
-  substitute_envvar(env_test);
-} catch (const mysqlrouter::envvar_bad_placeholder &err) {
-  EXPECT_STREQ("No environment variable name found in placeholder", err.what());
-}
+  string test {"hamENV{}spam"};
+  bool ok = substitute_envvar(test);
+
+  ASSERT_FALSE(ok);
+  // value of test is now undefined
 }
 
 TEST_F(SubstituteEnvVarTest, UnknownEnvironmentVariable)
 {
-string unknown_name {"UNKNOWN_VARIABLE_12343xyzYEKfk"};
-string env_test {"hamENV{" + unknown_name + "}spam"};
-ASSERT_THROW(substitute_envvar(env_test), mysqlrouter::envvar_not_available);
-try {
-  substitute_envvar(env_test);
-} catch (const mysqlrouter::envvar_not_available &err) {
-  EXPECT_STREQ(string({"Unknown environment variable " + unknown_name}).c_str(), err.what());
-}
+  string unknown_name {"UNKNOWN_VARIABLE_12343xyzYEKfk"};
+  string test {"hamENV{" + unknown_name + "}spam"};
+  bool ok = substitute_envvar(test);
+
+  ASSERT_FALSE(ok);
+  // value of test is now undefined
 }
 
 /*

@@ -70,32 +70,33 @@ vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_si
   return res;
 }
 
-void substitute_envvar(string &line) {
+bool substitute_envvar(std::string &line) noexcept {
   size_t pos_start;
   size_t pos_end;
 
   pos_start = line.find("ENV{");
   if (pos_start == string::npos) {
-    throw envvar_no_placeholder("No environment variable placeholder found");
+    return true;  // no environment variable placeholder found -> this is not an error, just a no-op
   }
 
   pos_end = line.find("}", pos_start + 4);
   if (pos_end == string::npos) {
-    throw envvar_bad_placeholder("Environment placeholder not closed");
+    return false; // environment placeholder not closed (missing '}')
   }
 
-  auto env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
+  string env_var = line.substr(pos_start + 4, pos_end - pos_start - 4);
   if (env_var.empty()) {
-    throw envvar_bad_placeholder("No environment variable name found in placeholder");
+    return false; // no environment variable name found in placeholder
   }
 
-  auto env_var_value = std::getenv(env_var.c_str());
+  const char* env_var_value = std::getenv(env_var.c_str());
   if (env_var_value == nullptr) {
-    // Environment variable not set
-    throw envvar_not_available(string{"Unknown environment variable " + env_var});
+    return false; // unknown environment variable
   }
 
+  // substitute the variable and return success
   line.replace(pos_start, env_var.size() + 5, env_var_value);
+  return true;
 }
 
 string string_format(const char *format, ...) {

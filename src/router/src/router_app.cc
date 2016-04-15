@@ -150,15 +150,12 @@ void MySQLRouter::set_default_config_files(const char *locations) noexcept {
   std::vector<string>().swap(default_config_files_);
 
   for (string file; std::getline(ss_line, file, ';');) {
-    try {
-      substitute_envvar(file);
-    } catch (const mysqlrouter::envvar_no_placeholder &err) {
-      // No placeholder in file path; this is OK
-    } catch (const mysqlrouter::envvar_error &err) {
+    bool ok = substitute_envvar(file);
+    if (ok) { // if there's no placeholder in file path, this is OK too
+      default_config_files_.push_back(std::move(file));
+    } else {
       // Any other problem with placeholders we ignore and don't use file
-      continue;
     }
-    default_config_files_.push_back(std::move(file));
   }
 }
 

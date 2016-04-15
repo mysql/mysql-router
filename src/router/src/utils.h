@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,10 +26,7 @@
  *
  */
 
-#include <exception>
-#include <stdexcept>
 #include <string>
-#include <sstream>
 #include <vector>
 
 using std::vector;
@@ -40,64 +37,21 @@ using std::string;
  */
 namespace mysqlrouter {
 
-/** @brief Exception thrown for errors involving environment variables
- *
- * Exception thrown for errors involving environment variables.
- */
-class envvar_error : public std::runtime_error {
-public:
-  explicit envvar_error(const string &what_arg) : std::runtime_error(what_arg) { }
-};
-
-/** @brief Exception thrown when there is no placeholder was found
- *
- * Exception thrown when there is no placeholder was found, meaning, there
- * is no `ENV{variable_name}` found.
- */
-class envvar_no_placeholder : public envvar_error {
-public:
-  explicit envvar_no_placeholder(const string &what_arg) : envvar_error(what_arg) { }
-};
-
-/** @brief Exception thrown when environment placeholder is wrongly used
- *
- * Exception thrown when environment placeholder is wrongly used. For example,
- * when the curly braces are are not closed or no name was given:
- *
- *     ENV{HOME/bin
- *     /var/run/ENV{}/
- */
-class envvar_bad_placeholder : public envvar_error {
-public:
-  explicit envvar_bad_placeholder(const string &what_arg) : envvar_error(what_arg) { }
-};
-
-/** @brief Exception thrown when variable in placeholder is not available
- *
- * Exception thrown when variable in placeholder is not available in the
- * environment.
- */
-class envvar_not_available : public envvar_error {
-public:
-  explicit envvar_not_available(const string &what_arg) : envvar_error(what_arg) { }
-};
-
 /** @brief Substitutes placeholders of environment variables in a string
  *
  * Substitutes placeholders of environement variables in a string. A
  * placeholder contains the name of the variable and will be fetched
- * from the environment. If the variable is not available, an exception
- * is thrown.
+ * from the environment. The substitution is done in-place.
  *
- * The substitution is done in-place.
+ * Note that it is not an error to pass a string with no variable to
+ * be substituted - in such case success will be returned, and the
+ * original string will remain unchanged.
+ * Also note, that if an error occurs, the resulting string value is
+ * undefined (it will be left in an inconsistent state).
  *
- * @throws envvar_no_placeholder when no placeholder was found in the string
- * @throws envvar_bad_placeholder when placeholder is wrongly formatted or
- * contains no name
- * @throws envvar_not_available when the variable is not available in the
- * environment
+ * @return bool (success flag)
  */
-void substitute_envvar(string &line);
+bool substitute_envvar(std::string &line) noexcept;
 
 /** @brief Wraps the given string
  *
