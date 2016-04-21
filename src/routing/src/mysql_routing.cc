@@ -197,7 +197,6 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
     if (write(server, fake_response.data(), fake_response.size()) < 0) {
       log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
     }
-    return -1;
   }
 
   return blocked;
