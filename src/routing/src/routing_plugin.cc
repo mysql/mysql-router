@@ -37,39 +37,92 @@ const char *kRoutingRequires[1] = {
     "logger",
 };
 
+static void validate_socket_info(const std::string& err_prefix,
+                                 const mysql_harness::ConfigSection* section,
+                                 const RoutingPluginConfig& config) {
+
+  auto is_valid_port = [](int port)->bool {
+    return 0 < port && port < 65536;
+  };
+
+  auto int_to_string = [](int port)->const char* {
+    static char buf[16];
+    snprintf(buf, sizeof(buf), "%d", port);
+    return buf;
+  };
+
+  TCPAddress config_addr = config.bind_address; // we have to make a copy because TCPAddress::is_valid() is non-const
+
+  bool have_named_sock = section->has("socket");
+  bool have_bind_port  = section->has("bind_port");
+  bool have_bind_addr  = section->has("bind_address");
+  bool have_bind_addr_port = have_bind_addr && config.bind_address.port != 0;
+
+  // NOTE: Several test scenarios below are also covered by RoutingPluginConfig() constructor's simple check.
+  //       However, RoutingPluginConfig() doesn't check everything, and sometimes produces misleading error messages
+  //       (when bind_address has no port number, and bind_port is not provided, is one such example; passing empty
+  //       socket is another).
+  //       Below tests should probably replace the simple check in that constructor, and get called from both places.
+
+  // validate bind_port
+  if (have_bind_port && !is_valid_port(config.bind_port))
+  {
+    throw std::invalid_argument(err_prefix + "invalid bind_port '" + int_to_string(config.bind_port) + "'");
+  }
+
+  // validate bind_address : IP
+  if (have_bind_addr && !config_addr.is_valid()) {
+    throw std::invalid_argument(err_prefix + "invalid IP or name in bind_address '" + config_addr.str() + "'");
+  }
+
+  // validate bind_address : TCP port
+  if (have_bind_addr_port && !is_valid_port(config.bind_address.port))
+  {
+    throw std::invalid_argument(err_prefix + "invalid bind_address '" + config.bind_address.str() + "'");
+  }
+
+  // validate socket
+  if (have_named_sock && !config.named_socket.is_set()) {
+    throw std::invalid_argument(err_prefix + "invalid socket '" + config.named_socket.str() + "'");
+  }
+
+  // check if we have enough information to open some listening socket (a Unix socket/Windows named pipe or a TCP socket)
+  bool have_listening_socket = have_named_sock || have_bind_port || have_bind_addr_port;
+  if (!have_listening_socket)
+  {
+    assert(!have_named_sock && !have_bind_port && !have_bind_addr_port);
+
+    if (have_bind_addr) {
+      throw std::invalid_argument(err_prefix + "no socket, no bind_port, and TCP port in bind_address is not provided");
+    } else {
+      throw std::invalid_argument(err_prefix + "one of bind_port, bind_address, or socket is required");
+    }
+  }
+}
+
+// a non-static gateway function, meant to be called only by unit tests (to allow calling validate_socket_info(), which is static)
+void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_harness::ConfigSection* section, const RoutingPluginConfig& config) {
+  validate_socket_info(err_prefix, section, config);
+}
+
 static int init(const mysql_harness::AppInfo *info) {
   if (info->config != nullptr) {
     bool have_fabric_cache = false;
     bool need_fabric_cache = false;
     std::vector<TCPAddress> bind_addresses;
-    std::vector<uint16_t> ports;
-    for (auto &section: info->config->sections()) {
+    for (const mysql_harness::ConfigSection* &section: info->config->sections()) {
       if (section->name == kSectionName) {
         string err_prefix = mysqlrouter::string_format("in [%s%s%s]: ", section->name.c_str(),
                                                        section->key.empty() ? "" : ":",
                                                        section->key.c_str());
         // Check the configuration
-        RoutingPluginConfig config(section); // raises on errors
+        RoutingPluginConfig config(section);                // throws std::invalid_argument
+        validate_socket_info(err_prefix, section, config);  // throws std::invalid_argument
 
-        auto config_addr = config.bind_address;
-
-        // either bind_port or bind_address is required
-        if (config.bind_port < 0 && !section->has("bind_address")) {
-          throw std::invalid_argument(err_prefix + "either bind_port or bind_address is required");
-        }
-
-        // no bind_port and bind_address has no valid port
-        if (config.bind_port < 0 &&
-            !(section->has("bind_address") && config.bind_address.port > 0)) {
-          throw std::invalid_argument(err_prefix + "no bind_port, and TCP port in bind_address is not valid");
-        }
-
-        if (!config_addr.is_valid()) {
-          throw std::invalid_argument(err_prefix + "invalid IP or name in bind_address '" + config_addr.str() + "'");
-        }
+        const TCPAddress& config_addr = config.bind_address;
 
         // Check uniqueness of bind_address and port, using IP address
-        auto found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
+        std::vector<TCPAddress>::iterator found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
         if (found_addr != bind_addresses.end()) {
           throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
                                         config.bind_address.str() + "'");
@@ -121,9 +174,11 @@ static void start(const mysql_harness::ConfigSection *section) {
   try {
     RoutingPluginConfig config(section);
     config.section_name = name;
-    MySQLRouting r(config.mode, config.bind_address.port,
-                   config.bind_address.addr, name, config.max_connections, config.connect_timeout,
-                   config.max_connect_errors, config.client_connect_timeout);
+    MySQLRouting r(config.mode,                config.bind_address.port,
+                   config.bind_address.addr,   config.named_socket,
+                   name,                       config.max_connections,
+                   config.connect_timeout,     config.max_connect_errors,
+                   config.client_connect_timeout);
     try {
       r.set_destinations_from_uri(URI(config.destinations));
     } catch (URIError) {

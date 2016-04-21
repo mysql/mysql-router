@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 void *get_in_addr(struct sockaddr *addr) {
   if (addr->sa_family == AF_INET) {
@@ -52,7 +53,7 @@ string ip_from_addrinfo(struct addrinfo *info) {
 std::pair<std::string, int > get_peer_name(int sock) {
   socklen_t sock_len;
   struct sockaddr_storage addr;
-  char ipaddr[INET6_ADDRSTRLEN];  // Will also store IPv4
+  char result_addr[105];  // For IPv4, IPv6 and Unix socket
   int port;
 
   sock_len = static_cast<socklen_t>(sizeof addr);
@@ -62,15 +63,18 @@ std::pair<std::string, int > get_peer_name(int sock) {
     // IPv6
     auto *sin6 = (struct sockaddr_in6 *)&addr;
     port = ntohs(sin6->sin6_port);
-    inet_ntop(AF_INET6, &sin6->sin6_addr, ipaddr, static_cast<socklen_t>(sizeof ipaddr));
-  } else {
+    inet_ntop(AF_INET6, &sin6->sin6_addr, result_addr, static_cast<socklen_t>(sizeof result_addr));
+  } else if (addr.ss_family == AF_INET) {
     // IPv4
     auto *sin4 = (struct sockaddr_in *)&addr;
     port = ntohs(sin4->sin_port);
-    inet_ntop(AF_INET, &sin4->sin_addr, ipaddr, static_cast<socklen_t>(sizeof ipaddr));
+    inet_ntop(AF_INET, &sin4->sin_addr, result_addr, static_cast<socklen_t>(sizeof result_addr));
+  } else if (addr.ss_family == AF_UNIX) {
+    // Unix socket, no good way to find peer
+    return std::make_pair(std::string("unix socket"), 0);
   }
 
-  return std::make_pair(std::string(ipaddr), port);
+  return std::make_pair(std::string(result_addr), port);
 }
 
 std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {

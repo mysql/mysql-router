@@ -47,9 +47,9 @@ string ip_from_addrinfo(struct addrinfo *info);
 /**
  * Get address of connected peer
  *
- * Get address of connected peer connected to the specified
+ * Get address of peer connected to the specified
  * socket. This works similar as getpeername() but will handle
- * both IPv4 and IPv6.
+ * IPv4, IPv6 and Unix sockets/Windows named pipes.
  *
  * @param int socket
  * @return std::pair with std::string and uint16_t

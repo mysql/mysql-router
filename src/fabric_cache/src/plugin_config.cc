@@ -54,10 +54,10 @@ bool FabricCachePluginConfig::is_required(const string &option) {
 mysqlrouter::TCPAddress FabricCachePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                                         const string &option,
                                                                         uint16_t default_port) {
-  auto value = get_option_string(section, option);
+  std::string value = get_option_string(section, option);
 
   try {
-    auto bind_info = mysqlrouter::split_addr_port(value);
+    std::pair<string, uint16_t> bind_info = mysqlrouter::split_addr_port(value);
 
     if (!bind_info.second) {
       bind_info.second = default_port;

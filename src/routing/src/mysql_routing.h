@@ -26,26 +26,26 @@
  *
  */
 
-#include "utils.h"
-#include "destination.h"
 #include "config.h"
-
+#include "destination.h"
+#include "filesystem.h"
+#include "mysqlrouter/datatypes.h"
 #include "plugin_config.h"
+#include "utils.h"
 
-#include <atomic>
 #include <arpa/inet.h>
 #include <array>
+#include <atomic>
 #include <iostream>
-#include <netinet/in.h>
+#include <map>
+#include <memory>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
-#include <netinet/tcp.h>
-#include <memory>
-#include <map>
 
-#include "mysqlrouter/datatypes.h"
 
 using std::string;
 using mysqlrouter::URI;
@@ -86,6 +86,7 @@ public:
    *
    * @param port TCP port for listening for incoming connections
    * @param optional bind_address bind_address Bind to particular IP address
+   * @param optional named_socket Bind to Unix socket/Windows named pipe
    * @param optional route Name of connection routing (can be empty string)
    * @param optional max_connections Maximum allowed active connections
    * @param optional destination_connect_timeout Timeout trying to connect destination server
@@ -93,6 +94,7 @@ public:
    * @param optional connect_timeout Timeout waiting for handshake response
    */
   MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address = string{"0.0.0.0"},
+               const mysql_harness::Path& named_socket = mysql_harness::Path(),
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
@@ -212,14 +214,23 @@ public:
   }
 
 private:
-  /** @brief Sets up the service
+  /** @brief Sets up the TCP service
    *
-   * Sets up the service binding to IP addresses and TCP port.
+   * Sets up the TCP service binding to IP addresses and TCP port.
    *
    * Throws std::runtime_error on errors.
    *
+   * @return
    */
-  void setup_service();
+  void setup_tcp_service();
+
+  /** @brief Sets up the named socket service
+   *
+   * Sets up the named socket service creating a socket file on UNIX systems.
+   *
+   * Throws std::runtime_error on errors.
+   */
+  void setup_named_socket_service();
 
   /** @brief Worker function for thread
    *
@@ -233,6 +244,9 @@ private:
    * @param timeout timeout in seconds
    */
   void routing_select_thread(int client, const in6_addr client_addr) noexcept;
+
+  void start_tcp_service();
+  void start_named_socket_service();
 
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
@@ -257,10 +271,16 @@ private:
   unsigned int client_connect_timeout_;
   /** @brief Size of buffer to store receiving packets */
   unsigned int net_buffer_length_;
-  /** @brief IP address and TCP port to use when binding service */
+  /** @brief IP address and TCP port for setting up TCP service */
   const TCPAddress bind_address_;
-  /** @brief Socket descriptor of the service */
-  int sock_server_;
+  /** @brief Path to named socket for setting up named socket service */
+  const mysql_harness::Path bind_named_socket_;
+  /** @brief Socket descriptor of the TCP service */
+  int service_tcp_;
+  /** @brief Socket descriptor of the named socket service */
+  int service_named_socket_;
+///** @brief Socket descriptor of the service */
+//int sock_server_;
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
   /** @brief Whether we were asked to stop */
@@ -274,6 +294,11 @@ private:
   std::mutex mutex_auth_errors_;
   std::map<std::array<uint8_t, 16>, size_t> auth_error_counters_;
   std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
+
+  /** @brief TCP service thread */
+  std::thread thread_tcp_;
+  /** @brief Named socket service thread */
+  std::thread thread_named_socket_;
 };
 
 

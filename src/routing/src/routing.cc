@@ -16,6 +16,7 @@
 */
 
 #include "mysqlrouter/routing.h"
+#include "config.h"
 
 #include <cstring>
 

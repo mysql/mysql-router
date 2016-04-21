@@ -15,13 +15,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router_test_helpers.h"
 #include "cmd_exec.h"
+#include "router_test_helpers.h"
 
-#include <stdexcept>
+#include <cassert>
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 #include <unistd.h>
 
 using mysql_harness::Path;
@@ -85,3 +87,46 @@ bool starts_with(const std::string &str, const std::string &prefix) {
   return (str_size >= prefix_size &&
           str.compare(0, prefix_size, prefix) == 0);
 }
+
+size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms) {
+
+  // returns epoch time (aka unix time, etc), expressed in milliseconds
+  auto get_epoch_in_ms = []()->uint64_t {
+    using namespace std::chrono;
+    time_point<system_clock> now = system_clock::now();
+    return static_cast<uint64_t>(duration_cast<milliseconds>(now.time_since_epoch()).count());
+  };
+
+  // calculate deadline time
+  uint64_t now_in_us = get_epoch_in_ms();
+  uint64_t deadline_epoch_in_us = now_in_us + timeout_in_ms;
+
+  // read until 1 of 3 things happen: enough bytes were read, we time out or read() fails
+  size_t bytes_read = 0;
+  while (true) {
+    ssize_t res = read(sockfd, static_cast<char*>(buffer) + bytes_read, n_bytes - bytes_read);
+
+    if (res == 0) {   // reached EOF?
+      return bytes_read;
+    }
+
+    if (get_epoch_in_ms() > deadline_epoch_in_us)
+    {
+      throw std::runtime_error("read() timed out");
+    }
+
+    if (res == -1) {
+      if (errno != EAGAIN) {
+        throw std::runtime_error(std::string("read() failed: ") + strerror(errno));
+      }
+    } else {
+      bytes_read += static_cast<size_t>(res);
+      if (bytes_read >= n_bytes)
+      {
+        assert(bytes_read == n_bytes);
+        return bytes_read;
+      }
+    }
+  }
+}
+

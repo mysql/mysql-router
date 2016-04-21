@@ -34,6 +34,9 @@
 #include "mysql_routing.h"
 #include "plugin_config.h"
 
+// since this function is only meant to be used here (for testing purposes), it's not available in the headers.
+void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_harness::ConfigSection* section, const RoutingPluginConfig& config);
+
 using std::string;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
@@ -63,6 +66,7 @@ protected:
 
     bind_address = "127.0.0.1:15508";
     destinations = "127.0.0.1:3306";
+    socket = rundir + "/unix_socket";
     mode = "read-only";
     connect_timeout = "1";
     client_connect_timeout = "9";
@@ -84,6 +88,9 @@ protected:
       ofs_config << "[routing:tests]\n";
       if (!in_missing(missing, "bind_address")) {
         ofs_config << "bind_address = " << bind_address << "\n";
+      }
+      if (!in_missing(missing, "socket")) {
+        ofs_config << "socket = " << socket << "\n";
       }
       if (!in_missing(missing, "destinations")) {
         ofs_config << "destinations = " << destinations << "\n";
@@ -128,12 +135,13 @@ protected:
   const string program = "routing_plugin_test";
   const string rundir = "/path/to/rundir";
   const string cfgdir = "/path/to/cfgdir";
-  string bind_address = "127.0.0.1:15508";
-  string destinations = "127.0.0.1:3306";
-  string mode = "read-only";
-  string connect_timeout = "1";
-  string client_connect_timeout = "9";
-  string max_connect_errors = "100";
+  string bind_address;
+  string destinations;
+  string socket;
+  string mode;
+  string connect_timeout;
+  string client_connect_timeout;
+  string max_connect_errors;
 
   std::unique_ptr<Path> config_path;
   std::string cmd;
@@ -198,6 +206,64 @@ TEST_F(RoutingPluginTests, StartCaseInsensitiveMode) {
               Not(HasSubstr("valid are read-only, read-write")));
 }
 
+TEST_F(RoutingPluginTests, NoListeningSocket) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+
+  try {
+    RoutingPluginConfig config(&section);
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_STREQ("either bind_address or socket option needs to be supplied, or both", e.what());
+    SUCCEED();
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  }
+}
+
+TEST_F(RoutingPluginTests, ListeningTcpSocket) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("bind_address", "127.0.0.1:15508");
+
+  EXPECT_NO_THROW({
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+  });
+
+}
+
+TEST_F(RoutingPluginTests, ListeningUnixSocket) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("socket", "./socket");
+
+  EXPECT_NO_THROW({
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+  });
+}
+
+TEST_F(RoutingPluginTests, ListeningBothSockets) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("bind_address", "127.0.0.1:15508");
+  section.add("socket", "./socket");
+
+  EXPECT_NO_THROW({
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+  });
+}
+
 TEST_F(RoutingPluginTests, StartMissingDestination) {
   {
     reset_config({"destinations"});
@@ -229,6 +295,55 @@ TEST_F(RoutingPluginTests, StartImpossibleIPAddress) {
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,
               HasSubstr("in [routing:tests]: invalid IP or name in bind_address '512.512.512.512:3306'"));
+}
+
+TEST_F(RoutingPluginTests, EmptyUnixSocket) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("socket", "");
+
+  // If this not provided, RoutingPluginConfig() will throw with its own error, which will be misleading.
+  // This line should not influence throwing/not throwing the right error ("invalid socket ''")
+  section.add("bind_address", "127.0.0.1:15508");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_STREQ("invalid socket ''", e.what());
+    SUCCEED();
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  }
+}
+
+TEST_F(RoutingPluginTests, StartBadUnixSocket) {
+  socket = "/this/path/does/not/exist/socket";
+  reset_config();
+  CmdExecResult cmd_result = cmd_exec(cmd, true);
+  ASSERT_THAT(cmd_result.output, HasSubstr("Setting up named socket service '/this/path/does/not/exist/socket': No such file or directory"));
+}
+
+TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("bind_address", "host.that.does.not.exist:15508");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_STREQ("invalid IP or name in bind_address 'host.that.does.not.exist:15508'", e.what());
+    SUCCEED();
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  }
 }
 
 TEST_F(RoutingPluginTests, StartWithBindAddressInDestinations) {

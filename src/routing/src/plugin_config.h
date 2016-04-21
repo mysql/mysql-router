@@ -18,17 +18,17 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
-#include "utils.h"
-#include "mysqlrouter/uri.h"
+#include "filesystem.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/plugin_config.h"
+#include "mysqlrouter/routing.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
-#include <mysqlrouter/routing.h>
+#include "plugin.h"
+#include "utils.h"
 
 #include <map>
 #include <string>
-
-#include "mysqlrouter/plugin_config.h"
-#include "plugin.h"
 
 using std::map;
 using std::string;
@@ -40,21 +40,7 @@ using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
 public:
-  /** @brief Constructor
-   *
-   * @param section from configuration file provided as ConfigSection
-   */
-  RoutingPluginConfig(const mysql_harness::ConfigSection *section)
-      : BasePluginConfig(section),
-        destinations(get_option_destinations(section, "destinations")),
-        bind_port(get_option_tcp_port(section, "bind_port")),
-        bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
-        connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        mode(get_option_mode(section, "mode")),
-        max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)),
-        max_connect_errors(get_uint_option<uint>(section, "max_connect_errors", 1, UINT32_MAX)),
-        client_connect_timeout(get_uint_option<uint>(section, "client_connect_timeout", 2, 31536000)),
-        net_buffer_length(get_uint_option<uint>(section, "net_buffer_length", 1024, 1048576)) { }
+  RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
   string get_default(const string &option);
 
@@ -66,6 +52,8 @@ public:
   const int bind_port;
   /** @brief `bind_address` option read from configuration section */
   const TCPAddress bind_address;
+  /** @brief `socket` option read from configuration section is stored as named_socket */
+  const mysql_harness::Path named_socket;
   /** @brief `connect_timeout` option read from configuration section */
   const int connect_timeout;
   /** @brief `mode` option read from configuration section */

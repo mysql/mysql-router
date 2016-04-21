@@ -33,6 +33,7 @@
 #include <sstream>
 #include <sys/fcntl.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #undef __FD_SETSIZE
 #define __FD_SETSIZE 4096
 #include <sys/select.h>
@@ -53,6 +54,7 @@ using mysqlrouter::URIQuery;
 
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
+                           const mysql_harness::Path& named_socket,
                            const string &route_name,
                            int max_connections,
                            int destination_connect_timeout,
@@ -67,11 +69,21 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string
       client_connect_timeout_(client_connect_timeout),
       net_buffer_length_(net_buffer_length),
       bind_address_(TCPAddress(bind_address, port)),
+      bind_named_socket_(named_socket),
       stopping_(false),
       info_active_routes_(0),
       info_handled_routes_(0) {
-  if (!bind_address_.port) {
-    throw std::invalid_argument(string_format("Invalid bind address, was '%s', port %d", bind_address.c_str(), port));
+
+  #ifdef _WIN32
+  if (named_socket.is_set()) {
+    throw std::invalid_argument(string_format("'socket' configuration item is not supported on Windows platform"));
+  }
+  #endif
+
+  // This test is only a basic assertion.  Calling code is expected to check the validity of these arguments more thoroughally.
+  // At the time of writing, routing_plugin.cc : init() is one such place.
+  if (!bind_address_.port && !named_socket.is_set()) {
+    throw std::invalid_argument(string_format("No valid address:port (%s:%d) or socket (%s) to bind to", bind_address.c_str(), port, named_socket.c_str()));
   }
 }
 
@@ -236,11 +248,20 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     return;
   }
 
-  auto c_ip = get_peer_name(client);
-  auto s_ip = get_peer_name(server);
+  std::pair<std::string, int> c_ip = get_peer_name(client);
+  std::pair<std::string, int> s_ip = get_peer_name(server);
 
-  log_debug("[%s] [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
-            s_ip.first.c_str(), s_ip.second);
+  std::string info;
+  if (c_ip.second == 0) {
+    // Unix socket/Windows Named pipe
+    info = string_format("%s %s - [%s]:%d", name.c_str(), bind_named_socket_.c_str(),
+                         s_ip.first.c_str(), s_ip.second);
+  } else {
+    info = string_format("%s [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
+                         s_ip.first.c_str(), s_ip.second);
+  }
+  log_debug(info.c_str());
+
   ++info_handled_routes_;
   ++info_active_routes_;
 
@@ -323,21 +344,50 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 }
 
 void MySQLRouting::start() {
+
+  std::shared_ptr<void> scope_exit_guard(nullptr, [this](void*){
+    if (thread_tcp_.joinable()) {
+      thread_tcp_.join();
+    }
+    if (thread_named_socket_.joinable()) {
+      thread_named_socket_.join();
+    }
+  });
+
+  if (bind_address_.port > 0) {
+    try {
+      setup_tcp_service();
+    } catch (const runtime_error &exc) {
+      stop();
+      throw runtime_error(
+          string_format("Setting up TCP service using %s: %s", bind_address_.str().c_str(), exc.what()));
+    }
+    log_info("[%s] started: listening on %s; %s", name.c_str(), bind_address_.str().c_str(),
+             routing::get_access_mode_name(mode_).c_str());
+    thread_tcp_ = std::thread(&MySQLRouting::start_tcp_service, this);
+  }
+
+  if (bind_named_socket_.is_set()) {
+    try {
+      setup_named_socket_service();
+    } catch (const runtime_error &exc) {
+      stop();
+      throw runtime_error(
+          string_format("Setting up named socket service '%s': %s", bind_named_socket_.c_str(), exc.what()));
+    }
+
+    log_info("[%s] started: listening using %s; %s", name.c_str(), bind_named_socket_.c_str(),
+             routing::get_access_mode_name(mode_).c_str());
+    thread_named_socket_ = std::thread(&MySQLRouting::start_named_socket_service, this);
+  }
+}
+
+void MySQLRouting::start_tcp_service() {
   int sock_client;
   struct sockaddr_in6 client_addr;
   socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
   char client_ip[INET6_ADDRSTRLEN];
   int opt_nodelay = 0;
-
-  try {
-    setup_service();
-  } catch (const runtime_error &exc) {
-    throw runtime_error(
-        string_format("Setting up service using %s: %s", bind_address_.str().c_str(), exc.what()));
-  }
-
-  log_info("[%s] listening on %s; %s", name.c_str(), bind_address_.str().c_str(),
-           routing::get_access_mode_name(mode_).c_str());
 
   destination_->start();
 
@@ -345,7 +395,7 @@ void MySQLRouting::start() {
       0, 1041, "Out of resources (please check logs)", "HY000");
 
   while (!stopping()) {
-    if ((sock_client = accept(sock_server_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+    if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
       log_error("[%s] Failed opening socket: %s", name.c_str(), strerror(errno));
       continue;
     }
@@ -388,11 +438,37 @@ void MySQLRouting::start() {
   log_info("[%s] stopped", name.c_str());
 }
 
+void MySQLRouting::start_named_socket_service() {
+  struct sockaddr_in6 client_addr;
+  socklen_t sin_size = sizeof client_addr;
+
+  int sock_client;
+
+  while (!stopping()) {
+    if (errno > 0) {
+      log_error(strerror(errno));
+      errno = 0;
+    }
+
+    if ((sock_client = accept(service_named_socket_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+      continue;
+    }
+
+    if (info_active_routes_.load(std::memory_order_relaxed) >= routing::kDefaultMaxConnections) {
+      shutdown(sock_client, SHUT_RDWR);
+      log_warning("%s reached max active connections (%d)", name.c_str(), routing::kDefaultMaxConnections);
+      continue;
+    }
+
+    std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
+  }
+}
+
 void MySQLRouting::stop() {
   stopping_.store(true);
 }
 
-void MySQLRouting::setup_service() {
+void MySQLRouting::setup_tcp_service() {
   struct addrinfo *servinfo, *info, hints;
   int err;
   int option_value;
@@ -412,17 +488,17 @@ void MySQLRouting::setup_service() {
 
   // Try to setup socket and bind
   for (info = servinfo; info != nullptr; info = info->ai_next) {
-    if ((sock_server_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
+    if ((service_tcp_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
       throw std::runtime_error(strerror(errno));
     }
 
     option_value = 1;
-    if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, &option_value, static_cast<socklen_t>(sizeof(int))) == -1) {
+    if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, &option_value, static_cast<socklen_t>(sizeof(int))) == -1) {
       throw std::runtime_error(strerror(errno));
     }
 
-    if (::bind(sock_server_, info->ai_addr, info->ai_addrlen) == -1) {
-      close(sock_server_);
+    if (::bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
+      close(service_tcp_);
       throw std::runtime_error(strerror(errno));
     }
     break;
@@ -433,8 +509,41 @@ void MySQLRouting::setup_service() {
     throw runtime_error(string_format("[%s] Failed to setup server socket", name.c_str()));
   }
 
-  if (listen(sock_server_, 20) < 0) {
-    throw runtime_error(string_format("[%s] Failed to start listening for connections", name.c_str()));
+  if (listen(service_tcp_, 20) < 0) {
+    throw runtime_error(string_format("[%s] Failed to start listening for connections using TCP", name.c_str()));
+  }
+}
+
+void MySQLRouting::setup_named_socket_service() {
+  struct sockaddr_un sock_unix;
+  string socket_file = bind_named_socket_.str();
+  errno = 0;
+
+  assert(!socket_file.empty());
+  assert(socket_file.size() < 104); // We already did check reading the configuration
+
+  // Try removing any socket previously created
+  if (unlink(socket_file.c_str()) == -1) {
+    if (errno != 2) {
+      throw std::runtime_error(
+          "Failed removing socket file " + socket_file + " (" + strerror(errno) + " (" + to_string(errno) + "))");
+    }
+    errno = 0;
+  }
+
+  if ((service_named_socket_ = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    throw std::runtime_error(strerror(errno));
+  }
+
+  sock_unix.sun_family = AF_UNIX;
+  strncpy(sock_unix.sun_path, socket_file.c_str(), socket_file.size() + 1);
+
+  if (::bind(service_named_socket_, (struct sockaddr *) &sock_unix, sizeof(sock_unix)) == -1) {
+    throw std::runtime_error(strerror(errno));
+  }
+
+  if (listen(service_named_socket_, 20) < 0) {
+    throw runtime_error("Failed to start listening for connections using named socket");
   }
 }
 

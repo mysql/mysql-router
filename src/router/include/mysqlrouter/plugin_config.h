@@ -18,21 +18,18 @@
 #ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 #define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 
+#include "config_parser.h"
+#include "filesystem.h"
+#include "logger.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 
 #include <cerrno>
-#include <cstdlib>
-#include <map>
 #include <limits>
+#include <map>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
-#include <iostream>
-
-#include "config_parser.h"
-#include "logger.h"
 
 using std::string;
 
@@ -166,6 +163,19 @@ protected:
 
   int get_option_tcp_port(const mysql_harness::ConfigSection *section, const string &option);
 
+  /** @brief Gets location of a named socket
+   *
+   * Gets location of a named socket. The option value is checked first
+   * for its validity. For example, on UNIX system the path can be
+   * at most 104 characters.
+   *
+   * Throws std::invalid_argument on errors.
+   *
+   * @param section Instance of ConfigSection
+   * @param option Option name in section
+   * @return Path object
+   */
+  mysql_harness::Path get_option_named_socket(const mysql_harness::ConfigSection *section, const string &option);
 };
 
 } // namespace mysqlrouter

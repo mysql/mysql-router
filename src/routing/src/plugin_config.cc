@@ -31,6 +31,31 @@ using std::vector;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 
+//master:
+/** @brief Constructor
+ *
+ * @param section from configuration file provided as ConfigSection
+ */
+RoutingPluginConfig::RoutingPluginConfig(const mysql_harness::ConfigSection *section)
+    : BasePluginConfig(section),
+      destinations(get_option_destinations(section, "destinations")),
+      bind_port(get_option_tcp_port(section, "bind_port")),
+      bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
+      named_socket(get_option_named_socket(section, "socket")),
+      connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
+      mode(get_option_mode(section, "mode")),
+      max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)),
+      max_connect_errors(get_uint_option<uint>(section, "max_connect_errors", 1, UINT32_MAX)),
+      client_connect_timeout(get_uint_option<uint>(section, "client_connect_timeout", 2, 31536000)),
+      net_buffer_length(get_uint_option<uint>(section, "net_buffer_length", 1024, 1048576)) {
+
+  // either bind_address or socket needs to be set, or both
+  if (!bind_address.port && !named_socket.is_set()) {
+    throw invalid_argument("either bind_address or socket option needs to be supplied, or both");
+  }
+}
+
+
 string RoutingPluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{

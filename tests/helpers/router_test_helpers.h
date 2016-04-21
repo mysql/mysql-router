@@ -76,4 +76,24 @@ bool ends_with(const std::string &str, const std::string &suffix);
  */
 bool starts_with(const std::string &str, const std::string &prefix);
 
+/** @brief Reads a specified number of bytes from a non-blocking socket
+ *
+ * reads a non-blocking socket until one of three things happen:
+ *   1. specified number of bytes have been read - returns this number
+ *   2. timeout expires - throws, describing the error
+ *   3. read() fails    - throws, describing the error
+ *
+ * Returns number of bytes read (should be the number of bytes requested,
+ * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
+ * the reason can be extracted from the thrown object with what() method.
+ *
+ * @param socket file decriptor
+ * @param buffer to store read bytes
+ * @param number of bytes to read
+ * @param timeout expressed in milliseconds
+ *
+ * @return number of bytes read
+ */
+size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms);
+
 #endif // ROUTER_TESTS_TEST_HELPERS_INCLUDED

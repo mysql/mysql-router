@@ -76,7 +76,7 @@ protected:
   std::unique_ptr<Path> config_path;
 };
 
-TEST_F(Bug22020088, MissingBindAddressAndDefaultPort) {
+TEST_F(Bug22020088, NoDestination) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
   c << "[routing]\n";
@@ -88,7 +88,7 @@ TEST_F(Bug22020088, MissingBindAddressAndDefaultPort) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "in [routing]: either bind_port or bind_address is required"));
+      "either bind_address or socket option needs to be supplied, or both"));
   }
 }
 
@@ -104,7 +104,7 @@ TEST_F(Bug22020088, MissingPortInBindAddress) {
     r.start();
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-     "in [routing]: no bind_port, and TCP port in bind_address is not valid"));
+     "either bind_address or socket option needs to be supplied, or both"));
   }
 }
 
@@ -149,7 +149,7 @@ TEST_F(Bug22020088, BlockClientHost) {
   auto client_ip_array1 = in6_addr_to_array(client_addr1);
   auto client_ip_array2 = in6_addr_to_array(client_addr2);
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, "127.0.0.1", "routing:connect_erros",
+  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
@@ -177,7 +177,7 @@ TEST_F(Bug22020088, BlockClientHostWithFakeResponse) {
   client_addr1.s6_addr[15] = 1;
   auto client_ip_array1 = in6_addr_to_array(client_addr1);
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, "127.0.0.1", "routing:connect_erros",
+  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);
 
   std::FILE* fd_response = std::fopen("fake_response.data", "w");
