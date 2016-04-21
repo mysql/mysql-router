@@ -87,8 +87,8 @@ if(ENABLE_TESTS)
   set(GTEST_BOTH_LIBRARIES ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
   set(GMOCK_INCLUDE_DIRS ${_gmock_root}/include)
-  set(GMOCK_LIBRARIES gtest)
-  set(GMOCK_MAIN_LIBRARIES gtest_main)
+  set(GMOCK_LIBRARIES gmock)
+  set(GMOCK_MAIN_LIBRARIES gmock_main)
   set(GMOCK_BOTH_LIBRARIES ${GMOCK_LIBRARIES} ${GMOCK_MAIN_LIBRARIES})
 
   set(TEST_LIBRARIES ${GMOCK_BOTH_LIBRARIES} ${GTEST_BOTH_LIBRARIES})
@@ -122,6 +122,7 @@ include(CPack)
 include(Plugin)
 include(Arch)
 include(Docs)
+include(Coverage)
 
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)

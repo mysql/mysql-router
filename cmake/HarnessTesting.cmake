@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ function(ADD_HARNESS_TEST NAME)
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
   add_executable(${NAME} ${ADD_HARNESS_TEST_SOURCES})
-  if(requires)
+  if(ADD_HARNESS_TEST_REQUIRES)
     add_dependencies(${NAME} ${ADD_HARNESS_TEST_REQUIRES})
   endif()
   target_link_libraries(${NAME}
