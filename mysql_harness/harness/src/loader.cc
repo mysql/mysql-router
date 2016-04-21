@@ -212,14 +212,14 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 
 Plugin* Loader::load(const std::string& plugin_name, const std::string& key)
 {
-  auto& plugin = config_.get(plugin_name, key);
+  mysql_harness::ConfigSection& plugin = config_.get(plugin_name, key);
   const auto& library_name = plugin.get("library");
   return load_from(plugin_name, library_name);
 }
 
 Plugin* Loader::load(const std::string& plugin_name)
 {
-  auto plugins = config_.get(plugin_name);
+  Config::SectionList plugins = config_.get(plugin_name);
   if (plugins.size() > 1) {
     std::ostringstream buffer;
     buffer << "Section name '" << plugin_name
@@ -238,14 +238,14 @@ Plugin* Loader::load(const std::string& plugin_name)
 
   assert(plugins.size() == 1);
   const ConfigSection* section = plugins.front();
-  const auto& library_name = section->get("library");
+  const std::string& library_name = section->get("library");
   return load_from(plugin_name, library_name);
 }
 
 
 void Loader::start()
 {
-  for (auto& name : available())
+  for (std::pair<const std::string&, std::string> name : available())
     load(name.first, name.second);
   init_all();
   start_all();
@@ -256,8 +256,7 @@ bool Loader::is_loaded(const std::string& name) const
   return plugins_.find(name) != plugins_.end();
 }
 
-auto Loader::available() const
-  -> decltype(config_.section_names())
+std::list<Config::SectionKey> Loader::available() const
 {
   return config_.section_names();
 }
@@ -292,7 +291,7 @@ void Loader::init_all()
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
 
-  for (auto& plugin_key : reverse(order_))
+  for (const std::string& plugin_key : reverse(order_))
   {
     PluginInfo &info = plugins_.at(plugin_key);
     if (info.plugin->init && info.plugin->init(&appinfo_))
@@ -304,11 +303,11 @@ void Loader::start_all()
 {
   // Start all the threads
   int stoppable_jobs = 0;
-  for (auto&& section: config_.sections()) {
-    auto& plugin = plugins_.at(section->name);
+  for (const mysql_harness::ConfigSection* & section: config_.sections()) {
+    PluginInfo& plugin = plugins_.at(section->name);
     void (*fptr)(const ConfigSection*) = plugin.plugin->start;
     if (fptr) {
-      auto dispatch = [&section,fptr,this](size_t position){
+      auto dispatch = [&section,fptr,this](size_t position)->std::exception_ptr {
         std::exception_ptr eptr;
         try {
           fptr(section);
@@ -324,7 +323,7 @@ void Loader::start_all()
         done_cond_.notify_all();
         return eptr;
       };
-      auto fut = std::async(std::launch::async, dispatch, sessions_.size());
+      std::future<std::exception_ptr> fut = std::async(std::launch::async, dispatch, sessions_.size());
       sessions_.push_back(std::move(fut));
       if (plugin.plugin->stop == nullptr)
         ++stoppable_jobs;
@@ -352,7 +351,7 @@ void Loader::start_all()
 
 void Loader::stop_all() {
   for (auto&& section: config_.sections()) {
-    auto& plugin = plugins_.at(section->name);
+    PluginInfo& plugin = plugins_.at(section->name);
     void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
     if (fptr) {
       fptr(section);
@@ -380,7 +379,7 @@ bool Loader::topsort()
 {
   std::map<std::string, int> status;
   std::list<std::string> order;
-  for (auto& plugin : plugins_)
+  for (std::pair<const std::string,PluginInfo>& plugin : plugins_)
   {
     bool succeeded = visit(plugin.first, status, order);
     if (!succeeded)

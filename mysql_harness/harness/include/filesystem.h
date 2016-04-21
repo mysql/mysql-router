@@ -18,9 +18,8 @@
 #ifndef MYSQL_HARNESS_FILESYSTEM_INCLUDED
 #define MYSQL_HARNESS_FILESYSTEM_INCLUDED
 
-#include <string>
-
 #include <dirent.h>
+#include <string>
 
 /**
  * @defgroup Filesystem Platform-independent file system operations
@@ -223,6 +222,15 @@ public:
    */
   const std::string& str() const noexcept {
     return path_;
+  }
+
+  /**
+   * Test if path is set
+   *
+   * @return Test result
+   */
+  bool is_set() const noexcept {
+    return (type_ != FileType::EMPTY_PATH);
   }
 
 private:
