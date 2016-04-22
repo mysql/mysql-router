@@ -57,6 +57,7 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bin
                            int max_connections,
                            int destination_connect_timeout,
                            unsigned long long max_connect_errors,
+                           unsigned long long max_connect_errors_timeout,
                            unsigned int client_connect_timeout,
                            unsigned int net_buffer_length)
     : name(route_name),
@@ -64,6 +65,7 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bin
       max_connections_(set_max_connections(max_connections)),
       destination_connect_timeout_(set_destination_connect_timeout(destination_connect_timeout)),
       max_connect_errors_(max_connect_errors),
+      max_connect_errors_timeout_(max_connect_errors_timeout),
       client_connect_timeout_(client_connect_timeout),
       net_buffer_length_(net_buffer_length),
       bind_address_(TCPAddress(bind_address, port)),
@@ -181,17 +183,22 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
   bool blocked = false;
   std::lock_guard<std::mutex> lock(mutex_auth_errors_);
 
-  if (++auth_error_counters_[client_ip_array] >= max_connect_errors_) {
+  if (++auth_error_counters_[client_ip_array].count >= max_connect_errors_) {
     log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
     blocked = true;
   } else {
     log_info("[%s] %d authentication errors for %s (max %d)",
-             name.c_str(), auth_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
+             name.c_str(), auth_error_counters_[client_ip_array].count, client_ip_str.c_str(), max_connect_errors_);
   }
 
   if (server >= 0) {
     auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
-    write(server, fake_response.data(), fake_response.size());
+    int error_code;
+    socklen_t error_code_size = sizeof(error_code);
+    int res = getsockopt(server, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
+    if (res == 0 && error_code == 0) {
+      write(server, fake_response.data(), fake_response.size());
+    }
   }
 
   return blocked;
@@ -348,7 +355,7 @@ void MySQLRouting::start() {
       continue;
     }
 
-    if (auth_error_counters_[in6_addr_to_array(client_addr.sin6_addr)] >= max_connect_errors_) {
+    if (auth_error_counters_[in6_addr_to_array(client_addr.sin6_addr)].count >= max_connect_errors_) {
       std::stringstream os;
       os << "Too many connection errors from " << get_peer_name(sock_client).first;
       auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");

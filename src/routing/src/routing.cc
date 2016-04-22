@@ -48,6 +48,7 @@ const int kDefaultDestinationConnectionTimeout = 1;
 const string kDefaultBindAddress = "127.0.0.1";
 const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
 const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
+const unsigned long long kDefaultMaxConnectErrorsTimeout = 300;  // 5 minutes
 const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
 
 const std::map<string, AccessMode> kAccessModeNames = {
