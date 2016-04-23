@@ -53,7 +53,7 @@ public:
         mode(get_option_mode(section, "mode")),
         max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)),
         max_connect_errors(get_uint_option<uint>(section, "max_connect_errors", 1, UINT32_MAX)),
-        max_connect_errors_timeout(get_uint_option<uint>(section, "max_connect_errors_timeout", 300, UINT32_MAX)), // 5 minutes for reset error attempts
+        max_connect_errors_timeout(get_uint_option<uint>(section, "max_connect_errors_timeout", 0, UINT32_MAX)), // 5 minutes for reset error attempts
         client_connect_timeout(get_uint_option<uint>(section, "client_connect_timeout", 2, 31536000)),
         net_buffer_length(get_uint_option<uint>(section, "net_buffer_length", 1024, 1048576)) { }
 

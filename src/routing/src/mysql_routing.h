@@ -202,6 +202,8 @@ public:
   bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                          const string &client_ip_str, int server = -1);
 
+  bool check_client_errors_time(const std::array<uint8_t, 16> &client_ip_array);
+
   /** @brief Returns a copy of the list of blocked client hosts
    *
    * Returns a copy of the list of the blocked client hosts.
