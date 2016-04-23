@@ -77,6 +77,16 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bin
   }
 }
 
+bool check_socket_alive(int fd) {
+    int error_code;
+    socklen_t error_code_size = sizeof(error_code);
+    int res = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
+    if (res == 0 && error_code == 0) {
+      return true;
+    };
+    return false;
+}
+
 /** @brief Reads from sender and writes it back to receiver using select
  *
  * This function reads data from the sender socket and writes it back
@@ -138,7 +148,9 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
         auto server_error = mysql_protocol::ErrorPacket(buffer);
-        write(receiver, server_error.data(), server_error.size());
+        if (check_socket_alive) {
+          write(receiver, server_error.data(), server_error.size());
+        }
         // receiver socket closed by caller
         *curr_pktnr = 2; // we assume handshaking is done though there was an error
         *report_bytes_read = bytes_read;
@@ -164,6 +176,9 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
     size_t bytes_to_write = bytes_read;
     ssize_t written = 0;
     while (bytes_to_write > 0) {
+      if (!check_socket_alive(receiver)) {
+        break;
+      }
       if ((written = write(receiver, buffer.data(), bytes_to_write)) < 0) {
         log_debug("Write error: %s", strerror(errno));
         return -1;
@@ -193,10 +208,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
 
   if (server >= 0) {
     auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
-    int error_code;
-    socklen_t error_code_size = sizeof(error_code);
-    int res = getsockopt(server, SOL_SOCKET, SO_ERROR, &error_code, &error_code_size);
-    if (res == 0 && error_code == 0) {
+    if (check_socket_alive) {
       write(server, fake_response.data(), fake_response.size());
     }
   }
@@ -223,7 +235,9 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     os << "Can't connect to MySQL server on ";
     os << "'" << bind_address_.addr << "'";
     auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
-    write(client, server_error.data(), server_error.size());
+    if (check_socket_alive) {
+      write(client, server_error.data(), server_error.size());
+    }
 
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
@@ -359,14 +373,18 @@ void MySQLRouting::start() {
       std::stringstream os;
       os << "Too many connection errors from " << get_peer_name(sock_client).first;
       auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");
-      write(sock_client, server_error.data(), server_error.size());
+      if (check_socket_alive) {
+        write(sock_client, server_error.data(), server_error.size());
+      }
       close(sock_client); // no shutdown() before close()
       continue;
     }
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       auto server_error = mysql_protocol::ErrorPacket(0, 1040, "Too many connections", "HY000");
-      write(sock_client, server_error.data(), server_error.size());
+      if (check_socket_alive) {
+        write(sock_client, server_error.data(), server_error.size());
+      }
       close(sock_client); // no shutdown() before close()
       log_warning("[%s] reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
