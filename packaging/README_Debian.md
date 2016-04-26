@@ -10,6 +10,7 @@ the following are supported:
   deb-jessie  Debian 8
   deb-trusty  Ubuntu 14.04
   deb-vivid   Ubuntu 15.04
+  deb-wily    Ubuntu 15.10
 
 Combining common and per distribution folders
 ---------------------------------------------

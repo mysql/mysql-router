@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 # Version information of MySQL Router
 
 # Change following when releasing
-set(PROJECT_VERSION_TEXT "2.0.3")
+set(PROJECT_VERSION_TEXT "2.0.4")
 set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
 
 # Nothing hereunder needs change when releasing
