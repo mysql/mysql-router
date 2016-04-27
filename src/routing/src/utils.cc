@@ -34,21 +34,6 @@ void *get_in_addr(struct sockaddr *addr) {
   return &(((struct sockaddr_in6 *) addr)->sin6_addr);
 }
 
-string ip_from_addrinfo(struct addrinfo *info) {
-  char tmp[INET6_ADDRSTRLEN];
-
-  if (info->ai_addr->sa_family == AF_INET6) {
-    // IPv6 addresses
-    auto addr = (struct sockaddr_in6 *) info->ai_addr;
-    inet_ntop(AF_INET, &addr->sin6_addr, tmp, INET6_ADDRSTRLEN);
-  } else {
-    // IPv4 addresses
-    auto addr = (struct sockaddr_in *) info->ai_addr;
-    inet_ntop(AF_INET, &addr->sin_addr, tmp, INET_ADDRSTRLEN);
-  }
-  return string(tmp);
-}
-
 std::pair<std::string, int > get_peer_name(int sock) {
   socklen_t sock_len;
   struct sockaddr_storage addr;

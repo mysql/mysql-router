@@ -37,14 +37,6 @@ using std::string;
 void * get_in_addr(struct sockaddr *addr);
 
 /**
- * IP Address from addrinfo struct
- *
- * @param addrinfo addrinfo struct
- * @return std::string
- */
-string ip_from_addrinfo(struct addrinfo *info);
-
-/**
  * Get address of connected peer
  *
  * Get address of connected peer connected to the specified
