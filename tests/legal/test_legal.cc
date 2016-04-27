@@ -131,7 +131,7 @@ void prepare_git_tracked_files() {
     tracked_file = std::string(realpath(tmp_path.c_str(), nullptr));
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
-      os_cmd << "git log master --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
+      os_cmd << "git log HEAD --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
       result = cmd_exec(os_cmd.str());
       // Result should contain at least 1 line with a year.
       if (result.output.size() < 10) {
@@ -181,7 +181,7 @@ TEST_F(CheckLegal, Copyright) {
           && ends_with(line, "Oracle and/or its affiliates. All rights reserved.")) {
         found = true;
         // Check first year of first commit is in the copyright
-        needle = "(c) " + std::to_string(it.year_first_commit) + ",";
+        needle = " " + std::to_string(it.year_first_commit) + ",";
         if (line.find(needle) == std::string::npos) {
           problem = std::string("First commit year ") + std::to_string(it.year_first_commit)
                     + std::string(" not present");
