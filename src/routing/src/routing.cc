@@ -86,7 +86,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 
   struct addrinfo *servinfo, *info, hints;
 
-  int opt_nodelay = 0;
+  int opt_nodelay = 1;
   int res;
   int so_error = 0;
   int sock = -1;
@@ -169,7 +169,10 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     return -1;
   }
 
-  set_socket_blocking(sock, false);
+  // set blocking; MySQL protocol is blocking and we do not take advantage of
+  // any non-blocking possibilities
+  set_socket_blocking(sock, true);
+
   if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
     log_debug("Failed setting TCP_NODELAY on client socket");
     return -1;
