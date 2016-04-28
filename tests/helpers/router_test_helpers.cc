@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+#include <thread>
 #include <unistd.h>
 
 using mysql_harness::Path;
@@ -91,15 +92,15 @@ bool starts_with(const std::string &str, const std::string &prefix) {
 size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms) {
 
   // returns epoch time (aka unix time, etc), expressed in milliseconds
-  auto get_epoch_in_ms = []()->uint64_t {
+  auto get_epoch_in_ms = []() -> uint64_t {
     using namespace std::chrono;
     time_point<system_clock> now = system_clock::now();
     return static_cast<uint64_t>(duration_cast<milliseconds>(now.time_since_epoch()).count());
   };
 
   // calculate deadline time
-  uint64_t now_in_us = get_epoch_in_ms();
-  uint64_t deadline_epoch_in_us = now_in_us + timeout_in_ms;
+  uint64_t now_in_ms = get_epoch_in_ms();
+  uint64_t deadline_epoch_in_ms = now_in_ms + timeout_in_ms;
 
   // read until 1 of 3 things happen: enough bytes were read, we time out or read() fails
   size_t bytes_read = 0;
@@ -110,7 +111,7 @@ size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_
       return bytes_read;
     }
 
-    if (get_epoch_in_ms() > deadline_epoch_in_us)
+    if (get_epoch_in_ms() > deadline_epoch_in_ms)
     {
       throw std::runtime_error("read() timed out");
     }
@@ -127,6 +128,8 @@ size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_
         return bytes_read;
       }
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 }
 

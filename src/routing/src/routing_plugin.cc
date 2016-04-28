@@ -45,12 +45,6 @@ static void validate_socket_info(const std::string& err_prefix,
     return 0 < port && port < 65536;
   };
 
-  auto int_to_string = [](int port)->const char* {
-    static char buf[16];
-    snprintf(buf, sizeof(buf), "%d", port);
-    return buf;
-  };
-
   TCPAddress config_addr = config.bind_address; // we have to make a copy because TCPAddress::is_valid() is non-const
 
   bool have_named_sock = section->has("socket");
@@ -67,7 +61,7 @@ static void validate_socket_info(const std::string& err_prefix,
   // validate bind_port
   if (have_bind_port && !is_valid_port(config.bind_port))
   {
-    throw std::invalid_argument(err_prefix + "invalid bind_port '" + int_to_string(config.bind_port) + "'");
+    throw std::invalid_argument(err_prefix + "invalid bind_port '" + std::to_string(config.bind_port) + "'");
   }
 
   // validate bind_address : IP
@@ -87,11 +81,7 @@ static void validate_socket_info(const std::string& err_prefix,
   }
 
   // check if we have enough information to open some listening socket (a Unix socket/Windows named pipe or a TCP socket)
-  bool have_listening_socket = have_named_sock || have_bind_port || have_bind_addr_port;
-  if (!have_listening_socket)
-  {
-    assert(!have_named_sock && !have_bind_port && !have_bind_addr_port);
-
+  if (!(have_named_sock || have_bind_port || have_bind_addr_port)) {
     if (have_bind_addr) {
       throw std::invalid_argument(err_prefix + "no socket, no bind_port, and TCP port in bind_address is not provided");
     } else {

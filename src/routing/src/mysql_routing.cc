@@ -37,7 +37,6 @@
 #undef __FD_SETSIZE
 #define __FD_SETSIZE 4096
 #include <sys/select.h>
-#include <string>
 
 #include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -536,7 +535,7 @@ void MySQLRouting::setup_named_socket_service() {
   }
 
   sock_unix.sun_family = AF_UNIX;
-  strncpy(sock_unix.sun_path, socket_file.c_str(), socket_file.size() + 1);
+  std::strncpy(sock_unix.sun_path, socket_file.c_str(), socket_file.size() + 1);
 
   if (::bind(service_named_socket_, (struct sockaddr *) &sock_unix, sizeof(sock_unix)) == -1) {
     throw std::runtime_error(strerror(errno));

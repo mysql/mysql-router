@@ -113,7 +113,8 @@ int BasePluginConfig::get_option_tcp_port(const mysql_harness::ConfigSection *se
   return -1;
 }
 
-mysql_harness::Path BasePluginConfig::get_option_named_socket(const mysql_harness::ConfigSection *section, const string &option) {
+mysql_harness::Path BasePluginConfig::get_option_named_socket(const mysql_harness::ConfigSection *section,
+                                                              const string &option) {
   std::string value = get_option_string(section, option);
 
   if (value.size() > 104) {
@@ -125,28 +126,8 @@ mysql_harness::Path BasePluginConfig::get_option_named_socket(const mysql_harnes
   }
 
   mysql_harness::Path socket_path(value);
-  if (socket_path.is_regular()) {
-    // Try to figure out whether it is safe to remove
-    int sock;
-    errno = 0;
-    if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) != -1) {
-
-      errno = 0;
-      struct sockaddr_un sock_unix;
-      sock_unix.sun_family = AF_UNIX;
-      strncpy(sock_unix.sun_path, value.c_str(), value.size());
-
-      if (::bind(sock, (struct sockaddr *) &sock_unix, sizeof(sock_unix)) != -1) {
-        throw std::invalid_argument("Socket file " + value + " seems to be in use");
-      }
-    }
-
-    errno = 0;
-    // Socket seems to be unused; ry removing any socket previously created
-    if (unlink(socket_path.c_str()) == -1) {
-      throw invalid_argument(
-          "Failed removing socket file " + socket_path.str() + " (" + strerror(errno) + " (" + to_string(errno) + "))");
-    }
+  if (socket_path.exists()) {
+    throw std::invalid_argument(get_log_prefix(option) + " Socket file '" + value + "' already exists, cannot start");
   }
 
   return socket_path;
