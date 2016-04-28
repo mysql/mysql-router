@@ -42,8 +42,7 @@ namespace {
 namespace mysql_harness {
 
 void Path::validate_non_empty_path() const {
-  if (!is_set())
-  {
+  if (!is_set()) {
     throw std::invalid_argument("Empty path");
   }
 }
@@ -128,6 +127,12 @@ bool Path::is_regular() const
 {
   validate_non_empty_path();
   return type() == FileType::REGULAR_FILE;
+}
+
+bool Path::exists() const {
+  validate_non_empty_path();
+  return type() != FileType::FILE_NOT_FOUND
+      && type() != FileType::STATUS_ERROR;
 }
 
 void Path::append(const Path& other)

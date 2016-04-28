@@ -212,7 +212,7 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 
 Plugin* Loader::load(const std::string& plugin_name, const std::string& key)
 {
-  mysql_harness::ConfigSection& plugin = config_.get(plugin_name, key);
+  ConfigSection& plugin = config_.get(plugin_name, key);
   const auto& library_name = plugin.get("library");
   return load_from(plugin_name, library_name);
 }
@@ -303,11 +303,11 @@ void Loader::start_all()
 {
   // Start all the threads
   int stoppable_jobs = 0;
-  for (const mysql_harness::ConfigSection* & section: config_.sections()) {
+  for (const ConfigSection* section: config_.sections()) {
     PluginInfo& plugin = plugins_.at(section->name);
     void (*fptr)(const ConfigSection*) = plugin.plugin->start;
     if (fptr) {
-      auto dispatch = [&section,fptr,this](size_t position)->std::exception_ptr {
+      auto dispatch = [section,fptr,this](size_t position) -> std::exception_ptr {
         std::exception_ptr eptr;
         try {
           fptr(section);
@@ -323,7 +323,9 @@ void Loader::start_all()
         done_cond_.notify_all();
         return eptr;
       };
-      std::future<std::exception_ptr> fut = std::async(std::launch::async, dispatch, sessions_.size());
+      std::future<std::exception_ptr> fut = std::async(std::launch::async,
+                                                       dispatch,
+                                                       sessions_.size());
       sessions_.push_back(std::move(fut));
       if (plugin.plugin->stop == nullptr)
         ++stoppable_jobs;

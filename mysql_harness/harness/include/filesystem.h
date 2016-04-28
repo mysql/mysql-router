@@ -145,6 +145,11 @@ public:
   bool is_regular() const;
 
   /**
+   * Check if path exists
+   */
+  bool exists() const;
+
+  /**
    * Get the directory name of the path.
    *
    * This will strip the last component of a path, assuming that the
