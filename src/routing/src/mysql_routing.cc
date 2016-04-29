@@ -149,7 +149,7 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
         auto server_error = mysql_protocol::ErrorPacket(buffer);
-        if (check_socket_alive) {
+        if (check_socket_alive(receiver)) {
           write(receiver, server_error.data(), server_error.size());
         }
         // receiver socket closed by caller
@@ -224,7 +224,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
 
   if (server >= 0) {
     auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
-    if (check_socket_alive) {
+    if (check_socket_alive(server)) {
       write(server, fake_response.data(), fake_response.size());
     }
   }
@@ -251,7 +251,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     os << "Can't connect to MySQL server on ";
     os << "'" << bind_address_.addr << "'";
     auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
-    if (check_socket_alive) {
+    if (check_socket_alive(client)) {
       write(client, server_error.data(), server_error.size());
     }
 
@@ -390,7 +390,7 @@ void MySQLRouting::start() {
         std::stringstream os;
         os << "Too many connection errors from " << get_peer_name(sock_client).first;
         auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");
-        if (check_socket_alive) {
+        if (check_socket_alive(sock_client)) {
           write(sock_client, server_error.data(), server_error.size());
         }
         close(sock_client); // no shutdown() before close()
@@ -400,7 +400,7 @@ void MySQLRouting::start() {
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       auto server_error = mysql_protocol::ErrorPacket(0, 1040, "Too many connections", "HY000");
-      if (check_socket_alive) {
+      if (check_socket_alive(sock_client)) {
         write(sock_client, server_error.data(), server_error.size());
       }
       close(sock_client); // no shutdown() before close()
