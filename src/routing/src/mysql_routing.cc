@@ -22,6 +22,8 @@
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
 
+#include "signal.h"
+
 #include <ctime>
 #include <algorithm>
 #include <array>
@@ -76,6 +78,11 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bin
   if (!bind_address_.port) {
     throw std::invalid_argument(string_format("Invalid bind address, was '%s', port %d", bind_address.c_str(), port));
   }
+}
+
+/*  Catch Signal Handler functio */
+void signal_callback_handler(int signum){
+  log_error("Unexpected error: caught signal SIGPIPE %d",signum);
 }
 
 bool check_socket_alive(int fd) {
@@ -211,6 +218,7 @@ bool MySQLRouting::check_client_errors_time(const std::array<uint8_t, 16> &clien
 bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                                      const string &client_ip_str, int server) {
   bool blocked = false;
+  char *time_str;
   std::lock_guard<std::mutex> lock(mutex_auth_errors_);
   struct tm *curtime = localtime(&auth_error_counters_[client_ip_array].last_attempt);
   auth_error_counters_[client_ip_array].last_attempt = std::time(0);
@@ -218,8 +226,10 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
     log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
     blocked = true;
   } else {
+    time_str = asctime(curtime);
+    time_str[strlen(time_str)-1] = '\0';
     log_info("[%s] %d authentication errors for %s (max %d). last attempt: %s",
-             name.c_str(), auth_error_counters_[client_ip_array].count, client_ip_str.c_str(), max_connect_errors_, asctime(curtime));
+             name.c_str(), auth_error_counters_[client_ip_array].count, client_ip_str.c_str(), max_connect_errors_, time_str);
   }
 
   if (server >= 0) {
@@ -340,6 +350,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   if (!handshake_done) {
     auto ip_array = in6_addr_to_array(client_addr);
     log_debug("[%s] Routing failed for %s: %s", name.c_str(), c_ip.first.c_str(), extra_msg.c_str());
+    check_client_errors_time(ip_array);
     block_client_host(ip_array, c_ip.first.c_str(), server);
   }
 
@@ -358,6 +369,7 @@ void MySQLRouting::start() {
   socklen_t sin_size = sizeof client_addr;
   char client_ip[INET6_ADDRSTRLEN];
   int opt_nodelay = 1;
+  signal(SIGPIPE, signal_callback_handler);
 
   try {
     setup_service();
