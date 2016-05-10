@@ -58,6 +58,9 @@ add_harness_test(TestQueue SOURCES test_queue.cc)
 
 add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
 
+add_harness_test(TestIPAddress SOURCES test_ip_address.cc)
+add_harness_test(TestNameResolver SOURCES test_resolver.cc)
+
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
 foreach(_template ${_templates})

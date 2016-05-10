@@ -17,7 +17,11 @@ find_package(Threads REQUIRED)
 
 set(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
-  src/filesystem-posix.cc)
+  src/filesystem-posix.cc
+  src/networking/ip_address.cc
+  src/networking/ipv4_address.cc
+  src/networking/ipv6_address.cc
+  src/networking/resolver.cc)
 set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
   
 file(GLOB harness_headers include/*.h)

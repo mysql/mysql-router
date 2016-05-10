@@ -259,7 +259,7 @@ private:
   };
 
   typedef std::map<std::string, PluginInfo> PluginMap;
-  typedef std::vector<std::future<std::exception_ptr>> SessionList;
+    typedef std::vector<std::future<std::exception_ptr>> SessionList;
 
   // Init order is important, so keep config_ first.
 
