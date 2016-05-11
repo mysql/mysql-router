@@ -439,7 +439,7 @@ void MySQLRouting::start_tcp_service() {
 
 void MySQLRouting::start_named_socket_service() {
   struct sockaddr_in6 client_addr;
-  socklen_t sin_size = sizeof client_addr;
+  socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
 
   int sock_client;
 
@@ -537,7 +537,7 @@ void MySQLRouting::setup_named_socket_service() {
   sock_unix.sun_family = AF_UNIX;
   std::strncpy(sock_unix.sun_path, socket_file.c_str(), socket_file.size() + 1);
 
-  if (::bind(service_named_socket_, (struct sockaddr *) &sock_unix, sizeof(sock_unix)) == -1) {
+  if (::bind(service_named_socket_, (struct sockaddr *) &sock_unix, static_cast<socklen_t>(sizeof(sock_unix))) == -1) {
     throw std::runtime_error(strerror(errno));
   }
 
