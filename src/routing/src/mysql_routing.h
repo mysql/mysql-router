@@ -33,6 +33,7 @@
 #include "plugin_config.h"
 
 #include <atomic>
+#include <ctime>
 #include <arpa/inet.h>
 #include <array>
 #include <iostream>
@@ -80,6 +81,7 @@ using mysqlrouter::URI;
  *  use 10.0.11.6 to setup the connection routing.
  *
  */
+
 class MySQLRouting {
 public:
   /** @brief Default constructor
@@ -97,8 +99,14 @@ public:
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
+               unsigned long long max_connect_errors_timeout = routing::kDefaultMaxConnectErrorsTimeout,
                unsigned int connect_timeout = routing::kDefaultClientConnectTimeout,
                unsigned int net_buffer_length = routing::kDefaultNetBufferLength);
+
+  struct AuthErrorCounter {
+    size_t count;
+    std::time_t last_attempt;
+  };
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -194,6 +202,8 @@ public:
   bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                          const string &client_ip_str, int server = -1);
 
+  bool check_client_errors_time(const std::array<uint8_t, 16> &client_ip_array);
+
   /** @brief Returns a copy of the list of blocked client hosts
    *
    * Returns a copy of the list of the blocked client hosts.
@@ -253,6 +263,8 @@ private:
   int destination_connect_timeout_;
   /** @brief Max connect errors blocking hosts when handshake not completed */
   unsigned long long max_connect_errors_;
+  /** @brief Timeout fot reset counter for connect errors blocking hosts when handshake not completed */
+  unsigned long long max_connect_errors_timeout_;
   /** @brief Timeout waiting for handshake response from client */
   unsigned int client_connect_timeout_;
   /** @brief Size of buffer to store receiving packets */
@@ -272,7 +284,7 @@ private:
 
   /** @brief Authentication error counters for IPv4 or IPv6 hosts */
   std::mutex mutex_auth_errors_;
-  std::map<std::array<uint8_t, 16>, size_t> auth_error_counters_;
+  std::map<std::array<uint8_t, 16>, AuthErrorCounter> auth_error_counters_;
   std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 };
 

@@ -38,6 +38,7 @@ string RoutingPluginConfig::get_default(const string &option) {
       {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
       {"max_connect_errors", to_string(routing::kDefaultMaxConnectErrors)},
+      {"max_connect_errors_timeout", to_string(routing::kDefaultMaxConnectErrorsTimeout)},
       {"client_connect_timeout", to_string(routing::kDefaultClientConnectTimeout)},
       {"net_buffer_length", to_string(routing::kDefaultNetBufferLength)},
   };

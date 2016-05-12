@@ -52,6 +52,11 @@ extern const int kDefaultDestinationConnectionTimeout;
  */
 extern const unsigned long long kDefaultMaxConnectErrors;
 
+/** @brief Timeout then reset counter for connect or handshake errors per host
+ *
+ */
+extern const unsigned long long kDefaultMaxConnectErrorsTimeout;
+
 /** @brief Default bind address
  *
  */
