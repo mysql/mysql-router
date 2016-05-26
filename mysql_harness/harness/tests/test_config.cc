@@ -25,25 +25,30 @@
 
 ////////////////////////////////////////
 // Third-party include files
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ////////////////////////////////////////
 // Standard include files
-#include <stdexcept>
-#include <string>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
+#include <string>
 
 using mysql_harness::Config;
-using mysql_harness::Path;
 using mysql_harness::ConfigSection;
-using mysql_harness::bad_section;
+using mysql_harness::Path;
 using mysql_harness::bad_option;
+using mysql_harness::bad_section;
+
+using testing::ElementsAreArray;
+using testing::IsEmpty;
+using testing::SizeIs;
+using testing::UnorderedElementsAreArray;
 
 namespace mysql_harness {
 
-bool operator==(const Config& lhs, const Config& rhs)
-{
+bool operator==(const Config& lhs, const Config& rhs) {
   // We just check the section names to start with
   auto&& lhs_names = lhs.section_names();
   auto&& rhs_names = rhs.section_names();
@@ -68,13 +73,23 @@ bool operator==(const Config& lhs, const Config& rhs)
 
 }
 
+std::list<std::string>
+section_names(const mysql_harness::Config::ConstSectionList& sections) {
+  std::list<std::string> result;
+  for (auto& section: sections)
+    result.push_back(section->name);
+  std::cerr << result << std::endl;
+  return result;
+}
+
+
 void PrintTo(const Config& config, std::ostream& out) {
   for (auto&& val: config.section_names())
     out << val.first << ":" << val.second << " ";
 }
 
 class ConfigTest : public ::testing::Test {
-protected:
+ protected:
   virtual void SetUp() {
     std::vector<std::string> words;
     words.push_back("reserved");
@@ -86,8 +101,7 @@ protected:
 
 Path g_here;
 
-TEST_F(ConfigTest, TestEmpty)
-{
+TEST_F(ConfigTest, TestEmpty) {
   EXPECT_TRUE(config.is_reserved("reserved"));
   EXPECT_FALSE(config.is_reserved("legal"));
 
@@ -128,10 +142,8 @@ TEST_F(ConfigTest, SetGetTest) {
 }
 
 
-class GoodParseTestAllowKey
-  : public ::testing::TestWithParam<const char*> 
-{
-protected:
+class GoodParseTestAllowKey : public ::testing::TestWithParam<const char*> {
+ protected:
   virtual void SetUp() {
     config = new Config(Config::allow_keys);
 
@@ -260,10 +272,8 @@ static const char* syntax_problems[] = {
 INSTANTIATE_TEST_CASE_P(TestParsingSyntaxError, BadParseTestForbidKey,
                         ::testing::ValuesIn(syntax_problems));
 
-class BadParseTestAllowKeys
-  : public ::testing::TestWithParam<const char*> 
-{
-protected:
+class BadParseTestAllowKeys : public ::testing::TestWithParam<const char*> {
+ protected:
   virtual void SetUp() {
     config = new Config(Config::allow_keys);
 
@@ -298,7 +308,7 @@ INSTANTIATE_TEST_CASE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,
                         ::testing::ValuesIn(semantic_problems));
 
 TEST(TestConfig, ConfigUpdate) {
-  const char *const configs[] = {
+  const char *const configs[]{
     ("[one]\n"
      "one = first\n"
      "two = second\n"),
@@ -334,8 +344,7 @@ TEST(TestConfig, ConfigUpdate) {
   EXPECT_THROW(one.update(two), bad_section);
 }
 
-TEST(TestConfig, ConfigReadBasic)
-{
+TEST(TestConfig, ConfigReadBasic) {
   // Here are three different sources of configurations that should
   // all be identical. One is a single file, one is a directory, and
   // one is a stream.
@@ -372,8 +381,7 @@ TEST(TestConfig, ConfigReadBasic)
 
 // Here we test that reads of configuration entries overwrite previous
 // read entries.
-TEST(TestConfig, ConfigReadOverwrite)
-{
+TEST(TestConfig, ConfigReadOverwrite) {
   Config config = Config(Config::allow_keys);
   config.read(g_here.join("data/logger.d"), "*.cfg");
   EXPECT_EQ("Some kind of", config.get("magic", "").get("message"));
@@ -394,9 +402,44 @@ TEST(TestConfig, ConfigReadOverwrite)
   }
 }
 
+TEST(TestConfig, SectionRead) {
+  static const char *const config_string =
+    ("[DEFAULT]\n"
+     "logging_folder = var/log\n"
+     "config_folder = etc\n"
+     "plugin_folder = var/lib\n"
+     "runtime_folder = var/run\n"
+     "[logger]\n"
+     "library = logger\n"
+     "[empty]\n"
+     "[example]\n"
+     "library = magic\n"
+     "message = Some kind of\n");
 
-int main(int argc, char *argv[])
-{
+  Config config(Config::allow_keys);
+  std::istringstream stream_input(config_string);
+  config.read(stream_input);
+
+  // Test that the sections command return the right sections
+  EXPECT_THAT(section_names(config.sections()),
+              UnorderedElementsAreArray({"logger", "example", "empty"}));
+
+  // Test that options for a section is correct
+  std::vector<std::pair<std::string, std::string>> expected_options{
+    {"library", "magic"},
+    {"message", "Some kind of"}
+  };
+  EXPECT_THAT(config.get("example", "").get_options(),
+              ElementsAreArray(expected_options));
+  EXPECT_THAT(config.get("example", "").get_options(),
+              SizeIs(2));
+  EXPECT_THAT(config.get("empty", "").get_options(),
+              IsEmpty());
+  EXPECT_THAT(config.get("empty", "").get_options(),
+              SizeIs(0));
+}
+
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);

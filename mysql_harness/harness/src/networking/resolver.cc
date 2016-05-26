@@ -83,7 +83,7 @@ std::string Resolver::tcp_service_port(uint16_t port) const {
     return cached;
   }
 
-  struct servent *servinfo = getservbyport(htons(static_cast<int>(port)), "tcp");
+  struct servent *servinfo = getservbyport(htons(port), "tcp");
 
   if (!servinfo) {
     // we cache the empty string so we don't look it up later

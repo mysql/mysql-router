@@ -19,16 +19,61 @@
 #define MYSQL_HARNESS_CONFIG_PARSER_INCLUDED
 
 #include <functional>
+#include <iterator>
 #include <list>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
 
 namespace mysql_harness {
 
 class ConfigSection;
 class Path;
+
+/**
+ * Convenience class for handling iterator range.
+ *
+ * This is a template class that accept a pair of iterators and
+ * implement the necessary methods to be able to be used as a sequence
+ * container.
+ */
+template <class Iter>
+class Range {
+ public:
+  using value_type = typename Iter::value_type;
+  using reference = typename Iter::reference;
+  using iterator = Iter;
+  using const_iterator = iterator;
+  using difference_type = typename std::iterator_traits<Iter>::difference_type;
+  using size_type = difference_type;
+
+  Range(Iter start, Iter finish) : begin_(start), end_(finish) {}
+
+  /** Get iterator to beginning of range. */
+  Iter begin() const { return begin_; }
+
+  /** Get iterator to end of range. */
+  Iter end() const { return end_; }
+
+  /** Check if range is empty. */
+  bool empty() const { return begin_ == end_; }
+
+  /**
+   * Get size of the range, that is, number of elements in the range.
+   *
+   * @note This call `std::distance` internally.
+   *
+   * @returns The number of elements in the range.
+   */
+  size_type size() const {
+    return std::distance(begin_, end_);
+  }
+
+ private:
+  Iter begin_;
+  Iter end_;
+};
 
 /**
  * Exception thrown for syntax errors.
@@ -87,7 +132,8 @@ public:
 
 class ConfigSection {
 public:
-  typedef std::map<std::string, std::string> OptionMap;
+  using OptionMap = std::map<std::string, std::string>;
+  using OptionRange = Range<OptionMap::const_iterator>;
 
   ConfigSection(const std::string& name,
                 const std::string& key,
@@ -127,6 +173,25 @@ public:
   void set(const std::string& option, const std::string& value);
   void add(const std::string& option, const std::string& value);
   bool has(const std::string& option) const;
+
+  /**
+   * Range for options in section.
+   *
+   * Typical usage is:
+   *
+   * @code
+   * for (auto elem: section.get_options())
+   *   std::cout << "Option " << elem.first
+   *             << " has value " << elem.second
+   *             << std::endl;
+   * @endcode
+   *
+   * @returns a range of options each consisting of a pair
+   * option-value.
+   */
+  OptionRange get_options() const {
+    return OptionRange(options_.begin(), options_.end());
+  }
 
 #ifndef NDEBUG
   bool assert_default(const ConfigSection* def) const {
