@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,11 @@ endif()
 add_library(harness-library SHARED ${harness_source})
 target_link_libraries(harness-library ${common_libraries})
 target_include_directories(harness-library PUBLIC include)
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+  target_link_libraries(harness-library -lnsl -lsocket)
+  target_link_libraries(harness-archive -lnsl -lsocket)
+endif()
 
 # This is the harness containing a basic main function.
 if(ENABLE_HARNESS_PROGRAM)
