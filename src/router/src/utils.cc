@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <iostream>
 #include <cctype>
+#include <stdexcept>
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
 const string kValidPortChars = "0123456789";
