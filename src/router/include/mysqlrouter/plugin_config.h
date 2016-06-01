@@ -127,12 +127,12 @@ protected:
                     T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
     string value = get_option_string(section, option);
 
-    long result;
     char *rest;
     errno = 0;
-    result = std::strtol(value.c_str(), &rest, 0);
+    long tol = std::strtol(value.c_str(), &rest, 0);
+    T result = static_cast<T>(tol);
 
-    if (errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
+    if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
         (max_value > 0 && result > max_value)) {
       std::ostringstream os;
       os << get_log_prefix(option) << " needs value between " << min_value << " and "
@@ -142,7 +142,7 @@ protected:
       }
       throw std::invalid_argument(os.str());
     }
-    return static_cast<T>(result);
+    return result;
   }
 
   /** @brief Gets a TCP address using the given option
