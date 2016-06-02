@@ -18,9 +18,11 @@
 #include "networking/ipv4_address.h"
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+
 #include <cerrno>
 #include <cstring>
-#include <netinet/in.h>
 #include <string>
 
 namespace mysql_harness {
