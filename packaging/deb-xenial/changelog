@@ -1,0 +1,5 @@
+mysql-router (2.1.0-1ubuntu16.04) xenial; urgency=low
+
+  * initial version
+
+ -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Wed, 01 Jun 2016 20:45:55 +0100
