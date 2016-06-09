@@ -199,7 +199,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
     log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
     blocked = true;
   } else {
-    log_info("[%s] %d authentication errors for %s (max %d)",
+    log_info("[%s] %d authentication errors for %s (max %u)",
              name.c_str(), auth_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
   }
 
