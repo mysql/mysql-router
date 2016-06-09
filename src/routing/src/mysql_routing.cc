@@ -242,7 +242,6 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   log_debug("[%s] [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
             s_ip.first.c_str(), s_ip.second);
   ++info_handled_routes_;
-  ++info_active_routes_;
 
   nfds = std::max(client, server) + 1;
 
@@ -382,6 +381,7 @@ void MySQLRouting::start() {
       continue;
     }
 
+    ++info_active_routes_;
     std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
   }
 
