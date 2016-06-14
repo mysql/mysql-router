@@ -28,12 +28,17 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <sys/fcntl.h>
 #include <unistd.h>
 #include <vector>
 
 #include "config_parser.h"
 #include "filesystem.h"
+
+#ifdef __sun
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
 
 using std::string;
 using mysqlrouter::string_format;
