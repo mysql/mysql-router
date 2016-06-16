@@ -20,6 +20,7 @@
 
 #include <cassert>
 #include <cerrno>
+#include <cstring>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -30,8 +31,26 @@
 using mysql_harness::Path;
 
 Path get_cmake_source_dir() {
-  char *env_value = std::getenv("CMAKE_SOURCE_DIR");
   Path result;
+
+  // PB2 specific source location
+  char *env_pb2workdir = std::getenv("PB2WORKDIR");
+  char *env_sourcename = std::getenv("SOURCENAME");
+  char *env_tmpdir = std::getenv("TMPDIR");
+  if ((env_pb2workdir && env_sourcename && env_pb2workdir)
+      && (strlen(env_pb2workdir) && strlen(env_sourcename))) {
+    result = Path(env_pb2workdir);
+    if (env_tmpdir && strlen(env_tmpdir)) {
+      result.append(Path(env_tmpdir));
+    }
+    result.append(Path(env_sourcename));
+    if (result.exists()) {
+      return result;
+    }
+  }
+
+  char *env_value = std::getenv("CMAKE_SOURCE_DIR");
+
   if (env_value == nullptr) {
     // try a few places
     result = Path(get_cwd()).join("..");

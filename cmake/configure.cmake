@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ function(SET_COPYRIGHT TARGET)
   set(start_year "2015")
   set(years "${start_year},")
   if(NOT curr_year STREQUAL ${start_year})
-    set(years "${start_year}, ${curr_year}")
+    set(years "${start_year}, ${curr_year},")
   endif()
   set(${TARGET} "Copyright (c) ${years} Oracle and/or its affiliates. All rights reserved." PARENT_SCOPE)
 endfunction()

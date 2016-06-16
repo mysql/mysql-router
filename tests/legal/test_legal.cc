@@ -28,12 +28,6 @@
 
 #include "gmock/gmock.h"
 
-#define SKIP_GIT_TESTS(COND)\
-  if(COND) {\
-     std::cout << "[  SKIPPED ] Tests using Git repository skipped" << std::endl;\
-     return;\
-  }
-
 using mysql_harness::Path;
 
 struct GitInfo {
@@ -139,7 +133,7 @@ void prepare_git_tracked_files() {
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
       os_cmd << "git log HEAD --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
-      result = cmd_exec(os_cmd.str());
+      result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
       // Result should contain at least 1 line with a year.
       if (result.output.size() < 10) {
         std::cerr << "Failed getting Git log info for " << tracked_file << std::endl;
