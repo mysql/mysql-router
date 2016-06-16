@@ -37,12 +37,9 @@ Path get_cmake_source_dir() {
   char *env_pb2workdir = std::getenv("PB2WORKDIR");
   char *env_sourcename = std::getenv("SOURCENAME");
   char *env_tmpdir = std::getenv("TMPDIR");
-  if ((env_pb2workdir && env_sourcename && env_pb2workdir)
-      && (strlen(env_pb2workdir) && strlen(env_sourcename))) {
-    result = Path(env_pb2workdir);
-    if (env_tmpdir && strlen(env_tmpdir)) {
-      result.append(Path(env_tmpdir));
-    }
+  if ((env_pb2workdir && env_sourcename && env_tmpdir)
+      && (strlen(env_pb2workdir) && strlen(env_tmpdir) && strlen(env_sourcename))) {
+    result = Path(env_tmpdir);
     result.append(Path(env_sourcename));
     if (result.exists()) {
       return result;
