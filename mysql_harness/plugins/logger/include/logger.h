@@ -27,6 +27,14 @@ void log_warning(const char *fmt, ...);
 void log_info(const char *fmt, ...);
 void log_debug(const char *fmt, ...);
 
+#ifdef WITH_DEBUG
+#define log_debug2(args) log_debug args
+#define log_debug3(args) log_debug args
+#else
+#define log_debug2(args) do {;} while(0)
+#define log_debug3(args) do {;} while(0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
