@@ -17,9 +17,9 @@
 
 #include "logger.h"
 
-#include "plugin.h"
-#include "filesystem.h"
-#include "config_parser.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/config_parser.h"
 
 #include <algorithm>
 #include <atomic>
@@ -28,16 +28,28 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
 #include <thread>
+
+
+using std::string;
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
+
+
+#if defined(_MSC_VER) && defined(logger_EXPORTS)
+/* We are building this library */
+#  define LOGGER_API __declspec(dllexport)
+#else
+#  define LOGGER_API
+#endif
 
 enum Level {
   LVL_FATAL,
@@ -64,6 +76,7 @@ static std::atomic<FILE*> g_log_file;
 static std::atomic<int> g_log_level;
 
 static int init(const AppInfo* info) {
+
   // Default log level is INFO
   g_log_level = LVL_INFO;
 
@@ -107,7 +120,8 @@ static int init(const AppInfo* info) {
 }
 
 static int deinit(const AppInfo*) {
-  assert(g_log_file);
+
+  assert(g_log_file.load());
   return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
 }
 
@@ -135,9 +149,21 @@ static void log_message(Level level, const char* fmt, va_list ap) {
 
   // Emit a message on log file (or stdout).
   FILE *outfp = g_log_file.load(std::memory_order_consume);
-  fprintf(outfp ? outfp : stdout, "%-19s %-7s [%s] %s\n",
-          time_buf, level_str[level], thread_id.c_str(), message);
-  fflush(outfp);
+
+  // note that outfp can be NULL if fopen() fails, therefore not equivalent to
+  // testing for stdout.  TODO review this, it is a hack!!!
+  if (outfp != stdout) {
+    fprintf(outfp ? outfp : stdout, "%-19s %-7s [%s] %s\n",
+            time_buf, level_str[level], thread_id.c_str(), message);
+    fflush(outfp);
+  } else {
+    // For unit tests, we need to use cout, so we can use its rdbuf() mechanism
+    // to intercept the output.
+    char buf[1024];
+    snprintf(buf, sizeof(buf), "%-19s %-7s [%s] %s\n",
+            time_buf, level_str[level], thread_id.c_str(), message);
+    std::cout << buf << std::flush;
+  }
 }
 
 
@@ -184,15 +210,17 @@ void log_debug(const char *fmt, ...) {
 }
 
 
-Plugin logger = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "Logging functions",
-  VERSION_NUMBER(0,0,1),
-  0, nullptr,  // requires
-  0, nullptr,  // conflicts
-  init,
-  deinit,
-  nullptr,     // start
-  nullptr,     // stop
-};
+extern "C" {
+  Plugin LOGGER_API logger = {
+    PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
+    "Logging functions",
+    VERSION_NUMBER(0, 0, 1),
+    0, nullptr,  // Requires
+    0, nullptr,  // Conflicts
+    init,
+    deinit,
+    nullptr,     // start
+    nullptr,     // stop
+  };
+}

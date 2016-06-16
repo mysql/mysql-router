@@ -53,7 +53,10 @@ add_subdirectory("${gtest_dir}" "${gmock_BINARY_DIR}/gtest")
 # Although Google Test's CMakeLists.txt calls this function, the
 # changes there don't affect the current scope.  Therefore we have to
 # call it again here.
-config_compiler_and_linker()  # from ${gtest_dir}/cmake/internal_utils.cmake
+#config_compiler_and_linker()  # from ${gtest_dir}/cmake/internal_utils.cmake
+#^^^ MYSQL Router Team: We comment this out because on Windows it changes the
+#    default runtime /MD to /MT.  Without it we have /MD (in Router we link
+#    either statically or dynamically against /MD runtime).
 
 # Adds Google Mock's and Google Test's header directories to the search path.
 include_directories("${gmock_SOURCE_DIR}/include"

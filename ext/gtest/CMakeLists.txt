@@ -49,7 +49,15 @@ endif()
 # Define helper functions and macros used by Google Test.
 include(cmake/internal_utils.cmake)
 
-config_compiler_and_linker()  # Defined in internal_utils.cmake.
+#config_compiler_and_linker()  # Defined in internal_utils.cmake.
+#^^^ MYSQL Router Team:
+# 1. See our comment next to this line in gmock/CMakeLists.txt
+# 2. Normally disabling this could be avoided by using a flag for gtest like
+#    cmake -DWINDOWS_RUNTIME_MD=1 ... to skip the call to
+#    config_compiler_and_linker.  In this case it is not possible, because
+#    the gmock/gtest cmakelists.txt is added with "include(gmock)" and there
+#    is no way (that we found anyway) to pass a simiar argument to command line
+#    (-DWINDOWS_RUNTIME_MD=1).
 
 # Where Google Test's .h files can be found.
 include_directories(

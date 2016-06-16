@@ -17,9 +17,9 @@
 
 ////////////////////////////////////////
 // Harness interface include files
-#include "loader.h"
-#include "plugin.h"
-#include "filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/filesystem.h"
 
 ////////////////////////////////////////
 // Test system include files

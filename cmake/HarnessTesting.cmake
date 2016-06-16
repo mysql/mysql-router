@@ -26,6 +26,35 @@ function(ADD_HARNESS_TEST NAME)
   endif()
   target_link_libraries(${NAME}
     PRIVATE harness-archive test-helpers ${TEST_LIBRARIES})
+  target_compile_definitions(${NAME} PRIVATE -DHARNESS_STATIC_DEFINE)
   add_test(${NAME} ${NAME})
 endfunction()
 
+
+if(WIN32)
+  function(CONFIGURE_HARNESS_TEST_FILE SOURCE DESTINATION)
+    set(HARNESS_PLUGIN_OUTPUT_DIRECTORY_orig ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+    foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+      string(TOUPPER ${config_} config__)
+      set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config__}})
+      configure_file(${SOURCE} ${config_}/${DESTINATION})
+    endforeach()
+    set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_orig})
+  endfunction()
+
+  function(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
+    foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+      add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config_}/var/log/${DIRECTORY_NAME})
+    endforeach()
+  endfunction()
+else()
+  function(CONFIGURE_HARNESS_TEST_FILE SOURCE DESTINATION)
+    configure_file(${SOURCE} ${DESTINATION})
+  endfunction()
+
+  function(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/${DIRECTORY_NAME})
+  endfunction()
+endif()
