@@ -32,9 +32,6 @@
 #include "mysqlrouter/datatypes.h"
 #include "logger.h"
 
-using mysqlrouter::TCPAddress;
-using std::string;
-
 /** @class RouteDestination
  * @brief Manage destinations for a Connection Routing
  *
@@ -49,7 +46,7 @@ using std::string;
 class RouteDestination {
 public:
 
-  using AddrVector = std::vector<TCPAddress>;
+  using AddrVector = std::vector<mysqlrouter::TCPAddress>;
 
   /** @brief Default constructor */
   RouteDestination() : current_pos_(0), stopping_(false) { };
@@ -69,10 +66,10 @@ public:
    * @param address IP or name
    * @param port Port number
    */
-  virtual void add(const TCPAddress dest);
+  virtual void add(const mysqlrouter::TCPAddress dest);
 
   /** @overload */
-  virtual void add(const string &address, uint16_t port);
+  virtual void add(const std::string &address, uint16_t port);
 
   /** @brief Removes a destination
    *
@@ -81,7 +78,7 @@ public:
    * @param address IP or name
    * @param port Port number
    */
-  virtual void remove(const string &address, uint16_t port);
+  virtual void remove(const std::string &address, uint16_t port);
 
   /** @brief Gets destination based on address and port
    *
@@ -98,7 +95,7 @@ public:
    * @param port Port number
    * @return an instance of mysqlrouter::TCPAddress
    */
-  virtual TCPAddress get(const string &address, uint16_t port);
+  virtual mysqlrouter::TCPAddress get(const std::string &address, uint16_t port);
 
   /** @brief Removes all destinations
    *
@@ -223,7 +220,7 @@ protected:
    * @param log whether to log errors or not
    * @return a socket descriptor
    */
-  virtual int get_mysql_socket(const TCPAddress &addr, int connect_timeout, bool log_errors = true);
+  virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, int connect_timeout, bool log_errors = true);
 
   /** @brief List of destinations */
   AddrVector destinations_;

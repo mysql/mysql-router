@@ -47,7 +47,7 @@ TEST_F(RoutingTests, AccessModes) {
 }
 
 TEST_F(RoutingTests, AccessModeLiteralNames) {
-  std::map<string, AccessMode> exp = {
+  std::map<std::string, AccessMode> exp = {
       {"read-write", AccessMode::kReadWrite},
       {"read-only",  AccessMode::kReadOnly},
   };

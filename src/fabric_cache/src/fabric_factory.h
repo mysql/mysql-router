@@ -21,15 +21,16 @@
 #include "fabric_metadata.h"
 
 #include <memory>
+#include <string>
 
 //This provides a factory method that returns a pluggable instance
 //to the underlying transport layer implementation. The transport
 //layer provides the means from which the fabric cache metadata is
 //fetched.
 
-std::shared_ptr<FabricMetaData> get_instance(const string &host, int port,
-                                             const string &user,
-                                             const string &password,
+std::shared_ptr<FabricMetaData> get_instance(const std::string &host, int port,
+                                             const std::string &user,
+                                             const std::string &password,
                                              int connection_timeout,
                                              int connection_attempts);
 

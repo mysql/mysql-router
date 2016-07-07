@@ -27,9 +27,11 @@
 #include "mysqlrouter/utils.h"
 
 using std::invalid_argument;
+using std::string;
 using std::vector;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
+using mysqlrouter::to_string;
 
 //master:
 /** @brief Constructor
@@ -164,7 +166,7 @@ string RoutingPluginConfig::get_option_destinations(
       if (info.second == 0) {
         info.second = 3306;
       }
-      TCPAddress addr(info.first, info.second);
+      mysqlrouter::TCPAddress addr(info.first, info.second);
       if (!addr.is_valid()) {
         throw invalid_argument(get_log_prefix(option) + " has an invalid destination address '" + addr.str() + "'");
       }

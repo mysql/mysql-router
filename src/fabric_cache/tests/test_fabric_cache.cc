@@ -39,7 +39,7 @@ public:
  * Test that the list of servers that are part of a group is accurate.
  */
 TEST_F(FabricCacheTest, ValidGroupTest_1) {
-  list<ManagedServer> server_list_1;
+  std::list<ManagedServer> server_list_1;
 
   server_list_1 = cache.group_lookup("group-1");
 
@@ -54,7 +54,7 @@ TEST_F(FabricCacheTest, ValidGroupTest_1) {
  * Test that looking up an invalid group returns a empty list.
  */
 TEST_F(FabricCacheTest, InvalidGroupTest) {
-  list<ManagedServer> server_list;
+  std::list<ManagedServer> server_list;
 
   server_list = cache.group_lookup("InvalidGroupTest");
 
@@ -65,7 +65,7 @@ TEST_F(FabricCacheTest, InvalidGroupTest) {
  * Test that the list of servers that are part of a shard is accurate.
  */
 TEST_F(FabricCacheTest, ValidShardTest_1) {
-  list<ManagedServer> server_list;
+  std::list<ManagedServer> server_list;
 
   server_list = cache.shard_lookup("db1.t1", "100");
 
@@ -80,7 +80,7 @@ TEST_F(FabricCacheTest, ValidShardTest_1) {
  * Test that the list of servers that are part of a shard is accurate.
  */
 TEST_F(FabricCacheTest, ValidShardTest_2) {
-  list<ManagedServer> server_list;
+  std::list<ManagedServer> server_list;
 
   server_list = cache.shard_lookup("db1.t1", "10000");
 
@@ -95,7 +95,7 @@ TEST_F(FabricCacheTest, ValidShardTest_2) {
  * Test that looking up a invalid shard returns a empty list of servers.
  */
 TEST_F(FabricCacheTest, InvalidShardTest) {
-  list<ManagedServer> server_list;
+  std::list<ManagedServer> server_list;
 
   server_list = cache.shard_lookup("InvalidTable", "100");
 

@@ -29,13 +29,8 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
-
-using std::string;
-using std::vector;
-using std::set;
 
 enum class CmdOptionValueReq : uint8_t {
   none = 0x01,
@@ -43,8 +38,8 @@ enum class CmdOptionValueReq : uint8_t {
   optional = 0x03,
 };
 
-using ActionFunc = std::function<void(const string &)>;
-using OptionNames = vector<string>;
+using ActionFunc = std::function<void(const std::string &)>;
+using OptionNames = std::vector<std::string>;
 
 /** @brief CmdOption stores information about command line options
  *
@@ -53,21 +48,21 @@ using OptionNames = vector<string>;
  */
 struct CmdOption {
   OptionNames names;
-  string description;
+  std::string description;
   CmdOptionValueReq value_req;
-  string value;
-  string metavar;
+  std::string value;
+  std::string metavar;
   ActionFunc action;
 
-  CmdOption(OptionNames names_, string description_, CmdOptionValueReq value_req_,
-            const string metavar_, ActionFunc action_) : names(names_),
-                                                         description(description_),
-                                                         value_req(value_req_), metavar(metavar_), action(action_) { };
+  CmdOption(OptionNames names_, std::string description_, CmdOptionValueReq value_req_,
+            const std::string metavar_, ActionFunc action_) : names(names_),
+            description(description_),
+            value_req(value_req_), metavar(metavar_), action(action_) { };
 
 };
 
 /** @brief Definition of a vector holding unique pointers to CmdOption objects **/
-using OptionContainer = vector<CmdOption>;
+using OptionContainer = std::vector<CmdOption>;
 
 /** @class CmdArgHandler
  *  @brief Handles command line arguments
@@ -184,8 +179,11 @@ public:
    * @param metavar for formatting help text when option accepts a value
    * @param action action to perform when the option was found
    */
-  void add_option(const OptionNames names, const string description, const CmdOptionValueReq value_req,
-                  const string metavar, ActionFunc action) noexcept;
+  void add_option(const OptionNames names,
+                  const std::string description,
+                  const CmdOptionValueReq value_req,
+                  const std::string metavar,
+                  ActionFunc action) noexcept;
 
   void add_option(const CmdOption &other) noexcept;
 
@@ -208,7 +206,7 @@ public:
    *
    * @param arguments vector of strings
    */
-  void process(const vector<string> arguments);
+  void process(const std::vector<std::string> arguments);
 
   /** @brief Checks whether given name is a valid option name
    *
@@ -243,7 +241,7 @@ public:
    * @param name option name to check
    * @return true if name is valid; false otherwise
    */
-  bool is_valid_option_name(const string name) noexcept;
+  bool is_valid_option_name(const std::string name) noexcept;
 
   /** @brief Finds the option by name
    *
@@ -256,7 +254,7 @@ public:
    * @param name name of the option as string
    * @returns iterator object
    */
-  OptionContainer::iterator find_option(const string name) noexcept;
+  OptionContainer::iterator find_option(const std::string name) noexcept;
 
   /** @brief Produces lines of text suitable to show usage
    *
@@ -283,7 +281,7 @@ public:
    * @param width maximum length of each line
    * @return vector of strings
    */
-  vector<string> usage_lines(const string prefix, const string rest_metavar, size_t width) noexcept;
+  std::vector<std::string> usage_lines(const std::string prefix, const std::string rest_metavar, size_t width) noexcept;
 
   /** @brief Produces description of all options
    *
@@ -310,7 +308,7 @@ public:
    * @param indent how much the description should be indented.
    * @return vector of strings
    */
-  vector<string> option_descriptions(const size_t width, const size_t indent) noexcept;
+  std::vector<std::string> option_descriptions(const size_t width, const size_t indent) noexcept;
 
   /** @brief Returns an iterator to first option
    *
@@ -359,7 +357,7 @@ public:
    *
    * @return vector of strings
    */
-  const vector<string>& get_rest_arguments() const noexcept {
+  const std::vector<std::string>& get_rest_arguments() const noexcept {
     return rest_arguments_;
   }
 
@@ -368,9 +366,9 @@ public:
 
 private:
   /** @brief Vector with registered options **/
-  vector<CmdOption> options_;
+  std::vector<CmdOption> options_;
   /** @brief Vector with arguments as strings not processed as options **/
-  vector<string> rest_arguments_;
+  std::vector<std::string> rest_arguments_;
 };
 
 #endif // ROUTER_ARG_HANDLER_INCLUDED

@@ -23,8 +23,6 @@
 #include <map>
 #include <string>
 
-using std::string;
-
 namespace routing {
 
 /** @brief Timeout for idling clients (in seconds)
@@ -55,7 +53,7 @@ extern const unsigned long long kDefaultMaxConnectErrors;
 /** @brief Default bind address
  *
  */
-extern const string kDefaultBindAddress;
+extern const std::string kDefaultBindAddress;
 
 /** @brief Default net buffer length
  *
@@ -80,7 +78,7 @@ enum class AccessMode {
 };
 
 /** @brief Literal name for each Access Mode */
-extern const std::map<string, AccessMode> kAccessModeNames;
+extern const std::map<std::string, AccessMode> kAccessModeNames;
 
 /** @brief Returns literal name of given access mode
  *
@@ -90,7 +88,7 @@ extern const std::map<string, AccessMode> kAccessModeNames;
  * @param access_mode Access mode to look up
  * @return Name of access mode as std::string or empty string
  */
-string get_access_mode_name(AccessMode access_mode) noexcept;
+std::string get_access_mode_name(AccessMode access_mode) noexcept;
 
 /**
  * Sets blocking flag for given socket

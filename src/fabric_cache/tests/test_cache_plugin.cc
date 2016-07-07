@@ -28,6 +28,11 @@
 
 #include "gmock/gmock.h"
 
+using std::list;
+using std::string;
+using std::thread;
+using fabric_cache::ManagedServer;
+
 /**
  * Constants that are used throughout the test cases.
  */
@@ -43,9 +48,6 @@ const string kDefaultFabricHost = "127.0.0.1";  // 127.0.0.1
 const string kDefaultFabricUser = "admin";  // admin
 const string kDefaultFabricPassword = "";  //
 const int kDefaultFabricPort = 32275; // 32275
-
-using std::thread;
-using fabric_cache::ManagedServer;
 
 class FabricCachePluginTest : public ::testing::Test {
 public:

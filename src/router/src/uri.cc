@@ -16,6 +16,7 @@
 */
 
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -23,7 +24,7 @@
 #include <string>
 #include <memory>
 
-#include "mysqlrouter/utils.h"
+using std::string;
 
 namespace mysqlrouter {
 

@@ -44,12 +44,14 @@
 #include "logger.h"
 
 using std::runtime_error;
+using std::string;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
+using mysqlrouter::TCPAddress;
 
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,

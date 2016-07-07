@@ -35,6 +35,7 @@
 #include <thread>
 
 using std::string;
+using mysql_harness::Path;
 
 string g_cwd;
 Path   g_origin;

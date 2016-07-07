@@ -23,6 +23,7 @@
 #include "mysqlrouter/uri.h"
 
 using std::get;
+using std::string;
 using ::testing::StrEq;
 using ::testing::ContainerEq;
 using ::testing::IsEmpty;

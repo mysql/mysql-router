@@ -65,7 +65,7 @@ uint16_t TCPAddress::validate_port(uint32_t tcp_port) {
   return static_cast<uint16_t>(tcp_port);
 }
 
-string TCPAddress::str() const {
+std::string TCPAddress::str() const {
   std::ostringstream os;
 
   if (ip_family_ == Family::IPV6) {

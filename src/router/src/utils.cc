@@ -27,17 +27,19 @@
 #include <cctype>
 #include <stdexcept>
 
+using std::string;
+
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
 const string kValidPortChars = "0123456789";
 
 namespace mysqlrouter {
 
-vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_size) {
+std::vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_size) {
   size_t curr_pos = 0;
   size_t wrap_pos = 0;
   size_t prev_pos = 0;
   string work{to_wrap};
-  vector<string> res{};
+  std::vector<string> res{};
   auto indent = string(indent_size, ' ');
   auto real_width = width - indent_size;
 
@@ -108,7 +110,7 @@ string string_format(const char *format, ...) {
   va_copy(args_next, args);
 
   int size = std::vsnprintf(nullptr, 0, format, args);
-  vector<char> buf(static_cast<size_t>(size) + 1U);
+  std::vector<char> buf(static_cast<size_t>(size) + 1U);
   va_end(args);
 
   std::vsnprintf(buf.data(), buf.size(), format, args_next);

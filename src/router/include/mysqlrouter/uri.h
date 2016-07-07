@@ -27,13 +27,11 @@
 #include <unistd.h>
 #include <vector>
 
-using std::string;
-
 namespace mysqlrouter {
 
-using URIAuthority = std::tuple<string, uint16_t, string, string>; // host, port, username, password
-using URIPath = std::vector<string>;
-using URIQuery = std::map<string, string>;
+using URIAuthority = std::tuple<std::string, uint16_t, std::string, std::string>; // host, port, username, password
+using URIPath = std::vector<std::string>;
+using URIQuery = std::map<std::string, std::string>;
 
 /** @class URIError
  * @brief Exception when URI was not valid
@@ -41,7 +39,7 @@ using URIQuery = std::map<string, string>;
  */
 class URIError : public std::runtime_error {
 public:
-  explicit URIError(const string &what_arg) : std::runtime_error(what_arg) { }
+  explicit URIError(const std::string &what_arg) : std::runtime_error(what_arg) { }
 };
 
 /** @class URI
@@ -63,7 +61,7 @@ public:
    *
    * @param uri URI to be used to read parts
    */
-  URI(const string &uri) : scheme(), host(), port(0), username(), password(), path(), query(),
+  URI(const std::string &uri) : scheme(), host(), port(0), username(), password(), path(), query(),
                            fragment(), uri_(uri) {
     if (!uri.empty()) {
       init_from_uri(uri);
@@ -77,26 +75,26 @@ public:
    *
    * @param uri URI as string
    */
-  void set_uri(const string &uri) {
+  void set_uri(const std::string &uri) {
     init_from_uri(uri);
   }
 
   /** @brief Scheme of the URI */
-  string scheme;
+  std::string scheme;
   /** @brief Host part found in the Authority */
-  string host;
+  std::string host;
   /** @brief Port found in the Authority */
   uint16_t port;  // 0 means use default (no dynamically allocation needed here)
   /** @brief Username part found in the Authority */
-  string username;
+  std::string username;
   /** @brief Password part found in the Authority */
-  string password;
+  std::string password;
   /** @brief Path part of the URI */
   URIPath path;
   /** @brief Query part of the URI */
   URIQuery query;
   /** @brief Fragment part of the URI */
-  string fragment;
+  std::string fragment;
 
 private:
   /** @brief Sets information using the given URI
@@ -107,21 +105,21 @@ private:
    *
    * @param string URI to use
    */
-  void init_from_uri(const string uri);
+  void init_from_uri(const std::string uri);
 
   /** @brief Copy of the original given URI */
-  string uri_;
+  std::string uri_;
 
 };
 
 #ifdef ENABLE_TESTS
 // Testing statics
-string t_parse_scheme(const string &uri);
-URIAuthority t_parse_authority(const string &uri);
-URIPath t_parse_path(const string &uri);
-URIQuery t_parse_query(const string &uri, const char delimiter);
-URIQuery t_parse_query(const string &uri);
-string t_parse_fragment(const string &uri);
+std::string t_parse_scheme(const std::string &uri);
+URIAuthority t_parse_authority(const std::string &uri);
+URIPath t_parse_path(const std::string &uri);
+URIQuery t_parse_query(const std::string &uri, const char delimiter);
+URIQuery t_parse_query(const std::string &uri);
+std::string t_parse_fragment(const std::string &uri);
 #endif
 
 } // namespace mysqlrouter

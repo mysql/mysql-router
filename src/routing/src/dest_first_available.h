@@ -23,9 +23,6 @@
 
 #include "logger.h"
 
-using routing::get_mysql_socket;
-using std::runtime_error;
-
 class DestFirstAvailable final : public RouteDestination {
 public:
   int get_server_socket(int connect_timeout, int *error) noexcept;

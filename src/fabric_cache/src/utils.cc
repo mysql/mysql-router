@@ -31,6 +31,7 @@
 using std::getline;
 using std::hex;
 using std::stoi;
+using std::string;
 using std::stringstream;
 using std::tm;
 using std::vector;

@@ -20,6 +20,7 @@
 
 #include "mysqlrouter/fabric_cache.h"
 #include "fabric_factory.h"
+#include "logger.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -28,13 +29,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-
-#include "logger.h"
-
-using std::string;
-using std::thread;
-using fabric_cache::ManagedServer;
-using fabric_cache::ManagedShard;
 
 const int kDefaultTimeToLive = 10;
 
@@ -48,7 +42,7 @@ class FabricCache {
 
 public:
   /** @brief Constructor */
-  FabricCache(string host, int port, string user, string password,
+  FabricCache(std::string host, int port, std::string user, std::string password,
               int connection_timeout, int connection_attempts);
 
   /** @brief Destructor */
@@ -67,7 +61,7 @@ public:
    * @param group_id The ID of the group being looked up
    * @return std::list containing ManagedServer objects
    */
-  list<ManagedServer> group_lookup(const string &group_id);
+  std::list<fabric_cache::ManagedServer> group_lookup(const std::string &group_id);
 
   /** @brief Returns list of managed servers using sharding table and key
    *
@@ -77,7 +71,7 @@ public:
    * @param shard_key The shard key that needs to be looked up.
    * @return std::list containing ManagedServer objects
    */
-  list<ManagedServer> shard_lookup(const string &table_name, const string &shard_key);
+  std::list<fabric_cache::ManagedServer> shard_lookup(const std::string &table_name, const std::string &shard_key);
 
 private:
   enum shard_type_enum_ {
@@ -91,7 +85,7 @@ private:
    * @param source_shard Source shard structure.
    * @param destn_shard Destination shard structure.
    */
-  void copy(const ManagedShard &source_shard, ManagedShard &destn_shard);
+  void copy(const fabric_cache::ManagedShard &source_shard, fabric_cache::ManagedShard &destn_shard);
 
   /** @brief Fetches all data from Fabric
    *
@@ -112,22 +106,22 @@ private:
    * @param shard_type The sharding type for which the keys need to be compared.
    * @return Comparator class implementation.
    */
-  ValueComparator *fetch_value_comparator(string shard_type);
+  ValueComparator *fetch_value_comparator(std::string shard_type);
 
-  map<string, list<ManagedServer>> group_data_;
-  map<string, list<ManagedShard>> shard_data_;
+  std::map<std::string, std::list<fabric_cache::ManagedServer>> group_data_;
+  std::map<std::string, std::list<fabric_cache::ManagedShard>> shard_data_;
   int ttl_;
 
-  map<string, list<ManagedServer>> group_data_temp_;
-  map<string, list<ManagedShard>> shard_data_temp_;
+  std::map<std::string, std::list<fabric_cache::ManagedServer>> group_data_temp_;
+  std::map<std::string, std::list<fabric_cache::ManagedShard>> shard_data_temp_;
 
-  static const map<string, int> shard_type_map_;
+  static const std::map<std::string, int> shard_type_map_;
 
   bool terminate_;
 
   std::shared_ptr<FabricMetaData> fabric_meta_data_;
 
-  thread refresh_thread_;
+  std::thread refresh_thread_;
 
   std::mutex cache_refreshing_mutex_;
 };

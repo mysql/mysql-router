@@ -47,9 +47,6 @@
 #include <unistd.h>
 
 
-using std::string;
-using mysqlrouter::URI;
-
 /** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers
  *
@@ -93,9 +90,9 @@ public:
    * @param optional max_connect_errors Maximum connect or handshake errors per host
    * @param optional connect_timeout Timeout waiting for handshake response
    */
-  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address = string{"0.0.0.0"},
+  MySQLRouting(routing::AccessMode mode, uint16_t port, const std::string &bind_address = std::string{"0.0.0.0"},
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
-               const string &route_name = string{},
+               const std::string &route_name = std::string{},
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
@@ -138,12 +135,12 @@ public:
    *
    * @param csv destinations as comma-separated-values
    */
-  void set_destinations_from_csv(const string &csv);
+  void set_destinations_from_csv(const std::string &csv);
 
-  void set_destinations_from_uri(const URI &uri);
+  void set_destinations_from_uri(const mysqlrouter::URI &uri);
 
   /** @brief Descriptive name of the connection routing */
-  const string name;
+  const std::string name;
 
   /** @brief Returns timeout when connecting to destination
    *
@@ -194,7 +191,7 @@ public:
    * @return bool
    */
   bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
-                         const string &client_ip_str, int server = -1);
+                         const std::string &client_ip_str, int server = -1);
 
   /** @brief Returns a copy of the list of blocked client hosts
    *
@@ -272,7 +269,7 @@ private:
   /** @brief Size of buffer to store receiving packets */
   unsigned int net_buffer_length_;
   /** @brief IP address and TCP port for setting up TCP service */
-  const TCPAddress bind_address_;
+  const mysqlrouter::TCPAddress bind_address_;
   /** @brief Path to named socket for setting up named socket service */
   const mysql_harness::Path bind_named_socket_;
   /** @brief Socket descriptor of the TCP service */

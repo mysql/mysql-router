@@ -28,6 +28,7 @@
 
 #endif
 
+#include <cassert>
 #include <netdb.h>
 #include <netinet/tcp.h>
 
@@ -46,17 +47,17 @@ namespace routing {
 const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
 const int kDefaultDestinationConnectionTimeout = 1;
-const string kDefaultBindAddress = "127.0.0.1";
+const std::string kDefaultBindAddress = "127.0.0.1";
 const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
 const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
 const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
 
-const std::map<string, AccessMode> kAccessModeNames = {
+const std::map<std::string, AccessMode> kAccessModeNames = {
     {"read-write", AccessMode::kReadWrite},
     {"read-only",  AccessMode::kReadOnly},
 };
 
-string get_access_mode_name(AccessMode access_mode) noexcept {
+std::string get_access_mode_name(AccessMode access_mode) noexcept {
   for (auto &it: kAccessModeNames) {
     if (it.second == access_mode) {
       return it.first;

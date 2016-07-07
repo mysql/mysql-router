@@ -37,8 +37,8 @@ std::shared_ptr<FabricMetaData> fabric_meta_data(nullptr);
  * @param connection_attempts The number of times a connection to fabric must be
  *                            attempted, when a connection attempt fails.
  */
-void create_instance(const string &host, int port, const string &user,
-                     const string &password, int connection_timeout,
+void create_instance(const std::string &host, int port, const std::string &user,
+                     const std::string &password, int connection_timeout,
                      int connection_attempts) {
   fabric_meta_data.reset(new Fabric(host, port, user, password,
                                     connection_timeout, connection_attempts));
@@ -58,9 +58,9 @@ void create_instance(const string &host, int port, const string &user,
  *
  * @return An instance of the fabric meta data fetcher instance.
  */
-std::shared_ptr<FabricMetaData> get_instance(const string &host, int port,
-                                             const string &user,
-                                             const string &password,
+std::shared_ptr<FabricMetaData> get_instance(const std::string &host, int port,
+                                             const std::string &user,
+                                             const std::string &password,
                                              int connection_timeout,
                                              int connection_attempts) {
   if (fabric_meta_data) {

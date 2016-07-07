@@ -45,6 +45,7 @@ using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
+using mysql_harness::Path;
 
 string g_cwd;
 Path g_origin;

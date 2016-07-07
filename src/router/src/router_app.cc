@@ -41,6 +41,7 @@
 #endif
 
 using std::string;
+using std::vector;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;

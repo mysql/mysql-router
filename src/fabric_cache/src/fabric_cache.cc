@@ -20,7 +20,12 @@
 #include <list>
 #include <memory>
 
-const map<string, int> FabricCache::shard_type_map_{
+using std::string;
+using std::list;
+using fabric_cache::ManagedShard;
+using fabric_cache::ManagedServer;
+
+const std::map<string, int> FabricCache::shard_type_map_{
     {"RANGE",          RANGE},
     {"RANGE_INTEGER",  RANGE_INTEGER},
     {"RANGE_DATETIME", RANGE_DATETIME},
@@ -85,7 +90,7 @@ void FabricCache::start() {
           std::chrono::seconds(ttl_ == 0 ? kDefaultTimeToLive : ttl_));
     }
   };
-  thread(refresh_loop).join();
+  std::thread(refresh_loop).join();
 }
 
 list<ManagedServer> FabricCache::group_lookup(const string &group_id) {

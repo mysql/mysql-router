@@ -18,20 +18,13 @@
 #ifndef FABRIC_CACHE_PLUGIN_CONFIG_INCLUDED
 #define FABRIC_CACHE_PLUGIN_CONFIG_INCLUDED
 
-#include "mysqlrouter/fabric_cache.h"
-
-#include <map>
-#include <string>
-#include <vector>
-
 #include "config_parser.h"
 #include "plugin.h"
-#include <mysqlrouter/datatypes.h>
-#include <mysqlrouter/plugin_config.h>
+#include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/fabric_cache.h"
+#include "mysqlrouter/plugin_config.h"
 
-using std::map;
-using std::string;
-using std::vector;
+#include <string>
 
 class FabricCachePluginConfig final : public mysqlrouter::BasePluginConfig {
 public:
@@ -44,13 +37,13 @@ public:
         address(get_option_tcp_address(section, "address", fabric_cache::kDefaultFabricPort)),
         user(get_option_string(section, "user")) { }
 
-  string get_default(const string &option);
-  bool is_required(const string &option);
+  std::string get_default(const std::string &option);
+  bool is_required(const std::string &option);
 
   /** @brief MySQL Fabric host to connect with */
   const mysqlrouter::TCPAddress address;
   /** @brief User used for authenticating with MySQL Fabric */
-  const string user;
+  const std::string user;
 
 private:
   /** @brief Gets a TCP address using the given option
@@ -68,7 +61,7 @@ private:
    * @return mysqlrouter::TCPAddress
    */
   mysqlrouter::TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section,
-                                                 const string &option,
+                                                 const std::string &option,
                                                  uint16_t default_port);
 };
 

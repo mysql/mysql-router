@@ -40,6 +40,7 @@ using std::chrono::seconds;
 
 using fabric_cache::lookup_group;
 using fabric_cache::ManagedServer;
+using mysqlrouter::TCPAddress;
 
 std::vector<TCPAddress> DestFabricCacheGroup::get_available() {
   auto managed_servers = lookup_group(cache_name, ha_group).server_list;

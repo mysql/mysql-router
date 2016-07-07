@@ -27,31 +27,22 @@
 #include "plugin.h"
 #include "utils.h"
 
-#include <map>
 #include <string>
-
-using std::map;
-using std::string;
-using mysqlrouter::to_string;
-using mysqlrouter::TCPAddress;
-using mysqlrouter::URI;
-using mysqlrouter::URIError;
-using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
 public:
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
-  string get_default(const string &option);
+  std::string get_default(const std::string &option);
 
-  bool is_required(const string &option);
+  bool is_required(const std::string &option);
 
   /** @brief `destinations` option read from configuration section */
-  const string destinations;
+  const std::string destinations;
   /** @brief `bind_port` option read from configuration section */
   const int bind_port;
   /** @brief `bind_address` option read from configuration section */
-  const TCPAddress bind_address;
+  const mysqlrouter::TCPAddress bind_address;
   /** @brief `socket` option read from configuration section is stored as named_socket */
   const mysql_harness::Path named_socket;
   /** @brief `connect_timeout` option read from configuration section */
@@ -70,8 +61,8 @@ public:
 protected:
 
 private:
-  routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const string &option);
-  string get_option_destinations(const mysql_harness::ConfigSection *section, const string &option);
+  routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const std::string &option);
+  std::string get_option_destinations(const mysql_harness::ConfigSection *section, const std::string &option);
 };
 
 #endif // PLUGIN_CONFIG_ROUTING_INCLUDED

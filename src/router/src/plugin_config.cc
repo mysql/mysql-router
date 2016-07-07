@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 using std::invalid_argument;
+using std::string;
 
 namespace mysqlrouter {
 

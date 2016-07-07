@@ -17,7 +17,9 @@
 
 #include "fabric.h"
 #include "fabric_cache.h"
+#include "logger.h"
 
+#include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <errmsg.h>
@@ -30,9 +32,12 @@
 
 #include <mysql.h>
 #include <mysqlrouter/datatypes.h>
-#include "logger.h"
 
 using std::ostringstream;
+using std::list;
+using std::string;
+using fabric_cache::ManagedServer;
+using fabric_cache::ManagedShard;
 
 Fabric::Fabric(const string &host, int port, const string &user,
                const string &password, int connection_timeout,
@@ -194,9 +199,9 @@ MYSQL_RES *Fabric::fetch_metadata(string &remote_api) {
  *
  * @return Map of group ID, server list pairs.
  */
-map<string, list<ManagedServer>> Fabric::fetch_servers() {
+std::map<string, list<ManagedServer>> Fabric::fetch_servers() {
   string api = "dump.servers";
-  map<string, list<ManagedServer>> server_map;
+  std::map<string, list<ManagedServer>> server_map;
 
   MYSQL_ROW row = nullptr;
   MYSQL_RES *result = fetch_metadata(api);
@@ -223,10 +228,10 @@ map<string, list<ManagedServer>> Fabric::fetch_servers() {
   return server_map;
 }
 
-map<string, list<ManagedShard>> Fabric::fetch_shards() {
+std::map<string, list<ManagedShard>> Fabric::fetch_shards() {
   string api = "dump.sharding_information";
 
-  map<string, list<ManagedShard>> shard_map;
+  std::map<string, list<ManagedShard>> shard_map;
 
   MYSQL_ROW row = nullptr;
   MYSQL_RES *result = fetch_metadata(api);

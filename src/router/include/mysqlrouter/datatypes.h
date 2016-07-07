@@ -22,8 +22,6 @@
 #include <iostream>
 #include <string>
 
-using std::string;
-
 namespace mysqlrouter {
 
 /** @brief Defines an IP address with port number  */
@@ -36,7 +34,7 @@ public:
     INVALID = 9,
   };
 
-  TCPAddress(string address = "", uint32_t tcp_port = 0)
+  TCPAddress(std::string address = "", uint32_t tcp_port = 0)
       : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) {
     detect_family();
   }
@@ -51,7 +49,7 @@ public:
 
   /** @brief Copy assignment */
   TCPAddress &operator=(const TCPAddress &other) {
-    string *my_addr = const_cast<string *>(&this->addr);
+    std::string *my_addr = const_cast<std::string *>(&this->addr);
     *my_addr = other.addr;
     uint16_t *my_port = const_cast<uint16_t *>(&this->port);
     *my_port = other.port;
@@ -62,7 +60,7 @@ public:
 
   /** @brief Move assignment */
   TCPAddress &operator=(TCPAddress &&other) {
-    string *my_addr = const_cast<string *>(&this->addr);
+    std::string *my_addr = const_cast<std::string *>(&this->addr);
     *my_addr = other.addr;
     uint16_t *my_port = const_cast<uint16_t *>(&this->port);
     *my_port = other.port;
@@ -77,7 +75,7 @@ public:
    *
    * @return instance of std::string
    */
-  string str() const;
+  std::string str() const;
 
   /** @brief Compares two addresses for equality
    *
@@ -117,7 +115,7 @@ public:
   }
 
   /** @brief Network name IP */
-  const string addr;
+  const std::string addr;
   /** @brief TCP port */
   const uint16_t port;
 
