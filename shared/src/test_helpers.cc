@@ -23,10 +23,12 @@
 AssertLoaderSectionAvailable(const char *loader_expr,
                              const char *section_expr,
                              mysql_harness::Loader* loader,
-                             const std::string& section_name)
-{
+                             const std::string& section_name) {
+  using std::pair;
+  using std::string;
+
   auto lst = loader->available();
-  auto match_example = [&section_name](const std::pair<std::string, std::string>& elem){
+  auto match_example = [&section_name](const pair<string, string>& elem){
     return elem.first == section_name;
   };
 

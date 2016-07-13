@@ -136,6 +136,7 @@ include(Plugin)
 include(Arch)
 include(Docs)
 include(Coverage)
+include(Check)
 
 # Check for basic functions
 find_package(Threads REQUIRED)

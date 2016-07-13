@@ -17,9 +17,9 @@
 
 #include "logger.h"
 
-#include "mysql/harness/plugin.h"
-#include "mysql/harness/filesystem.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
 
 #include <algorithm>
 #include <atomic>
@@ -76,9 +76,7 @@ static std::atomic<FILE*> g_log_file;
 static std::atomic<int> g_log_level;
 
 static int init(const AppInfo* info) {
-
-  // Default log level is INFO
-  g_log_level = LVL_INFO;
+  g_log_level = LVL_INFO;  // Default log level is INFO
 
   if (info && info->config) {
     auto sections = info->config->get("logger");
@@ -89,13 +87,15 @@ static int init(const AppInfo* info) {
 
     if (section->has("level")) {
       auto level_value = section->get("level");
-      std::transform(level_value.begin(), level_value.end(), level_value.begin(), ::toupper);
+      std::transform(level_value.begin(), level_value.end(),
+                     level_value.begin(), ::toupper);
       auto level = map_level_str.find(level_value);
       // Invalid values are reported as error
       if (level == map_level_str.end()) {
         throw std::invalid_argument(
-            "Log level '" + level_value + "' is not valid; valid are " + level_str[0] + ", " +
-                level_str[1] + ", " + level_str[2] + ", " + level_str[3] + ", or " + level_str[4]);
+            "Log level '" + level_value + "' is not valid; valid are " +
+            level_str[0] + ", " + level_str[1] + ", " + level_str[2] +
+            ", " + level_str[3] + ", or " + level_str[4]);
       }
       g_log_level = level->second;
     }
@@ -105,7 +105,8 @@ static int init(const AppInfo* info) {
   if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
     g_log_file.store(stdout, std::memory_order_release);
   } else {
-    const auto log_file = Path::make_path(info->logging_folder, info->program, "log");
+    const auto log_file =
+        Path::make_path(info->logging_folder, info->program, "log");
     FILE *fp = fopen(log_file.c_str(), "a");
     if (!fp) {
       fprintf(stderr, "logger: could not open log file '%s' - %s",
@@ -120,7 +121,6 @@ static int init(const AppInfo* info) {
 }
 
 static int deinit(const AppInfo*) {
-
   assert(g_log_file.load());
   return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
 }

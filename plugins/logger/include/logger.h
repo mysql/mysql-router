@@ -20,7 +20,7 @@
 
 #include <mysql/harness/plugin.h>
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 #  ifdef logger_EXPORTS
 /* We are building this library */
 #    define LOGGER_API __declspec(dllexport)
@@ -45,8 +45,8 @@ void LOGGER_API log_debug(const char *fmt, ...);
 #define log_debug2(args) log_debug args
 #define log_debug3(args) log_debug args
 #else
-#define log_debug2(args) do {;} while(0)
-#define log_debug3(args) do {;} while(0)
+#define log_debug2(args) do {;} while (0)
+#define log_debug3(args) do {;} while (0)
 #endif
 
 #ifdef __cplusplus

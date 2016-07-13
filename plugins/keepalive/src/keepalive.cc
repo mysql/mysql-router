@@ -32,8 +32,8 @@
 
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/plugin.h"
 #include "mysql/harness/logger.h"
+#include "mysql/harness/plugin.h"
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
@@ -82,7 +82,7 @@ static void start(const ConfigSection *section) {
     log_info("%s will run %d time(s)", name.c_str(), runs);
   }
 
-  for ( int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
+  for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
     log_info(name.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(interval));
   }
