@@ -38,6 +38,8 @@ if("${STAGE_DIR}" STREQUAL "")
 endif()
 set(HARNESS_INSTALL_LIBRARY_DIR "lib" CACHE PATH
     "Installation directory for Harness libraries")
+set(HARNESS_INSTALL_BIN_DIR "bin" CACHE PATH
+    "Installation directory for Harness main binaries")    
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
