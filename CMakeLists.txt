@@ -33,6 +33,9 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}"
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
 
+if("${STAGE_DIR}" STREQUAL "")
+    set(STAGE_DIR ${CMAKE_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
+endif()
 set(HARNESS_INSTALL_LIBRARY_DIR "lib" CACHE PATH
     "Installation directory for Harness libraries")
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
