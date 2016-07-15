@@ -120,6 +120,7 @@ function(ADD_HARNESS_PLUGIN NAME)
     foreach(config ${CMAKE_CONFIGURATION_TYPES})
       string(TOUPPER ${config} config)
       set_target_properties(${NAME} PROPERTIES
+        # [SEARCH TAGS] RUNTIME_OUTPUT_DIRECTORY, LIBRARY_OUTPUT_DIRECTORY
         RUNTIME_OUTPUT_DIRECTORY_${config} ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config}}
         LIBRARY_OUTPUT_DIRECTORY_${config} ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config}})
     endforeach()
