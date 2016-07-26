@@ -16,44 +16,34 @@
 */
 
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/utils.h"
+#include "config.h"
+#include "logger.h"
+#include "utils.h"
 
 #include <cstring>
 
-#ifdef __sun
-#include <fcntl.h>
+#ifndef _WIN32
+# ifdef __sun
+#  include <fcntl.h>
+# else
+#  include <sys/fcntl.h>
+# endif
+# include <netdb.h>
+# include <netinet/tcp.h>
+# include <sys/socket.h>
 #else
-
-#include <sys/fcntl.h>
-
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
 #endif
-
-#include <netdb.h>
-#include <netinet/tcp.h>
-
-#include <sys/socket.h>
-
-#include "mysqlrouter/utils.h"
-#include "logger.h"
-#include "utils.h"
 
 using mysqlrouter::to_string;
 using mysqlrouter::string_format;
 using mysqlrouter::TCPAddress;
 
 namespace routing {
-
-const int kDefaultWaitTimeout = 0; // 0 = no timeout used
-const int kDefaultMaxConnections = 512;
-const int kDefaultDestinationConnectionTimeout = 1;
-const string kDefaultBindAddress = "127.0.0.1";
-const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
-const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
-const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
-
-const std::map<string, AccessMode> kAccessModeNames = {
-    {"read-write", AccessMode::kReadWrite},
-    {"read-only",  AccessMode::kReadOnly},
-};
 
 string get_access_mode_name(AccessMode access_mode) noexcept {
   for (auto &it: kAccessModeNames) {
@@ -67,7 +57,7 @@ string get_access_mode_name(AccessMode access_mode) noexcept {
 void set_socket_blocking(int sock, bool blocking) {
 
   assert(!(sock < 0));
-
+#ifndef _WIN32
   auto flags = fcntl(sock, F_GETFL, nullptr);
   assert(flags >= 0);
   if (blocking) {
@@ -76,6 +66,10 @@ void set_socket_blocking(int sock, bool blocking) {
     flags |= O_NONBLOCK;
   }
   fcntl(sock, F_SETFL, flags);
+#else
+  u_long mode = blocking ? 0 : 1;
+  ioctlsocket(sock, FIONBIO, &mode);
+#endif
 }
 
 int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
@@ -89,7 +83,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   int res;
   int so_error = 0;
   int sock = -1;
-  socklen_t error_len = sizeof(so_error);
+  socklen_t error_len = static_cast<socklen_t>(sizeof(so_error));
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -98,16 +92,24 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   int err;
   if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
     if (log) {
+#ifndef _WIN32
       std::string errstr{(err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err)};
+#else
+      std::string errstr = get_message_error(err);
+#endif
       log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
     }
     return -1;
   }
 
+#ifdef _WIN32
+  WSASetLastError(0);
+#else
   errno = 0;
+#endif
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      log_error("Failed opening socket: %s", strerror(errno));
+      log_error("Failed opening socket: %s", get_message_error(errno).c_str());
       continue;
     }
     FD_ZERO(&readfds);
@@ -119,17 +121,31 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     // Set non-blocking so we can timeout using select()
     set_socket_blocking(sock, false);
     if (connect(sock, info->ai_addr, info->ai_addrlen) < 0) {
+#ifdef _WIN32
+      if (WSAGetLastError() != WSAEINPROGRESS && WSAGetLastError() != WSAEWOULDBLOCK) {
+        log_error("Error connecting socket to %s:%i (%s)", addr.addr.c_str(), addr.port, get_message_error(SOCKET_ERROR).c_str());
+        closesocket(sock);
+        continue;
+      }
+#else
       if (errno != EINPROGRESS) {
+        log_error("Error connecting socket to %s:%i (%s)", addr.addr.c_str(), addr.port, strerror(errno));
         close(sock);
         continue;
       }
+#endif
     }
 
     res = select(sock + 1, &readfds, &writefds, nullptr, &timeout_val);
     if (res <= 0) {
       if (res == 0) {
+#ifndef _WIN32
         shutdown(sock, SHUT_RDWR);
         close(sock);
+#else
+        shutdown(sock, SD_BOTH);
+        closesocket(sock);
+#endif
         if (log) {
           log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
@@ -140,8 +156,9 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     }
 
     if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds)) {
-      if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len) == -1) {
-        log_debug("Failed executing getsockopt on client socket: %s", strerror(errno));
+      if (getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &error_len) == -1) {
+        log_debug("Failed executing getsockopt on client socket: %s",
+          get_message_error(errno).c_str());
         continue;
       }
     } else {
@@ -158,6 +175,17 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   }
 
   // Handle remaining errors
+#ifdef _WIN32
+  if ((WSAGetLastError() > 0 && WSAGetLastError() != WSAEINPROGRESS) || so_error) {
+    shutdown(sock, SD_BOTH);
+    closesocket(sock);
+    err = so_error ? so_error : SOCKET_ERROR;
+    if (log) {
+      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), get_message_error(err).c_str(), err);
+    }
+    return -1;
+  }
+#else
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
     shutdown(sock, SHUT_RDWR);
     close(sock);
@@ -167,17 +195,25 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     }
     return -1;
   }
+#endif
+
 
   // set blocking; MySQL protocol is blocking and we do not take advantage of
   // any non-blocking possibilities
   set_socket_blocking(sock, true);
 
-  if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
+  if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                 reinterpret_cast<const char*>(&opt_nodelay), // cast keeps Windows happy (const void* on Unix)
+                 static_cast<socklen_t>(sizeof(int))) == -1) {
     log_debug("Failed setting TCP_NODELAY on client socket");
     return -1;
   }
 
+#ifdef _WIN32
+  WSASetLastError(0);
+#else
   errno = 0;
+#endif
   return sock;
 }
 

@@ -17,22 +17,41 @@
 
 
 #include "router_app.h"
+#include "windows/main-windows.h"
 
 #include <iostream>
 
-int main(int argc, char **argv) {
+int real_main(int argc, char **argv) {
+  int result = 0;
   try {
     MySQLRouter router(argc, argv);
-    router.start();
+    // This nested try/catch block is necessary in Windows, to workaround a crash
+    // that occurs when an exception is thrown from a plugin (e.g. routing_plugin_tests)
+    try {
+      router.start();
+    } catch (const std::invalid_argument &exc) {
+      std::cerr << "Configuration error: " << exc.what() << std::endl;
+      result = 1;
+    } catch (const std::runtime_error &exc) {
+	  std::cerr << "Error: " << exc.what() << std::endl;
+	  result = 1;
+	}
   } catch(const std::invalid_argument &exc) {
     std::cerr << "Configuration error: " << exc.what() << std::endl;
-    return 1;
+    result = 1;
   } catch(const std::runtime_error &exc) {
     std::cerr << "Error: " << exc.what() << std::endl;
-    return 1;
-  } catch (const syntax_error &exc) {
+    result = 1;
+  } catch (const mysql_harness::syntax_error &exc) {
     std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
   }
+  return result;
+}
 
-  return 0;
+int main(int argc, char **argv) {
+#ifdef _WIN32
+  return proxy_main(real_main, argc, argv);
+#else
+  return real_main(argc, argv);
+#endif
 }

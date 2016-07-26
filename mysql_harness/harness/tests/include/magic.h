@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,25 +15,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef MAGIC_INCLUDED
+#define MAGIC_INCLUDED
 
-#ifndef ROUTING_TESTS_HELPER_LOGGER_INCLUDED
-#define ROUTING_TESTS_HELPER_LOGGER_INCLUDED
+#include <stdexcept>
 
-#include <fstream>
+class bad_suki : public std::runtime_error {
+ public:
+  explicit bad_suki(const std::string& msg) : std::runtime_error(msg) {}
+};
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void log_error(const char *fmt, ...);
-void log_warning(const char *fmt, ...);
-void log_info(const char *fmt, ...);
-void log_debug(const char *fmt, ...);
-
-void set_log_fd(FILE *fp);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // ROUTING_TESTS_HELPER_LOGGER_INCLUDED
+#endif /* MAGIC_INCLUDED */

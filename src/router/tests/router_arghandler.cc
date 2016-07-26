@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,18 +15,40 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#ifdef _WIN32
+  // necessary in MSVC to allow #redefine keywords
+# define _ALLOW_KEYWORD_MACROS
+#endif
+#define private public    // hack to allow unit testing
+#include "mysql/harness/arg_handler.h"
+#undef  private
 
 #include <cstdint>
 #include <cstdio>
 #include <sstream>
 #include <streambuf>
 #include <vector>
-#include <unistd.h>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
-#define private public
+//ignore GMock warnings
+#ifdef __clang__
+#  ifndef __has_warning
+#    define __has_warning(x) 0
+#  endif
+#  if __has_warning("-Wkeyword-macro")
+#    pragma clang diagnostic ignored "-Wkeyword-macro"
+#  endif
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-conversion"
+#  include "gmock/gmock.h"
+#  pragma clang diagnostic pop
+#else
+#  include "gmock/gmock.h"
+#endif
 
-#include "../src/arg_handler.h"
+
 
 using std::string;
 using std::vector;

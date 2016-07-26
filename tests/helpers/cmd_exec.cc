@@ -23,11 +23,14 @@
 #include <iostream>
 #include <stdio.h>
 #include <string>
+#ifndef _WIN32
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
-CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr, std::string working_dir) {
-  std::string app_cmd(cmd);
+CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr, std::string working_dir, 
+  const std::string& env /*= ""*/) {
+  std::string app_cmd(env + " " + cmd);
   std::string orig_cwd{};
 
   if (include_stderr) {

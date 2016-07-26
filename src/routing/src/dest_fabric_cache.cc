@@ -22,8 +22,16 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <netdb.h>
-#include <netinet/tcp.h>
+
+#ifndef _WIN32
+# include <netdb.h>
+# include <netinet/tcp.h>
+#else
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+#endif
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
@@ -40,8 +48,6 @@ using std::chrono::seconds;
 
 using fabric_cache::lookup_group;
 using fabric_cache::ManagedServer;
-
-const int kPopulateErrorReportInterval = 10;
 
 std::vector<TCPAddress> DestFabricCacheGroup::get_available() {
   auto managed_servers = lookup_group(cache_name, ha_group).server_list;
@@ -113,6 +119,10 @@ int DestFabricCacheGroup::get_server_socket(int connect_timeout, int *error) noe
     log_error("Failed getting managed servers from Fabric");
   }
 
+#ifndef _WIN32
   *error = errno;
+#else
+  *error = WSAGetLastError();
+#endif
   return -1;
 }

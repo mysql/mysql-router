@@ -18,13 +18,19 @@
 #ifndef ROUTER_TESTS_TEST_HELPERS_INCLUDED
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
+#define SKIP_GIT_TESTS(COND)\
+  if(COND) {\
+     std::cout << "[  SKIPPED ] Tests using Git repository skipped" << std::endl;\
+     return;\
+  }
+
 #include "filesystem.h"
 
 /** @brief Returns the CMake source root folder
  *
  * @return mysql_harness::Path
  */
-Path get_cmake_source_dir();
+mysql_harness::Path get_cmake_source_dir();
 
 /** @brief Gets environment variable as path
  *
@@ -37,7 +43,7 @@ Path get_cmake_source_dir();
  * @param Path Alternative Path when environment variable is not available
  * @return mysql_harness::Path
  */
-Path get_envvar_path(const std::string &envvar, Path alternative);
+mysql_harness::Path get_envvar_path(const std::string &envvar, mysql_harness::Path alternative);
 
 /** @brief Returns the current working directory
  *
@@ -75,5 +81,35 @@ bool ends_with(const std::string &str, const std::string &suffix);
  * @return bool
  */
 bool starts_with(const std::string &str, const std::string &prefix);
+
+/** @brief Reads a specified number of bytes from a non-blocking socket
+ *
+ * reads a non-blocking socket until one of three things happen:
+ *   1. specified number of bytes have been read - returns this number
+ *   2. timeout expires - throws, describing the error
+ *   3. read() fails    - throws, describing the error
+ *
+ * Returns number of bytes read (should be the number of bytes requested,
+ * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
+ * the reason can be extracted from the thrown object with what() method.
+ *
+ * @param socket file decriptor
+ * @param buffer to store read bytes
+ * @param number of bytes to read
+ * @param timeout expressed in milliseconds
+ *
+ * @return number of bytes read
+ */
+size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms);
+
+#ifdef _WIN32
+std::string get_last_error(int err_code);
+#endif
+
+/** @brief Initializes Windows sockets (no-op on other OSes)
+ *
+ * Exits program with error upon failure.
+ */
+void init_windows_sockets();
 
 #endif // ROUTER_TESTS_TEST_HELPERS_INCLUDED

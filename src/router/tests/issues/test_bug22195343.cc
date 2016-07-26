@@ -29,7 +29,7 @@
 #include "gmock/gmock.h"
 
 using std::string;
-using ::testing::StrEq;
+using ::testing::HasSubstr;
 
 string g_cwd;
 Path g_origin;
@@ -37,6 +37,7 @@ Path g_origin;
 class Bug22195343 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
     config_path->append("Bug22195343.ini");
@@ -63,7 +64,7 @@ TEST_F(Bug22195343, NoPluginLoaded) {
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_THAT(cmd_result.output, StrEq("MySQL Router not configured to load or start any plugin. Exiting.\n"));
+  ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
 }
 
 TEST_F(Bug22195343, OnlyLoggerLoaded) {
@@ -76,7 +77,7 @@ TEST_F(Bug22195343, OnlyLoggerLoaded) {
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_THAT(cmd_result.output, StrEq("MySQL Router not configured to load or start any plugin. Exiting.\n"));
+  ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
 }
 
 int main(int argc, char *argv[]) {

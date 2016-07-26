@@ -21,17 +21,19 @@ include_directories(
   ../../../tests/helpers
 )
 
-add_library(routing_tests SHARED ${ROUTING_SOURCE_FILES})
+add_library(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache mysql_protocol)
 set_target_properties(routing_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing PRIVATE ${include_dirs})
 
-add_library(routing_plugin_tests SHARED ${ROUTING_PLUGIN_SOURCE_FILES})
+add_library(routing_plugin_tests STATIC ${ROUTING_PLUGIN_SOURCE_FILES})
 target_link_libraries(routing_plugin_tests routing_tests routertest_helpers logger router_lib fabric_cache)
 set_target_properties(routing_plugin_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing_plugin_tests PRIVATE ${include_dirs})
+
+target_compile_definitions(routing_plugin_tests PRIVATE -Drouting_DEFINE_STATIC=1)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   target_link_libraries(routing_tests -lnsl -lsocket)
@@ -55,5 +57,14 @@ ADD_TEST_DIR(issues MODULE issues
   INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
-configure_file(data/1route.ini.in ${STAGE_DIR}/etc/routing_1route.ini)
+if(WIN32)
+  foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+    set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage/${conf})
+    configure_file(data/1route.ini.in ${STAGE_DIR}/${conf}/etc/routing_1route.ini)
+  endforeach()
+else()
+  set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
+  configure_file(data/1route.ini.in ${STAGE_DIR}/etc/routing_1route.ini)
+endif()
 
+target_link_libraries(test_issues_bug21962350 logger)

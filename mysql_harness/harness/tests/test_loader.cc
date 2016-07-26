@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,12 +15,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 #include "exception.h"
-#include "filesystem.h"
-#include "plugin.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
 #include "utilities.h"
+
+////////////////////////////////////////
+// Test plugin include files
+#include "magic.h"
 
 ////////////////////////////////////////
 // Test system include files
@@ -42,12 +46,15 @@
 using std::cout;
 using std::endl;
 
+using mysql_harness::Loader;
+using mysql_harness::Path;
+using mysql_harness::Plugin;
+using mysql_harness::bad_section;
+
 Path g_here;
 
-class LoaderTest
-  : public ::testing::TestWithParam<const char*>
-{
-protected:
+class LoaderTest : public ::testing::TestWithParam<const char*> {
+ protected:
   virtual void SetUp() {
     std::map<std::string, std::string> params;
     params["program"] = "harness";
@@ -64,10 +71,8 @@ protected:
   Loader *loader;
 };
 
-class LoaderReadTest
-  : public LoaderTest
-{
-protected:
+class LoaderReadTest : public LoaderTest {
+ protected:
   virtual void SetUp() {
     LoaderTest::SetUp();
     loader->read(Path(g_here).join(GetParam()));
@@ -113,10 +118,21 @@ const char *good_cfgs[] = {
   "data/tests-good-2.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest, ::testing::ValuesIn(good_cfgs));
+INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
+                        ::testing::ValuesIn(good_cfgs));
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
+}
+
+TEST(TestStart, StartFailure) {
+  std::map<std::string, std::string> params;
+  params["program"] = "harness";
+  params["prefix"] = g_here.c_str();
+
+  Loader loader("harness", params);
+  loader.read(g_here.join("data/tests-start-1.cfg"));
+  EXPECT_THROW(loader.start(), bad_suki);
 }
 
 const char *bad_cfgs[] = {
@@ -125,10 +141,10 @@ const char *bad_cfgs[] = {
   "data/tests-bad-3.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest, ::testing::ValuesIn(bad_cfgs));
+INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
+                        ::testing::ValuesIn(bad_cfgs));
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);

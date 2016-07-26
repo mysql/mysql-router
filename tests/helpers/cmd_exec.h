@@ -54,7 +54,7 @@ struct CmdExecResult {
  * @return Returns CmdExecResult
  */
 CmdExecResult cmd_exec(const std::string &cmd, bool include_stderr = false,
-                       std::string working_dir = "");
+                       std::string working_dir = "", const std::string& env = "");
 
 
 #endif // MYSQLROUTER_TESTS_APP_EXEC_INCLUDED

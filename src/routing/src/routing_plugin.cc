@@ -28,6 +28,8 @@
 #include <vector>
 
 using std::string;
+using mysql_harness::ConfigSection;
+using mysql_harness::AppInfo;
 using mysqlrouter::URIError;
 
 const AppInfo *g_app_info;
@@ -77,7 +79,7 @@ static int init(const AppInfo *info) {
 
         // Check ADDR_ANY binding on same port
         if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
-          auto found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
+          found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
             return config.bind_address.port == addr.port;
           });
           if (found_addr != bind_addresses.end()) {
@@ -139,14 +141,17 @@ static void start(const ConfigSection *section) {
   }
 }
 
-Plugin harness_plugin_routing = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Routing MySQL connections between MySQL clients/connectors and servers",
-    VERSION_NUMBER(0, 0, 1),
-    sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
-    0, nullptr,                                  // Conflicts
-    init,
-    nullptr,
-    start                                        // start
-};
+extern "C" {
+  mysql_harness::Plugin ROUTING_API harness_plugin_routing = {
+      mysql_harness::PLUGIN_ABI_VERSION,
+      mysql_harness::ARCHITECTURE_DESCRIPTOR,
+      "Routing MySQL connections between MySQL clients/connectors and servers",
+      VERSION_NUMBER(0, 0, 1),
+      sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+      0, nullptr, // Conflicts
+      init,       // init
+      nullptr,    // deinit
+      start,      // start
+      nullptr     // stop
+  };
+}

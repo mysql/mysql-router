@@ -15,7 +15,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+//ignore GMock warnings
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wconversion"
+#endif
+
 #include "gmock/gmock.h"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #include "mysqlrouter/utils.h"
 
@@ -40,15 +50,15 @@ protected:
 TEST_F(SplitAddrPortTest, SplitAddrPort) {
   std::string addr6 = kIPv6AddrRange + ":0001:0002:0003:0004";
 
-  EXPECT_THAT(split_addr_port(addr6), ::testing::Pair(addr6, 0));
-  EXPECT_THAT(split_addr_port("[" + addr6 + "]"), ::testing::Pair(addr6, 0));
-  EXPECT_THAT(split_addr_port("[" + addr6 + "]:3306"), ::testing::Pair(addr6, 3306));
+  EXPECT_THAT(split_addr_port(addr6), ::testing::Pair(addr6, static_cast<uint16_t>(0)));
+  EXPECT_THAT(split_addr_port("[" + addr6 + "]"), ::testing::Pair(addr6, static_cast<uint16_t>(0)));
+  EXPECT_THAT(split_addr_port("[" + addr6 + "]:3306"), ::testing::Pair(addr6, static_cast<uint16_t>(3306)));
 
-  EXPECT_THAT(split_addr_port("192.168.14.77"), ::testing::Pair("192.168.14.77", 0));
-  EXPECT_THAT(split_addr_port("192.168.14.77:3306"), ::testing::Pair("192.168.14.77", 3306));
+  EXPECT_THAT(split_addr_port("192.168.14.77"), ::testing::Pair("192.168.14.77", static_cast<uint16_t>(0)));
+  EXPECT_THAT(split_addr_port("192.168.14.77:3306"), ::testing::Pair("192.168.14.77", static_cast<uint16_t>(3306)));
 
-  EXPECT_THAT(split_addr_port("mysql.example.com"), ::testing::Pair("mysql.example.com", 0));
-  EXPECT_THAT(split_addr_port("mysql.example.com:3306"), ::testing::Pair("mysql.example.com", 3306));
+  EXPECT_THAT(split_addr_port("mysql.example.com"), ::testing::Pair("mysql.example.com", static_cast<uint16_t>(0)));
+  EXPECT_THAT(split_addr_port("mysql.example.com:3306"), ::testing::Pair("mysql.example.com", static_cast<uint16_t>(3306)));
 }
 
 TEST_F(SplitAddrPortTest, SplitAddrPortFail) {
@@ -70,9 +80,9 @@ protected:
 };
 
 TEST_F(GetTCPPortTest, GetTCPPort) {
-  ASSERT_EQ(get_tcp_port("3306"), 3306);
-  ASSERT_EQ(get_tcp_port("0"), 0);
-  ASSERT_EQ(get_tcp_port(""), 0);
+  ASSERT_EQ(get_tcp_port("3306"), static_cast<uint16_t>(3306));
+  ASSERT_EQ(get_tcp_port("0"), static_cast<uint16_t>(0));
+  ASSERT_EQ(get_tcp_port(""), static_cast<uint16_t>(0));
   ASSERT_EQ(get_tcp_port("65535"), 65535);
 }
 

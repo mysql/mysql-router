@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,9 +22,20 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 ADD_TEST_DIR(issues MODULE issues)
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
-foreach(config_file ${config_files})
-  add_custom_command(TARGET test_router_mysqlrouter_app
+if(WIN32)
+  foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+    foreach(config_file ${config_files})
+      add_custom_command(TARGET test_router_mysqlrouter_app
+              COMMAND ${CMAKE_COMMAND} -E copy ${config_file} ${STAGE_DIR}/${conf}/etc/
+              COMMENT "Copying Router test data: ${config_file}"
+      )
+    endforeach()
+  endforeach()
+else()
+  foreach(config_file ${config_files})
+    add_custom_command(TARGET test_router_mysqlrouter_app
             COMMAND ${CMAKE_COMMAND} -E copy ${config_file} ${STAGE_DIR}/etc/
             COMMENT "Copying Router test data: ${config_file}"
-  )
-endforeach()
+    )
+  endforeach()
+endif()

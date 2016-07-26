@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,10 +29,27 @@ if(WIN32)
     set(PROGRAMFILES_VAR "PROGRAMFILES")
   endif()
   set(WITH_MYSQL "$ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/" CACHE PATH "Installation path of MySQL Client Libraries")
-  set(MySQL_LIBRARY_PATHS
-    ${WITH_MYSQL}/lib
-    $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
-  )
+  if(MYSQL_BUILD)
+    STRING(TOLOWER ${MYSQL_BUILD} MYSQL_BUILD)
+    if(${MYSQL_BUILD} MATCHES "debug")
+      set(MySQL_LIBRARY_PATHS
+        ${WITH_MYSQL}/lib/debug
+        $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+      )
+    else()
+      set(MySQL_LIBRARY_PATHS
+        ${WITH_MYSQL}/lib
+        $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+      )
+    endif()
+  else()
+    set(MySQL_LIBRARY_PATHS
+      ${WITH_MYSQL}/lib
+      ${WITH_MYSQL}/lib/debug
+      $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+    )
+  endif()
+
   set(MySQL_INCLUDE_PATHS
     ${WITH_MYSQL}/include
     $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/include
@@ -60,7 +77,7 @@ endif()
 
 find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS}
           PATH_SUFFIXES mysql NO_DEFAULT_PATH)
-if(WITH_STATIC)
+if(WITH_STATIC AND NOT WIN32)
   find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a
                PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
                NO_DEFAULT_PATH)
@@ -68,13 +85,19 @@ else()
   find_library(MySQL_CLIENT_LIB NAMES ${MySQL_CLIENT_LIBRARY}
                PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
                NO_DEFAULT_PATH)
+  if(NOT WIN32)
+    find_library(LIBDL NAMES dl)
+  endif()
 endif()
 
 if(MySQL_INCLUDES AND MySQL_CLIENT_LIB)
   set(MySQL_FOUND TRUE)
   set(MySQL_INCLUDE_DIRS ${MySQL_INCLUDES})
-  set(MySQL_LIBRARIES ${MySQL_CLIENT_LIB})
-
+  if(LIBDL)
+    set(MySQL_LIBRARIES ${MySQL_CLIENT_LIB} ${LIBDL})
+  else()
+    set(MySQL_LIBRARIES ${MySQL_CLIENT_LIB})
+  endif()
   file(STRINGS "${MySQL_INCLUDE_DIRS}/mysql_version.h"
     version_line
     REGEX "^#define[\t ]+MYSQL_SERVER_VERSION.*"

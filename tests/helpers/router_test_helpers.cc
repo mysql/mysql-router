@@ -15,24 +15,56 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router_test_helpers.h"
 #include "cmd_exec.h"
+#include "router_test_helpers.h"
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/utils.h"
 
-#include <stdexcept>
+#include <cassert>
 #include <cerrno>
+#include <cstring>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
+#include <iostream>
+#include <stdexcept>
+#include <thread>
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <windows.h>
+#  include <direct.h>
+#  define getcwd _getcwd
+typedef long ssize_t;
+#endif
+
+using mysql_harness::Path;
+
 
 Path get_cmake_source_dir() {
-  char *env_value = std::getenv("CMAKE_SOURCE_DIR");
   Path result;
+
+  // PB2 specific source location
+  char *env_pb2workdir = std::getenv("PB2WORKDIR");
+  char *env_sourcename = std::getenv("SOURCENAME");
+  char *env_tmpdir = std::getenv("TMPDIR");
+  if ((env_pb2workdir && env_sourcename && env_tmpdir)
+      && (strlen(env_pb2workdir) && strlen(env_tmpdir) && strlen(env_sourcename))) {
+    result = Path(env_tmpdir);
+    result.append(Path(env_sourcename));
+    if (result.exists()) {
+      return result;
+    }
+  }
+
+  char *env_value = std::getenv("CMAKE_SOURCE_DIR");
+
   if (env_value == nullptr) {
     // try a few places
     result = Path(get_cwd()).join("..");
-    result = Path(realpath(result.c_str(), nullptr));
+    result = Path(result).real_path();
   } else {
-    result = Path(realpath(env_value, nullptr));
+    result = Path(env_value).real_path();
   }
 
   if (!result.join("src").join("router").join("src").join("router_app.cc").is_regular()) {
@@ -46,10 +78,10 @@ Path get_cmake_source_dir() {
 Path get_envvar_path(const std::string &envvar, Path alternative = Path()) {
   char *env_value = std::getenv(envvar.c_str());
   Path result;
-  if (env_value == nullptr && alternative.is_directory()) {
+  if (env_value == nullptr) {
     result = alternative;
   } else {
-    result = Path(realpath(env_value, nullptr));
+    result = Path(env_value).real_path();
   }
   return result;
 }
@@ -64,8 +96,12 @@ const std::string get_cwd() {
 
 const std::string change_cwd(std::string &dir) {
   auto cwd = get_cwd();
+#ifndef _WIN32
   if (chdir(dir.c_str()) == -1) {
-    throw std::runtime_error("chdir failed: " + std::string(strerror(errno)));
+#else
+  if (!SetCurrentDirectory(dir.c_str())) {
+#endif
+    throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
   }
   return cwd;
 }
@@ -82,4 +118,83 @@ bool starts_with(const std::string &str, const std::string &prefix) {
   auto str_size = str.size();
   return (str_size >= prefix_size &&
           str.compare(0, prefix_size, prefix) == 0);
+}
+
+size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms) {
+
+  // returns epoch time (aka unix time, etc), expressed in milliseconds
+  auto get_epoch_in_ms = []() -> uint64_t {
+    using namespace std::chrono;
+    time_point<system_clock> now = system_clock::now();
+    return static_cast<uint64_t>(duration_cast<milliseconds>(now.time_since_epoch()).count());
+  };
+
+  // calculate deadline time
+  uint64_t now_in_ms = get_epoch_in_ms();
+  uint64_t deadline_epoch_in_ms = now_in_ms + timeout_in_ms;
+
+  // read until 1 of 3 things happen: enough bytes were read, we time out or read() fails
+  size_t bytes_read = 0;
+  while (true) {
+#ifndef _WIN32
+    ssize_t res = read(sockfd, static_cast<char*>(buffer) + bytes_read, n_bytes - bytes_read);
+#else
+    WSASetLastError(0);
+    ssize_t res = recv(sockfd, static_cast<char*>(buffer) + bytes_read, n_bytes - bytes_read, 0);
+#endif
+
+    if (res == 0) {   // reached EOF?
+      return bytes_read;
+    }
+
+    if (get_epoch_in_ms() > deadline_epoch_in_ms) {
+      throw std::runtime_error("read() timed out");
+    }
+
+    if (res == -1) {
+#ifndef _WIN32
+      if (errno != EAGAIN) {
+        throw std::runtime_error(std::string("read() failed: ") + strerror(errno));
+      }
+#else
+      int err_code = WSAGetLastError();
+      if (err_code != 0) {
+        throw std::runtime_error("recv() failed with error: " + get_last_error(err_code));
+      }
+
+#endif
+    } else {
+      bytes_read += static_cast<size_t>(res);
+      if (bytes_read >= n_bytes) {
+        assert(bytes_read == n_bytes);
+        return bytes_read;
+      }
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+}
+
+#ifdef _WIN32
+std::string get_last_error(int err_code) {
+  char message[512];
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM
+    | FORMAT_MESSAGE_IGNORE_INSERTS
+    | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+    nullptr, GetLastError(),
+    LANG_NEUTRAL, message, sizeof(message),
+    nullptr);
+  return std::string(message);
+}
+#endif
+
+void init_windows_sockets() {
+#ifdef _WIN32
+  WSADATA wsaData;
+  int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+  if (iResult != 0) {
+    std::cerr << "WSAStartup() failed\n";
+    exit(1);
+  }
+#endif
 }

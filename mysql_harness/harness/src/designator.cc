@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,23 +17,22 @@
 
 #include "designator.h"
 
-#include <string>
-#include <stdexcept>
-#include <cstdio>
 #include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <stdexcept>
+#include <string>
 
 #define DO_DEBUG 0
 
 #if DO_DEBUG
-void Designator::trace(const std::string& where) const
-{
+void Designator::trace(const std::string& where) const {
   fprintf(stderr, "[%20s]: %s\n", where.c_str(),
           std::string(cur_, input_.end()).c_str());
 }
 #endif
 
-inline std::string::value_type Designator::peek() const
-{
+inline std::string::value_type Designator::peek() const {
   if (cur_ == input_.end())
     return '\0';                       // Return NUL character if end.
   return *cur_;
@@ -45,16 +44,14 @@ inline std::string::value_type Designator::next() {
   return *++cur_;
 }
 
-void Designator::parse_error(const std::string& prefix) const
-{
+/*[[ noreturn ]]*/ void Designator::parse_error(const std::string& prefix) const {
   std::string
     message(prefix + " at '" + std::string(cur_, input_.end()) + "'");
   throw std::runtime_error(message);
 }
 
 
-void Designator::skip_space()
-{
+void Designator::skip_space() {
 #if DO_DEBUG
   trace(__func__);
 #endif
@@ -62,8 +59,7 @@ void Designator::skip_space()
     ++cur_;
 }
 
-long Designator::parse_number()
-{
+long Designator::parse_number() {
 #if DO_DEBUG
   trace(__func__);
 #endif
@@ -76,8 +72,7 @@ long Designator::parse_number()
   return strtol(std::string(start, cur_).c_str(), NULL, 10);
 }
 
-void Designator::parse_plugin()
-{
+void Designator::parse_plugin() {
 #if DO_DEBUG
   trace(__func__);
 #endif
@@ -90,13 +85,11 @@ void Designator::parse_plugin()
   plugin.assign(start, cur_);
 }
 
-void Designator::parse_version_list()
-{
+void Designator::parse_version_list() {
 #if DO_DEBUG
   trace(__func__);
 #endif
-  while (true)
-  {
+  while (true) {
     skip_space();
     Relation rel = parse_relation();
     Version ver = parse_version();
@@ -111,16 +104,13 @@ void Designator::parse_version_list()
   }
 }
 
-Designator::Relation Designator::parse_relation()
-{
+Designator::Relation Designator::parse_relation() {
 #if DO_DEBUG
   trace(__func__);
 #endif
-  switch (peek())
-  {
+  switch (peek()) {
   case '<':
-    switch (next())
-    {
+    switch (next()) {
     case '=':
       ++cur_;
       return LESS_EQUAL;
@@ -133,8 +123,7 @@ Designator::Relation Designator::parse_relation()
     break;
 
   case '>':
-    switch (next())
-    {
+    switch (next()) {
     case '=':
       ++cur_;
       return GREATER_EQUAL;
@@ -147,8 +136,7 @@ Designator::Relation Designator::parse_relation()
     break;
 
   case '!':
-    switch (next())
-    {
+    switch (next()) {
     case '=':
       ++cur_;
       return NOT_EQUAL;
@@ -157,8 +145,7 @@ Designator::Relation Designator::parse_relation()
     break;
 
   case '=':
-    switch (next())
-    {
+    switch (next()) {
     case '=':
       ++cur_;
       return EQUAL;
@@ -167,10 +154,10 @@ Designator::Relation Designator::parse_relation()
     break;
   }
   parse_error("Expected operator");
+  return EQUAL; // Needs returning something
 }
 
-Version Designator::parse_version()
-{
+Version Designator::parse_version() {
 #if DO_DEBUG
   trace(__func__);
 #endif
@@ -190,8 +177,7 @@ Version Designator::parse_version()
   return version;
 }
 
-void Designator::parse_root()
-{
+void Designator::parse_root() {
 #if DO_DEBUG
   trace(__func__);
 #endif
@@ -200,8 +186,7 @@ void Designator::parse_root()
   trace(__func__);
 #endif
   skip_space();
-  switch (peek())
-  {
+  switch (peek()) {
   case '(':
     ++cur_;
     parse_version_list();
@@ -219,12 +204,9 @@ void Designator::parse_root()
   }
 }
 
-bool Designator::version_good(const Version& version) const
-{
-  for (auto& check: constraint)
-  {
-    switch (check.first)
-    {
+bool Designator::version_good(const Version& version) const {
+  for (auto& check : constraint) {
+    switch (check.first) {
     case LESS_THEN:
       if (!(version < check.second))
         return false;
@@ -264,12 +246,10 @@ bool Designator::version_good(const Version& version) const
 
 
 Designator::Designator(const std::string& str)
-  : input_(str), cur_(input_.begin())
-{
+    : input_(str), cur_(input_.begin()) {
   parse_root();
   skip_space();                                 // Trailing space allowed
-  if (cur_ != input_.end())
-  {
+  if (cur_ != input_.end()) {
     std::string trailing(cur_, input_.end());
     throw std::runtime_error("Trailing input: '" + trailing + "'");
   }

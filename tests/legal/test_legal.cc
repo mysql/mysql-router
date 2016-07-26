@@ -28,6 +28,8 @@
 
 #include "gmock/gmock.h"
 
+using mysql_harness::Path;
+
 struct GitInfo {
   Path file;
   int year_first_commit;
@@ -37,6 +39,7 @@ struct GitInfo {
 Path g_origin;
 Path g_source_dir;
 std::vector<GitInfo> g_git_tracked_files;
+bool g_skip_git_tests = false;
 
 const std::vector<std::string> kShortLicense{
     "This program is free software; you can redistribute it and/or modify",
@@ -60,8 +63,13 @@ const std::vector<std::string> kIgnoredExtensions{
 
 const std::vector<std::string> kIgnoredFileNames{
     ".gitignore",
+    "nt_servc.cc",
+    "nt_servc.h",
     "License.txt",
     "Doxyfile.in",
+#ifndef _WIN32
+    "README.md" // symlink on Unix-like, doesn't work on Windows
+#endif
 };
 
 // Paths to ignore; relative to repository root
@@ -76,7 +84,7 @@ const std::vector<Path> kIgnoredPaths{
 
 bool is_ignored_path(Path path, const std::vector<Path> ignored_paths) {
   // Check paths we are ignoring
-  Path fullpath(realpath(g_source_dir.c_str(), nullptr));
+  Path fullpath(Path(g_source_dir).real_path());
   for (auto &it: ignored_paths) {
     auto tmp = Path(fullpath).join(it);
     if (tmp == path) {
@@ -121,16 +129,16 @@ void prepare_git_tracked_files() {
   while (std::getline(cmd_output, tracked_file, '\n')) {
     Path tmp_path(g_source_dir);
     tmp_path.append(tracked_file);
-    char *real_path = realpath(tmp_path.c_str(), nullptr);
-    if (!real_path) {
+    Path real_path = tmp_path.real_path();
+    if (!real_path.is_set()) {
       std::cerr << "realpath failed for " << tracked_file << ": " << strerror(errno) << std::endl;
       continue;
     }
-    tracked_file = std::string(realpath(tmp_path.c_str(), nullptr));
+    tracked_file = real_path.str();
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
       os_cmd << "git log HEAD --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
-      result = cmd_exec(os_cmd.str());
+      result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
       // Result should contain at least 1 line with a year.
       if (result.output.size() < 10) {
         std::cerr << "Failed getting Git log info for " << tracked_file << std::endl;
@@ -153,7 +161,9 @@ void prepare_git_tracked_files() {
 class CheckLegal : public ::testing::Test {
   protected:
     virtual void SetUp() {
-      prepare_git_tracked_files();
+      if (!g_skip_git_tests) {
+        prepare_git_tracked_files();
+      }
     }
 
     virtual void TearDown() {
@@ -161,6 +171,7 @@ class CheckLegal : public ::testing::Test {
 };
 
 TEST_F(CheckLegal, Copyright) {
+  SKIP_GIT_TESTS(g_skip_git_tests)
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
   std::vector<std::string> problems;
@@ -216,6 +227,7 @@ TEST_F(CheckLegal, Copyright) {
 }
 
 TEST_F(CheckLegal, GPLLicense) {
+  SKIP_GIT_TESTS(g_skip_git_tests)
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
   std::vector<Path> extra_ignored{
@@ -271,14 +283,16 @@ TEST_F(CheckLegal, GPLLicense) {
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
-  g_source_dir = get_cmake_source_dir();
+  try {
+    g_source_dir = get_cmake_source_dir();
+  } catch (const std::runtime_error &exc) {
+    g_skip_git_tests = true;
+  }
 
-  if (!Path(g_source_dir).join(".git").is_directory()) {
-    std::cerr << "Test can only run in Git repository" << std::endl;
-    return 1;
+  if (g_source_dir.is_set() && !Path(g_source_dir).join(".git").is_directory()) {
+    g_skip_git_tests = true;
   }
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

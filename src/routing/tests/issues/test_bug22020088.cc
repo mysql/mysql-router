@@ -20,14 +20,15 @@
  *
  */
 
-#include "gtest_consoleoutput.h"
-#include "helper_logger.h"
 #include "cmd_exec.h"
-#include "../../../router/src/router_app.h"
-#include "config_parser.h"
-#include "plugin.h"
+#include "gtest_consoleoutput.h"
+#include "logger.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
+#include "router_test_helpers.h"
+#include "../../../router/src/router_app.h"
 #include "../../../routing/src/mysql_routing.h"
 #include "../../../routing/src/utils.h"
 
@@ -35,9 +36,13 @@
 #include <fstream>
 #include <future>
 #include <memory>
-#include <netinet/in.h>
 #include <string>
 #include <thread>
+#ifndef _WIN32
+# include <netinet/in.h>
+#else
+# include <WinSock2.h>
+#endif
 
 #include "gmock/gmock.h"
 
@@ -55,9 +60,10 @@ const string kDefaultRoutingConfig = "\ndestinations=127.0.0.1:3306\nmode=read-o
 class Bug22020088 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
-    config_path->append("Bug21771595.ini");
+    config_path->append("Bug22020088.ini");
 
   }
 
@@ -83,7 +89,7 @@ TEST_F(Bug22020088, MissingBindAddressAndDefaultPort) {
   c << kDefaultRoutingConfig;
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -99,7 +105,7 @@ TEST_F(Bug22020088, MissingPortInBindAddress) {
   c << kDefaultRoutingConfig;
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -115,7 +121,7 @@ TEST_F(Bug22020088, InvalidPortInBindAddress) {
   c << kDefaultRoutingConfig;
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -131,7 +137,7 @@ TEST_F(Bug22020088, InvalidDefaultPort) {
   c << kDefaultRoutingConfig;
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
   } catch (const std::invalid_argument &exc) {
@@ -184,6 +190,9 @@ TEST_F(Bug22020088, BlockClientHostWithFakeResponse) {
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1"), fileno(fd_response)));
   std::fclose(fd_response);
+#ifndef _WIN32
+  // block_client_host() will not be able to write data to the file because in windows, the
+  // syscall to writing to sockets is different than for files
   fd_response = std::fopen("fake_response.data", "r");
 
   auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
@@ -193,10 +202,12 @@ TEST_F(Bug22020088, BlockClientHostWithFakeResponse) {
      ASSERT_EQ(fake_response.at(i), std::fgetc(fd_response));
   }
   std::fclose(fd_response);
+#endif
   std::remove("fake_response.data");
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);

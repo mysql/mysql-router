@@ -18,6 +18,8 @@
 #ifndef MYSQLROUTER_MYSQL_PROTOCOL_CONSTANTS_INCLUDED
 #define MYSQLROUTER_MYSQL_PROTOCOL_CONSTANTS_INCLUDED
 
+#include <cstdint>
+
 namespace mysql_protocol {
 
 // Capability flags are prefixed with `CLIENT_`.

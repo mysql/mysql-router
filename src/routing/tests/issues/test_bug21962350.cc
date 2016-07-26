@@ -20,6 +20,9 @@
  *
  */
 
+#include "config_parser.h"
+#include "destination.h"
+#include "logger.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 
@@ -28,11 +31,17 @@
 #include <thread>
 #include <vector>
 
-#include "gmock/gmock.h"
-#include "config_parser.h"
-#include "helper_logger.h"
+#ifdef __clang__
+// ignore GMock warnings
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-conversion"
+#  include "gmock/gmock.h"
+#  pragma clang diagnostic pop
+#else
+#  include "gmock/gmock.h"
+#endif
 
-#include "destination.h"
+extern "C" { extern mysql_harness::Plugin LOGGER_API logger; }  // defined in logger.cc
 
 using mysqlrouter::TCPAddress;
 using mysqlrouter::to_string;
@@ -74,33 +83,58 @@ private:
   std::streambuf *orig_cout_;
 };
 
+// NOTE: this test must run as first, it doesn't really test anything, just inits logger.
+// TODO: might want to move it to some common helper function and make it available to all tests
+TEST_F(Bug21962350, InitLogger) {
+
+  // set log level in Config
+  mysql_harness::Config config;
+  config.add("logger");
+  mysql_harness::Config::SectionList sections = config.get("logger");
+  mysql_harness::ConfigSection*       section = sections.front();
+  section->set("level", "DEBUG");
+
+  // package Config inside of AppInfo
+  mysql_harness::AppInfo info;
+  memset(&info, 0, sizeof(info)); // set to all-NULL
+  info.config = &config;
+
+  // init logger
+  logger.init(&info);
+}
+
 TEST_F(Bug21962350, AddToQuarantine) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
+  d.add_to_quarantine(static_cast<size_t>(0));
   ASSERT_THAT(ssout.str(), HasSubstr("Quarantine destination server s1.example.com:3306"));
-  d.add_to_quarantine(1);
-  ASSERT_EQ(2, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(1));
+  exp = 2;
+  ASSERT_EQ(exp, d.size_quarantine());
   ASSERT_THAT(ssout.str(), HasSubstr("s2.example.com:3306"));
-  d.add_to_quarantine(2);
+  d.add_to_quarantine(static_cast<size_t>(2));
   ASSERT_THAT(ssout.str(), HasSubstr("s3.example.com:3306"));
-  ASSERT_EQ(3, d.size_quarantine());
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 
 TEST_F(Bug21962350, CleanupQuarantine) {
-  MockRouteDestination d;
+  size_t exp;
+  ::testing::NiceMock<MockRouteDestination> d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(1);
-  d.add_to_quarantine(2);
-  ASSERT_EQ(3, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(1));
+  d.add_to_quarantine(static_cast<size_t>(2));
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 
   EXPECT_CALL(d, get_mysql_socket(_, _, _)).Times(4)
     .WillOnce(Return(100))
@@ -109,47 +143,58 @@ TEST_F(Bug21962350, CleanupQuarantine) {
     .WillOnce(Return(200));
   d.cleanup_quarantine();
   // Second is still failing
-  size_t exp = 1;
+  exp = 1;
   ASSERT_EQ(exp, d.size_quarantine());
   // Next clean up should remove s2.example.com
   d.cleanup_quarantine();
-  ASSERT_EQ(0, d.size_quarantine());
+  exp = 0;
+  ASSERT_EQ(exp,d.size_quarantine());
   ASSERT_THAT(ssout.str(), HasSubstr("Unquarantine destination server s2.example.com:3306"));
 }
 
 TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(0);
-  d.add_to_quarantine(2);
-  d.add_to_quarantine(1);
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(0));
+  d.add_to_quarantine(static_cast<size_t>(2));
+  d.add_to_quarantine(static_cast<size_t>(1));
 
-  ASSERT_EQ(3, d.size_quarantine());
+  exp = 3;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
+#if !defined(_WIN32) && !defined(__FreeBSD__)
+// This test doesn't work in Windows or FreeBSD, because of how ASSERT_DEATH works
+// But this test is gone in newer branches anyway, so disabling for now
 TEST_F(Bug21962350, QuarantineServerNonExisting) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  ASSERT_DEATH(d.add_to_quarantine(999), ".*(index < size()).*");
-  ASSERT_EQ(0, d.size_quarantine());
+  ASSERT_DEATH(d.add_to_quarantine(static_cast<size_t>(999)), ".*(index < size()).*");
+  exp = 0;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
+#endif
 
 TEST_F(Bug21962350, AlreadyQuarantinedServer) {
+  size_t exp;
   MockRouteDestination d;
   d.add(servers[0]);
   d.add(servers[1]);
   d.add(servers[2]);
 
-  d.add_to_quarantine(1);
-  d.add_to_quarantine(1);
-  ASSERT_EQ(1, d.size_quarantine());
+  d.add_to_quarantine(static_cast<size_t>(1));
+  d.add_to_quarantine(static_cast<size_t>(1));
+  exp = 1;
+  ASSERT_EQ(exp, d.size_quarantine());
 }
 
 std::vector<TCPAddress> const Bug21962350::servers  {

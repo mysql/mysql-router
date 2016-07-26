@@ -25,6 +25,12 @@
 #include <iomanip>
 #include <iostream>
 #include <cctype>
+#include <stdexcept>
+#include <string.h>
+
+#ifdef _WIN32
+#  include <windows.h>
+#endif
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
 const string kValidPortChars = "0123456789";
@@ -255,5 +261,56 @@ string hexdump(const unsigned char *buffer, size_t count, long start, bool liter
   }
   return os.str();
 }
+
+/*
+* Returns the last system specific error description (using GetLastError in Windows or errno in Unix/OSX).
+*/
+std::string get_last_error()
+{
+#ifdef WIN32
+  DWORD dwCode = GetLastError();
+  LPTSTR lpMsgBuf;
+
+  FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+    FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL,
+    dwCode,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR)&lpMsgBuf,
+    0, NULL);
+  std::string msgerr = "SystemError: ";
+  msgerr += lpMsgBuf;
+  msgerr += "with error code %d.";
+  std::string result = string_format(msgerr.c_str(), dwCode);
+  LocalFree(lpMsgBuf);
+  return result;
+#else
+  char sys_err[64];
+  int errnum = errno;
+
+  sys_err[0] = 0; // init, in case strerror_r() fails
+
+  // we do this #ifdef dance because on unix systems strerror_r() will generate
+  // a warning if we don't collect the result (warn_unused_result attribute)
+#if ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
+       (defined _XOPEN_SOURCE && (_XOPEN_SOURCE >= 600)))      &&    \
+      ! defined _GNU_SOURCE
+  int r = strerror_r(errno, sys_err, sizeof(sys_err));
+  (void)r;  // silence unused variable;
+#elif defined _GNU_SOURCE
+  const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
+  (void)r;  // silence unused variable;
+#else
+  strerror_r(errno, sys_err, sizeof(sys_err));
+#endif
+
+  std::string s = sys_err;
+  s += "with errno %d.";
+  std::string result = string_format(s.c_str(), errnum);
+  return result;
+#endif
+  }
 
 } // namespace mysqlrouter

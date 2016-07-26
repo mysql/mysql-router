@@ -22,17 +22,20 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
-#include "config_parser.h"
-#include "filesystem.h"
-#include "plugin.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
-#include "helper_logger.h"
+#include "logger.h"
 #include "mysql_routing.h"
 #include "plugin_config.h"
+#include "router_test_helpers.h"
 
 using std::string;
 using ::testing::HasSubstr;
@@ -42,13 +45,13 @@ using ::testing::NotNull;
 using ::testing::StrEq;
 
 // define what is available in routing_plugin.cc
-extern Plugin harness_plugin_routing;
-extern const AppInfo *g_app_info;
+extern mysql_harness::Plugin harness_plugin_routing;
+extern const mysql_harness::AppInfo *g_app_info;
 extern const char *kRoutingRequires[1];
 
-int init(const AppInfo *info);
+int init(const mysql_harness::AppInfo *info);
 
-void start(const ConfigSection *section);
+void start(const mysql_harness::ConfigSection *section);
 
 string g_cwd;
 Path g_origin;
@@ -56,6 +59,7 @@ Path g_origin;
 class RoutingPluginTests : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
     config_path->append("test_routing_plugin.ini");
@@ -147,11 +151,11 @@ TEST_F(RoutingPluginTests, PluginConstants) {
 }
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0100);
-  ASSERT_EQ(harness_plugin_routing.plugin_version, VERSION_NUMBER(0, 0, 1));
-  ASSERT_EQ(harness_plugin_routing.requires_length, 1);
+  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0101U);
+  ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
+  ASSERT_EQ(harness_plugin_routing.requires_length, 1U);
   ASSERT_THAT(harness_plugin_routing.requires[0], StrEq("logger"));
-  ASSERT_EQ(harness_plugin_routing.conflicts_length, 0);
+  ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
   ASSERT_THAT(harness_plugin_routing.deinit, IsNull());
   ASSERT_THAT(harness_plugin_routing.brief,
@@ -161,7 +165,7 @@ TEST_F(RoutingPluginTests, PluginObject) {
 TEST_F(RoutingPluginTests, InitAppInfo) {
   ASSERT_THAT(g_app_info, IsNull());
 
-  AppInfo test_app_info{
+  mysql_harness::AppInfo test_app_info{
       program.c_str(),
       plugindir.c_str(),
       logdir.c_str(),
@@ -205,7 +209,6 @@ TEST_F(RoutingPluginTests, StartMissingDestination) {
     ASSERT_THAT(cmd_result.output,
                 HasSubstr("option destinations in [routing:tests] is required"));
   }
-
   {
     destinations = {};
     reset_config({});
@@ -287,6 +290,7 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);

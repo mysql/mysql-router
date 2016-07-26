@@ -26,26 +26,48 @@
  *
  */
 
-#include "utils.h"
-#include "destination.h"
 #include "config.h"
-
-#include "plugin_config.h"
-
-#include <atomic>
-#include <arpa/inet.h>
-#include <array>
-#include <iostream>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <sys/socket.h>
-#include <thread>
-#include <unistd.h>
-#include <netinet/tcp.h>
-#include <memory>
-#include <map>
-
+#include "destination.h"
+#include "filesystem.h"
 #include "mysqlrouter/datatypes.h"
+#include "plugin_config.h"
+#include "utils.h"
+#include "mysqlrouter/routing.h"
+
+#include <array>
+#include <atomic>
+#include <iostream>
+#include <map>
+#include <memory>
+
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#  include <netdb.h>
+#  include <netinet/in.h>
+#  include <netinet/tcp.h>
+#  include <sys/socket.h>
+#  include <unistd.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
+
+
+#ifdef _WIN32
+#  ifdef routing_DEFINE_STATIC
+#    define ROUTING_API
+#  else
+#    ifdef routing_EXPORTS
+#      define ROUTING_API __declspec(dllexport)
+#    else
+#      define ROUTING_API __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define ROUTING_API
+#endif
 
 using std::string;
 using mysqlrouter::URI;
@@ -92,7 +114,7 @@ public:
    * @param optional max_connect_errors Maximum connect or handshake errors per host
    * @param optional connect_timeout Timeout waiting for handshake response
    */
-  MySQLRouting(routing::AccessMode mode, int port, const string &bind_address = string{"0.0.0.0"},
+  MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address = string{"0.0.0.0"},
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
@@ -212,12 +234,13 @@ public:
   }
 
 private:
-  /** @brief Sets up the service
+  /** @brief Sets up the TCP service
    *
-   * Sets up the service binding to IP addresses and TCP port.
+   * Sets up the TCP service binding to IP addresses and TCP port.
    *
    * Throws std::runtime_error on errors.
    *
+   * @return
    */
   void setup_service();
 
@@ -257,7 +280,7 @@ private:
   unsigned int client_connect_timeout_;
   /** @brief Size of buffer to store receiving packets */
   unsigned int net_buffer_length_;
-  /** @brief IP address and TCP port to use when binding service */
+  /** @brief IP address and TCP port for setting up TCP service */
   const TCPAddress bind_address_;
   /** @brief Socket descriptor of the service */
   int sock_server_;
@@ -276,5 +299,9 @@ private:
   std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 };
 
+extern "C"
+{
+  extern mysql_harness::Plugin ROUTING_API harness_plugin_routing;
+}
 
 #endif // ROUTING_MYSQLROUTING_INCLUDED

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,75 +15,125 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef CONFIG_PARSER_INCLUDED
-#define CONFIG_PARSER_INCLUDED
+#ifndef MYSQL_HARNESS_CONFIG_PARSER_INCLUDED
+#define MYSQL_HARNESS_CONFIG_PARSER_INCLUDED
 
 #include <functional>
+#include <iterator>
 #include <list>
 #include <map>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
+
+#include "harness_export.h"
+
+namespace mysql_harness {
 
 class ConfigSection;
 class Path;
 
 /**
+ * Convenience class for handling iterator range.
+ *
+ * This is a template class that accept a pair of iterators and
+ * implement the necessary methods to be able to be used as a sequence
+ * container.
+ */
+template <class Iter>
+class Range {
+ public:
+  using value_type = typename Iter::value_type;
+  using reference = typename Iter::reference;
+  using iterator = Iter;
+  using const_iterator = iterator;
+  using difference_type = typename std::iterator_traits<Iter>::difference_type;
+  using size_type = difference_type;
+
+  Range(Iter start, Iter finish) : begin_(start), end_(finish) {}
+
+  /** Get iterator to beginning of range. */
+  Iter begin() const { return begin_; }
+
+  /** Get iterator to end of range. */
+  Iter end() const { return end_; }
+
+  /** Check if range is empty. */
+  bool empty() const { return begin_ == end_; }
+
+  /**
+   * Get size of the range, that is, number of elements in the range.
+   *
+   * @note This call `std::distance` internally.
+   *
+   * @returns The number of elements in the range.
+   */
+  size_type size() const {
+    return std::distance(begin_, end_);
+  }
+
+ private:
+  Iter begin_;
+  Iter end_;
+};
+
+/**
  * Exception thrown for syntax errors.
+ *
+ * @ingroup ConfigParser
+ * Exception thrown for errors during parsing configuration file.
  */
 
 class syntax_error : public std::logic_error {
-public:
-  explicit syntax_error(const std::string& msg)
-    : std::logic_error(msg)
-  {
-  }
+ public:
+  explicit syntax_error(const std::string& msg) : std::logic_error(msg) {}
 };
 
 /**
  * Exception thrown for section problems.
+ *
+ * @ingroup ConfigParser
  */
 
-class bad_section : public std::runtime_error
-{
-public:
-  explicit bad_section(const std::string& msg)
-    : std::runtime_error(msg)
-  {
-  }
+class bad_section : public std::runtime_error {
+ public:
+  explicit bad_section(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 
 /**
  * Exception thrown for option problems.
+ *
+ * @ingroup ConfigParser
  */
 
-class bad_option : public std::runtime_error
-{
-public:
-  explicit bad_option(const std::string& msg)
-    : std::runtime_error(msg)
-  {
-  }
+class bad_option : public std::runtime_error {
+ public:
+  explicit bad_option(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 
 /**
  * Configuration section.
  *
+ * @ingroup ConfigParser
+ *
  * A named configuration file section with a zero or more
  * configuration file options.
  */
 
-class ConfigSection {
-public:
-  typedef std::map<std::string, std::string> OptionMap;
+class HARNESS_EXPORT ConfigSection {
+ public:
+  using OptionMap = std::map<std::string, std::string>;
+  using OptionRange = Range<OptionMap::const_iterator>;
 
   ConfigSection(const std::string& name,
                 const std::string& key,
-                const ConfigSection *defaults);
+                const std::shared_ptr<const ConfigSection>& defaults);
 
-  ConfigSection(const ConfigSection&, const ConfigSection* defaults);
+  ConfigSection(const ConfigSection&,
+                const std::shared_ptr<const ConfigSection>& defaults);
   ConfigSection& operator=(const ConfigSection&) = delete;
 
   /**
@@ -118,20 +168,39 @@ public:
   void add(const std::string& option, const std::string& value);
   bool has(const std::string& option) const;
 
+  /**
+   * Range for options in section.
+   *
+   * Typical usage is:
+   *
+   * @code
+   * for (auto elem: section.get_options())
+   *   std::cout << "Option " << elem.first
+   *             << " has value " << elem.second
+   *             << std::endl;
+   * @endcode
+   *
+   * @returns a range of options each consisting of a pair
+   * option-value.
+   */
+  OptionRange get_options() const {
+    return OptionRange(options_.begin(), options_.end());
+  }
+
 #ifndef NDEBUG
   bool assert_default(const ConfigSection* def) const {
-    return def == defaults_;
+    return def == defaults_.get();
   }
 #endif
 
-public:
+ public:
   const std::string name;
   const std::string key;
 
-private:
+ private:
   std::string do_replace(const std::string& value) const;
 
-  const ConfigSection* defaults_;
+  const std::shared_ptr<const ConfigSection> defaults_;
   OptionMap options_;
 };
 
@@ -139,18 +208,20 @@ private:
 /**
  * Configuration.
  *
+ * @ingroup ConfigParser
+ *
  * A configuration consisting of named configuration sections.
  *
  * There are three different constructors that are available with
  * different kind of parameters.
  */
 
-class Config {
-public:
-  typedef std::pair<std::string, std::string> SectionKey;
-  typedef ConfigSection::OptionMap OptionMap;
-  typedef std::list<ConfigSection*> SectionList;
-  typedef std::list<const ConfigSection*> ConstSectionList;
+class HARNESS_EXPORT Config {
+ public:
+  using SectionKey = std::pair<std::string, std::string>;
+  using OptionMap = ConfigSection::OptionMap;
+  using SectionList = std::list<ConfigSection*>;
+  using ConstSectionList = std::list<const ConfigSection*>;
 
   /**@{*/
   /** Flags for construction of configurations. */
@@ -180,10 +251,9 @@ public:
   /** @overload */
   template <class AssocT>
   explicit Config(const AssocT& parameters, unsigned int flags = 0U)
-    : Config(flags)
-  {
-    for (auto item: parameters)
-      defaults_.set(item.first, item.second);
+      : Config(flags) {
+    for (auto item : parameters)
+      defaults_->set(item.first, item.second);
   }
 
   /** @overload */
@@ -191,17 +261,15 @@ public:
   explicit Config(const AssocT& parameters,
                   const SeqT& reserved,
                   unsigned int flags = 0U)
-    : Config(parameters, flags)
-  {
-    for (auto word: reserved)
+      : Config(parameters, flags) {
+    for (auto word : reserved)
       reserved_.push_back(word);
   }
 
   virtual ~Config() = default;
 
   template <class SeqT>
-  void set_reserved(const SeqT& reserved)
-  {
+  void set_reserved(const SeqT& reserved) {
     reserved_.assign(reserved.begin(), reserved.end());
   }
 
@@ -310,7 +378,8 @@ public:
   ConfigSection& get(const std::string& section, const std::string& key);
 
   /** @overload */
-  const ConfigSection& get(const std::string& section, const std::string& key) const;
+  const ConfigSection& get(const std::string& section,
+                           const std::string& key) const;
 
   /**
    * Add a new section to the configuration.
@@ -333,10 +402,9 @@ public:
 
   bool is_reserved(const std::string& word) const;
 
-  std::list<Config::SectionKey> section_names() const
-  {
+  std::list<Config::SectionKey> section_names() const {
     decltype(section_names()) result;
-    for (auto& section: sections_)
+    for (auto& section : sections_)
       result.push_back(section.first);
     return result;
   }
@@ -346,9 +414,9 @@ public:
    */
   ConstSectionList sections() const;
 
-protected:
-  typedef std::map<SectionKey, ConfigSection> SectionMap;
-  typedef std::vector<std::string> ReservedList;
+ protected:
+  using SectionMap = std::map<SectionKey, ConfigSection>;
+  using ReservedList = std::vector<std::string>;
 
   /**
    * Copy the guts of another configuration.
@@ -377,8 +445,10 @@ protected:
 
   SectionMap sections_;
   ReservedList reserved_;
-  ConfigSection defaults_;
+  std::shared_ptr<ConfigSection> defaults_;
   unsigned int flags_;
 };
 
-#endif /* CONFIG_PARSER_INCLUDED */
+}
+
+#endif /* MYSQL_HARNESS_CONFIG_PARSER_INCLUDED */

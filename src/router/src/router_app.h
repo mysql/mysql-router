@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,15 +25,14 @@
  *
  */
 
-#include "arg_handler.h"
 #include "config.h"
+#include "loader.h"
+#include "mysql/harness/arg_handler.h"
 
 #include <cassert>
 #include <cstdint>
 #include <tuple>
 #include <vector>
-
-#include "loader.h"
 
 using std::string;
 using std::tuple;
@@ -93,7 +92,7 @@ public:
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const Path& origin, const vector<string>& arguments);
+  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments);
 
   /** @brief Constructor with command line arguments
    *
@@ -182,7 +181,56 @@ public:
    */
   void start();
 
+  /** @brief Gets list of default configuration files
+   *
+   * Returns a list of configuration files which will be read (if available)
+   * by default.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_default_config_files() const noexcept {
+    return default_config_files_;
+  }
+
+  /** @brief Gets list of configuration files passed using command line
+   *
+   * Returns a list of configuration files which were passed through command
+   * line options.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_config_files() const noexcept {
+    return config_files_;
+  }
+
+  /** @brief Gets list of extra configuration files passed using command line
+   *
+   * Returns a list of extra configuration files which were passed through command
+   * line options.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>& get_extra_config_files() const noexcept {
+    return extra_config_files_;
+  }
+
+  /** @brief Gets list of used configuration files
+   *
+   * Returns a list of configuration files which were used to read
+   * the configuration.
+   *
+   * @return std::vector<string>
+   */
+  const std::vector<std::string>&  get_used_config_files() const noexcept {
+    return available_config_files_;
+  }
+
+#if !defined(_MSC_VER) && !defined(UNIT_TESTS)
+  // MSVC produces different symbols for private vs public methods, which mean
+  // the #define private public trick for unit-testing private methods doesn't
+  // work. Thus, we turn private methods public in Windows.
 private:
+#endif
 
   /** @brief Initializes the MySQL Router application
    *
@@ -289,7 +337,7 @@ private:
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
-  vector<string> config_files_;
+  std::vector<string> config_files_;
   /** @brief PID file location **/
   string pid_file_path_;
   /** @brief Vector with available and usable configuration files
@@ -304,7 +352,7 @@ private:
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;
   /** @brief Harness loader **/
-  std::unique_ptr<Loader> loader_;
+  std::unique_ptr<mysql_harness::Loader> loader_;
   /** @brief Whether the MySQLRouter can start or not **/
   bool can_start_;
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
@@ -316,7 +364,7 @@ private:
    * This variable contain the directory that the executable is
    * running from.
    */
-  Path origin_;
+  mysql_harness::Path origin_;
 };
 
 #endif // ROUTER_MYSQL_ROUTER_INCLUDED

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,20 @@
 
 #include "mysqlrouter/utils.h"
 
+#ifdef _WIN32
+#  ifdef fabric_cache_STATIC
+#    define FABRIC_CACHE_API
+#  else
+#    ifdef fabric_cache_EXPORTS
+#      define FABRIC_CACHE_API __declspec(dllexport)
+#    else
+#      define FABRIC_CACHE_API __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define FABRIC_CACHE_API
+#endif
+
 using std::list;
 using std::string;
 
@@ -42,7 +56,7 @@ extern std::vector<string> g_fabric_cache_config_sections;
  *
  * Class ManagedServer represents a server managed by MySQL Fabric.
  */
-class ManagedServer {
+class FABRIC_CACHE_API ManagedServer {
 public:
   /** @brief The UUID of the server registered with Fabric */
   string server_uuid;
@@ -144,7 +158,7 @@ public:
  *
  * Class holding result after looking up data in the cache.
  */
-class LookupResult {
+class FABRIC_CACHE_API LookupResult {
 public:
   /** @brief Constructor */
   LookupResult(const list<ManagedServer> &server_list_) : server_list(server_list_) { }
@@ -175,7 +189,7 @@ public:
  * @param user MySQL Fabric username
  * @param password MySQL Fabric password
  */
-void cache_init(const string &cache_name, const string &host, const int port,
+void FABRIC_CACHE_API cache_init(const string &cache_name, const string &host, const int port,
                 const string &user,
                 const string &password);
 
@@ -184,7 +198,7 @@ void cache_init(const string &cache_name, const string &host, const int port,
  * @param cache_name Name of the cache object
  * @return bool
  **/
-bool have_cache(const string &cache_name);
+bool FABRIC_CACHE_API have_cache(const string &cache_name);
 
 
 
@@ -197,7 +211,7 @@ bool have_cache(const string &cache_name);
  * @param group_id ID of the HA group
  * @return List of ManagedServer objects
  */
-LookupResult lookup_group(const string &cache_name, const string &group_id);
+LookupResult FABRIC_CACHE_API lookup_group(const string &cache_name, const string &group_id);
 
 /** @brief Returns list of managed server for a shard
  *
@@ -209,7 +223,7 @@ LookupResult lookup_group(const string &cache_name, const string &group_id);
  * @param shard_key Sharding key
  * @return List of ManagedServer objects
  */
-LookupResult lookup_shard(const string &cache_name, const string &table_name,
+LookupResult FABRIC_CACHE_API lookup_shard(const string &cache_name, const string &table_name,
                           const string &shard_key);
 
 } // namespace fabric_cache

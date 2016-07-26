@@ -24,94 +24,82 @@
  * support for extension life-cycles.
  */
 
-#include "filesystem.h"
+#include "arg_handler.h"
 #include "loader.h"
 #include "utilities.h"
 
-#include <getopt.h>
-
-#include <iostream>
+#include <algorithm>
 #include <cstring>
+#include <iostream>
+#include <map>
 #include <string>
 
 static void
-print_usage_and_exit(int, char *argv[],
-                     const std::string& message = "")
-{
-  const Path program = Path(argv[0]).basename();
-
-  if (message.length() > 0)
+print_usage_and_exit(const CmdArgHandler& handler,
+                     const std::string& program,
+                     const std::string &message = "") {
+  if (message.length() > 0) {
     std::cerr << message << std::endl;
-  std::cerr << "Usage: " << program << " <options> <config-file>\n"
-            << "   --param <name>=<value>   Set parameter <name> to <value>\n"
-            << "   --console                Print log to console\n"
-            << std::endl;
+  }
+  for (auto& it : handler.usage_lines("usage: " + program, "config file", 72)) {
+    std::cerr << it << std::endl;
+  }
   exit(EXIT_FAILURE);
 }
 
-int main(int argc, char *argv[])
-{
-  const Path program = Path(argv[0]).basename();
-
+int main(int argc, char *argv[]) {
+  const std::string program(basename(argv[0]));
+  CmdArgHandler handler(true);
   std::map<std::string, std::string> params;
-  params["program"] = program.str();
-
   std::string config_file;
+  bool console = false;
 
-  bool opt_console = false;
-  static struct option options[] = {
-    { "param", required_argument, 0, 'p' },
-    { "console", no_argument, 0,  'c' },
-    { 0, 0, 0, 0 }
+  params["program"] = program;
+
+  handler.add_option(CmdOption::OptionNames({"-h", "--help"}), "Show help screen",
+                     CmdOptionValueReq::none, "",
+                     [&handler, program](const std::string &) {
+                       print_usage_and_exit(handler, program);
+                     });
+
+  auto param_action = [&params, &handler, program](const std::string &value) {
+    auto pos = value.find("=");
+    if (pos == std::string::npos) {
+      print_usage_and_exit(handler, program, "Incorrectly formatted parameter");
+    }
+    params[value.substr(0, pos)] = strip_copy(value.substr(pos + 1));
   };
 
-  int index, opt;
-  while ((opt = getopt_long(argc, argv, "cp:", options, &index)) != -1)
-  {
-    std::string key, value;
-    const char *end;
-    switch (opt)
-    {
-    case 0:
-      // Options automatically set
-      break;
+  handler.add_option(CmdOption::OptionNames({"-p", "--param"}),
+                     "Set parameter <name> to <value>",
+                     CmdOptionValueReq::required, "name=value", param_action);
 
-    case 'p':
-      if (!(end = strchr(optarg, '=')))
-        print_usage_and_exit(argc, argv,
-                             "Incorrectly formatted parameter");
-      key.assign<const char*>(optarg, end);
-      value.assign(end + 1);
-      params[key] = value;
-      break;
-
-    case 'c':
-      opt_console = true;
-      break;
-
-    case '?':
-    default:
-      print_usage_and_exit(argc, argv);
-      break;
-    }
-  }
-
-  if (optind < argc)
-  {
-    if (optind + 1 != argc)
-      print_usage_and_exit(argc, argv,
-                           "Too many arguments provided");
-    config_file = argv[optind];
-  }
-  else
-    print_usage_and_exit(argc, argv,
-                         "No configuration file provided");
-
-  if (opt_console)
-    params["logging_folder"] = "";
+  handler.add_option(CmdOption::OptionNames({"--console"}), "Print log to console",
+                     CmdOptionValueReq::none, "",
+                     [&console](const std::string&) {
+                       console = true;
+                     });
 
   try {
-    Loader loader(program.str(), params);
+    handler.process({argv + 1, argv + argc});
+  } catch (const std::runtime_error& err) {
+    print_usage_and_exit(handler, program, err.what());
+  } catch (const std::invalid_argument& err) {
+    print_usage_and_exit(handler, program, err.what());
+  }
+
+  try {
+    config_file.assign(handler.get_rest_arguments().at(0));
+  } catch (const std::out_of_range) {
+    print_usage_and_exit(handler, program, "No configuration file provided");
+  }
+
+  if (console) {
+    params["logging_folder"] = "";
+  }
+
+  try {
+    mysql_harness::Loader loader(program, params);
     loader.read(config_file);
     loader.start();
   }

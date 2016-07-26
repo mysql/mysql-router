@@ -14,13 +14,20 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#ifdef _WIN32
+#  define NOMINMAX
+#endif
 
-#include "mysql_routing.h"
-#include "dest_first_available.h"
 #include "dest_fabric_cache.h"
-#include "mysqlrouter/uri.h"
-#include "plugin_config.h"
+#include "dest_first_available.h"
+#include "logger.h"
+#include "mysql_routing.h"
+#include "mysqlrouter/fabric_cache.h"
+#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
+#include "plugin_config.h"
 
 #include <algorithm>
 #include <array>
@@ -29,19 +36,30 @@
 #include <future>
 #include <memory>
 #include <mutex>
-#include <netinet/in.h>
 #include <sstream>
-#include <sys/fcntl.h>
 #include <sys/types.h>
-#undef __FD_SETSIZE
-#define __FD_SETSIZE 4096
-#include <sys/select.h>
-#include <string>
 
-#include "mysqlrouter/fabric_cache.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/utils.h"
-#include "logger.h"
+#ifdef _WIN32
+/* before winsock inclusion */
+#  define FD_SETSIZE 4096
+#else
+#  undef __FD_SETSIZE
+#  define __FD_SETSIZE 4096
+#endif
+
+#ifndef _WIN32
+#  include <netinet/in.h>
+#  include <fcntl.h>
+#  include <sys/un.h>
+#  include <sys/select.h>
+#  include <sys/socket.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+typedef long ssize_t;
+#endif
 
 using std::runtime_error;
 using mysqlrouter::string_format;
@@ -52,7 +70,7 @@ using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 
 
-MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bind_address,
+MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
                            const string &route_name,
                            int max_connections,
                            int destination_connect_timeout,
@@ -70,6 +88,7 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, int port, const string &bin
       stopping_(false),
       info_active_routes_(0),
       info_handled_routes_(0) {
+
   if (!bind_address_.port) {
     throw std::invalid_argument(string_format("Invalid bind address, was '%s', port %d", bind_address.c_str(), port));
   }
@@ -109,14 +128,24 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
   size_t bytes_read = 0;
 
   errno = 0;
+#ifdef _WIN32
+  WSASetLastError(0);
+#endif
   if (FD_ISSET(sender, readfds)) {
+#ifndef _WIN32
     if ((res = read(sender, &buffer.front(), buffer_length)) <= 0) {
+#else
+    if ((res = recv(sender, reinterpret_cast<char *>(buffer.data()), buffer_length, 0)) <= 0) {
+#endif
       if (res == -1) {
-        log_debug("sender read failed: (%d %s)", errno, strerror(errno));
+        log_debug("sender read failed: (%d %s)", errno, get_message_error(errno).c_str());
       }
       return -1;
     }
     errno = 0;
+#ifdef _WIN32
+	WSASetLastError(0);
+#endif
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
       // Check packet integrity when handshaking. When packet number is 2, then we assume
@@ -137,8 +166,12 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
         auto server_error = mysql_protocol::ErrorPacket(buffer);
+#ifndef _WIN32
         if (write(receiver, server_error.data(), server_error.size()) ) {
-          log_debug("Write error: %s", strerror(errno));
+#else
+        if (send(receiver, reinterpret_cast<const char *>(server_error.data()), server_error.size(), 0)) {
+#endif
+          log_debug("Write error: %s", get_message_error(errno).c_str());
         }
         // receiver socket closed by caller
         *curr_pktnr = 2; // we assume handshaking is done though there was an error
@@ -165,8 +198,12 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
     size_t bytes_to_write = bytes_read;
     ssize_t written = 0;
     while (bytes_to_write > 0) {
+#ifndef _WIN32
       if ((written = write(receiver, buffer.data(), bytes_to_write)) < 0) {
-        log_debug("Write error: %s", strerror(errno));
+#else
+      if ((written = send(receiver, reinterpret_cast<const char *>(buffer.data()), bytes_to_write, 0)) < 0) {
+#endif
+        log_debug("Write error: %s", get_message_error(errno).c_str());
         return -1;
       }
       bytes_to_write -= static_cast<size_t>(written);
@@ -194,8 +231,12 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
 
   if (server >= 0) {
     auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
+#ifndef _WIN32
     if (write(server, fake_response.data(), fake_response.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+#else
+    if (send(server, reinterpret_cast<const char *>(fake_response.data()), fake_response.size(), 0) < 0) {
+#endif
+      log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
     }
   }
 
@@ -218,13 +259,21 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   if (!(server > 0 && client > 0)) {
     std::stringstream os;
     os << "Can't connect to MySQL server on '" << bind_address_.addr << "'";
+    log_warning("[%s] %s", name.c_str(), os.str().c_str());
+
     auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
     // at this point, it does not matter whether client gets the error
     errno = 0;
+#ifndef _WIN32
     if (write(client, server_error.data(), server_error.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+#else
+	WSASetLastError(0);
+    if (send(client, reinterpret_cast<const char *>(server_error.data()), server_error.size(), 0) < 0) {
+#endif
+      log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
     }
 
+#ifndef _WIN32
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
     if (client > 0) {
@@ -233,6 +282,16 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     if (server > 0) {
       close(server);
     }
+#else
+    shutdown(client, SD_BOTH);
+    shutdown(server, SD_BOTH);
+    if (client > 0) {
+      closesocket(client);
+    }
+    if (server > 0) {
+      closesocket(server);
+    }
+#endif
     return;
   }
 
@@ -251,6 +310,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     fd_set errfds;
     // Reset on each loop
     FD_ZERO(&readfds);
+    FD_ZERO(&errfds);
     FD_SET(client, &readfds);
     FD_SET(server, &readfds);
 
@@ -269,6 +329,10 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
         extra_msg = string("Select timed out");
       } else if (errno > 0) {
         extra_msg = string("Select failed with error: " + to_string(strerror(errno)));
+#ifdef _WIN32
+      } else if (WSAGetLastError() > 0) {
+        extra_msg = string("Select failed with error: " + get_message_error(WSAGetLastError()));
+#endif
       } else {
         extra_msg = string("Select failed (" + to_string(res) + ")");
       }
@@ -285,8 +349,12 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     if (copy_mysql_protocol_packets(server, client,
                                     &readfds, buffer, &pktnr,
                                     handshake_done, &bytes_read) == -1) {
+#ifndef _WIN32
       if (errno > 0) {
-        extra_msg = string("Copy server-client failed: " + to_string(strerror(errno)));
+#else
+	  if (errno > 0 || WSAGetLastError() != 0) {
+#endif
+        extra_msg = string("Copy server-client failed: " + to_string(get_message_error(errno)));
       }
       break;
     }
@@ -313,18 +381,30 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   }
 
   // Either client or server terminated
+#ifndef _WIN32
   shutdown(client, SHUT_RDWR);
   shutdown(server, SHUT_RDWR);
   close(client);
   close(server);
+#else
+  shutdown(client, SD_BOTH);
+  shutdown(server, SD_BOTH);
+  closesocket(client);
+  closesocket(server);
+#endif
+
   --info_active_routes_;
+#ifndef _WIN32
   log_debug("[%s] Routing stopped (up:%zub;down:%zub) %s", name.c_str(), bytes_up, bytes_down, extra_msg.c_str());
+#else
+  log_debug("[%s] Routing stopped (up:%Iub;down:%Iub) %s", name.c_str(), bytes_up, bytes_down, extra_msg.c_str());
+#endif
 }
 
 void MySQLRouting::start() {
   int sock_client;
   struct sockaddr_in6 client_addr;
-  socklen_t sin_size = sizeof client_addr;
+  socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
   char client_ip[INET6_ADDRSTRLEN];
   int opt_nodelay = 1;
 
@@ -345,12 +425,12 @@ void MySQLRouting::start() {
 
   while (!stopping()) {
     if ((sock_client = accept(sock_server_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
-      log_error("[%s] Failed opening socket: %s", name.c_str(), strerror(errno));
+      log_error("[%s] Failed opening socket: %s", name.c_str(), get_message_error(errno).c_str());
       continue;
     }
 
-    if (inet_ntop(AF_INET6, &client_addr, client_ip, sizeof(client_ip)) == nullptr) {
-      log_error("[%s] inet_ntop failed: %s", name.c_str(), strerror(errno));
+    if (inet_ntop(AF_INET6, &client_addr, client_ip, static_cast<socklen_t>(sizeof(client_ip))) == nullptr) {
+      log_error("[%s] inet_ntop failed: %s", name.c_str(), get_message_error(errno).c_str());
       continue;
     }
 
@@ -359,31 +439,48 @@ void MySQLRouting::start() {
       os << "Too many connection errors from " << get_peer_name(sock_client).first;
       auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");
       errno = 0;
+#ifndef _WIN32
       if (write(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+#else
+      if (send(sock_client, reinterpret_cast<const char *>(server_error.data()), server_error.size(), 0) < 0) {
+#endif
+        log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
       }
+#ifndef _WIN32
       close(sock_client); // no shutdown() before close()
+#else
+      closesocket(sock_client); // no shutdown() before close()
+#endif
       continue;
     }
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       auto server_error = mysql_protocol::ErrorPacket(0, 1040, "Too many connections", "HY000");
+#ifndef _WIN32
       if (write(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+#else
+      if (send(sock_client, reinterpret_cast<const char *>(server_error.data()), server_error.size(), 0) < 0) {
+#endif
+        log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
       }
+#ifndef _WIN32
       close(sock_client); // no shutdown() before close()
+#else
+      closesocket(sock_client); // no shutdown() before close()
+#endif
       log_warning("[%s] reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
     }
 
-    if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, sizeof(int)) == -1) {
-      log_error("[%s] client setsockopt error: %s", name.c_str(), strerror(errno));
+    if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char *>(&opt_nodelay), static_cast<socklen_t>(sizeof(int))) == -1) {
+      log_error("[%s] client setsockopt error: %s", name.c_str(), get_message_error(errno).c_str());
       continue;
     }
 
     ++info_active_routes_;
     std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
   }
+
 
   log_info("[%s] stopped", name.c_str());
 }
@@ -413,17 +510,26 @@ void MySQLRouting::setup_service() {
   // Try to setup socket and bind
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock_server_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      throw std::runtime_error(strerror(errno));
+      throw std::runtime_error(get_message_error(errno));
     }
 
+#ifndef _WIN32
     option_value = 1;
-    if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int)) == -1) {
-      throw std::runtime_error(strerror(errno));
+    if (setsockopt(sock_server_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&option_value),
+            static_cast<socklen_t>(sizeof(int))) == -1) {
+      throw std::runtime_error(get_message_error(errno));
     }
+#endif
 
     if (::bind(sock_server_, info->ai_addr, info->ai_addrlen) == -1) {
+#ifdef _WIN32
+	  int errcode = WSAGetLastError();
+      closesocket(sock_server_);
+	  throw std::runtime_error(get_message_error(errcode));
+#else
       close(sock_server_);
-      throw std::runtime_error(strerror(errno));
+	  throw std::runtime_error(get_message_error(errno));
+#endif
     }
     break;
   }

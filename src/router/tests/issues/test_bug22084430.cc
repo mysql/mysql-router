@@ -22,7 +22,13 @@
 
 #include "gmock/gmock.h"
 
+#include "router_test_helpers.h"
 #include "mysqlrouter/datatypes.h"
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
+
 using mysqlrouter::TCPAddress;
 
 class Bug22084430 : public ::testing::Test {
@@ -51,4 +57,11 @@ TEST_F(Bug22084430, LogCorrectIPv4Address) {
   for (auto &it: address) {
     EXPECT_EQ(it.second.str(), it.first);
   }
+}
+
+
+int main(int argc, char *argv[]) {
+  init_windows_sockets();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

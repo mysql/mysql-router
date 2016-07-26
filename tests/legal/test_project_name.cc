@@ -29,6 +29,8 @@
 
 #include "gmock/gmock.h"
 
+using mysql_harness::Path;
+
 Path g_origin;
 Path g_source_dir;
 const std::string kProjectName = "MySQL Router";

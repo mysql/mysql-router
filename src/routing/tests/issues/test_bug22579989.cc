@@ -20,26 +20,32 @@
  *
  */
 
-#include "plugin_config.h"
 #include "config_parser.h"
+#include "plugin_config.h"
+#include "router_test_helpers.h"
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
 
 #include "gmock/gmock.h"
 
 class Bug22579989 : public ::testing::Test {
-protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+ protected:
+  virtual void SetUp() { }
 
-  Config get_routing_config(std::string destinations) {
+  virtual void TearDown() { }
+
+  mysql_harness::Config get_routing_config(std::string destinations) {
     std::stringstream c;
 
     c << "[routing:c]\n"
-      << "bind_address = 127.0.0.1:7006\n"
-      << "mode = read-only\n"
-      << "destinations = "
-      << destinations << "\n\n";
+    << "bind_address = 127.0.0.1:7006\n"
+    << "mode = read-only\n"
+    << "destinations = "
+    << destinations << "\n\n";
 
-    Config config(Config::allow_keys);
+    mysql_harness::Config config(mysql_harness::Config::allow_keys);
     std::istringstream input(c.str());
     config.read(input);
 
@@ -51,82 +57,96 @@ TEST_F(Bug22579989, EmptyValuesInCSVCase1) {
   std::stringstream c;
   std::string destinations = "localhost:13005,localhost:13003,localhost:13004,";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, EmptyValuesInCSVCase2) {
   std::stringstream c;
   std::string destinations = "localhost:13005,localhost:13003,localhost:13004, , ,";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, EmptyValuesInCSVCase3) {
   std::stringstream c;
   std::string destinations = "localhost:13005, ,,localhost:13003,localhost:13004";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, EmptyValuesInCSVCase4) {
   std::stringstream c;
   std::string destinations = ",localhost:13005,localhost:13003,localhost:13004";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, EmptyValuesInCSVCase5) {
   std::stringstream c;
   std::string destinations = ",, ,";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, EmptyValuesInCSVCase6) {
   std::stringstream c;
   std::string destinations = ",localhost:13005, ,,localhost:13003,localhost:13004, ,";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  }, std::invalid_argument);
+  EXPECT_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      }, std::invalid_argument);
 }
 
 TEST_F(Bug22579989, NoEmptyValuesInCSV) {
   std::stringstream c;
   std::string destinations = "localhost:13005,localhost:13003,localhost:13004";
 
-  Config config = get_routing_config(destinations);
+  mysql_harness::Config config = get_routing_config(destinations);
 
-  EXPECT_NO_THROW({
-    ConfigSection& section = config.get("routing", "c");
-    RoutingPluginConfig rconfig(&section);
-  });
+  EXPECT_NO_THROW(
+      {
+        mysql_harness::ConfigSection &section = config.get("routing", "c");
+        RoutingPluginConfig rconfig(&section);
+      });
+}
+
+
+int main(int argc, char *argv[]) {
+  init_windows_sockets();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

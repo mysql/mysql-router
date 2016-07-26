@@ -40,7 +40,7 @@ TEST(TestIterator, TestIterator) {
   const char** ptr = array;
 
   auto range = make_range(array, array_length);
-  for (auto elem: range) {
+  for (auto elem : range) {
     EXPECT_EQ(elem, *ptr);
     EXPECT_LT(ptr - array,
               static_cast<long>(sizeof(array)/sizeof(*array)));

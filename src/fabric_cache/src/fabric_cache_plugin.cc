@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,23 +17,28 @@
 
 #include "fabric_cache.h"
 #include "plugin_config.h"
-
-#include <string>
-#include <termios.h>
-#include <thread>
-#include <unistd.h>
-
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/logger.h"
+#include "mysql/harness/config_parser.h"
+
+#include <string>
+#include <thread>
+
+#ifndef _WIN32
+# include <termios.h>
+# include <unistd.h>
+#else
+# include <windows.h>
+#endif
+
 
 using fabric_cache::LookupResult;
 using mysqlrouter::TCPAddress;
 using std::string;
 
 
-const AppInfo *g_app_info;
+const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "fabric_cache";
 
 static const char *kRoutingRequires[] = {
@@ -63,6 +68,7 @@ static bool have_cache_password(const PasswordKey &key) {
   return fabric_cache_passwords.find(key) != fabric_cache_passwords.end();
 }
 
+#ifndef _WIN32
 const string prompt_password(const string &prompt) {
   struct termios console;
   tcgetattr(STDIN_FILENO, &console);
@@ -70,11 +76,11 @@ const string prompt_password(const string &prompt) {
   std::cout << prompt << ": ";
 
   // prevent showing input
-  console.c_lflag &= ~ECHO;
+  console.c_lflag &= ~(uint)ECHO;
   tcsetattr(STDIN_FILENO, TCSANOW, &console);
 
   string result;
-  std::cin >> result;
+  std::getline(std::cin, result);
 
   // reset
   console.c_lflag |= ECHO;
@@ -83,8 +89,30 @@ const string prompt_password(const string &prompt) {
   std::cout << std::endl;
   return result;
 }
+#else
+const string prompt_password(const string &prompt) {
 
-static int init(const AppInfo *info) {
+  std::cout << prompt << ": ";
+
+  // prevent showing input
+  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD mode;
+  GetConsoleMode(hStdin, &mode);
+  mode &= ~ENABLE_ECHO_INPUT;
+  SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+
+  string result;
+  std::getline(std::cin, result);
+
+  // reset
+  SetConsoleMode(hStdin, mode);
+
+  std::cout << std::endl;
+  return result;
+}
+#endif
+
+static int init(const mysql_harness::AppInfo *info) {
   g_app_info = info;
 
   if (info && info->config) {
@@ -121,7 +149,7 @@ static int init(const AppInfo *info) {
   return 0;
 }
 
-static void start(const ConfigSection *section) {
+static void start(const mysql_harness::ConfigSection *section) {
   string name_tag = string();
 
   if (!section->key.empty()) {
@@ -153,14 +181,17 @@ static void start(const ConfigSection *section) {
   }
 }
 
-Plugin harness_plugin_fabric_cache = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
+extern "C" {
+  mysql_harness::Plugin FABRIC_CACHE_API harness_plugin_fabric_cache = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Fabric Cache, managing information fetched from MySQL Fabric",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
-    0, NULL,                                      // Conflicts
-    init,
-    NULL,
-    start                                        // start
-};
+    0, nullptr, // Conflicts
+    init,       // init
+    nullptr,    // deinit
+    start,      // start
+    nullptr,    // stop
+  };
+}

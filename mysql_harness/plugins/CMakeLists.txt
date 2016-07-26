@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+include_directories(${CMAKE_BINARY_DIR}/include)
+
 file(GLOB subdirs RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*)
 foreach(dir ${subdirs})
   if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir}/CMakeLists.txt)

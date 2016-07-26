@@ -19,6 +19,7 @@
 #include "mysqlrouter/utils.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 
 using std::string;
@@ -128,4 +129,3 @@ void Packet::add(const std::string &value) {
 }
 
 } // namespace mysql_protocol
-

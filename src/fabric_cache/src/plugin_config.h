@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 #include <string>
 #include <vector>
 
-#include "config_parser.h"
-#include "plugin.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/plugin.h"
 #include <mysqlrouter/datatypes.h>
 #include <mysqlrouter/plugin_config.h>
 
@@ -39,7 +39,7 @@ public:
    *
    * @param section from configuration file provided as ConfigSection
    */
-  FabricCachePluginConfig(const ConfigSection *section)
+  FabricCachePluginConfig(const mysql_harness::ConfigSection *section)
       : BasePluginConfig(section),
         address(get_option_tcp_address(section, "address", fabric_cache::kDefaultFabricPort)),
         user(get_option_string(section, "user")) { }
@@ -67,7 +67,7 @@ private:
    * @param default_port Use this port when none was provided
    * @return mysqlrouter::TCPAddress
    */
-  mysqlrouter::TCPAddress get_option_tcp_address(const ConfigSection *section,
+  mysqlrouter::TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                  const string &option,
                                                  uint16_t default_port);
 };

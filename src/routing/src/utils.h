@@ -20,11 +20,19 @@
 
 #include <array>
 #include <iostream>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <unistd.h>
 #include <sstream>
 #include <vector>
+#ifndef _WIN32
+# include <netinet/in.h>
+# include <netdb.h>
+# include <unistd.h>
+#else
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <stdint.h>
+#endif
 
 using std::string;
 
@@ -39,9 +47,9 @@ void * get_in_addr(struct sockaddr *addr);
 /**
  * Get address of connected peer
  *
- * Get address of connected peer connected to the specified
+ * Get address of peer connected to the specified
  * socket. This works similar as getpeername() but will handle
- * both IPv4 and IPv6.
+ * IPv4, IPv6 and Unix sockets/Windows named pipes.
  *
  * @param int socket
  * @return std::pair with std::string and uint16_t
@@ -70,5 +78,7 @@ std::vector<string> split_string(const string& data, const char delimiter);
  * @return std::array<uint8_t, 16>
  */
 std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
+
+std::string get_message_error(int errcode);
 
 #endif // UTILS_ROUTING_INCLUDED

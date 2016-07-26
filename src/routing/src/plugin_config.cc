@@ -58,7 +58,8 @@ bool RoutingPluginConfig::is_required(const string &option) {
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
-routing::AccessMode RoutingPluginConfig::get_option_mode(const ConfigSection *section, const string &option) {
+routing::AccessMode RoutingPluginConfig::get_option_mode(
+    const mysql_harness::ConfigSection *section, const string &option) {
   string value;
   string valid;
 
@@ -82,13 +83,14 @@ routing::AccessMode RoutingPluginConfig::get_option_mode(const ConfigSection *se
   return lookup->second;
 }
 
-string RoutingPluginConfig::get_option_destinations(const ConfigSection *section, const string &option) {
+string RoutingPluginConfig::get_option_destinations(
+    const mysql_harness::ConfigSection *section, const string &option) {
   bool required = is_required(option);
   string value;
 
   try {
     value = section->get(option);
-  } catch (const bad_option &exc) {
+  } catch (const mysql_harness::bad_option &exc) {
     if (required) {
       throw invalid_argument(get_log_prefix(option) + " is required");
     }

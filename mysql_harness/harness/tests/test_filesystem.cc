@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,10 +35,12 @@ using std::cout;
 using std::endl;
 using std::back_inserter;
 
+using mysql_harness::Path;
+using mysql_harness::Directory;
+
 Path g_here;
 
-TEST(TestFilesystem, TestPath)
-{
+TEST(TestFilesystem, TestPath) {
   // Testing basic path construction
   EXPECT_EQ(Path("/data/logger.cfg"), "/data/logger.cfg");
   EXPECT_EQ(Path("data/logger.cfg"), "data/logger.cfg");
@@ -105,15 +107,14 @@ TEST(TestFilesystem, EmptyPath) {
 }
 
 
-TEST(TestFilesystem, TestDirectory)
-{
+TEST(TestFilesystem, TestDirectory) {
   Directory directory(g_here.join("data"));
 
   {
     // These are the files in the "data" directory in the test
     // directory. Please update it if you add more files.
     //
-    // TODO: Do not use the data directory for this but create a
+    // TODO(Mats): Do not use the data directory for this but create a
     // dedicated directory for testing this feature.
     std::vector<Path> expect{
       g_here.join("data/logger.d"),
@@ -123,6 +124,7 @@ TEST(TestFilesystem, TestDirectory)
       g_here.join("data/tests-bad-3.cfg"),
       g_here.join("data/tests-good-1.cfg"),
       g_here.join("data/tests-good-2.cfg"),
+      g_here.join("data/tests-start-1.cfg"),
       g_here.join("data/magic-alt.cfg"),
     };
 
@@ -144,8 +146,7 @@ TEST(TestFilesystem, TestDirectory)
   }
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);

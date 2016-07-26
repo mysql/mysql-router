@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ using ::testing::ContainerEq;
 class SubstituteEnvVarTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
-      setenv(env_name.c_str(), env_value.c_str(), 1);
+      putenv(strdup((env_name + "=" + env_value).c_str()));
   }
   string env_name {"MYRTEST_ENVAR"};
   string env_value {"MySQLRouterTest"};

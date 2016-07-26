@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,10 +18,17 @@
 #include "mysqlrouter/datatypes.h"
 
 #include <cstring>
-#include <netdb.h>
 #include <iostream>
 #include <sstream>
-#include <sys/socket.h>
+#ifndef _WIN32
+#  include <netdb.h>
+#  include <sys/socket.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
 
 namespace mysqlrouter {
 

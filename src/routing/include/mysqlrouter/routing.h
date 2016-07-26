@@ -19,11 +19,10 @@
 #define MYSQLROUTER_ROUTING_INCLUDED
 
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/plugin_config.h"
 
 #include <map>
 #include <string>
-
-using std::string;
 
 namespace routing {
 
@@ -32,16 +31,16 @@ namespace routing {
  * Constant defining how long (in seconds) a client can keep the connection idling. This is similar to the
  * wait_timeout variable in the MySQL Server.
  */
-extern const int kDefaultWaitTimeout;
+const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 
 /** @brief Max number of active routes for this routing instance */
-extern const int kDefaultMaxConnections;
+const int kDefaultMaxConnections = 512;
 
 /** @brief Timeout connecting to destination (in seconds)
  *
  * Constant defining how long we wait to establish connection with the server before we give up.
  */
-extern const int kDefaultDestinationConnectionTimeout;
+const int kDefaultDestinationConnectionTimeout = 1;
 
 /** @brief Maximum connect or handshake errors per host
  *
@@ -50,12 +49,12 @@ extern const int kDefaultDestinationConnectionTimeout;
  * the handshake, sends an incorrect packet, or garbage.
  *
  */
-extern const unsigned long long kDefaultMaxConnectErrors;
+const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
 
 /** @brief Default bind address
  *
  */
-extern const string kDefaultBindAddress;
+const std::string kDefaultBindAddress = "127.0.0.1";
 
 /** @brief Default net buffer length
  *
@@ -63,7 +62,7 @@ extern const string kDefaultBindAddress;
  *
  * This should match the default of the latest MySQL Server.
  */
-extern const unsigned int kDefaultNetBufferLength;
+const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
 
 /** @brief Timeout waiting for handshake response from client
  *
@@ -71,7 +70,7 @@ extern const unsigned int kDefaultNetBufferLength;
  * The default value is 9 seconds (default MySQL Server minus 1).
  *
  */
-extern const unsigned int kDefaultClientConnectTimeout;
+const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
@@ -80,7 +79,10 @@ enum class AccessMode {
 };
 
 /** @brief Literal name for each Access Mode */
-extern const std::map<string, AccessMode> kAccessModeNames;
+const std::map<string, AccessMode> kAccessModeNames = {
+    {"read-write", AccessMode::kReadWrite},
+    {"read-only",  AccessMode::kReadOnly},
+};
 
 /** @brief Returns literal name of given access mode
  *
@@ -90,7 +92,7 @@ extern const std::map<string, AccessMode> kAccessModeNames;
  * @param access_mode Access mode to look up
  * @return Name of access mode as std::string or empty string
  */
-string get_access_mode_name(AccessMode access_mode) noexcept;
+std::string get_access_mode_name(AccessMode access_mode) noexcept;
 
 /**
  * Sets blocking flag for given socket

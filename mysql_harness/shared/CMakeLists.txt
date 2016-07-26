@@ -17,6 +17,8 @@ add_library(test-helpers STATIC src/test_helpers.cc)
 set_target_properties(test-helpers PROPERTIES
   LINKER_LANGUAGE CXX)
 target_include_directories(test-helpers
-  PUBLIC include)
+  PUBLIC include
+  PUBLIC ../harness/include
+  PUBLIC ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(test-helpers
   PUBLIC ${TEST_LIBRARIES} harness-archive)

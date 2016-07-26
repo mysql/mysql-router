@@ -138,7 +138,7 @@ public:
    *
    * @return size_t
    */
-  const size_t size_quarantine();
+  size_t size_quarantine();
 
   /** @brief Start the destination threads
    *

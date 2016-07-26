@@ -1,6 +1,5 @@
 [DEFAULT]
-logging_folder = @CMAKE_BINARY_DIR@/stage/log
-plugin_folder = @CMAKE_BINARY_DIR@/stage/lib/mysqlrouter
-runtime_folder = @CMAKE_BINARY_DIR@/stage/run
-config_folder = @CMAKE_BINARY_DIR@/stage/etc
-
+logging_folder = @ROUTER_STAGE_DIR@/log
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
+runtime_folder = @ROUTER_STAGE_DIR@/run
+config_folder = @ROUTER_STAGE_DIR@/etc

@@ -17,6 +17,13 @@
 
 #include "dest_first_available.h"
 
+#ifdef _WIN32
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
+
 int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
   if (destinations_.empty()) {
     return -1;
@@ -34,7 +41,11 @@ int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexc
   }
 
   // We are out of destinations. Next time we will try from the beginning of the list.
+#ifndef _WIN32
   *error = errno;
+#else
+  *error = WSAGetLastError();
+#endif
   current_pos_ = 0;
   return -1;
 }

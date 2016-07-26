@@ -28,7 +28,7 @@ namespace mysql_protocol {
  * This class creates a MySQL error packet which is send to the MySQL Client.
  *
  */
-class ErrorPacket final : public Packet {
+class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
  public:
   /** @brief Constructor
    *

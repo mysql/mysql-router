@@ -20,16 +20,19 @@
 
 #include <cassert>
 #include <cstdarg>
-#include <netdb.h>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
+#ifndef _WIN32
+#  include <netdb.h>
+#endif
 
 namespace mysqlrouter {
 
 using std::string;
 
-// Some (older) compiler have no std::to_string avialable 
+// Some (older) compiler have no std::to_string avialable
 template<typename T>
 std::string to_string(const T &data) {
   std::ostringstream os;
@@ -120,6 +123,8 @@ void trim(string& str);
  * @return string containing the dump
  */
 string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
+
+std::string get_last_error();
 
 } // namespace mysqlrouter
 

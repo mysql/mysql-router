@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,12 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# Check for C++ 11 support
 include(CheckCXXCompilerFlag)
 
+# Check for C++11 support
 function(CHECK_CXX11)
   check_cxx_compiler_flag("-std=c++11" support_11)
-  check_cxx_compiler_flag("-std=c++0x" support_0x)
 
   if(support_11)
     set(CXX11_FLAG "-std=c++11" PARENT_SCOPE)
@@ -30,7 +29,7 @@ endfunction()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   check_cxx11()
-  set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic -Wshadow")
   if(ENABLE_GCOV)
     message(STATUS "Enabling code coverage using Gcov")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")

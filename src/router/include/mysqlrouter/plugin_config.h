@@ -18,21 +18,25 @@
 #ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 #define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 
+#include "config_parser.h"
+#include "filesystem.h"
+#include "logger.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 
 #include <cerrno>
 #include <cstdlib>
-#include <map>
+#include <iostream>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-#include <iostream>
-
-#include "config_parser.h"
-#include "logger.h"
+#ifdef _WIN32
+#  pragma push_macro("max")
+#  undef max
+#endif
 
 using std::string;
 
@@ -60,21 +64,21 @@ public:
    * @param section Instance of ConfigSection
    * @return Option value as std::string
    */
-  string get_option_string(const ConfigSection *section, const string &option);
+  string get_option_string(const mysql_harness::ConfigSection *section, const string &option);
 
   /** @brief Name of the section */
   string section_name;
 
 protected:
   /** @brief Constructor for derived classes */
-  BasePluginConfig(const ConfigSection *section) : section_name(get_section_name(section)) {}
+  BasePluginConfig(const mysql_harness::ConfigSection *section) : section_name(get_section_name(section)) {}
 
   /** @brief Generate the name for this configuration
    *
    * @param section Instance of ConfigSection
    * @return the name for this configuration
    */
-  virtual string get_section_name(const ConfigSection *) const noexcept;
+  virtual string get_section_name(const mysql_harness::ConfigSection *) const noexcept;
 
   /** @brief Gets the default for the given option
    *
@@ -126,16 +130,16 @@ protected:
    * @return mysqlrouter::TCPAddress
    */
   template<typename T>
-  T get_uint_option(const ConfigSection *section, const string &option,
+  T get_uint_option(const mysql_harness::ConfigSection *section, const string &option,
                     T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
     string value = get_option_string(section, option);
 
-    long result;
     char *rest;
     errno = 0;
-    result = std::strtol(value.c_str(), &rest, 0);
+    long tol = std::strtol(value.c_str(), &rest, 0);
+    T result = static_cast<T>(tol);
 
-    if (errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
+    if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
         (max_value > 0 && result > max_value)) {
       std::ostringstream os;
       os << get_log_prefix(option) << " needs value between " << min_value << " and "
@@ -145,7 +149,7 @@ protected:
       }
       throw std::invalid_argument(os.str());
     }
-    return static_cast<T>(result);
+    return result;
   }
 
   /** @brief Gets a TCP address using the given option
@@ -161,13 +165,31 @@ protected:
    * @param require_port Whether a TCP port is required
    * @return mysqlrouter::TCPAddress
    */
-  TCPAddress get_option_tcp_address(const ConfigSection *section, const string &option,
+  TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const string &option,
                                     bool require_port = false, int default_port = -1);
 
-  int get_option_tcp_port(const ConfigSection *section, const string &option);
+  int get_option_tcp_port(const mysql_harness::ConfigSection *section, const string &option);
 
+  /** @brief Gets location of a named socket
+   *
+   * Gets location of a named socket. The option value is checked first
+   * for its validity. For example, on UNIX system the path can be
+   * at most 104 characters.
+   *
+   * Throws std::invalid_argument on errors.
+   *
+   * @param section Instance of ConfigSection
+   * @param option Option name in section
+   * @return Path object
+   */
+  mysql_harness::Path get_option_named_socket(const mysql_harness::ConfigSection *section, const string &option);
 };
 
 } // namespace mysqlrouter
+
+#ifdef _WIN32
+#  pragma pop_macro("max")
+#endif
+
 
 #endif // MYSQLROUTER_PLUGIN_CONFIG_INCLUDED

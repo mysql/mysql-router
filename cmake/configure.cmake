@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,14 +59,10 @@ set(ROUTER_RUNTIMEDIR ${_runtimedir} CACHE STRING "Location runtime files such a
 unset(_runtimedir)
 
 # Plugin folder (plugin_folder configuration option)
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(_plugindir "ENV{APPDATA}")
+if(IS_ABSOLUTE "${INSTALL_PLUGINDIR}")
+  set(_plugindir ${INSTALL_PLUGINDIR})
 else()
-  if(IS_ABSOLUTE "${INSTALL_PLUGINDIR}")
-    set(_plugindir ${INSTALL_PLUGINDIR})
-  else()
-    set(_plugindir ${CMAKE_INSTALL_PREFIX}/${INSTALL_PLUGINDIR})
-  endif()
+  set(_plugindir ${CMAKE_INSTALL_PREFIX}/${INSTALL_PLUGINDIR})
 endif()
 set(ROUTER_PLUGINDIR ${_plugindir} CACHE STRING "Location MySQL Router plugins (plugin_folder)")
 unset(_plugindir)
@@ -77,7 +73,7 @@ function(SET_COPYRIGHT TARGET)
   set(start_year "2015")
   set(years "${start_year},")
   if(NOT curr_year STREQUAL ${start_year})
-    set(years "${start_year}, ${curr_year}")
+    set(years "${start_year}, ${curr_year},")
   endif()
   set(${TARGET} "Copyright (c) ${years} Oracle and/or its affiliates. All rights reserved." PARENT_SCOPE)
 endfunction()

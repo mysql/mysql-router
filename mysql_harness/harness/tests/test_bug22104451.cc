@@ -26,6 +26,8 @@
 // Third-party include files
 #include "gtest/gtest.h"
 
+using mysql_harness::Config;
+
 class Bug22104451 : public ::testing::Test {
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -49,6 +51,7 @@ TEST_F(Bug22104451, ReadLongValues) {
     Config config(Config::allow_keys);
     std::istringstream input(c.str());
     config.read(input);
-    EXPECT_EQ(long_destinations, config.get("routing", "c").get("destinations"));
+    EXPECT_EQ(long_destinations,
+              config.get("routing", "c").get("destinations"));
   });
 }

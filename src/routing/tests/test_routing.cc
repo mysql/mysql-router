@@ -16,11 +16,21 @@
 */
 
 #include "gmock/gmock.h"
-
-#include <sys/fcntl.h>
-#include <sys/socket.h>
-
 #include "mysqlrouter/routing.h"
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#ifdef __sun
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
+#endif
 
 using routing::AccessMode;
 using routing::set_socket_blocking;
@@ -65,7 +75,8 @@ TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultClientConnectTimeout, 9UL);
 }
 
-
+#ifndef _WIN32
+// No way to read nonblocking status in Windows
 TEST_F(RoutingTests, SetSocketBlocking) {
   int s = socket(PF_INET, SOCK_STREAM, 6);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
@@ -79,4 +90,4 @@ TEST_F(RoutingTests, SetSocketBlocking) {
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
 }
-
+#endif

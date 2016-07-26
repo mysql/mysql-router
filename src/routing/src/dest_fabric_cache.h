@@ -43,9 +43,7 @@ public:
       routing_mode(mode),
       uri_query(query),
       allow_primary_reads_(false),
-      current_pos_(0),
-      count_secondary_(0),
-      count_primary_(0) {
+      current_pos_(0) {
     init();
   };
 
@@ -147,8 +145,6 @@ private:
   /** @brief Whether we allow a read operations going to the primary (master) */
   bool allow_primary_reads_;
   size_t current_pos_;
-  int count_secondary_;
-  int count_primary_;
 };
 
 

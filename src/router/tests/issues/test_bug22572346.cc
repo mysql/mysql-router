@@ -19,12 +19,16 @@
  * BUG22572346 CORE DUMP WHILE STARTING THE ROUTER WHEN DESTINATIONS HAS @ CHARACTER
  *
  */
+#include "config_parser.h"
 #include "gtest_consoleoutput.h"
 #include "router_app.h"
-#include "config_parser.h"
+#include "router_test_helpers.h"
 
 #include <fstream>
 #include <string>
+#ifdef _WIN32
+#  include <WinSock2.h>
+#endif
 
 #include "gmock/gmock.h"
 
@@ -37,8 +41,10 @@ Path g_origin;
 class Bug22572346 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
+    config_path->append("Bug22572346.ini");
   }
 
   void reset_config() {
@@ -63,10 +69,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtBeg) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {#mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw '#'"));
   }
@@ -78,10 +84,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld@1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysqld@'"));
   }
@@ -93,10 +99,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtEnd) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld1`}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysqld1`'"));
   }
@@ -108,10 +114,10 @@ TEST_F(Bug22572346, ConfigVarWithSameMultIllegalChars) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld!!1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysqld!'"));
   }
@@ -123,10 +129,10 @@ TEST_F(Bug22572346, ConfigVarWithDiffMultIllegalChars) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysql$d%1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysql$'"));
   }
@@ -138,10 +144,10 @@ TEST_F(Bug22572346, ConfigBindPortWithIllegalChar) {
   c << "[routing:modeReadOnly]\nbind_port = {mysqld@1}\ndestinations = localhost\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysqld@'"));
   }
@@ -153,10 +159,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtBeg) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = { mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw ' '"));
   }
@@ -168,10 +174,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceInMid) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {my sqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'my '"));
   }
@@ -183,10 +189,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtEnd) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld1 }\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'mysqld1 '"));
   }
@@ -198,10 +204,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceBeforeIllegalChar) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = { @mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw ' '"));
   }
@@ -213,10 +219,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharBeforeSpace) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {m@ysql d1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'm@'"));
   }
@@ -228,19 +234,19 @@ TEST_F(Bug22572346, ConfigVarWithMultSpace) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {my sq ld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (mysql_harness::syntax_error &err) {
     ASSERT_THAT(err.what(), StrEq(
       "Only alphanumeric characters in variable names allowed. Saw 'my '"));
   }
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

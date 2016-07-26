@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -232,12 +232,12 @@ void URI::init_from_uri(const string uri) {
 }
 
 #ifdef ENABLE_TESTS
-string t_parse_scheme(const string &uri) { return parse_scheme(uri); };
-URIAuthority t_parse_authority(const string &uri) { return parse_authority(uri);};
-URIPath t_parse_path(const string &uri) { return parse_path(uri);};
-URIQuery t_parse_query(const string &uri, const char delimiter) {return parse_query(uri, delimiter);};
-URIQuery t_parse_query(const string &uri) {return parse_query(uri);};
-string t_parse_fragment(const string &uri) { return parse_fragment(uri);};
+string t_parse_scheme(const string &uri) { return parse_scheme(uri);}
+URIAuthority t_parse_authority(const string &uri) { return parse_authority(uri);}
+URIPath t_parse_path(const string &uri) { return parse_path(uri);}
+URIQuery t_parse_query(const string &uri, const char delimiter) {return parse_query(uri, delimiter);}
+URIQuery t_parse_query(const string &uri) {return parse_query(uri);}
+string t_parse_fragment(const string &uri) { return parse_fragment(uri);}
 #endif
 
 } // namespace mysqlrouter

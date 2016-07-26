@@ -17,9 +17,9 @@
 
 ////////////////////////////////////////
 // Harness interface include files
-#include "loader.h"
-#include "plugin.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/plugin.h"
 
 ////////////////////////////////////////
 // Test system include files
@@ -37,10 +37,13 @@
 using std::cout;
 using std::endl;
 
-std::string g_here;
+using mysql_harness::Loader;
+using mysql_harness::Path;
+
+Path g_here;
 
 class KeepalivePluginTest : public ::testing::Test {
-protected:
+ protected:
   virtual void SetUp() {
     Path here = Path(g_here);
     orig_cout_ = std::cout.rdbuf();
@@ -62,7 +65,7 @@ protected:
 
   Loader *loader;
 
-private:
+ private:
   std::stringstream ssout;
   std::streambuf *orig_cout_;
 };
@@ -91,15 +94,15 @@ TEST_F(KeepalivePluginTest, CheckLog) {
   while (std::getline(ifs_log, line)) {
     lines.push_back(line);
   }
-  EXPECT_NE(std::string::npos, lines.at(0).find("keepalive started with interval 1") );
+  EXPECT_NE(std::string::npos,
+            lines.at(0).find("keepalive started with interval 1") );
   EXPECT_NE(std::string::npos, lines.at(1).find("2 time(s)") );
   EXPECT_NE(std::string::npos, lines.at(2).find("keepalive") );
   EXPECT_NE(std::string::npos, lines.at(3).find("INFO") );
   EXPECT_NE(std::string::npos, lines.at(3).find("keepalive") );
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname().str();
 
   ::testing::InitGoogleTest(&argc, argv);

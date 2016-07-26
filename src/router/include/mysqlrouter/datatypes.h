@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,12 @@
 #ifndef MYSQLROUTER_DATATYPES_INCLUDED
 #define MYSQLROUTER_DATATYPES_INCLUDED
 
-#include <arpa/inet.h>
+#include <cstdint>
 #include <iostream>
 #include <string>
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#endif
 
 using std::string;
 
@@ -106,6 +109,14 @@ public:
       return true;
     }
     return false;
+  }
+
+  /* @brief Returns the address family
+   *
+   * returns TCPAddress::Family
+   */
+  Family get_family() const noexcept {
+    return ip_family_;
   }
 
   /** @brief Network name IP */

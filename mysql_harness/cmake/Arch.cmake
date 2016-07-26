@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,12 +14,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # Figure out architecture
-set(HARNESS_ARCH_CPU ${CMAKE_SYSTEM_PROCESSOR})
-message(STATUS "MySQL Harness CPU Descriptor is ${HARNESS_ARCH_CPU}")
+set(MYSQL_HARNESS_ARCH_CPU ${CMAKE_SYSTEM_PROCESSOR})
+message(STATUS "MySQL Harness CPU Descriptor is ${MYSQL_HARNESS_ARCH_CPU}")
 
 # Figure out the operating system. We use lowercase.
-string(TOLOWER ${CMAKE_SYSTEM_NAME} HARNESS_ARCH_OS)
-message(STATUS "MySQL Harness OS Descriptor is ${HARNESS_ARCH_OS}")
+string(TOLOWER ${CMAKE_SYSTEM_NAME} MYSQL_HARNESS_ARCH_OS)
+message(STATUS "MySQL Harness OS Descriptor is ${MYSQL_HARNESS_ARCH_OS}")
 
 # Figure out the compiler version for the calling conventions and name
 # mangling scheme. Format is always <name>-<scheme>.

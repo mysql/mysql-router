@@ -15,25 +15,30 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router_app.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
+#include "router_app.h"
 #include "utils.h"
 
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
-#include <cstdlib>
 #include <cstdio>
-#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string>
-#include <sys/fcntl.h>
-#include <unistd.h>
 #include <vector>
 
-#include "config_parser.h"
-#include "filesystem.h"
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <unistd.h>
+#else
+#  include <process.h>
+#  define getpid _getpid
+#endif
 
 using std::string;
 using mysqlrouter::string_format;
@@ -41,7 +46,7 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
+MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
       showing_info_(false)
@@ -51,7 +56,7 @@ MySQLRouter::MySQLRouter(const Path& origin, const vector<string>& arguments)
 }
 
 MySQLRouter::MySQLRouter(const int argc, char **argv)
-    : MySQLRouter(Path(argv[0]).dirname(),
+    : MySQLRouter(mysql_harness::Path(argv[0]).dirname(),
                   vector<string>({argv + 1, argv + argc}))
 {
 }
@@ -93,18 +98,18 @@ void MySQLRouter::start() {
   auto pid_file_env = std::getenv("ROUTER_PID");
   if (pid_file_env != nullptr) {
     pid_file_path_ = pid_file_env;
-    Path pid_file_path(pid_file_path_);
+    mysql_harness::Path pid_file_path(pid_file_path_);
     if (pid_file_path.is_regular()) {
       throw std::runtime_error(string_format("PID file %s found. Already running?", pid_file_path_.c_str()));
     }
   }
 
   try {
-    loader_ = std::unique_ptr<Loader>(new Loader("mysqlrouter", params));
+    loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("mysqlrouter", params));
     for (auto &&config_file: available_config_files_) {
-      loader_->read(Path(config_file));
+      loader_->read(mysql_harness::Path(config_file));
     }
-  } catch (const syntax_error &err) {
+  } catch (const mysql_harness::syntax_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
@@ -124,7 +129,7 @@ void MySQLRouter::start() {
   }
   loader_->add_logger("INFO");
 
-  std::list<Config::SectionKey> plugins = loader_->available();
+  std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
   if (plugins.size() < 2) {
     std::cout << "MySQL Router not configured to load or start any plugin. Exiting." << std::endl;
     return;
@@ -220,19 +225,19 @@ vector<string> MySQLRouter::check_config_files() {
 
 void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.clear_options();
-  arg_handler_.add_option(OptionNames({"-v", "--version"}), "Display version information and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-v", "--version"}), "Display version information and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         std::cout << this->get_version_line() << std::endl;
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(OptionNames({"-h", "--help"}), "Display this help and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-h", "--help"}), "Display this help and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         this->show_help();
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(OptionNames({"-c", "--config"}),
+  arg_handler_.add_option(CmdOption::OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
 
@@ -243,27 +248,42 @@ void MySQLRouter::prepare_command_options() noexcept {
         // When --config is used, no defaults shall be read
         default_config_files_.clear();
 
-        char *abspath = realpath(value.c_str(), nullptr);
-        if (abspath != nullptr) {
-          config_files_.push_back(string(abspath));
-          free(abspath);
+        std::string abspath = mysql_harness::Path(value).real_path().str();
+        if (!abspath.empty()) {
+          config_files_.push_back(abspath);
         } else {
           throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
 
-  arg_handler_.add_option(OptionNames({"-a", "--extra-config"}),
+  arg_handler_.add_option(CmdOption::OptionNames({"-a", "--extra-config"}),
                           "Read this file after configuration files are read from either "
                               "default locations or from files specified by the --config option.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
-        char *abspath = realpath(value.c_str(), nullptr);
-        if (abspath != nullptr) {
-          extra_config_files_.push_back(string(abspath));
-          free(abspath);
+        std::string abspath = mysql_harness::Path(value).real_path().str();
+        if (!abspath.empty()) {
+          extra_config_files_.push_back(abspath);
         } else {
           throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
+
+// These are additional Windows-specific options, added (at the time of writing) in check_service_operations().
+// Grep after '--install-service' and you shall find.
+#ifdef _WIN32
+  arg_handler_.add_option(CmdOption::OptionNames({"--install-service"}), "Install Router as Windows service",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--install-service-manual"}), "Install Router as Windows service, manually",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--remove-service"}), "Remove Router from Windows services",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--service"}), "Start Router as Windows service",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+#endif
+
 }
 
 void MySQLRouter::show_help() noexcept {

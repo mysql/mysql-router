@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -34,7 +35,7 @@ namespace mysql_protocol {
  * such as ErrorPacket and HandshakeResponsePacket.
  *
  */
-class Packet : public std::vector<uint8_t> {
+class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
  public:
   using vector_t = std::vector<uint8_t>;
 
@@ -310,7 +311,7 @@ class Packet : public std::vector<uint8_t> {
   std::vector<uint8_t> payload_;
 
   /** @brief Payload size */
-  std::uint32_t payload_size_;
+  uint32_t payload_size_;
 
   /** @brief Capability flags */
   uint32_t capability_flags_;

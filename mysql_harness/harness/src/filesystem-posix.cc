@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,58 +33,33 @@
 #endif
 
 using std::ostringstream;
+using std::runtime_error;
+using std::string;
 
 namespace {
   const std::string dirsep("/");
   const std::string extsep(".");
 }
 
-void Path::validate_non_empty_path() const {
-  if (type_ == FileType::EMPTY_PATH)
-    throw std::invalid_argument("Empty path");
-}
+namespace mysql_harness {
 
-Path::Path()
-    : type_(FileType::EMPTY_PATH)
-{
-}
+////////////////////////////////////////////////////////////////
+// class Path members and free functions
 
-Path::Path(const char* path)
-    : Path(std::string(path))
-{
-}
+const char * const Path::directory_separator = "/";
+const char * const Path::root_directory = "/";
 
-Path::Path(const std::string& path)
-    : path_(path)
-    , type_(FileType::TYPE_UNKNOWN)
-{
-  std::string::size_type pos = path_.find_last_not_of(dirsep);
-  if (pos != std::string::npos)
-    path_.erase(pos + 1);
-  else if (path_.size() > 0)
-    path_.erase(1);
-  else
-    throw std::invalid_argument("Empty path");
-}
-
-
-Path::FileType
-Path::type(bool refresh) const
-{
+Path::FileType Path::type(bool refresh) const {
   validate_non_empty_path();
-  if (type_ == FileType::TYPE_UNKNOWN || refresh)
-  {
+  if (type_ == FileType::TYPE_UNKNOWN || refresh) {
     struct stat stat_buf;
-    if (stat(c_str(), &stat_buf) == -1)
-    {
+    if (stat(c_str(), &stat_buf) == -1) {
       if (errno == ENOENT || errno == ENOTDIR)
         type_ = FileType::FILE_NOT_FOUND;
       else
         type_ = FileType::STATUS_ERROR;
-    }
-    else
-      switch (stat_buf.st_mode & S_IFMT)
-      {
+    } else {
+      switch (stat_buf.st_mode & S_IFMT) {
       case S_IFDIR:
         type_ = FileType::DIRECTORY_FILE;
         break;
@@ -110,107 +85,87 @@ Path::type(bool refresh) const
         type_ = FileType::TYPE_UNKNOWN;
         break;
       }
+    }
   }
   return type_;
 }
 
-bool Path::is_directory() const
-{
-  validate_non_empty_path();
-  return type() == FileType::DIRECTORY_FILE;
-}
+////////////////////////////////////////////////////////////////
+// Directory::DirectoryIterator
 
-bool Path::is_regular() const
-{
-  validate_non_empty_path();
-  return type() == FileType::REGULAR_FILE;
-}
+class Directory::DirectoryIterator::State {
+ public:
+  State();
+  State(const Path& path, const string& pattern);
+  ~State();
 
-void Path::append(const Path& other)
-{
-  validate_non_empty_path();
-  other.validate_non_empty_path();
-  path_.append(dirsep + other.path_);
-  type_ = FileType::TYPE_UNKNOWN;
-}
+  bool eof() const {
+    return result_ == nullptr;
+  }
+
+  void fill_result();
+
+  template <typename IteratorType>
+  static bool equal(const IteratorType& lhs, const IteratorType& rhs) {
+    assert(lhs != nullptr && rhs != nullptr);
+
+    // If either one is null (end iterators), they are equal if both
+    // are end iterators.
+    if (lhs->result_ == nullptr || rhs->result_ == nullptr)
+      return lhs->result_ == rhs->result_;
+
+    // Otherwise they are not equal (this is an input iterator and we
+    // should not compare entries received through different
+    // iterations.
+    return false;
+  }
+
+  DIR *dirp_;
+  struct dirent entry_;
+  const string pattern_;
+  struct dirent *result_;
+};
 
 
-Path Path::join(const Path& other) const
-{
-  validate_non_empty_path();
-  other.validate_non_empty_path();
-  Path result(*this);
-  result.append(other);
-  return result;
-}
+Directory::DirectoryIterator::State::State()
+  : dirp_(nullptr), pattern_(""), result_(nullptr) {}
 
 
-Path Path::basename() const
-{
-  validate_non_empty_path();
-  std::string::size_type pos = path_.find_last_of(dirsep);
-  if (pos == std::string::npos)
-    return *this;
-  else if (pos > 1)
-    return std::string(path_, pos + 1);
-  else
-    return Path("/");
-}
-
-Path Path::dirname() const
-{
-  validate_non_empty_path();
-  std::string::size_type pos = path_.find_last_of(dirsep);
-  if (pos == std::string::npos)
-    return Path(".");
-  else if (pos > 1)
-    return std::string(path_, 0, pos);
-  else
-    return Path("/");
-}
-
-Directory::DirectoryIterator::DirectoryIterator(const Path& path,
-                                                const std::string& pattern,
-                                                struct dirent *result)
-  : root_(path)
-  , dirp_(opendir(path.c_str()))
-  , result_(result)
-  , pattern_(pattern)
-{
-  if (dirp_ == nullptr)
-  {
-    ostringstream  buffer;
-    char msg[256];
-    if (strerror_r(errno, msg, sizeof(msg)))
-      buffer << "strerror_r failed: " << errno;
+Directory::DirectoryIterator::State::State(const Path& path,
+                                           const string& pattern)
+    : dirp_(opendir(path.c_str())), pattern_(pattern), result_(&entry_) {
+  if (dirp_ == nullptr) {
+    ostringstream buffer;
+    char buf[256];
+    if (strerror_r(errno, buf, sizeof(buf)) != 0)
+      buffer << "Failed to open path " << path << " - " << errno;
     else
-      buffer << "Failed to open path " << path << " - " << msg;
-    throw std::runtime_error(buffer.str());
+      buffer << "Failed to open path " << path << " - " << buf;
+    throw runtime_error(buffer.str());
   }
 
   fill_result();
 }
 
-Directory::DirectoryIterator::DirectoryIterator(const Path& path,
-                                                const std::string& pattern)
-  : DirectoryIterator(path, pattern, &entry_)
-{
 
+Directory::DirectoryIterator::State::~State() {
+  // There is no guarantee that calling closedir() with NULL will
+  // work. For example, BSD systems do not always support this.
+  if (dirp_ != nullptr)
+    closedir(dirp_);
 }
 
-void
-Directory::DirectoryIterator::fill_result()
-{
+
+void Directory::DirectoryIterator::State::fill_result() {
   // This is similar to scandir(2), but we do not use scandir(2) since
   // we want to be thread-safe.
 
+  // If we have reached the end, filling do not have any effect.
   if (result_ == nullptr)
     return;
 
-  while (true)
-  {
-    if (int error = readdir_r(dirp_, &entry_, &result_))
-    {
+  while (true) {
+    if (int error = readdir_r(dirp_, &entry_, &result_)) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
@@ -235,12 +190,11 @@ Directory::DirectoryIterator::fill_result()
 
     // Skip any entries that do not match the pattern
     int error = fnmatch(pattern_.c_str(), result_->d_name, FNM_PATHNAME);
-    if (error == FNM_NOMATCH)
+    if (error == FNM_NOMATCH) {
       continue;
-    else if (error == 0)
+    } else if (error == 0) {
       break;
-    else
-    {
+    } else {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
@@ -252,69 +206,61 @@ Directory::DirectoryIterator::fill_result()
   }
 }
 
-Directory::DirectoryIterator&
-Directory::DirectoryIterator::operator++()
-{
-  fill_result();
+
+////////////////////////////////////////////////////////////////
+// Directory::DirectoryIterator
+
+// These definition of the default constructor and destructor need to
+// be here since the automatically generated default
+// constructor/destructor uses the definition of the class 'State',
+// which is not available when the header file is read.
+Directory::DirectoryIterator::~DirectoryIterator() = default;
+Directory::DirectoryIterator::DirectoryIterator(
+    DirectoryIterator&&) = default;
+Directory::DirectoryIterator::DirectoryIterator(
+    const DirectoryIterator&) = default;
+
+Directory::DirectoryIterator::DirectoryIterator()
+  : path_("*END*"), state_(std::make_shared<State>()) {}
+
+
+Directory::DirectoryIterator::DirectoryIterator(const Path& path,
+                              const string& pattern)
+  : path_(path), state_(std::make_shared<State>(path, pattern)) {}
+
+
+Directory::DirectoryIterator& Directory::DirectoryIterator::operator++() {
+  assert(state_ != nullptr);
+  state_->fill_result();
   return *this;
 }
 
-Path
-Directory::DirectoryIterator::operator*() const
-{
-  assert(result_);
-  return root_.join(result_->d_name);
+
+Path Directory::DirectoryIterator::operator*() const {
+  assert(state_ != nullptr && state_->result_ != nullptr);
+  return path_.join(state_->result_->d_name);
 }
 
 bool
-Directory::DirectoryIterator::operator!=(const DirectoryIterator& rhs)
-{
-  return result_ != rhs.result_;
+Directory::DirectoryIterator::operator!=(
+    const Directory::DirectoryIterator& rhs) const {
+  return !State::equal(state_, rhs.state_);
 }
-
-Directory::DirectoryIterator
-Directory::begin()
-{
-  return DirectoryIterator(*this);
-}
-
-Directory::DirectoryIterator
-Directory::glob(const std::string& pattern)
-{
-  return DirectoryIterator(*this, pattern);
-}
-
-Directory::DirectoryIterator
-Directory::end()
-{
-  return DirectoryIterator(*this, "", nullptr);
-}
-
-
-std::ostream&
-operator<<(std::ostream& out, Path::FileType type)
-{
-  static const char* type_names[]{
-    "ERROR",
-    "not found",
-    "regular",
-    "directory",
-    "symlink",
-    "block device",
-    "character device",
-    "FIFO",
-    "socket",
-    "UNKNOWN",
-  };
-  out << type_names[static_cast<int>(type)];
-  return out;
-}
-
 
 Path
 Path::make_path(const Path& dir,
                 const std::string& base,
-                const std::string& ext)
-{
+                const std::string& ext) {
   return dir.join(base + extsep + ext);
 }
+
+Path Path::real_path() const {
+  validate_non_empty_path();
+  char buf[PATH_MAX];
+  if (realpath(c_str(), buf))
+    return Path(buf);
+  else
+    return Path();
+}
+
+} // namespace mysql_harness

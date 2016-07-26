@@ -452,7 +452,7 @@ TEST_F(MySQLProtocolPacketTest, PackInt8BytesSigned) {
 
   {
     Packet p;
-    p.add_int<int64_t>(-4294967295);
+    p.add_int<int64_t>(-4294967295LL);
     ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x01, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0xff}));
   }
 }
@@ -641,7 +641,7 @@ TEST_F(MySQLProtocolPacketTest, UnpackString) {
     EXPECT_EQ(string("ham"), res);
     res = p.get_string(res.size() + 1UL);
     EXPECT_EQ(string("spam"), res);
-    res = p.get_string(0, p.size() + 1UL);
+    res = p.get_string(0, p.size());
     EXPECT_EQ(string("ham"), res);
   }
 
@@ -732,3 +732,7 @@ TEST_F(MySQLProtocolPacketTest, UnpackStringLengthEncoded8BytesWithNulByte) {
 }
 
 
+int main(int argc, char *argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
