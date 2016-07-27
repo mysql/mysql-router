@@ -32,6 +32,10 @@
 # error "This file expects POSIX.1-2001 or later"
 #endif
 
+#if defined(__sun) && defined(__SVR4) // Solaris
+  #include <limits.h> // PATH_MAX; maybe <climits> would be ok too,
+#endif                //           had no easy way of checking
+
 using std::ostringstream;
 using std::runtime_error;
 using std::string;

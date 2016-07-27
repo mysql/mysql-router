@@ -46,7 +46,6 @@ enum class CmdOptionValueReq : uint8_t {
  *
  */
 struct CmdOption {
-
   using ActionFunc  = std::function<void(const std::string &)>;
   using OptionNames = std::vector<std::string>;
 

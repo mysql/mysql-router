@@ -56,8 +56,10 @@ int main(int argc, char *argv[]) {
 
   params["program"] = program;
 
-  handler.add_option(CmdOption::OptionNames({"-h", "--help"}), "Show help screen",
-                     CmdOptionValueReq::none, "",
+  handler.add_option(CmdOption::OptionNames({"-h", "--help"}),
+                     "Show help screen",
+                     CmdOptionValueReq::none,
+                     "",
                      [&handler, program](const std::string &) {
                        print_usage_and_exit(handler, program);
                      });
@@ -74,8 +76,10 @@ int main(int argc, char *argv[]) {
                      "Set parameter <name> to <value>",
                      CmdOptionValueReq::required, "name=value", param_action);
 
-  handler.add_option(CmdOption::OptionNames({"--console"}), "Print log to console",
-                     CmdOptionValueReq::none, "",
+  handler.add_option(CmdOption::OptionNames({"--console"}),
+                     "Print log to console",
+                     CmdOptionValueReq::none,
+                     "",
                      [&console](const std::string&) {
                        console = true;
                      });

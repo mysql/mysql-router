@@ -44,12 +44,12 @@ inline std::string::value_type Designator::next() {
   return *++cur_;
 }
 
-/*[[ noreturn ]]*/ void Designator::parse_error(const std::string& prefix) const {
+[[ noreturn ]]
+void Designator::parse_error(const std::string& prefix) const {
   std::string
     message(prefix + " at '" + std::string(cur_, input_.end()) + "'");
   throw std::runtime_error(message);
 }
-
 
 void Designator::skip_space() {
 #if DO_DEBUG

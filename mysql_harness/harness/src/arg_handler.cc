@@ -31,7 +31,8 @@ using std::vector;
 using std::unique_ptr;
 
 #ifndef NDEBUG
-bool CmdArgHandler::debug_check_option_names(const CmdOption::OptionNames& names) const {
+bool CmdArgHandler::debug_check_option_names(
+    const CmdOption::OptionNames& names) const {
   for (auto&& name : names) {
     if (!is_valid_option_name(name))  // valid option names
       return false;

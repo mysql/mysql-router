@@ -275,7 +275,7 @@ Path Path::real_path() const {
   // store a copy of str() in native_path
   assert(0 < str().size() && str().size() < MAX_PATH);
   char native_path[MAX_PATH];
-  std::memcpy(native_path, c_str(), str().size() + 1);  // +1 for string terminator
+  std::memcpy(native_path, c_str(), str().size() + 1); // +1 for null terminator
 
   // replace all '/' with '\'
   char* p = native_path;
