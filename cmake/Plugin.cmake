@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,13 +71,12 @@ function(ADD_HARNESS_PLUGIN NAME)
   # intend to link against it, which is something that MODULE does not
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
-  # 
-  # TODO: This need to be fixed properly when we move to Windows
-  # support, since it is using a different suffix.
   add_library(${NAME} SHARED ${ADD_HARNESS_PLUGIN_SOURCES})
-  set_target_properties(${NAME} PROPERTIES
-    PREFIX ""
-    SUFFIX ".so")
+  if(NOT WIN32)
+    set_target_properties(${NAME} PROPERTIES
+      PREFIX ""
+      SUFFIX ".so")
+  endif()
 
   # Set RPATH properties to ensure that plugins can find other plugins
   # once installed. These are not in the default location, so we need
@@ -100,28 +99,46 @@ function(ADD_HARNESS_PLUGIN NAME)
   if(ADD_HARNESS_PLUGIN_INTERFACE)
     target_include_directories(${NAME}
       PUBLIC ${ADD_HARNESS_PLUGIN_INTERFACE})
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${ADD_HARNESS_PLUGIN_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
   endif()
 
   # Add a dependencies on interfaces for other plugins this plugin
   # requires.
   target_link_libraries(${NAME}
-    harness-library
+    PUBLIC harness-library
     ${ADD_HARNESS_PLUGIN_REQUIRES})
-  
+
   # Need to be able to link plugins with each other
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${NAME} PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup")
   endif()
 
-  set_target_properties(${NAME} PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+  # set library output (and runtime) directories
+  if(WIN32)
+    foreach(config ${CMAKE_CONFIGURATION_TYPES})
+      string(TOUPPER ${config} config)
+      set_target_properties(${NAME} PROPERTIES
+        # [SEARCH TAGS] RUNTIME_OUTPUT_DIRECTORY, LIBRARY_OUTPUT_DIRECTORY
+        RUNTIME_OUTPUT_DIRECTORY_${config} ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config}}
+        LIBRARY_OUTPUT_DIRECTORY_${config} ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config}})
+    endforeach()
+  else()
+    set_target_properties(${NAME} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+  endif()
 
   # Add install rules to install the interface header files and the
   # plugin correctly.
   if(NOT ADD_HARNESS_PLUGIN_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
-    install(TARGETS ${NAME}
-      LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+    if(WIN32)
+      install(TARGETS ${NAME}
+        RUNTIME DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+    else()
+      install(TARGETS ${NAME}
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+    endif()
     if(ADD_HARNESS_PLUGIN_INTERFACE)
       file(GLOB interface_files ${ADD_HARNESS_PLUGIN_INTERFACE}/*.h)
       install(FILES ${interface_files}

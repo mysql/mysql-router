@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,9 +31,15 @@
 #include <thread>
 
 // Harness interface include files
-#include "config_parser.h"
-#include "plugin.h"
-#include "logger.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/logger.h"
+#include "mysql/harness/plugin.h"
+
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
+using mysql_harness::AppInfo;
+using mysql_harness::ConfigSection;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::Plugin;
 
 // Keep symbols with external linkage away from global scope so that
 // they do not clash with other symbols.
@@ -76,7 +82,7 @@ static void start(const ConfigSection *section) {
     log_info("%s will run %d time(s)", name.c_str(), runs);
   }
 
-  for ( int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
+  for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
     log_info(name.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(interval));
   }
@@ -86,14 +92,24 @@ static const char *requires[] = {
   "logger",
 };
 
-Plugin keepalive = {
+#if defined(_MSC_VER) && defined(keepalive_EXPORTS)
+/* We are building this library */
+#  define DLLEXPORT __declspec(dllexport)
+#else
+#  define DLLEXPORT
+#endif
+
+extern "C" {
+Plugin DLLEXPORT keepalive = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
   "Keepalive Plugin",
   VERSION_NUMBER(0, 0, 1),
   sizeof(requires)/sizeof(*requires), requires,
-  0, nullptr,
-  init,
-  nullptr,
-  start
+  0, nullptr,  // conflicts
+  init,        // init
+  nullptr,     // deinit
+  start,       // start
+  nullptr,     // stop
 };
+}

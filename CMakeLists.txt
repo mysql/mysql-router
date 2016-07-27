@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 project(harness)
 
-cmake_minimum_required (VERSION 2.8.9)
+cmake_minimum_required (VERSION 2.8.12)
 
 if(${CMAKE_VERSION} VERSION_GREATER "3.0")
   cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default
@@ -27,14 +27,19 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.1")
   cmake_policy(SET CMP0054 NEW)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 
 # Basic variables
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
 
+if("${STAGE_DIR}" STREQUAL "")
+    set(STAGE_DIR ${CMAKE_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
+endif()
 set(HARNESS_INSTALL_LIBRARY_DIR "lib" CACHE PATH
     "Installation directory for Harness libraries")
+set(HARNESS_INSTALL_BIN_DIR "bin" CACHE PATH
+    "Installation directory for Harness main binaries")    
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
@@ -87,8 +92,8 @@ if(ENABLE_TESTS)
   set(GTEST_BOTH_LIBRARIES ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
 
   set(GMOCK_INCLUDE_DIRS ${_gmock_root}/include)
-  set(GMOCK_LIBRARIES gtest)
-  set(GMOCK_MAIN_LIBRARIES gtest_main)
+  set(GMOCK_LIBRARIES gmock)
+  set(GMOCK_MAIN_LIBRARIES gmock_main)
   set(GMOCK_BOTH_LIBRARIES ${GMOCK_LIBRARIES} ${GMOCK_MAIN_LIBRARIES})
 
   set(TEST_LIBRARIES ${GMOCK_BOTH_LIBRARIES} ${GTEST_BOTH_LIBRARIES})
@@ -108,11 +113,19 @@ endif()
 # Basic variables
 set(HARNESS_NAME "harness"
   CACHE STRING "Name of Harness")
+set(INSTALL_INCLUDE_DIR "include/mysql/harness")
 set(HARNESS_INSTALL_INCLUDE_PREFIX "include/mysql")
 set(HARNESS_INSTALL_PROGRAM YES
   CACHE BOOL "Whether to install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES
   CACHE BOOL "Whether to install the Harness provided plugins")
+if(WIN32)
+  foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config_} config__)
+    set(HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config__} ${STAGE_DIR}/${config_}/lib
+      CACHE STRING "Output directory for plugins ${config_} build")
+  endforeach()
+endif()
 set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib
   CACHE STRING "Output directory for plugins")
 set(ENABLE_TESTS OFF
@@ -122,6 +135,11 @@ include(CPack)
 include(Plugin)
 include(Arch)
 include(Docs)
+include(Coverage)
+include(Check)
+
+# Check for basic functions
+find_package(Threads REQUIRED)
 
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)
@@ -142,17 +160,28 @@ if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   endif()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic")
   if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_COMPILER_IS_GNUCXX VERSION_LESS "4.9")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings")
   endif()
-else()
-  message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} not supported")
-endif()
-
-if(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX0X)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+  if("${MSVC_VERSION}" VERSION_LESS 1800)
+    message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} is too old; need at least MSVC 12.0")
+  endif()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /TP")
 else()
   message(FATAL_ERROR "You need C++11 support, but ${CMAKE_CXX_COMPILER} does not have that.")
+endif()
+
+# Platform specifics
+if(WIN32)
+  include(CheckIncludeFileCXX)
+  check_include_file_cxx("shlwapi.h" Shlwapi_FOUND)
+  if(Shlwapi_FOUND)
+    set(SHLWAPI_LIBRARIES "shlwapi.dll")
+  else()
+    message(FATAL_ERROR "Shlwapi library not found")
+  endif()
+else()
+  set(SHLWAPI_LIBRARIES)
 endif()
 
 # Check for basic functions

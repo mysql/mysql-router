@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c), 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +13,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-enable_testing()
+find_program(CPPLINT NAMES "cpplint" "cpplint.py")
 
-include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
-
-add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
-
-create_harness_test_directory_post_build(TestPluginKeepalive keepalive)
-configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)
+if(CPPLINT)
+  message(STATUS "Cpplint found as ${CPPLINT}, creating 'check' target")
+  file(GLOB_RECURSE _files
+    ${CMAKE_SOURCE_DIR}/harness/*.cc
+    ${CMAKE_SOURCE_DIR}/harness/*.h
+    ${CMAKE_SOURCE_DIR}/plugins/*.cc
+    ${CMAKE_SOURCE_DIR}/plugins/*.h)
+  add_custom_target(check
+    COMMENT "Run lint checks on all source files in tree"
+    COMMAND ${CPPLINT} ${CPPLINT_FLAGS} ${_files})
+else()
+  message(STATUS "No cpplint found, not creating 'check' target")
+endif()
