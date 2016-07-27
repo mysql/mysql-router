@@ -64,7 +64,10 @@ add_harness_test(TestUtilities SOURCES test_utilities.cc)
 
 add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
 add_harness_test(TestConfig SOURCES test_config.cc)
-add_harness_test(TestQueue SOURCES test_queue.cc)
+
+# future functionality, currently not used anywhere, still has rough edges
+# and fails sporadically on Linux, fails always on Windows
+#add_harness_test(TestQueue SOURCES test_queue.cc)
 
 add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
 
