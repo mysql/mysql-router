@@ -26,5 +26,3 @@ if (DOXYGEN_FOUND)
 else()
   message(WARNING "Doxygen not found, no documentation target will be created")
 endif()
-
-

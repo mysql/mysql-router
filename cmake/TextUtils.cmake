@@ -13,11 +13,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-enable_testing()
-
-include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
-
-add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
-
-create_harness_test_directory_post_build(TestPluginKeepalive keepalive)
-configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)
+function(oxford_comma _var)
+  if(ARGC EQUAL 2)
+    set(${_var} "${ARGV1}" PARENT_SCOPE)
+  elseif(ARGC EQUAL 3)
+    set(${_var} "${ARGV1} and ${ARGV2}" PARENT_SCOPE)
+  else()
+    set(_count 3)
+    set(_glue)
+    set(_result)
+    foreach(_arg ${ARGN})
+      set(_result "${_result}${_glue}${_arg}")
+      if(_count LESS ARGC)
+        set(_glue ", ")
+      else()
+        set(_glue ", and ")
+      endif()
+      math(EXPR _count "${_count}+1")
+    endforeach()
+    set(${_var} "${_result}" PARENT_SCOPE)
+  endif()
+endfunction()
