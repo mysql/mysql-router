@@ -106,7 +106,7 @@ string RoutingPluginConfig::get_option_destinations(
   try {
     auto uri = URI(value); // raises URIError when URI is invalid
     if (uri.scheme == "fabric+cache") {
-      auto fabric_cmd = uri.path[0];
+      string fabric_cmd{uri.path.size() > 0 ? uri.path[0] : ""};
       std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
       if (fabric_cmd != "group") {
         throw invalid_argument(
