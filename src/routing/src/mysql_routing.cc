@@ -258,7 +258,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 
   if (!(server > 0 && client > 0)) {
     std::stringstream os;
-    os << "Can't connect to MySQL server on '" << bind_address_.addr << "'";
+    os << "Can't connect to MySQL server";
     log_warning("[%s] %s", name.c_str(), os.str().c_str());
 
     auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
