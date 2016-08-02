@@ -46,6 +46,6 @@ int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexc
 #else
   *error = WSAGetLastError();
 #endif
-  current_pos_ = 0;
+  current_pos_ = destinations_.size();  // so for(..) above will no longer try to connect to a server
   return -1;
 }
