@@ -75,6 +75,7 @@ void set_socket_blocking(int sock, bool blocking) {
 int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   fd_set readfds;
   fd_set writefds;
+  fd_set errfds;
   struct timeval timeout_val;
 
   struct addrinfo *servinfo, *info, hints;
@@ -114,7 +115,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     }
     FD_ZERO(&readfds);
     FD_SET(sock, &readfds);
-    writefds = readfds;
+    errfds = writefds = readfds;
     timeout_val.tv_sec = connect_timeout;
     timeout_val.tv_usec = 0;
 
@@ -136,7 +137,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 #endif
     }
 
-    res = select(sock + 1, &readfds, &writefds, nullptr, &timeout_val);
+    res = select(sock + 1, &readfds, &writefds, &errfds, &timeout_val);
     if (res <= 0) {
       if (res == 0) {
 #ifndef _WIN32
@@ -155,7 +156,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
       continue;
     }
 
-    if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds)) {
+    if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds) || FD_ISSET(sock, &errfds)) {
       if (getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &error_len) == -1) {
         log_debug("Failed executing getsockopt on client socket: %s",
           get_message_error(errno).c_str());
@@ -218,3 +219,4 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 }
 
 } // routing
+
