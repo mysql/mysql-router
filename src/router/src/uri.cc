@@ -189,8 +189,11 @@ static URIQuery parse_query(const string &uri, const char delimiter) {
 
   for (auto& part: split_string(tmp_query, delimiter, false)) {
     key_value = split_string(part, '=');
-    if (!key_value.at(0).empty()) {
-      result[key_value.at(0)] = key_value.at(1);
+    if (key_value.size() < 2) {
+      throw URIError("invalid URI");
+    }
+    if (!key_value[0].empty()) {
+      result[key_value[0]] = key_value[1];
     }
   }
 
