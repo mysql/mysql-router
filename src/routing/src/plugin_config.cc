@@ -19,6 +19,7 @@
 #include "mysql_routing.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/fabric_cache.h"
+#include "mysqlrouter/metadata_cache.h"
 
 #include <algorithm>
 #include <exception>
@@ -138,6 +139,15 @@ string RoutingPluginConfig::get_option_destinations(
       if (fabric_cmd != "group") {
         throw invalid_argument(
             get_log_prefix(option) + " has an invalid Fabric command in URI; was '" + fabric_cmd + "'");
+      }
+    } else if (uri.scheme == "mysql") {
+      auto metadata_cache_cmd = uri.path[0];
+      std::transform(metadata_cache_cmd.begin(), metadata_cache_cmd.end(),
+                     metadata_cache_cmd.begin(), ::tolower);
+      if (metadata_cache_cmd != "replicaset") {
+        throw invalid_argument(
+            get_log_prefix(option) + " has an invalid metadata cache command in"
+            " URI; was '" + metadata_cache_cmd + "'");
       }
     } else {
       throw invalid_argument(

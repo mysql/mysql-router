@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,11 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(FABRIC_CACHE_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric_factory.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric_cache.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cc
+set(METADATA_CACHE_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata_factory.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/farm_metadata.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_api.cc
 )
 
@@ -28,15 +27,15 @@ include_directories(
   ${MySQL_INCLUDE_DIRS}
 )
 
-add_harness_plugin(fabric_cache SOURCES
-  src/fabric_cache_plugin.cc
+add_harness_plugin(metadata_cache SOURCES
+  src/metadata_cache_plugin.cc
   src/plugin_config.cc
-  ${FABRIC_CACHE_SOURCES}
+  ${METADATA_CACHE_SOURCES}
   REQUIRES logger router_lib)
 
-target_link_libraries(fabric_cache ${MySQL_LIBRARIES})
-file(GLOB fabric_cache_headers include/mysqlrouter/*.h)
-install(FILES ${fabric_cache_headers}
+target_link_libraries(metadata_cache ${MySQL_LIBRARIES})
+file(GLOB metadata_cache_headers include/mysqlrouter/*.h)
+install(FILES ${metadata_cache_headers}
   DESTINATION include/mysql/${HARNESS_NAME})
 
 if(ENABLE_TESTS)
@@ -44,11 +43,11 @@ if(ENABLE_TESTS)
 endif()
 
 if(BUILD_SAMPLES)
-  add_executable(fabriccache_test fabric_cache_dev.cc)
-  target_link_libraries(fabriccache_test fabric_cache ${MySQL_LIBRARIES})
+  add_executable(metadatacache_test metadata_cache_dev.cc)
+  target_link_libraries(metadatacache_test metadata_cache ${MySQL_LIBRARIES})
   if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
-    target_link_libraries(fabriccache_test -lnsl -lsocket)
+    target_link_libraries(metadatacache_test -lnsl -lsocket)
   endif()
-  set_target_properties(fabriccache_test PROPERTIES
+  set_target_properties(metadatacache_test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)
 endif(BUILD_SAMPLES)

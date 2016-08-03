@@ -18,6 +18,7 @@
 #include "mysql_routing.h"
 #include "dest_first_available.h"
 #include "dest_fabric_cache.h"
+#include "dest_metadata_cache.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
@@ -39,6 +40,7 @@
 #include <sys/select.h>
 
 #include "mysqlrouter/fabric_cache.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"
 #include "logger.h"
@@ -560,8 +562,21 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
     } else {
       throw runtime_error("Invalid Fabric command in URI; was '" + fabric_cmd + "'");
     }
+  } else if (uri.scheme == "mysql") {
+    auto metadata_cache_cmd = uri.path[0];
+    std::transform(metadata_cache_cmd.begin(), metadata_cache_cmd.end(),
+                   metadata_cache_cmd.begin(), ::tolower);
+    if (metadata_cache_cmd == "replicaset") {
+      destination_.reset(new DestMetadataCacheGroup(uri.host, uri.path[1],
+                                                    get_access_mode_name(mode_),
+                                                    uri.query));
+    } else {
+      throw runtime_error("Invalid Metadata cache command in URI; was '" +
+                          metadata_cache_cmd + "'");
+    }
   } else {
-    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s", uri.scheme.c_str()));
+    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s",
+                                      uri.scheme.c_str()));
   }
 }
 
