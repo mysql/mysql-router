@@ -40,11 +40,15 @@ using mysql_harness::ConfigSection;
 using mysql_harness::Path;
 using mysql_harness::bad_option;
 using mysql_harness::bad_section;
+using mysql_harness::syntax_error;
 
 using testing::ElementsAreArray;
 using testing::IsEmpty;
 using testing::SizeIs;
 using testing::UnorderedElementsAreArray;
+using testing::TestWithParam;
+using testing::ValuesIn;
+using testing::Eq;
 
 namespace mysql_harness {
 
@@ -204,6 +208,74 @@ const char *good_examples[] = {
 INSTANTIATE_TEST_CASE_P(TestParsing, GoodParseTestAllowKey,
                         ::testing::ValuesIn(good_examples));
 
+// Test fixture to compare option value with the result of
+// interpolating the value.
+using Sample = std::pair<std::string, std::string>;
+class TestInterpolate : public TestWithParam<Sample> {
+ protected:
+  virtual void SetUp() {
+    config_ = new Config(Config::allow_keys);
+    config_->add("testing", "a_key");
+    config_->set_default("datadir", "--path--");
+  }
+
+  virtual void TearDown() {
+    delete config_;
+    config_ = nullptr;
+  }
+
+  Config *config_;
+};
+
+TEST_P(TestInterpolate, CheckExpected) {
+  auto value = std::get<0>(GetParam());
+  auto expect = std::get<1>(GetParam());
+
+  auto&& section = config_->get("testing", "a_key");
+  section.set("option_name", value);
+  EXPECT_THAT(section.get("option_name"), Eq(expect));
+}
+
+Sample interpolate_examples[] = {
+  {"foo",                       "foo"},
+  {"c:\\foo\\bar\\{datadir}",   "c:\\foo\\bar\\--path--"},
+  {"c:\\foo\\bar\\{undefined}", "c:\\foo\\bar\\{undefined}"},
+  {"{datadir}\\foo",            "--path--\\foo"},
+  {"{datadir}",                 "--path--"},
+  {"foo{datadir}bar",           "foo--path--bar"},
+  {"{{datadir}}",               "{--path--}"},
+  {"{datadir}}",                "--path--}"},
+  {"{{datadir}",                "{--path--"},
+  {"{{{datadir}}}",             "{{--path--}}"},
+  {"{datadir",                  "{datadir"},
+  {"c:\\foo\\bar\\{425432-5425432-5423534253-542342}",
+   "c:\\foo\\bar\\{425432-5425432-5423534253-542342}"},
+};
+
+INSTANTIATE_TEST_CASE_P(TestParsing, TestInterpolate,
+                        ValuesIn(interpolate_examples));
+
+TEST(TestConfig, RecursiveInterpolate) {
+  const char *const config_text{
+    "[DEFAULT]\n"
+    "basedir = /root/dir\n"
+    "datadir = {basedir}/data\n"
+
+    "[one]\n"
+    "log = {datadir}/router.log\n"
+    "rec = {other}\n"  // Recursive reference
+    "other = {rec}\n"
+  };
+
+  Config config(Config::allow_keys);
+  std::istringstream input(config_text);
+  config.read(input);
+
+  auto&& section = config.get("one", "");
+  EXPECT_THAT(section.get("log"), Eq("/root/dir/data/router.log"));
+  EXPECT_THROW(section.get("rec"), syntax_error);
+}
+
 class BadParseTestForbidKey : public ::testing::TestWithParam<const char*> {
  protected:
   virtual void SetUp() {
@@ -223,7 +295,8 @@ class BadParseTestForbidKey : public ::testing::TestWithParam<const char*> {
 };
 
 TEST_P(BadParseTestForbidKey, SyntaxError) {
-  EXPECT_ANY_THROW(config->read(GetParam()));
+  std::istringstream input{GetParam()};
+  EXPECT_ANY_THROW(config->read(input));
 }
 
 static const char* syntax_problems[] = {
@@ -234,20 +307,14 @@ static const char* syntax_problems[] = {
   ("one]\n" "foo: bar\n"),
 
   // Bad section name
-  ("[one]\n" "foo = bar\n" "[mysqld]\n" "foo = baz\n"),
+  ("[one]\n" "foo = bar\n"
+   "[reserved]\n" "foo = baz\n"),
 
   // Options before first section
   ("  foo: bar   \n" "[one]\n"),
 
-  // Incomplete variable interpolation
-  ("[one]\n" "foo = {bar"),
-  ("[one]\n" "foo = {bar\n"),
-  ("[one]\n" "foo = {bar}x{foo"),
-  ("[one]\n" "foo = {bar}x{foo\n"),
-
   // Unterminated last line
   ("[one]\n" "foo = bar"),
-  ("[one]\n" "foo = bar\\"),
 
   // Repeated option
   ("[one]\n" "foo = bar\n" "foo = baz\n"),
@@ -259,9 +326,6 @@ static const char* syntax_problems[] = {
   // Repeated section
   ("[one]\n" "foo = bar\n" "[one]\n" "foo = baz\n"),
   ("[one]\n" "foo = bar\n" "[ONE]\n" "foo = baz\n"),
-
-  // Reserved words
-  ("[one]\n" "mysql_trick = bar\n" "[two]\n" "foo = baz\n"),
 
   // Key but keys not allowed
   ("[one:my_key]\n" "foo = bar\n" "[two]\n" "foo = baz\n"),
@@ -289,7 +353,8 @@ class BadParseTestAllowKeys : public ::testing::TestWithParam<const char*> {
 };
 
 TEST_P(BadParseTestAllowKeys, SemanticError) {
-  EXPECT_ANY_THROW(config->read(GetParam()));
+  std::istringstream input{GetParam()};
+  EXPECT_THROW(config->read(input), syntax_error);
 }
 
 static const char* semantic_problems[] = {

@@ -198,7 +198,12 @@ class HARNESS_EXPORT ConfigSection {
   const std::string key;
 
  private:
-  std::string do_replace(const std::string& value) const;
+  std::string do_replace(const std::string& value, int depth = 0) const;
+
+  const int kMaxInterpolationDepth = 10;
+
+  std::pair<OptionMap::const_iterator, bool>
+      do_locate(const std::string& option) const;
 
   const std::shared_ptr<const ConfigSection> defaults_;
   OptionMap options_;

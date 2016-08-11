@@ -94,99 +94,76 @@ void ConfigSection::update(const ConfigSection& other) {
   assert(old_defaults == defaults_);
 }
 
-/** @internal
- *
- * The parser is a simple hand-written scanner with three states:
- * `NORMAL`, `EAT_ONE`, and `IDENT`.
- *
- * <table>
- *  <tr><th></th><th>Input</th><th>Next State</th><th>Action</th></tr>
- *  <tr><th>NORMAL</th><td>'\'</td><td>EAT_ONE</td><td></td></tr>
- *  <tr><th>NORMAL</th><td>'{'</td><td>IDENT</td><td>CLEAR ident</td></tr>
- *  <tr><th>NORMAL</th><td>*</td><td>NORMAL</td><td></td>EMIT INPUT</tr>
- *  <tr><th>EAT_ONE</th><td>*</td><td>NORMAL</td><td>EMIT INOUT</td></tr>
- *  <tr><th>IDENT</th><td>'}'</td><td>NORMAL</td><td>EMIT LOOKUP(ident)</td></tr>
- *  <tr><th>IDENT</th><td>[A-Za-z0-9]</td><td>IDENT</td><td>APPEND TO ident</td></tr>
- *  <tr><th>IDENT</th><td>*</td><td>IDENT</td><td>ERROR</td></tr>
- * </table>
- */
-std::string ConfigSection::do_replace(const std::string& value) const {
+std::string
+ConfigSection::do_replace(const std::string& value, int depth) const {
   std::string result;
-  enum { NORMAL, EAT_ONE, IDENT } state = NORMAL;
-  std::string ident;
+  bool inside_braces = false;
+  std::string::const_iterator mark = value.begin();
 
-  // State machine implementation that will scan the string one
-  // character at a time and store the result of substituting variable
-  // interpolations in the result variable.
-  auto process = [&result, &state, &ident, this](char ch){
-    switch (state) {
-      case EAT_ONE:  // Unconditionally append the character
-        result.push_back(ch);
-        break;
+  // Simple hack to avoid infinite recursion because of
+  // back-references.
+  if (depth > kMaxInterpolationDepth)
+    throw syntax_error("Max recursion depth for interpolation exceeded.");
 
-      case IDENT:  // Reading an variable interpolation
-        if (ch == '}') {
-          // Found the end. The identifier is in the 'ident' variable
-          result.append(get(ident));
-          state = NORMAL;
-        } else if (isident(ch)) {
-          // One more character of the variable name
-          ident.push_back(ch);
-        } else {
-          // Something that cannot be part of an identifier. Save it
-          // away to give a good error message.
-          ident.push_back(ch);
-          ostringstream buffer;
-          buffer << "Only alphanumeric characters in variable names allowed. "
-                 << "Saw '" << ident << "'";
-          throw syntax_error(buffer.str());
-        }
-        break;
-
-      default:   // Normal state, just reading characters
-        switch (ch) {
-          case '\\':  // Next character is escaped
-            state = EAT_ONE;
-            break;
-
-          case '{':  // Start a variable interpolation
-            ident.clear();
-            state = IDENT;
-            break;
-
-          default:    // Just copy the character to the output string
-            result.push_back(ch);
-            break;
-        }
-        break;
+  // Scan the string one character at a time and store the result of
+  // substituting variable interpolations in the result variable.
+  //
+  // The scan keeps a mark iterator available that either point to the
+  // beginning of the string, the last seen open brace, or just after
+  // the last seen closing brace.
+  //
+  // At any point of the iteration, everything before the mark is
+  // already in the result string, and everything at the mark and
+  // later is not transfered to the result string.
+  for (auto current = value.begin() ; current != value.end() ; ++current) {
+    if (inside_braces && *current == '}') {
+      // Inside braces and found the end brace.
+      const std::string ident(mark + 1, current);
+      auto loc = do_locate(ident);
+      if (std::get<1>(loc))
+        result.append(do_replace(std::get<0>(loc)->second, depth + 1));
+      else
+        result.append(mark, current + 1);
+      mark = current + 1;
+      inside_braces = false;
+    } else if (*current == '{') {
+      // Start a possible variable interpolation
+      result.append(mark, current);
+      mark = current;
+      inside_braces = true;
     }
-  };
+  }
 
-  for_each(value.begin(), value.end(), process);
-  if (state == EAT_ONE)
-    throw syntax_error("String ending with a backslash");
-  if (state == IDENT)
-    throw syntax_error("Unterminated variable interpolation");
+  // Append any trailing content of the original string.
+  result.append(mark, value.end());
+
   return result;
 }
 
 std::string ConfigSection::get(const std::string& option) const {
   check_option(option);
-  OptionMap::const_iterator it = options_.find(lower(option));
-  if (it != options_.end())
-    return do_replace(it->second);
-  if (defaults_)
-    return defaults_->get(option);
+  auto result = do_locate(option);
+  if (std::get<1>(result))
+    return do_replace(std::get<0>(result)->second);
   throw bad_option("Value for '" + option + "' not found");
 }
 
 bool ConfigSection::has(const std::string& option) const {
   check_option(option);
-  if (options_.find(lower(option)) != options_.end())
-    return true;
+  return std::get<1>(do_locate(option));
+}
+
+std::pair<ConfigSection::OptionMap::const_iterator, bool>
+ConfigSection::do_locate(const std::string& option) const {
+  auto it = options_.find(lower(option));
+  if (it != options_.end())
+    return {it, true};
+
   if (defaults_)
-    return defaults_->has(option);
-  return false;
+    return defaults_->do_locate(option);
+
+  // We return a default constructed iterator: any iterator will do.
+  return {OptionMap::const_iterator(), false};
 }
 
 void ConfigSection::set(const std::string& option, const std::string& value) {
@@ -401,11 +378,16 @@ void Config::do_read_stream(std::istream& input) {
       // Section names are always stored in lowercase and we do not
       // distinguish between sections in lower and upper case.
       inplace_lower(&section_name);
+
+      // If there is a key, check that it is not on the default section
+      if (allow_keys && section_name == "default" && !section_key.empty())
+        throw syntax_error("Key not allowed on DEFAULT section");
+
       if (section_name == "default")
         current = defaults_.get();
       else
         current = &add(section_name, section_key);
-    } else {
+    } else {  // if (line[0] != '[')
       if (current == NULL)
         throw syntax_error("Option line before start of section");
       // Got option line
@@ -416,6 +398,11 @@ void Config::do_read_stream(std::istream& input) {
       strip(&option);
       std::string value(line, pos + 1);
       strip(&value);
+
+      // Check that the section name consists of allowable characters only
+      if (!std::all_of(option.begin(), option.end(), isident))
+        throw syntax_error("Invalid option name '" + option + "'");
+
       current->add(option, value);
     }
   }

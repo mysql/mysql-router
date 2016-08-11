@@ -14,6 +14,7 @@ For the avoidance of doubt, this particular copy of the software
 
 Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
+
 Internal Files
 --------------
 
@@ -24,6 +25,7 @@ elsewhere but Release Engineering need to know about these files.
 The file `exclude-from-release.txt` contain files and directories that
 should be excluded from the release and not uploaded to, for example,
 GitHub. Please make sure to add internal files here.
+
 
 Creating feature and issue branches
 -----------------------------------
@@ -36,15 +38,32 @@ create a feature branch, use the command:
 If the current branch is already `master`, you can omit it from the
 line above.
 
+To activate pre-commit hooks it is necessary to copy them from the
+`internal` directory to the `.git` directory:
 
-Code Reviews
-------------
+    cp internal/hooks/pre-commit .git/hooks
 
-Patches are usually uploaded to ReviewBoard and reviewed there.
+There is more information about what the Git hooks below.
 
-Please commit the patch before uploading it to ReviewBoard since that
-will run the pre-commit hooks and catch mistakes that can be caught by
-the automated checks.
+
+Preparations for Code Review
+----------------------------
+
+Patches are usually uploaded to ReviewBoard and reviewed there. Before
+uploading the patch, ensure that:
+
+- It build in all build configurations on your machine.
+
+- There are no code style issues
+
+To check that it builds in all build configurations on your platform
+there is a script available in the directory `internal/checks`.
+
+    python internal/checks/build_all.py
+
+If you have installed the pre-commit hook then committing will run the
+pre-commit hooks and catch mistakes that can be caught by the
+automated checks.
 
 Once the patch is committed, you can generate a diff between the
 `master` branch and the committed work using:
@@ -52,21 +71,25 @@ Once the patch is committed, you can generate a diff between the
     git diff master..HEAD >my-precious-1.diff
 
 
-Pushing Patches
----------------
+Preparations for Merging
+------------------------
 
-Please
+When it is time to merge the branch with either the master branch or
+one of the version branches, please
 [rebase and squash](https://help.github.com/articles/about-git-rebase/)
-the patches in the branch before pushing to the repository. Each
-feature should be one single patch since that make it easy to work
-with the features.
+the patches in the branch before pushing to the repository to combine
+several patches for the same issue. Each feature and each issue should
+be one single patch.
 
-Then you can rebase the branch using:
+You can rebase and squash the branch using:
+
+    git rebase -i master
+
+or
 
     git rebase -i master feature/my-precious
 
-If your current branch is already `feature/my-precious` then you can
-omit that from the command above.
+if your current branch is already `feature/my-precious`.
 
 
 Coding Style
