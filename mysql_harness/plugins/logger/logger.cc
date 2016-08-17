@@ -100,7 +100,8 @@ static int init(const AppInfo* info) {
   }
   // We allow the log directory to be NULL or empty, meaning that all
   // will go to the standard output.
-  if (info->logging_folder == NULL || strlen(info->logging_folder) == 0) {
+  if (info->logging_folder == NULL || strlen(info->logging_folder) == 0
+      || strcmp(info->logging_folder, "stdout") == 0) {
     g_log_file.store(stdout, std::memory_order_release);
   } else {
     const auto log_file =
