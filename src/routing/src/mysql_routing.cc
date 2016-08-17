@@ -372,7 +372,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     }
     bytes_down += bytes_read;
 
-  }
+  } // while (true)
 
   if (!handshake_done) {
     auto ip_array = in6_addr_to_array(client_addr);
@@ -479,7 +479,7 @@ void MySQLRouting::start() {
 
     ++info_active_routes_;
     std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
-  }
+  } // while (!stopping())
 
 
   log_info("[%s] stopped", name.c_str());

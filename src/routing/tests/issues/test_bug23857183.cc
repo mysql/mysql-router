@@ -47,7 +47,7 @@ void Bug23857183::connect_to(const mysqlrouter::TCPAddress& address) {
 
   auto start = std::chrono::system_clock::now();
 
-  int server = routing::get_mysql_socket(address, TIMEOUT);
+  int server = routing::SocketOperations().get_mysql_socket(address, TIMEOUT);
   ASSERT_LT(server, 0);
 
   auto duration = std::chrono::duration_cast<std::chrono::seconds>

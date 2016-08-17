@@ -157,7 +157,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
 }
 
 int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect_timeout, const bool log_errors) {
-  return routing::get_mysql_socket(addr, connect_timeout, log_errors);
+  return socket_operations_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 
 void RouteDestination::add_to_quarantine(const size_t index) noexcept {

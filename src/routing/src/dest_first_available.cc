@@ -25,6 +25,13 @@
 #endif
 
 int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
+  // Say for example, that we have three servers: A, B and C.
+  // The active server should be failed-over in such fashion:
+  //
+  //   A -> B -> C -> no more connections (regardless of whether A and B go back up or not)
+  //
+  // This is what this function does.
+
   if (destinations_.empty()) {
     return -1;
   }

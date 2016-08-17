@@ -152,7 +152,7 @@ TEST_F(Bug22020711, NoValidDestinations) {
 
   // open a socket to router
   mysqlrouter::TCPAddress addr("127.0.0.1", 7004);
-  int router = routing::get_mysql_socket(addr, 2);
+  int router = routing::SocketOperations().get_mysql_socket(addr, 2);
   ASSERT_GE(router, 0);
 
   // send fake request packet

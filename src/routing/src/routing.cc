@@ -72,7 +72,7 @@ void set_socket_blocking(int sock, bool blocking) {
 #endif
 }
 
-int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
+int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   fd_set readfds;
   fd_set writefds;
   fd_set errfds;
@@ -167,7 +167,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
       continue;
     }
     break;
-  }
+  } // for (info = servinfo; info != nullptr; info = info->ai_next)
 
   if (info == nullptr) {
     return -1;

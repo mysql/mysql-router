@@ -39,7 +39,6 @@
 #include "logger.h"
 
 using mysqlrouter::to_string;
-using routing::get_mysql_socket;
 using std::out_of_range;
 using std::runtime_error;
 using std::chrono::duration_cast;

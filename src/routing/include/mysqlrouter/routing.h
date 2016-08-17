@@ -102,18 +102,33 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept;
  */
 void set_socket_blocking(int sock, bool blocking);
 
-/** @brief Returns socket descriptor of connected MySQL server
- *
- * Returns a socket descriptor for the connection to the MySQL Server or
- * -1 when an error occurred.
- *
- * @param addr information of the server we connect with
- * @param connect_timeout number of seconds waiting for connection
- * @param log whether to log errors or not
- * @return a socket descriptor
+/** @interface SocketOperationsInterface
+ * @brief Interface to allow multiple SocketOperations implementations
+ *        (at least one "real" and one mock for testing purposes)
  */
-int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept;
+class SocketOperationsInterface {
+ public:
+  virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept = 0;
+};
 
-}
+/** @class SocketOperations
+ * @brief This class provides a "real" (not mock) implementation
+ */
+class SocketOperations : public SocketOperationsInterface {
+ public:
+  /** @brief Returns socket descriptor of connected MySQL server
+   *
+   * Returns a socket descriptor for the connection to the MySQL Server or
+   * -1 when an error occurred.
+   *
+   * @param addr information of the server we connect with
+   * @param connect_timeout number of seconds waiting for connection
+   * @param log whether to log errors or not
+   * @return a socket descriptor
+   */
+  int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept override;
+};
+
+} // namespace routing
 
 #endif // MYSQLROUTER_ROUTING_INCLUDED
