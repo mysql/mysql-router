@@ -26,6 +26,8 @@
 #include <strsafe.h>
 #include <direct.h>
 #include <stdlib.h>
+#include <tchar.h>
+#include "nt_servc.h"
 
 /*
  * Search the registry for a service whose ImagePath starts
@@ -151,6 +153,7 @@ UINT wrap(MSIHANDLE hInstall, char *name, int check_only) {
   }
 
 LExit:
+  WcaSetReturnValue(er);
   return WcaFinalize(er);
 }
 
@@ -185,13 +188,16 @@ public:
 	}
 
 	void append(const char *s, size_t length)	{
-		if (length_ + length + 1 < size_)	{
+		if (length_ + length + 1 > size_)	{
 			char *tmp = (char*)realloc(buffer_, size_ + length + 1);
 			size_ += length + 1;
 			if (!tmp)	{
 				free(buffer_);
 				buffer_ = NULL;
 			}
+      else {
+        buffer_ = tmp;
+      }
 		}
 		if (buffer_) {
 			memcpy(buffer_ + length_, s, length);
@@ -367,6 +373,7 @@ LExit:
 
 
 UINT __stdcall InstallDefaultConfigFile(MSIHANDLE hInstall) {
+
 	return create_config_file(hInstall);
 }
 
@@ -374,6 +381,108 @@ UINT __stdcall InstallDefaultConfigFile(MSIHANDLE hInstall) {
 UINT __stdcall RunPostInstall(MSIHANDLE hInstall) {
 	return 0;
 }
+
+
+UINT DoInstallService(MSIHANDLE hInstall, char *install_dir, char *data_dir)
+{
+  char szFilePath[_MAX_PATH];
+  int startType = 0;
+  LPCSTR szInternName = "MySQLRouter";
+  LPCSTR szDisplayName = "MySQL Router";
+  LPCSTR szFullPath = "";
+  LPCSTR szAccountName = "NT AUTHORITY\\LocalService";
+
+  strcpy(szFilePath, "\"");
+  strcat(szFilePath, install_dir);
+  strcat(szFilePath, "bin\\mysqlrouter.exe\"");
+  strcat(szFilePath, " -c \"");
+  strcat(szFilePath, data_dir);
+  strcat(szFilePath, "\\mysqlrouter.ini\" --service");
+  int len = strlen(szFilePath);
+  for (int i = 0; i < len; i++)
+  {
+    if (szFilePath[i] == '/')
+    {
+      szFilePath[i] = '\\';
+    }
+  }
+  
+  NTService service;
+  if (!service.SeekStatus(szInternName, 1))
+  {
+    printf("Service already installed\n");
+    WcaLog(LOGMSG_STANDARD, "Service already installed\n");
+    return FALSE;
+  }
+  BOOL res = service.Install(startType, szInternName, szDisplayName, szFilePath, szAccountName);
+  return res;
+}
+
+UINT __stdcall InstallService(MSIHANDLE hInstall)
+{
+  HRESULT hr = S_OK;
+  UINT er = ERROR_SUCCESS;
+
+  hr = WcaInitialize(hInstall, "InstallService");
+  ExitOnFailure(hr, "Failed to initialize service installer");
+
+  WcaLog(LOGMSG_STANDARD, "Initialized service installer.");
+
+  char custom_data[1024 * 2];
+  DWORD custom_data_size = sizeof(custom_data);
+  if (MsiGetPropertyA(hInstall, "CustomActionData", custom_data, &custom_data_size) == ERROR_SUCCESS) {
+    char *ptr = NULL;
+    WcaLog(LOGMSG_STANDARD, "%s", custom_data);
+    char *p = strtok_s(custom_data, ";", &ptr);
+    char *install_dir = NULL;
+    char *data_dir = NULL;
+    while (p)
+    {
+      char *sep = strchr(p, '=');
+      if (strncmp(p, "INSTALL", strlen("INSTALL")) == 0) {
+        install_dir = sep + 1;
+        if (*(sep - 1) == '\\')
+          *(sep - 1) = 0; // trim trailing backslash
+      }
+      else if (strncmp(p, "DATA", strlen("DATA")) == 0) {
+        data_dir = sep + 1;
+        if (*(sep - 1) == '\\')
+          *(sep - 1) = 0; // trim trailing backslash
+      }
+      p = strtok_s(NULL, ";", &ptr);
+    }
+
+    if (!install_dir) {
+      WcaLog(LOGMSG_STANDARD, "Could not determine Install directory");
+      er = ERROR_INSTALL_FAILURE;
+    }
+    else if (!data_dir) {
+      WcaLog(LOGMSG_STANDARD, "Could not determine ProgramData directory");
+      er = ERROR_INSTALL_FAILURE;
+    }
+    else {
+      // normalize paths to use / as separator
+      for (char *c = install_dir; *c; ++c) {
+        if (*c == '\\')
+          *c = '/';
+      }
+      for (char *c = data_dir; *c; ++c) {
+        if (*c == '\\')
+          *c = '/';
+      }
+      int rc = DoInstallService(hInstall, install_dir, data_dir);
+      if (!rc)
+        er = ERROR_INSTALL_FAILURE;
+    }
+  }
+  else {
+    WcaLog(LOGMSG_STANDARD, "Could not get CustomActionData");
+    er = ERROR_INSTALL_FAILURE;
+  }
+LExit:
+  return WcaFinalize(er);
+}
+
 
 /* DllMain - Initialize and cleanup WiX custom action utils */
 extern "C" BOOL WINAPI DllMain(

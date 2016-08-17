@@ -8,3 +8,4 @@ RemoveServiceNoninteractive
 TestService
 RunPostInstall
 InstallDefaultConfigFile
+InstallService

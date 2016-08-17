@@ -444,10 +444,10 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
     {
      printf("Install/Remove of the Service Denied!\n");
      if (!is_super_user())
-      printf("That operation should be made by an user with Administrator privileges!\n");
+      printf("That operation should be made by a user with Administrator privileges!\n");
     }
     else
-     printf("There is a problem for to open the Service Control Manager!\n");
+     printf("There is a problem when opening the Service Control Manager!\n");
   }
   else
   {
@@ -456,43 +456,43 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
       /* an install operation */
       if ((service = OpenService(scm,szInternName, SERVICE_ALL_ACCESS )))
       {
-  LPQUERY_SERVICE_CONFIG ConfigBuf;
-  DWORD dwSize;
+        LPQUERY_SERVICE_CONFIG ConfigBuf;
+        DWORD dwSize;
 
-  ConfigBuf = (LPQUERY_SERVICE_CONFIG) LocalAlloc(LPTR, 4096);
-  printf("The service already exists!\n");
-  if (QueryServiceConfig(service,ConfigBuf,4096,&dwSize))
-    printf("The current server installed: %s\n",
-     ConfigBuf->lpBinaryPathName);
-  LocalFree(ConfigBuf);
-  CloseServiceHandle(service);
+        ConfigBuf = (LPQUERY_SERVICE_CONFIG) LocalAlloc(LPTR, 4096);
+        printf("The service already exists!\n");
+        if (QueryServiceConfig(service,ConfigBuf,4096,&dwSize))
+          printf("The current server installed: %s\n",
+           ConfigBuf->lpBinaryPathName);
+        LocalFree(ConfigBuf);
+        CloseServiceHandle(service);
       }
       else
-  ret_value=TRUE;
+        ret_value=TRUE;
     }
     else
     {
       /* a remove operation */
       if (!(service = OpenService(scm,szInternName, SERVICE_ALL_ACCESS )))
-  printf("The service doesn't exist!\n");
+        printf("The service doesn't exist!\n");
       else
       {
-  SERVICE_STATUS ss;
+        SERVICE_STATUS ss;
 
-  memset(&ss, 0, sizeof(ss));
-  if (QueryServiceStatus(service,&ss))
-  {
-    DWORD dwState = ss.dwCurrentState;
-    if (dwState == SERVICE_RUNNING)
-      printf("Failed to remove the service because the service is running\nStop the service and try again\n");
-    else if (dwState == SERVICE_STOP_PENDING)
-      printf("Failed to remove the service because the service is in stop pending state!\n"
-             "Wait 30 seconds and try again.\n"
-             "If this condition persist, reboot the machine and try again\n");
-    else
-      ret_value= TRUE;
-  }
-  CloseServiceHandle(service);
+        memset(&ss, 0, sizeof(ss));
+        if (QueryServiceStatus(service,&ss))
+        {
+          DWORD dwState = ss.dwCurrentState;
+          if (dwState == SERVICE_RUNNING)
+            printf("Failed to remove the service because the service is running\nStop the service and try again\n");
+          else if (dwState == SERVICE_STOP_PENDING)
+            printf("Failed to remove the service because the service is in stop pending state!\n"
+                   "Wait 30 seconds and try again.\n"
+                   "If this condition persist, reboot the machine and try again\n");
+          else
+            ret_value= TRUE;
+        }
+        CloseServiceHandle(service);
       }
     }
     CloseServiceHandle(scm);

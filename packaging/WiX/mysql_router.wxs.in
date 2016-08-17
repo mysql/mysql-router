@@ -157,15 +157,23 @@
                   DllEntry="InstallDefaultConfigFile"
                   Execute="deferred"
                   Impersonate="no"
-                  Return="asyncWait" />
+                  Return="check" />
+    <CustomAction Id="RegisterService"
+                  BinaryKey="wixca.dll"
+                  DllEntry="InstallService"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />                  
     <SetProperty Id="InstallDefaultConfigFile" Value="INSTALLDIR=[INSTALLDIR];DATADIR=[CommonAppDataFolder]MySQL\@PRODUCT_NAME@" Sequence="execute" Before="InstallDefaultConfigFile"/>
+    <SetProperty Id="RegisterService" Value="INSTALLDIR=[INSTALLDIR];DATADIR=[CommonAppDataFolder]MySQL\@PRODUCT_NAME@" Sequence="execute" Before="InstallDefaultConfigFile"/>
     <InstallExecuteSequence>
       <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
       <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
       <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
       <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
       <Custom Action="RunPostInstallProperty" After="InstallFiles">NOT(REMOVE="ALL")</Custom>
-      <Custom Action="InstallDefaultConfigFile" After="RunPostInstallProperty"></Custom>
+      <Custom Action="InstallDefaultConfigFile" After="RunPostInstallProperty">NOT(REMOVE="ALL")</Custom>
+      <Custom Action="RegisterService" After="InstallDefaultConfigFile">NOT(REMOVE="ALL")</Custom>
       <Custom Action="RunPostInstall" After="RunPostInstallProperty">NOT(REMOVE="ALL")</Custom>
     </InstallExecuteSequence>
 

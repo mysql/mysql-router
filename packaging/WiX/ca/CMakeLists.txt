@@ -44,7 +44,10 @@ ENDIF()
 
 LINK_DIRECTORIES(${WIX_MSVC_DIR}/lib/${WIX_ARCH})
 
-SET(WIXCA_SOURCES CustomAction.cpp CustomAction.def)
+SET(WIXCA_SOURCES CustomAction.cpp CustomAction.def 
+  "${CMAKE_SOURCE_DIR}/src/router/src/windows/nt_servc.cc" )
+
+INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/src/router/src/windows")
 
 MESSAGE(STATUS "Searching for wcautil in ${WIX_MSVC_DIR}/lib/${WIX_ARCH}")
 MESSAGE(STATUS "Searching for dutil in ${WIX_MSVC_DIR}/lib/${WIX_ARCH}")
