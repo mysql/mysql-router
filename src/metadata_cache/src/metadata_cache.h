@@ -44,7 +44,7 @@ public:
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
                 int connection_timeout, int connection_attempts,
-                unsigned int ttl, const std::string &metadata_replicaset);
+                unsigned int ttl, const std::string &cluster_name);
 
   /** @brief Destructor */
   ~MetadataCache();
@@ -85,8 +85,8 @@ private:
   std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
     replicaset_data_;
 
-  // The name of the primary replicaset in the topology.
-  std::string metadata_replicaset_;
+  // The name of the cluster in the topology.
+  std::string cluster_name_;
 
   // The list of servers that contain the metadata about the managed
   // topology.

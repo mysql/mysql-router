@@ -15,29 +15,38 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_METADATA_INTERFACE_INCLUDED
-#define METADATA_CACHE_METADATA_INTERFACE_INCLUDED
+#ifndef GROUP_REPLICATION_METADATA_INCLUDED
+#define GROUP_REPLICATION_METADATA_INCLUDED
 
-#include "mysqlrouter/metadata_cache.h"
-
+#include <string>
 #include <vector>
 #include <map>
-#include <string>
+#include <mysql.h>
 
-/**
- * The metadata class is used to create a pluggable transport layer
- * from which the metadata is fetched for the metadata cache.
- */
-class MetaData {
-public:
-  typedef std::map<std::string, std::vector<metadata_cache::ManagedInstance>> InstancesByReplicaSet;
 
-  virtual unsigned int fetch_ttl() = 0;
-  virtual InstancesByReplicaSet fetch_instances(const std::string &cluster_name) = 0;
-
-  virtual bool connect(const std::vector<metadata_cache::ManagedInstance>
-                       & metadata_servers) = 0;
-  virtual void disconnect() = 0;
+struct GroupReplicationMember {
+  enum class State {
+    Online,
+    Recovering,
+    Unreachable,
+    Offline,
+    Other
+  };
+  enum class Role {
+    Primary,
+    Secondary,
+    Other
+  };
+  std::string member_id;
+  std::string host;
+  uint16_t port;
+  State state;
+  Role role;
 };
 
-#endif // METADATA_CACHE_METADATA_INTERFACE_INCLUDED
+/** Fetches the list of group replication members known to the instance of the
+ * given connection.
+ */
+std::map<std::string, GroupReplicationMember> fetch_group_replication_members(MYSQL *mysql);
+
+#endif

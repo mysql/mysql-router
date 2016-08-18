@@ -34,7 +34,20 @@ extern const std::string kDefaultMetadataAddress;
 extern const std::string kDefaultMetadataUser;
 extern const std::string kDefaultMetadataPassword;
 extern const unsigned int kDefaultMetadataTTL;
-extern const std::string kDefaultMetadataReplicaset;
+extern const std::string kDefaultMetadataCluster;
+
+enum class ReplicasetStatus {
+  AvailableWritable,
+  AvailableReadOnly,
+  Partitioned,
+  Unavailable
+};
+
+enum class ServerMode {
+  ReadWrite,
+  ReadOnly,
+  Unavailable
+};
 
 /** @class ManagedInstance
  *
@@ -42,14 +55,14 @@ extern const std::string kDefaultMetadataReplicaset;
  */
 class ManagedInstance {
 public:
-  /** @brief The replicaset ID of the replicaset to which the server belongs */
+  /** @brief The name of the replicaset to which the server belongs */
   std::string replicaset_name;
-  /** @brief The name of the server */
-  std::string instance_name;
+  /** @brief The uuid of the MySQL server */
+  std::string mysql_server_uuid;
   /** @brief The role of the server */
   std::string role;
   /** @brief The mode of the server */
-  std::string mode;
+  ServerMode mode;
   /** @brief The server weight */
   float weight;
   /** @brief The version token of the server */
@@ -60,6 +73,8 @@ public:
   std::string host;
   /** The port number in which the server is running */
   unsigned int port;
+  /** The X protocol port number in which the server is running */
+  unsigned int xport;
 };
 
 /** @class connection_error
@@ -121,10 +136,11 @@ public:
  * @param ttl The time to live for the cached data
  * @param metadata_replicaset The replicaset that is used to maintain the
  *                            metadata.
+ * @param cluster_name The name of the cluster to be used.
  */
 void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
-                unsigned int ttl, const std::string &metadata_replicaset);
+                unsigned int ttl, const std::string &cluster_name);
 
 /** @brief Returns list of managed server in a HA replicaset
  *

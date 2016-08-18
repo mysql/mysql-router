@@ -31,8 +31,7 @@
  * @param connection_attempts The number of times a connection to metadata must
  *                            be attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
- * @param metadata_replicaset The replicaset that servers as the metadata
- *                            HA setup for the topology metadata.
+ * @param cluster The name of the desired cluster in the metadata server
  */
 MetadataCache::MetadataCache(
   const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
@@ -41,7 +40,7 @@ MetadataCache::MetadataCache(
   int connection_timeout,
   int connection_attempts,
   unsigned int ttl,
-  const std::string &metadata_replicaset) {
+  const std::string &cluster) {
   std::string host_;
   for (auto s : bootstrap_servers) {
      metadata_cache::ManagedInstance *bootstrap_server_instance =
@@ -52,7 +51,7 @@ MetadataCache::MetadataCache(
     metadata_servers_.push_back(*bootstrap_server_instance);
   }
   ttl_ = ttl;
-  metadata_replicaset_ = metadata_replicaset;
+  cluster_name_ = cluster;
   terminate_ = false;
   meta_data_ = get_instance(user, password, connection_timeout,
                             connection_attempts, ttl);
@@ -120,6 +119,48 @@ std::vector<metadata_cache::ManagedInstance> MetadataCache::replicaset_lookup(
   return replicaset_data_[replicaset_name];
 }
 
+inline bool operator == (const metadata_cache::ManagedInstance &a,
+    const metadata_cache::ManagedInstance &b) {
+  return (a.replicaset_name == b.replicaset_name &&
+      a.mysql_server_uuid == b.mysql_server_uuid &&
+      a.role == b.role &&
+      a.mode == b.mode &&
+      a.weight == b.weight &&
+      a.version_token == b.version_token &&
+      a.location == b.location &&
+      a.host == b.host &&
+      a.port == b.port &&
+      a.xport == b.xport);
+}
+
+inline bool compare_instance_lists(const MetaData::InstancesByReplicaSet &map_a,
+                           const MetaData::InstancesByReplicaSet &map_b) {
+  if (map_a.size() != map_b.size())
+    return false;
+  auto ai = map_a.begin();
+  auto bi = map_b.begin();
+  for (; ai != map_a.end(); ++ai, ++bi) {
+    if ((ai->first != bi->first) || (ai->second.size() != bi->second.size()))
+      return false;
+    auto a = ai->second.begin();
+    auto b = bi->second.begin();
+    for (; a != ai->second.end(); ++a, ++b) {
+      if (!(*a == *b))
+        return false;
+    }
+  }
+  return true;
+}
+
+static const char *str_mode(metadata_cache::ServerMode mode) {
+  switch (mode) {
+    case metadata_cache::ServerMode::ReadWrite: return "RW";
+    case metadata_cache::ServerMode::ReadOnly: return "RO";
+    case metadata_cache::ServerMode::Unavailable: return "n/a";
+    default: return "?";
+  }
+}
+
 /**
  * Refresh the metadata information in the cache.
  */
@@ -127,25 +168,49 @@ void MetadataCache::refresh() {
   try {
     // Fetch the metadata and store it in a temporary variable.
     std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
-      replicaset_data_temp = meta_data_->fetch_instances();
+      replicaset_data_temp = meta_data_->fetch_instances(cluster_name_);
+    bool changed = false;
     {
       // Ensure that the refresh does not result in an inconsistency during the
       // lookup.
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      replicaset_data_ = replicaset_data_temp;
+      if (!compare_instance_lists(replicaset_data_, replicaset_data_temp)) {
+        replicaset_data_ = replicaset_data_temp;
+        changed = true;
+      }
     }
+    if (changed) {
+      log_info("Changes detected in cluster '%s' after metadata refresh",
+          cluster_name_.c_str());
+      // dump some informational/debugging information about the replicasets
+      if (replicaset_data_.empty())
+        log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
+      else {
+        log_info("Metadata for cluster '%s' has %i replicasets:",
+          cluster_name_.c_str(), (int)replicaset_data_.size());
+        for (auto &rs : replicaset_data_) {
+          log_info("'%s' (%i members)", rs.first.c_str(), (int)rs.second.size());
+          for (auto &mi : rs.second) {
+            log_debug("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
+                mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
+          }
+        }
+      }
+    }
+
+    /* Not sure about this, the metadata server could be stored elsewhere
 
     // Fetch the set of servers in the primary replicaset. These servers
     // store the metadata information.
     std::vector<metadata_cache::ManagedInstance> metadata_servers_temp_ =
-      replicaset_lookup(metadata_replicaset_);
+      replicaset_lookup(cluster_name_);
     // If the metadata replicaset contains servers, replace the current list
     // of metadata servers with the new list.
     if (!metadata_servers_temp_.empty()) {
       std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
       metadata_servers_ = metadata_servers_temp_;
-    }
+    }*/
   } catch (const std::runtime_error &exc) {
-    log_debug("Failed fetching data: %s", exc.what());
+    log_error("Failed fetching metadata: %s", exc.what());
   }
 }

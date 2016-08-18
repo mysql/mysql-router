@@ -18,14 +18,15 @@
 #include "router_app.h"
 #include "mysqlrouter/utils.h"
 #include "utils.h"
+#include "config_generator.h"
 
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <unistd.h>
@@ -46,11 +47,11 @@ using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
-
 MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
-      showing_info_(false), origin_(origin)
+      showing_info_(false), creating_config_(false),
+      origin_(origin)
 {
   init(arguments);
 }
@@ -70,7 +71,7 @@ void MySQLRouter::init(const vector<string>& arguments) {
     throw std::runtime_error(exc.what());
   }
 
-  if (showing_info_) {
+  if (showing_info_ || creating_config_) {
     return;
   }
 
@@ -79,7 +80,7 @@ void MySQLRouter::init(const vector<string>& arguments) {
 }
 
 void MySQLRouter::start() {
-  if (showing_info_) {
+  if (showing_info_ || creating_config_) {
     // when we are showing info like --help or --version, we do not throw
     return;
   }
@@ -190,7 +191,7 @@ vector<string> MySQLRouter::check_config_files() {
   size_t nr_of_none_extra = 0;
 
   auto config_file_containers = {
-      &default_config_files_,
+    &default_config_files_,
       &config_files_,
       &extra_config_files_
   };
@@ -236,6 +237,27 @@ void MySQLRouter::prepare_command_options() noexcept {
                           CmdOptionValueReq::none, "", [this](const string &) {
         this->show_help();
         this->showing_info_ = true;
+      });
+
+  arg_handler_.add_option(OptionNames({"-e", "--configure"}),
+                          "Create configuration file.",
+                          CmdOptionValueReq::required, "server_url",
+                          [this](const string &server_url) {
+        this->creating_config_ = true;
+        std::string primary_cluster_name_ = "";
+        std::string primary_replicaset_servers_ = "";
+        std::string primary_replicaset_name_ = "";
+        std::string username_ = "";
+        std::string password_ = "";
+        ConfigGenerator config_gen(origin_.str());
+        config_gen.fetch_bootstrap_servers(
+          server_url, primary_replicaset_servers_, username_, password_,
+          primary_cluster_name_, primary_replicaset_name_);
+        config_gen.create_config(primary_replicaset_servers_,
+                            primary_cluster_name_,
+                            primary_replicaset_name_,
+                            username_,
+                            password_);
       });
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),

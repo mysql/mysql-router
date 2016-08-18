@@ -50,7 +50,7 @@ static string parse_fragment(const string uri) {
 }
 
 
-static string parse_scheme(const string uri) {
+static string parse_scheme(const string &uri) {
   string tmp_scheme;
   auto pos = uri.find(':');
   if (pos == std::string::npos) {
@@ -68,7 +68,7 @@ static string parse_scheme(const string uri) {
   return tmp_scheme;
 }
 
-static URIAuthority parse_authority(const string uri) {
+static URIAuthority parse_authority(const string &uri) {
   string authority;
   string user_info;
   string host_port;

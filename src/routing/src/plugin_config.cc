@@ -140,21 +140,13 @@ string RoutingPluginConfig::get_option_destinations(
         throw invalid_argument(
             get_log_prefix(option) + " has an invalid Fabric command in URI; was '" + fabric_cmd + "'");
       }
-    } else if (uri.scheme == "mysql") {
-      auto metadata_cache_cmd = uri.path[0];
-      std::transform(metadata_cache_cmd.begin(), metadata_cache_cmd.end(),
-                     metadata_cache_cmd.begin(), ::tolower);
-      if (metadata_cache_cmd != "replicaset") {
-        throw invalid_argument(
-            get_log_prefix(option) + " has an invalid metadata cache command in"
-            " URI; was '" + metadata_cache_cmd + "'");
-      }
+    } else if (uri.scheme == "metadata-cache") {
     } else {
       throw invalid_argument(
           get_log_prefix(option) + " has an invalid URI scheme '" + uri.scheme + "' for URI " + value);
     }
     return value;
-  } catch (URIError) {
+  } catch (URIError &) {
     char delimiter = ',';
 
     mysqlrouter::trim(value);

@@ -19,9 +19,10 @@
 # interface without implementing a connection to the underlying metadata node.
 # The MockMetadata class does the functionality of the Metadata class.
 set(METADATA_CACHE_TESTS_HELPER
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/farm_metadata.cc
+    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
     ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
     ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
+    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
     ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
     ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
 )

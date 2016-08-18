@@ -24,13 +24,14 @@ set(lib_source_files
   utils.cc
   uri.cc
   datatypes.cc
-  plugin_config.cc)
+  plugin_config.cc
+  config_generator.cc)
 
 set(source_files main.cc)
 
 add_library(router_lib SHARED ${lib_source_files})
-target_link_libraries(router_lib ${CMAKE_DL_LIBS} harness-library)
-target_include_directories(router_lib PUBLIC ../include)
+target_link_libraries(router_lib ${CMAKE_DL_LIBS} harness-library ${MySQL_LIBRARIES})
+target_include_directories(router_lib PUBLIC ../include ${MySQL_INCLUDE_DIRS})
 set_target_properties(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
   OUTPUT_NAME "mysqlrouter"

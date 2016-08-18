@@ -16,7 +16,7 @@
 */
 
 #include "metadata_factory.h"
-#include "farm_metadata.h"
+#include "cluster_metadata.h"
 
 std::shared_ptr<MetaData> meta_data{nullptr};
 
@@ -38,7 +38,7 @@ std::shared_ptr<MetaData> get_instance(
   int connection_timeout,
   int connection_attempts,
   unsigned int ttl) {
-  meta_data.reset(new FarmMetadata(user, password, connection_timeout,
+  meta_data.reset(new ClusterMetadata(user, password, connection_timeout,
                                    connection_attempts, ttl));
   return meta_data;
 }

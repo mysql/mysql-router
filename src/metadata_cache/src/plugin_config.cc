@@ -16,6 +16,7 @@
 */
 
 #include "plugin_config.h"
+#include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/metadata_cache.h"
 
@@ -71,13 +72,12 @@ MetadataCachePluginConfig::get_bootstrap_servers(
   while(getline(ss, address, ','))
   {
     try {
-      // Split the address into a host and port.
-      bind_info = mysqlrouter::split_addr_port(address);
-      // If the port is not specified use a default port.
-      if (!bind_info.second) {
+      mysqlrouter::URI u(address);
+      bind_info.first = u.host;
+      bind_info.second = u.port;
+      if (bind_info.second == 0) {
         bind_info.second = default_port;
       }
-
       address_vector.push_back(mysqlrouter::TCPAddress(bind_info.first,
                                                      bind_info.second));
     } catch (const std::runtime_error &exc) {

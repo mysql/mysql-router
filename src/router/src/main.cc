@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
   try {
     MySQLRouter router(argc, argv);
     router.start();
-  } catch(const std::invalid_argument &exc) {
+  } catch (const std::invalid_argument &exc) {
     std::cerr << "Configuration error: " << exc.what() << std::endl;
     return 1;
   } catch(const std::runtime_error &exc) {
@@ -32,7 +32,10 @@ int main(int argc, char **argv) {
     return 1;
   } catch (const mysql_harness::syntax_error &exc) {
     std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
+    return 1;
+  } catch(const std::exception &exc) {
+    std::cerr << "Error: " << exc.what() << std::endl;
+    return 1;
   }
-
   return 0;
 }

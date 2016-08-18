@@ -99,7 +99,7 @@ TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
 TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[metadata_cache]\nbootstrap_server_addresses=127.0.0.1:13000,127.0.0.1:99999\n\n";
+  c << "[metadata_cache]\nbootstrap_server_addresses=mysql://127.0.0.1:13000,mysql://127.0.0.1:99999\n\n";
   c.close();
 
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
@@ -141,7 +141,7 @@ TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {
 TEST_F(Bug21771595, AppExecMetadataCacheInvalidBindAddress) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[metadata_cache]\nbootstrap_server_addresses=127.0.0.1:13000,127.0.0.1:99999\n\n";
+  c << "[metadata_cache]\nbootstrap_server_addresses=mysql://127.0.0.1:13000,mysql://127.0.0.1:99999\n\n";
   c.close();
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
