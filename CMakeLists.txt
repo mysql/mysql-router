@@ -46,6 +46,7 @@ include(cmake/configure.cmake)
 # Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
 include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
+include(Coverage)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)

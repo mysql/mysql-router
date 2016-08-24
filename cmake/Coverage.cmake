@@ -66,6 +66,6 @@ if(ENABLE_COVERAGE)
       COMMAND ${GENHTML} -o ${GCOV_HTML_DIR} ${GCOV_INFO_FILE}
       COMMENT "Generating HTML report on coverage in ${GCOV_HTML_DIR}")
   else()
-    message(FATAL_ERROR "Not able to generate coverage for ${CMAKE_CXX_COMPILER}")
+    message(FATAL_ERROR "Coverage not supported for ${CMAKE_CXX_COMPILER}")
   endif()
 endif()
