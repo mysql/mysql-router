@@ -71,4 +71,13 @@ LookupResult lookup_replicaset(const std::string &replicaset_name) {
   return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
 }
 
+
+void mark_instance_reachability(const std::string &instance_id,
+                                InstanceStatus status) {
+  if (g_metadata_cache == nullptr) {
+    throw std::runtime_error("Metadata Cache not initialized");
+  }
+
+  g_metadata_cache->mark_instance_reachability(instance_id, status);
+}
 } // namespace metadata_cache

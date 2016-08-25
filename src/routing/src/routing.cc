@@ -101,7 +101,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
     if (log) {
       std::string errstr{(err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err)};
-      log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
+      log_warning("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
     }
     return -1;
   }
@@ -109,7 +109,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   errno = 0;
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      log_error("Failed opening socket: %s", strerror(errno));
+      log_warning("Failed opening socket: %s", strerror(errno));
       continue;
     }
     FD_ZERO(&readfds);
@@ -133,7 +133,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
         shutdown(sock, SHUT_RDWR);
         close(sock);
         if (log) {
-          log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
+          log_warning("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
         continue;
       }
@@ -143,11 +143,11 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 
     if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds)) {
       if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len) == -1) {
-        log_debug("Failed executing getsockopt on client socket: %s", strerror(errno));
+        log_warning("Failed executing getsockopt on client socket: %s", strerror(errno));
         continue;
       }
     } else {
-      log_debug("Failed connecting with MySQL server %s", addr.str().c_str());
+      log_warning("Failed connecting to MySQL server %s", addr.str().c_str());
       continue;
     }
     break;
@@ -165,7 +165,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     close(sock);
     err = so_error ? so_error : errno;
     if (log) {
-      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
+      log_warning("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
     }
     return -1;
   }
@@ -175,7 +175,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   set_socket_blocking(sock, true);
 
   if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
-    log_debug("Failed setting TCP_NODELAY on client socket");
+    log_warning("Failed setting TCP_NODELAY on client socket");
     return -1;
   }
 

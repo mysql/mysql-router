@@ -59,7 +59,7 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
   init();
 }
 
-std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available() {
+std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::vector<std::string> *server_ids) {
   auto managed_servers = lookup_replicaset(ha_replicaset).instance_vector;
   std::vector<mysqlrouter::TCPAddress> available;
   for (auto &it: managed_servers) {
@@ -69,13 +69,17 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available() {
     if (routing_mode == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
       // Secondary read-only
       available.push_back(mysqlrouter::TCPAddress(
-                            it.host, static_cast<uint16_t >(it.port)));
+                          it.host, static_cast<uint16_t >(it.port)));
+      if (server_ids)
+        server_ids->push_back(it.mysql_server_uuid);
     } else if ((routing_mode == RoutingMode::ReadWrite &&
                 it.mode == metadata_cache::ServerMode::ReadWrite) ||
                allow_primary_reads_) {
       // Primary and secondary read-write/write-only
       available.push_back(mysqlrouter::TCPAddress(
-                            it.host, static_cast<uint16_t >(it.port)));
+                          it.host, static_cast<uint16_t >(it.port)));
+      if (server_ids)
+        server_ids->push_back(it.mysql_server_uuid);
     }
   }
 
@@ -101,8 +105,8 @@ void DestMetadataCacheGroup::init() {
 int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
 
   try {
-
-    auto available = get_available();
+    std::vector<std::string> server_ids;
+    auto available = get_available(&server_ids);
     if (available.empty()) {
       log_warning("No available %s servers found for '%s'",
           routing_mode == RoutingMode::ReadWrite ? "RW" : "RO",
@@ -121,7 +125,13 @@ int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) n
     if (current_pos_ >= available.size()) {
       current_pos_ = 0;
     }
-    return get_mysql_socket(available.at(next_up), connect_timeout);
+    int fd = get_mysql_socket(available.at(next_up), connect_timeout);
+    if (fd < 0) {
+      // Signal that we can't connect to the instance
+      mark_instance_reachability(server_ids.at(next_up),
+                                 metadata_cache::InstanceStatus::Unreachable);
+    }
+    return fd;
   } catch (std::runtime_error & re) {
     log_error("Failed getting managed servers from the Metadata server : %s",
               re.what());

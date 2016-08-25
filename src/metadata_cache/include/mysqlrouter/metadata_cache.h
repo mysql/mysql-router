@@ -49,6 +49,13 @@ enum class ServerMode {
   Unavailable
 };
 
+enum class InstanceStatus {
+  Reachable,
+  InvalidHost, // Network connection cannot even be attempted (ie bad IP)
+  Unreachable, // TCP connection cannot be opened
+  Unusable     // TCP connection can be opened but session can't be opened
+};
+
 /** @class ManagedInstance
  *
  * Class ManagedInstance represents a server managed by the topology.
@@ -151,6 +158,19 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
  * @return List of ManagedInstance objects
  */
 LookupResult lookup_replicaset(const std::string &replicaset_name);
+
+
+/** @brief Update the status of the instance
+ *
+ * Called when an instance from a replicaset cannot be reached for one reason or
+ * another. When a primary instance becomes unreachable, the rate of refresh of
+ * the metadata cache increases to once per second until a new primary is detected.
+ *
+ * @param instance_id - the mysql_server_uuid that identifies the server instance
+ * @param status - the status of the instance
+ */
+void mark_instance_reachability(const std::string &instance_id,
+                                InstanceStatus status);
 
 } // namespace metadata_cache
 

@@ -76,7 +76,7 @@ public:
    * Metadata Cache.
    */
   void prepare() noexcept {
-    destinations_ = get_available();
+    destinations_ = get_available(nullptr);
   }
 
   /** @brief The Metadata Cache to use
@@ -134,7 +134,7 @@ private:
    * servers.
    *
    */
-  std::vector<mysqlrouter::TCPAddress> get_available();
+  std::vector<mysqlrouter::TCPAddress> get_available(std::vector<std::string> *server_ids);
 
   /** @brief Whether we allow a read operations going to the primary (master) */
   bool allow_primary_reads_;

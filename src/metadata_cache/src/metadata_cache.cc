@@ -86,7 +86,19 @@ void MetadataCache::start() {
       } else {
         meta_data_->disconnect();
       }
-      std::this_thread::sleep_for(std::chrono::seconds(ttl_));
+      // wait for up to TTL until next refresh, unless some replicaset
+      // loses the primary server.. in that case, we refresh every 1s
+      // until we detect a new one was elected
+      unsigned int seconds_waited = 0;
+      while (seconds_waited < ttl_) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        seconds_waited++;
+        {
+          std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
+          if (!lost_primary_replicasets_.empty())
+            break;
+        }
+      }
     }
   };
   refresh_thread_ = std::thread(refresh_loop);
@@ -188,11 +200,28 @@ void MetadataCache::refresh() {
       else {
         log_info("Metadata for cluster '%s' has %i replicasets:",
           cluster_name_.c_str(), (int)replicaset_data_.size());
+        bool emergency_mode = !lost_primary_replicasets_.empty();
         for (auto &rs : replicaset_data_) {
           log_info("'%s' (%i members)", rs.first.c_str(), (int)rs.second.size());
           for (auto &mi : rs.second) {
-            log_debug("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
+            if (emergency_mode)
+              log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
                 mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
+            else
+              log_debug("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
+                  mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
+
+            if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
+              // If we were running without a primary and a new one was elected
+              // disable the frequent update mode
+              std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
+              auto lost_primary = lost_primary_replicasets_.find(rs.first);
+              if (lost_primary != lost_primary_replicasets_.end()) {
+                log_info("Replicaset '%s' has a new Primary.",
+                         rs.first.c_str());
+                lost_primary_replicasets_.erase(lost_primary);
+              }
+            }
           }
         }
       }
@@ -212,5 +241,44 @@ void MetadataCache::refresh() {
     }*/
   } catch (const std::runtime_error &exc) {
     log_error("Failed fetching metadata: %s", exc.what());
+  }
+}
+
+
+void MetadataCache::mark_instance_reachability(const std::string &instance_id,
+                                metadata_cache::InstanceStatus status) {
+  // If the status is that the primary instance is physically unreachable,
+  // we temporarily increase the refresh rate to 1/s until the replicaset
+  // is back to having a primary instance.
+  std::string is_primary_of;
+  std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+  for (auto rs : replicaset_data_) {
+    for (auto instance : rs.second) {
+      if (instance.mysql_server_uuid == instance_id) {
+        is_primary_of = rs.first;
+        break;
+      }
+    }
+    if (!is_primary_of.empty())
+      break;
+  }
+  if (!is_primary_of.empty()) {
+    std::lock_guard<std::mutex> lplock(lost_primary_replicasets_mutex_);
+    switch (status) {
+      case metadata_cache::InstanceStatus::Reachable:
+        break;
+      case metadata_cache::InstanceStatus::InvalidHost:
+        log_warning("Primary instance '%s' of replicaset '%s' is invalid. Increasing metadata cache refresh frequency.",
+                    instance_id.c_str(), is_primary_of.c_str());
+        lost_primary_replicasets_.insert(is_primary_of);
+        break;
+      case metadata_cache::InstanceStatus::Unreachable:
+        log_warning("Primary instance '%s' of replicaset '%s' is unreachable. Increasing metadata cache refresh frequency.",
+                  instance_id.c_str(), is_primary_of.c_str());
+        lost_primary_replicasets_.insert(is_primary_of);
+        break;
+      case metadata_cache::InstanceStatus::Unusable:
+        break;
+    }
   }
 }
