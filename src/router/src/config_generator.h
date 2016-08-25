@@ -23,8 +23,6 @@
 
 class ConfigGenerator {
   public:
-  ConfigGenerator(const std::string &origin)
-  : origin_(origin) {}
   void fetch_bootstrap_servers(const std::string &server_url,
                                std::string &bootstrap_servers,
                                std::string &username,
@@ -32,13 +30,12 @@ class ConfigGenerator {
                                std::string &metadata_cluster,
                                std::string &metadata_replicaset);
   const std::string prompt_password(const std::string &prompt);
-  void create_config(const std::string &bootstrap_server_addresses,
+  void create_config(const std::string &config_file_path,
+                     const std::string &bootstrap_server_addresses,
                      const std::string &metadat_cluster,
                      const std::string &metadata_replicaset,
                      const std::string &username,
                      const std::string &password);
-  private:
-  std::string origin_;
 };
 
 #endif //ROUTER_CONFIG_GENERATOR_INCLUDED

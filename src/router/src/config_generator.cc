@@ -24,6 +24,7 @@
 #include <sstream>
 #include <termios.h>
 #include <unistd.h>
+#include <cstring>
 
 /**
  * Return a string representation of the input character string.
@@ -95,7 +96,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
   // we need to prompt for the password
   std::string metadata_cache_password = prompt_password(
-    "Please enter the MASTER password for the MySQL InnoDB cluster");
+    "Please enter the administrative MASTER key for the MySQL InnoDB cluster");
 
   //Initialize the connection to the bootstrap server
   metadata_connection_ = mysql_init(nullptr);
@@ -175,24 +176,74 @@ void ConfigGenerator::fetch_bootstrap_servers(
   }
 }
 
+std::string g_program_name;
+
+static std::string find_my_base_dir() {
+  if (g_program_name.find('/') != std::string::npos) {
+    char *tmp = realpath(g_program_name.substr(0, g_program_name.rfind('/')).c_str(), NULL);
+    std::string path(tmp);
+    free(tmp);
+    if (path.find('/') != std::string::npos)
+      return path.substr(0, path.rfind('/'));
+    return path;
+  } else {
+    std::string path(std::getenv("PATH"));
+    char *last = NULL;
+    char *p = strtok_r(&path[0], ":", &last);
+    while (p) {
+      std::string tmp(std::string(p)+"/"+g_program_name);
+      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
+        path = p;
+        if (path.find('/') != std::string::npos)
+          return path.substr(0, path.rfind('/'));
+        return path;
+      }
+      p = strtok_r(NULL, ":", &last);
+    }
+    throw std::logic_error("Could not find own installation directory");
+  }
+}
+
+
 void ConfigGenerator::create_config(
+  const std::string &config_file_path__,
   const std::string &bootstrap_server_addresses,
   const std::string &metadata_cluster,
   const std::string &metadata_replicaset,
   const std::string &username,
   const std::string &password) {
   std::ofstream cfp;
+  std::string config_file_path(config_file_path__);
+  std::string plugindir;
+  std::string logdir;
 
-  int rw_port = 3360;
-  int ro_port = 3361;
+  int rw_port = 6446;
+  int ro_port = 6447;
 
-  // FIXME
-  char *basedir = realpath((origin_+"/..").c_str(), NULL);
+  std::string basedir(find_my_base_dir());
 
-  cfp.open("mysqlrouter_autogen.ini");
+  if (config_file_path.find("{origin}") != std::string::npos) {
+    std::string::size_type p = config_file_path.find("{origin}");
+    std::string tmp(config_file_path.substr(0, p));
+    tmp.append(basedir);
+    tmp.append(config_file_path.substr(p+strlen("{origin}")));
+    config_file_path = tmp;
+    logdir = basedir + "/log";
+  } else {
+    logdir = "/var/log";
+  }
+  if (access((basedir+"/lib64/mysqlrouter").c_str(), X_OK) == 0) {
+    plugindir = basedir+"/lib64/mysqlrouter";
+  } else {
+    plugindir = basedir+"/lib/mysqlrouter";
+  }
+  cfp.open(config_file_path);
+  if (cfp.fail()) {
+    throw std::runtime_error("Could not open "+config_file_path+" for writing: "+strerror(errno));
+  }
   cfp << "[DEFAULT]\n"
-      << "plugin_folder=" << basedir << "/lib/mysqlrouter" << "\n"
-      << "logging_folder=" << basedir << "/log\n"
+      << "plugin_folder=" << plugindir << "\n"
+      << "logging_folder=" << logdir << "\n"
       << "\n"
       << "[logger]\n"
       << "level = INFO\n"
@@ -217,10 +268,6 @@ void ConfigGenerator::create_config(
           << metadata_replicaset << "?role=SECONDARY\n"
       << "mode=read-only\n";
   cfp.close();
-  free(basedir);
-  std::cout << "Configuration file written to mysqlrouter_autogen.ini"
-            << std::endl
-            << std::endl;
 
   std::cout
     << "MySQL Router has now been configured for the InnoDB cluster '" << metadata_cluster << "'.\n"

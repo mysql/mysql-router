@@ -239,21 +239,23 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(OptionNames({"-e", "--configure"}),
-                          "Create configuration file.",
+  arg_handler_.add_option(OptionNames({"-B", "--bootstrap"}),
+                          "Bootstrap and configure Router for operation with a MySQL InnoDB cluster.",
                           CmdOptionValueReq::required, "server_url",
                           [this](const string &server_url) {
         this->creating_config_ = true;
+        std::string config_file_path = MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf";
         std::string primary_cluster_name_ = "";
         std::string primary_replicaset_servers_ = "";
         std::string primary_replicaset_name_ = "";
         std::string username_ = "";
         std::string password_ = "";
-        ConfigGenerator config_gen(origin_.str());
+        ConfigGenerator config_gen;
         config_gen.fetch_bootstrap_servers(
           server_url, primary_replicaset_servers_, username_, password_,
           primary_cluster_name_, primary_replicaset_name_);
-        config_gen.create_config(primary_replicaset_servers_,
+        config_gen.create_config(config_file_path,
+                            primary_replicaset_servers_,
                             primary_cluster_name_,
                             primary_replicaset_name_,
                             username_,

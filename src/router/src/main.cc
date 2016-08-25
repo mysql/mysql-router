@@ -21,6 +21,8 @@
 #include <iostream>
 
 int main(int argc, char **argv) {
+  extern std::string g_program_name;
+  g_program_name = argv[0];
   try {
     MySQLRouter router(argc, argv);
     router.start();

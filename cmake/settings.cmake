@@ -20,7 +20,7 @@ set(MYSQL_ROUTER_TARGET "mysqlrouter"
   CACHE STRING "Name of the MySQL Router application")  # Also used in CMAKE_INSTALL_PREFIX
 set(MYSQL_ROUTER_NAME "MySQL Router"
   CACHE STRING "MySQL Router project name")
-set(MYSQL_ROUTER_INI "mysqlrouter.ini"
+set(MYSQL_ROUTER_INI "mysqlrouter.conf"
   CACHE STRING "Name of default configuration file")
 
 # Command line options for CMake
