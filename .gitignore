@@ -21,6 +21,7 @@
 # Editors & Tools
 .idea/
 *.sublime-*
+*~
 
 # Folders
 .DS_Store

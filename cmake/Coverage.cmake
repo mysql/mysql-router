@@ -21,8 +21,11 @@ set(GCOV_HTML_DIR ${GCOV_BASE_DIR}/html CACHE PATH
   "GCov HTML report output directory")
 set(GCOV_INFO_FILE ${GCOV_BASE_DIR}/coverage.info CACHE FILEPATH
   "GCov information file name")
+set(GCOV_XML_FILE ${GCOV_BASE_DIR}/coverage.xml CACHE FILEPATH
+  "GCov XML report file name")
 
 set(LCOV_FLAGS -b ${CMAKE_BINARY_DIR} -d ${CMAKE_SOURCE_DIR} -q)
+set(GCOVR_FLAGS -r ${CMAKE_SOURCE_DIR})
 
 include(TextUtils)
 
@@ -58,13 +61,25 @@ if(ENABLE_COVERAGE)
       COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_BASE_DIR}
       COMMAND ${LCOV} ${LCOV_FLAGS} -o ${GCOV_INFO_FILE} -c
       COMMAND ${LCOV} ${LCOV_FLAGS} -o ${GCOV_INFO_FILE} -r ${GCOV_INFO_FILE}
-          '/usr/include/*' 'ext/gmock/*' 'ext/gtest/*' '*/tests/*'
+          '/usr/include/*' 'ext/*' '*/tests/*'
       COMMENT "Generating coverage info file ${GCOV_INFO_FILE}")
     add_custom_target(coverage-html
       DEPENDS coverage-info
       COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_HTML_DIR}
       COMMAND ${GENHTML} -o ${GCOV_HTML_DIR} ${GCOV_INFO_FILE}
       COMMENT "Generating HTML report on coverage in ${GCOV_HTML_DIR}")
+
+    find_program(GCOVR gcovr)
+    if(GCOVR)
+      add_custom_target(coverage-xml
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_BASE_DIR}
+        COMMAND ${GCOVR} ${GCOVR_FLAGS} -o ${GCOV_XML_FILE} --xml
+            -e '/usr/include/.*' -e '.*/tests/.*' -e 'ext/.*'
+            ${CMAKE_BINARY_DIR})
+       message(STATUS "Target coverage-xml added to generate XML report")
+    else()
+      message(STATUS "Target coverage-xml not built - gcovr not found")
+    endif()
   else()
     message(FATAL_ERROR "Coverage not supported for ${CMAKE_CXX_COMPILER}")
   endif()
