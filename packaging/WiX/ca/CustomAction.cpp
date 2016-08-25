@@ -29,106 +29,73 @@
 #include <tchar.h>
 #include "nt_servc.h"
 
-/*
- * Search the registry for a service whose ImagePath starts
- * with our install directory. Stop and remove it if requested.
- */
-static TCHAR last_service_name[128];
-int remove_service(TCHAR *installdir, int check_only) {
-	HKEY hKey;
-	int done = 0;
 
-	if(wcslen(installdir) < 3) {
-		WcaLog(LOGMSG_STANDARD, "INSTALLDIR is suspiciously short, better not do anything.");
-		return 0;
-	}
+int stop_service(const char *service_name)
+{
+  int stopped = 0;
+  WcaLog(LOGMSG_STANDARD, "Trying to stop the service.");
+  SC_HANDLE hSCM = NULL;
+  hSCM = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+  if (hSCM != NULL) {
+    SC_HANDLE hService = NULL;
+    hService = OpenServiceA(hSCM, service_name, SERVICE_STOP | SERVICE_QUERY_STATUS | DELETE);
+    if (hService != NULL) {
+      WcaLog(LOGMSG_STANDARD, "Waiting for the service to stop...");
+      SERVICE_STATUS status;
+      /* Attempt to stop the service */
+      if (ControlService(hService, SERVICE_CONTROL_STOP, &status)) {
+        /* Now wait until it's stopped */
+        while ("it's one big, mean and cruel world out there") {
+          if (!QueryServiceStatus(hService, &status)) {
+            WcaLog(LOGMSG_STANDARD, "Error while querying service status in 'stop_service' (code %d)", GetLastError());
+            break;
+          }
+          if (status.dwCurrentState == SERVICE_STOPPED) break;
+          Sleep(1000);
+        }
+        WcaLog(LOGMSG_STANDARD, "Stopped the service.");
+        stopped = 1;
+      }
+      /* Mark the service for deletion */
+      DeleteService(hService);
+      CloseServiceHandle(hService);
+    }
+    CloseServiceHandle(hSCM);
+  }  
+  return stopped;
+}
 
-	if(check_only == 0) {
-		WcaLog(LOGMSG_STANDARD, "Determining number of matching services...");
-		int servicecount = remove_service(installdir, 1);
-		if(servicecount <= 0) {
-			WcaLog(LOGMSG_STANDARD, "No services found, not removing anything.");
-			return 0;
-		} else if(servicecount == 1) {
-			TCHAR buf[256];
-			swprintf_s(buf, sizeof(buf), TEXT("There is a service called '%ls' set up to run from this installation. Do you wish me to stop and remove that service?"), last_service_name);
-			int rc = MessageBox(NULL, buf, TEXT("Removing MySQL Router"), MB_ICONQUESTION|MB_YESNOCANCEL|MB_SYSTEMMODAL);
-			if(rc == IDCANCEL) return -1;
-			if(rc != IDYES) return 0;
-		} else if(servicecount > 0) {
-			TCHAR buf[256];
-			swprintf_s(buf, sizeof(buf), TEXT("There appear to be %d services set up to run from this installation. Do you wish me to stop and remove those services?"), servicecount);
-			int rc = MessageBox(NULL, buf, TEXT("Removing MySQL Router"), MB_ICONQUESTION|MB_YESNOCANCEL|MB_SYSTEMMODAL);
-			if(rc == IDCANCEL) return -1;
-			if(rc != IDYES) return 0;
-		}
-	}
+int remove_service(const TCHAR *service_name) {
 
-	if(check_only == -1) check_only = 0;
+  int result = 0;
+  SC_HANDLE service;
+  SC_HANDLE hSCM = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+  if(hSCM == NULL) { 
+    WcaLog(LOGMSG_STANDARD, "Failed to open the Service Control Mananger (with code %d)\n", GetLastError());
+    return result;
+  }
+  service = OpenService(hSCM, service_name, DELETE);
+  if (service == NULL) {
+    WcaLog(LOGMSG_STANDARD, "Failed to open the service to delete (with code %d)\n", GetLastError());
+    CloseServiceHandle(hSCM);
+    return result;
+  }
+  if (!DeleteService(service)) {
+    DWORD code = GetLastError();
+    WcaLog(LOGMSG_STANDARD, "Failed to delete the service after opening it (with code %d)\n", code);
+    if (code == ERROR_SERVICE_MARKED_FOR_DELETE) {
+      MessageBox(NULL, L"MySQL Router is marked for deletion, but needs to restart computer to remove it.", L"Info", 0);
+      result = 1;
+    }
+  } else {
+    WcaLog(LOGMSG_STANDARD, "Service deleted successfully\n");
+    result = 1;
+  }
+  
+  CloseServiceHandle(service);
+  CloseServiceHandle(hSCM);
 
-	WcaLog(LOGMSG_STANDARD, "Looking for service...");
-	WcaLog(LOGMSG_STANDARD, "INSTALLDIR = %ls", installdir);
-	if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, TEXT("SYSTEM\\CurrentControlSet\\services"), 0, KEY_READ, &hKey)==ERROR_SUCCESS) {
-		DWORD index = 0;
-		TCHAR keyname[1024];
-		DWORD keylen = sizeof(keyname);
-		FILETIME t;
-		/* Go through all services in the registry */
-		while(RegEnumKeyExW(hKey, index, keyname, &keylen, NULL, NULL, NULL, &t) == ERROR_SUCCESS) {
-			HKEY hServiceKey = 0;
-			TCHAR path[1024];
-			DWORD pathlen = sizeof(path)-1;
-			if (RegOpenKeyExW(hKey, keyname, NULL, KEY_READ, &hServiceKey) == ERROR_SUCCESS) {
-				/* Look at the ImagePath value of each service */
-				if (RegQueryValueExW(hServiceKey, TEXT("ImagePath"), NULL, NULL, (LPBYTE)path, &pathlen) == ERROR_SUCCESS) {
-					path[pathlen] = 0;
-					TCHAR *p = path;
-					if(p[0] == '"') p += 1;
-					/* See if it is similar to our install directory */
-					if(wcsncmp(p, installdir, wcslen(installdir)) == 0) {
-						WcaLog(LOGMSG_STANDARD, "Found service '%ls' with ImagePath '%ls'.", keyname, path);
-						swprintf_s(last_service_name, sizeof(last_service_name), TEXT("%ls"), keyname);
-						/* If we are supposed to stop and remove the service... */
-						if(!check_only) {
-							WcaLog(LOGMSG_STANDARD, "Trying to stop the service.");
-							SC_HANDLE hSCM = NULL;
-							hSCM = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
-							if(hSCM != NULL) {
-								SC_HANDLE hService = NULL;
-								hService = OpenService(hSCM, keyname, SERVICE_STOP|SERVICE_QUERY_STATUS|DELETE);
-								if(hService != NULL) {
-									WcaLog(LOGMSG_STANDARD, "Waiting for the service to stop...");
-									SERVICE_STATUS status;
-									/* Attempt to stop the service */
-									if(ControlService(hService, SERVICE_CONTROL_STOP, &status)) {
-										/* Now wait until it's stopped */
-										while("it's one big, mean and cruel world out there") {
-											if(!QueryServiceStatus(hService, &status)) break;
-											if(status.dwCurrentState == SERVICE_STOPPED) break;
-											Sleep(1000);
-										}
-										WcaLog(LOGMSG_STANDARD, "Stopped the service.");
-									}
-									/* Mark the service for deletion */
-									DeleteService(hService);
-									CloseServiceHandle(hService);
-								}
-								CloseServiceHandle(hSCM);
-							}
-						}
-						done++;
-					}
-				}
-				RegCloseKey(hServiceKey);
-			}
-			index++;
-			keylen = sizeof(keyname)-1;
-		}
-		RegCloseKey(hKey);
-	} else {
-		WcaLog(LOGMSG_STANDARD, "Can't seem to go through the list of installed services in the registry.");
-	}
-	return done;
+  return result;
 }
 
 
@@ -141,16 +108,11 @@ UINT wrap(MSIHANDLE hInstall, char *name, int check_only) {
 
   WcaLog(LOGMSG_STANDARD, "Initialized.");
 
-  TCHAR INSTALLDIR[1024];
-  DWORD INSTALLDIR_size = sizeof(INSTALLDIR);
-  if (MsiGetPropertyW(hInstall, TEXT("CustomActionData"), INSTALLDIR, &INSTALLDIR_size) == ERROR_SUCCESS) {
-		int rc = remove_service(INSTALLDIR, check_only);
-		if (rc < 0) {
-		  er = ERROR_CANCELLED;
-		}
-  } else {
-		er = ERROR_CANT_ACCESS_FILE;
-  }
+  LPCTSTR szInternName = TEXT("MySQLRouter");
+  int rc = remove_service(szInternName);
+	if (!rc) {
+	  er = ERROR_CANCELLED;
+	}
 
 LExit:
   WcaSetReturnValue(er);
@@ -241,16 +203,76 @@ static char *replace_variable(char *data, const char *name, const char *value) {
 	return result.release();
 }
 
+
+static bool dir_exists(char *dir_path)
+{
+  DWORD dwAttrib = GetFileAttributesA(dir_path);
+
+  if (dwAttrib != INVALID_FILE_ATTRIBUTES) {
+    if ((dwAttrib & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+      WcaLog(LOGMSG_STANDARD, "Error: the path '%s' exists as a file (must be a directory)\n", dir_path);
+      return false;
+    } else {
+      return true;
+    }
+  } else {
+    return false;
+  }
+}
+
+
+static DWORD create_directory_recursively(const char *path)
+{
+  DWORD code = 0;
+  // ensure we have writeable copy for the string
+  HLOCAL buf = LocalAlloc(0, strlen(path) + 1);
+  if (buf == NULL) {
+    return GetLastError();
+  }
+  strcpy(reinterpret_cast<char *>(buf), path);
+  char *pc, *pc_base;
+  pc = pc_base = reinterpret_cast<char *>(buf);
+  while (*pc)
+  {
+    if (*pc == '\\' || *pc == '/')
+    {
+      *pc = '\0';
+      if (!dir_exists(pc_base))
+      {
+        if (!CreateDirectoryA(pc_base, NULL))
+        {
+          code = GetLastError();
+        }
+      }
+      *pc = '\\';
+      if (code != 0) goto end;
+    }
+    ++pc;
+  }
+
+  if (!dir_exists(pc_base))
+  {
+    if (!CreateDirectoryA(pc_base, NULL))
+    {
+      code = GetLastError();
+    }
+  }
+end:
+  LocalFree(buf);
+  return code;
+}
+
+
 /* Copies the default config file from the install dir's etc folder to the proper place in
   ProgramData */
 int install_config_file(const char *install_dir, const char* progdata_dir) {
-  if (!CreateDirectoryA(progdata_dir, 0)) {
-    int er;
-    if ((er = GetLastError()) != ERROR_ALREADY_EXISTS) {
-      WcaLog(LOGMSG_STANDARD, "Can't create configuration directory: %s: %s", progdata_dir, er);
-      return -1;
-    }
+  DWORD code;
+  if ((code = create_directory_recursively(progdata_dir)) != 0)
+  {
+    WcaLog(LOGMSG_STANDARD, "Creating some directory part of the path '%s' failed with error %d", progdata_dir, code);
+    return -1;
   }
+
 	StringBuffer source_path;
 	source_path.append(install_dir);
 	source_path.append("\\etc\\mysqlrouter.ini.sample");
@@ -387,7 +409,8 @@ UINT DoInstallService(MSIHANDLE hInstall, char *install_dir, char *data_dir)
 {
   char szFilePath[_MAX_PATH];
   int startType = 0;
-  LPCSTR szInternName = "MySQLRouter";
+  LPCSTR szInternNameA = "MySQLRouter";
+  LPCTSTR szInternName = TEXT("MySQLRouter");
   LPCSTR szDisplayName = "MySQL Router";
   LPCSTR szFullPath = "";
   LPCSTR szAccountName = "NT AUTHORITY\\LocalService";
@@ -408,13 +431,19 @@ UINT DoInstallService(MSIHANDLE hInstall, char *install_dir, char *data_dir)
   }
   
   NTService service;
-  if (!service.SeekStatus(szInternName, 1))
+  if (!service.SeekStatus(szInternNameA, 1))
   {
     printf("Service already installed\n");
-    WcaLog(LOGMSG_STANDARD, "Service already installed\n");
-    return FALSE;
+    WcaLog(LOGMSG_STANDARD, "Service already installed, trying to remove...\n");
+    stop_service(szInternNameA);
+    if (remove_service(szInternName)) {
+      WcaLog(LOGMSG_STANDARD, "Error when removing the already installed service\n");
+      return FALSE;
+    }
+    else
+      WcaLog(LOGMSG_STANDARD, "Service removed successfully.\n");
   }
-  BOOL res = service.Install(startType, szInternName, szDisplayName, szFilePath, szAccountName);
+  BOOL res = service.Install(startType, szInternNameA, szDisplayName, szFilePath, szAccountName);
   return res;
 }
 

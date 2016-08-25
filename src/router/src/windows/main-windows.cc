@@ -19,6 +19,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <iostream>
+#include <fstream>
 #include <windows.h>
 #include <winsock2.h>
 
@@ -51,6 +52,12 @@ namespace {
     Done,
     Error
   };
+
+  bool file_exists(const char *path)
+  {
+    std::ifstream f(path);
+    return (!f) ? false : true;
+  }
   
   ServiceStatus check_service_operations(int argc, char **argv) {
     if (g_service.GetOS())  { /* true NT family */
@@ -84,8 +91,8 @@ namespace {
       switch (operation) {
       case ServiceOperation::Install:
       case ServiceOperation::InstallManual:
-        if (config_path == NULL) {
-          std::cerr << "Service install option requires configuration file to be specified (-c <file>)\n";
+        if (config_path == NULL || !file_exists(config_path)) {
+          std::cerr << "Service install option requires an existing configuration file to be specified (-c <file>)\n";
           return ServiceStatus::Error;
         }
         {

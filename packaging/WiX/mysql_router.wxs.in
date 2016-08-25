@@ -63,6 +63,26 @@
     <InstallExecuteSequence>
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
+    
+    <Property Id="MSVC2015INSTALLED">
+     <RegistrySearch Id="MSVC2015RuntimeSearch" 
+        Root="HKLM"
+        Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
+        Type="raw"
+        Name="Version"  />
+    </Property>
+
+    
+    <?if NOT(%PROCESSOR_ARCHITECTURE = "x86") ?>
+       <Condition Message="Microsoft VC++ x64 Runtime 2015 needs to be installed">
+          <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
+       </Condition>
+    <?endif?>
+    <?if %PROCESSOR_ARCHITECTURE = "x86" ?>
+       <Condition Message="Microsoft VC++ x86 Runtime 2015 needs to be installed">
+          <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
+       </Condition>
+    <?endif?>
 
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
