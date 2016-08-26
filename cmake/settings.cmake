@@ -24,6 +24,7 @@ set(MYSQL_ROUTER_INI "mysqlrouter.conf"
   CACHE STRING "Name of default configuration file")
 
 # Command line options for CMake
+option(BUILD_SAMPLES "Build Samples" NO)
 option(ENABLE_TESTS "Enable Tests" NO)
 option(WITH_STATIC "Enable static linkage of external libraries" NO)
 option(GPL "Produce GNU GPLv2 source and binaries" YES)
