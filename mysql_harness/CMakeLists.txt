@@ -49,8 +49,6 @@ set(ENABLE_TESTS OFF CACHE BOOL
 set(WITH_GMOCK "" CACHE PATH
   "Directory containing the Google Mock *source code* (with a CMakeLists.txt file)")
 
-set(HARNESS_PLUGIN_RPATH "${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}" CACHE PATH
-  "Path with directories where plugins can be found")
 message(STATUS "Harness will install plugins in ${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}")
 
 # We include GMock without touching the compile flags. GMock can

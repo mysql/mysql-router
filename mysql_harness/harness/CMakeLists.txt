@@ -96,7 +96,7 @@ if(NOT WIN32)
     PREFIX "lib"
     SOVERSION 0)
   set_target_properties(harness-library PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/stage/bin)
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/stage/lib)
 else()
   set_target_properties(harness-archive PROPERTIES
     OUTPUT_NAME "mysqlharness_a"
