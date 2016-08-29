@@ -63,14 +63,14 @@ if(NOT WIN32)
   set_target_properties(harness-archive harness-library PROPERTIES
     OUTPUT_NAME "mysqlharness"
     PREFIX "lib"
-    SOVERSION 0)
+    SOVERSION 1)
   set_target_properties(harness-library PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/stage/lib)
 else()
   set_target_properties(harness-archive PROPERTIES
     OUTPUT_NAME "mysqlharness_a"
     PREFIX "lib"
-    SOVERSION 0)
+    SOVERSION 1)
 
   # Fix install path in stage dir, so that files get to
   # stage/${configuration_type}/{bin,etc,lib} instead of
