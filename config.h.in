@@ -54,5 +54,17 @@
 #define MYSQL_ROUTER_RUNTIME_FOLDER "@ROUTER_RUNTIMEDIR@"
 #define MYSQL_ROUTER_LOGGING_FOLDER "@ROUTER_LOGDIR@"
 
-#cmakedefine ENABLE_TESTS
+// Plaform specific
+#cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
+#cmakedefine SIZEOF_CHARP     @SIZEOF_CHARP@
+#cmakedefine SIZEOF_LONG      @SIZEOF_LONG@
+#cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
+#cmakedefine SIZEOF_INT       @SIZEOF_INT@
+#cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
+#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
+#cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 
+/* Endianess */
+#cmakedefine WORDS_BIGENDIAN 1
+
+#cmakedefine ENABLE_TESTS

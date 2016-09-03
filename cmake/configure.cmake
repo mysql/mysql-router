@@ -108,5 +108,19 @@ if(INSTALL_LAYOUT STREQUAL "STANDALONE")
   set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
 endif()
 
+# Platform/Compiler checks
+INCLUDE(TestBigEndian)
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
+
+INCLUDE(CheckTypeSize)
+CHECK_TYPE_SIZE("void *"    SIZEOF_VOIDP)
+CHECK_TYPE_SIZE("char *"    SIZEOF_CHARP)
+CHECK_TYPE_SIZE("long"      SIZEOF_LONG)
+CHECK_TYPE_SIZE("short"     SIZEOF_SHORT)
+CHECK_TYPE_SIZE("int"       SIZEOF_INT)
+CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
+CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
+CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
+
 configure_file(config.h.in config.h @ONLY)
 include_directories(${PROJECT_BINARY_DIR})
