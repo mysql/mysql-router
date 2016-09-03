@@ -17,6 +17,25 @@
 
 #include "config_generator.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/my_aes.h"
+
+#if defined __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#elif defined _MSC_VER
+#pragma warning (push)
+#pragma warning (disable : ) //TODO: add MSVC code for pedantic and shadow
+#endif
+#include "rapidjson/document.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#elif defined _MSC_VER
+#pragma warning (pop)
+#endif
 
 #include <fstream>
 #include <iostream>
@@ -39,6 +58,36 @@ static std::string get_string(const char *input_str) {
     return "";
   }
   return std::string(input_str);
+}
+
+static void extract_account_info(const std::string &data, const std::string &key,
+    std::string &ret_username, std::string &ret_password) {
+  std::string decrypted_data;
+  decrypted_data.resize(data.length());
+  int len;
+  if ((len = myaes::my_aes_decrypt(reinterpret_cast<const unsigned char*>(data.data()),
+                     static_cast<uint32_t>(data.length()),
+                     reinterpret_cast<unsigned char*>(&decrypted_data[0]),
+                     reinterpret_cast<const unsigned char*>(key.data()),
+                     static_cast<uint32_t>(key.length()),
+                     myaes::my_aes_128_ecb, NULL, false)) < 0)
+    throw std::runtime_error("Error decrypting account information");
+  decrypted_data.resize((size_t)len);
+
+  rapidjson::Document document;
+  if (document.Parse(decrypted_data.c_str()).HasParseError())
+    throw std::runtime_error("Could not decode account information from metadata");
+  if (!document.IsObject())
+    throw std::runtime_error("Invalid account information in metadata");
+  auto member_iter = document.FindMember("clusterReader");
+  if (member_iter == document.MemberEnd())
+    throw std::runtime_error("Invalid account information in metadata");
+  const rapidjson::Value &member = document["clusterReader"];
+  if (member.FindMember("username") == member.MemberEnd() ||
+    member.FindMember("password") == member.MemberEnd())
+    throw std::runtime_error("Invalid account information in metadata");
+  ret_username = member["username"].GetString();
+  ret_password = member["password"].GetString();
 }
 
 void ConfigGenerator::fetch_bootstrap_servers(
@@ -79,8 +128,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
     "F.cluster_name, "
     "R.replicaset_name, "
     "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')), "
-    "JSON_UNQUOTE(JSON_EXTRACT(F.mysql_user_accounts, '$.clusterReader.username')), "
-    "JSON_UNQUOTE(JSON_EXTRACT(F.mysql_user_accounts, '$.clusterReader.password')) "
+    "F.mysql_user_accounts "
     "FROM "
     "mysql_innodb_cluster_metadata.clusters AS F, "
     "mysql_innodb_cluster_metadata.instances AS I, "
@@ -124,7 +172,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
     if (status) {
       std::ostringstream err;
-      err << "Query failed: " << query.str() << "With error: " <<
+      err << "Query failed: " << query.str() << "\n\tWith error: " <<
         mysql_error(metadata_connection_);
       throw std::runtime_error(err.str());
     }
@@ -133,19 +181,20 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
     if (!result) {
       std::ostringstream err;
-      err << "Failed fetching results: " << query.str() << "With error: " <<
+      err << "Failed fetching results: " << query.str() << "\n\tWith error: " <<
         mysql_error(metadata_connection_);
       throw std::runtime_error(err.str());
     }
 
     unsigned int num_fields = mysql_num_fields(result);
 
-    if (num_fields != 5) {
+    if (num_fields != 4) {
        std::ostringstream err;
        err << "unexpected number of fields " << num_fields << " in result set";
        throw std::runtime_error(err.str());
     }
 
+    std::string encrypted_account_data;
     MYSQL_ROW row = nullptr;
     metadata_cluster = "";
     metadata_replicaset = "";
@@ -154,6 +203,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
     password = "";
 
     while ((row = mysql_fetch_row(result)) != nullptr) {
+      unsigned long *lengths = mysql_fetch_lengths(result);
       if (metadata_cluster == "") {
         metadata_cluster = get_string(row[0]);
       }
@@ -163,11 +213,16 @@ void ConfigGenerator::fetch_bootstrap_servers(
       if (bootstrap_servers != "")
         bootstrap_servers += ",";
       bootstrap_servers += "mysql://"+get_string(row[2]);
-      if (username == "")
-        username = get_string(row[3]);
-      if (password == "")
-        password = get_string(row[4]);
+      if (row[3])
+        encrypted_account_data = std::string(row[3], lengths[3]);
     }
+
+    if (encrypted_account_data.empty()) {
+      throw std::runtime_error("Invalid metadata: no account data found");
+    }
+
+    extract_account_info(encrypted_account_data, metadata_cache_password,
+        username, password);
   } else {
     std::ostringstream err;
     err << "Unable to connect to the metadata server " << u.host
@@ -191,6 +246,8 @@ static std::string find_my_base_dir() {
     char *last = NULL;
     char *p = strtok_r(&path[0], ":", &last);
     while (p) {
+      if (*p && p[strlen(p)-1] == '/')
+        p[strlen(p)-1] = 0;
       std::string tmp(std::string(p)+"/"+g_program_name);
       if (access(tmp.c_str(), R_OK|X_OK) == 0) {
         path = p;
@@ -206,32 +263,19 @@ static std::string find_my_base_dir() {
 
 
 void ConfigGenerator::create_config(
-  const std::string &config_file_path__,
+  const std::string &config_file_path,
   const std::string &bootstrap_server_addresses,
   const std::string &metadata_cluster,
   const std::string &metadata_replicaset,
   const std::string &username,
   const std::string &password) {
   std::ofstream cfp;
-  std::string config_file_path(config_file_path__);
   std::string plugindir;
-  std::string logdir;
-
   int rw_port = 6446;
   int ro_port = 6447;
 
   std::string basedir(find_my_base_dir());
 
-  if (config_file_path.find("{origin}") != std::string::npos) {
-    std::string::size_type p = config_file_path.find("{origin}");
-    std::string tmp(config_file_path.substr(0, p));
-    tmp.append(basedir);
-    tmp.append(config_file_path.substr(p+strlen("{origin}")));
-    config_file_path = tmp;
-    logdir = basedir + "/log";
-  } else {
-    logdir = "/var/log";
-  }
   if (access((basedir+"/lib64/mysqlrouter").c_str(), X_OK) == 0) {
     plugindir = basedir+"/lib64/mysqlrouter";
   } else {
@@ -243,7 +287,7 @@ void ConfigGenerator::create_config(
   }
   cfp << "[DEFAULT]\n"
       << "plugin_folder=" << plugindir << "\n"
-      << "logging_folder=" << logdir << "\n"
+      << "logging_folder=" << MYSQL_ROUTER_LOGGING_FOLDER << "\n"
       << "\n"
       << "[logger]\n"
       << "level = INFO\n"

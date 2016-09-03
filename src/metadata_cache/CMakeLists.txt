@@ -28,6 +28,8 @@ include_directories(
   ${MySQL_INCLUDE_DIRS}
 )
 
+add_definitions(${SSL_DEFINES})
+
 add_harness_plugin(metadata_cache SOURCES
   src/metadata_cache_plugin.cc
   src/plugin_config.cc

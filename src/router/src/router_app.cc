@@ -47,6 +47,50 @@ using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
+
+static std::string find_full_path(const std::string &argv0) {
+  if (argv0.find('/') != std::string::npos) {
+    // Path is either absolute or relative to the current working dir, so
+    // we can use realpath() to find the full absolute path
+    char *tmp = realpath(argv0.c_str(), NULL);
+    std::string path(tmp);
+    free(tmp);
+    return path;
+  } else {
+    // Program was found via PATH lookup by the shell, so we
+    // try to find the program in one of the PATH dirs
+    std::string path(std::getenv("PATH"));
+    char *last = NULL;
+    char *p = strtok_r(&path[0], ":", &last);
+    while (p) {
+      std::string tmp(std::string(p)+"/"+argv0);
+      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
+        char *rp = realpath(tmp.c_str(), NULL);
+        path = rp;
+        free(rp);
+        return path;
+      }
+      p = strtok_r(NULL, ":", &last);
+    }
+    throw std::logic_error("Could not find own installation directory");
+  }
+}
+
+static std::string substitute_variable(const std::string &s,
+                                       const std::string &name,
+                                       const std::string &value) {
+  std::string r(s);
+  std::string::size_type p;
+  while ((p = r.find(name)) != std::string::npos) {
+    std::string tmp(r.substr(0, p));
+    tmp.append(value);
+    tmp.append(r.substr(p+name.size()));
+    r = tmp;
+  }
+  return r;
+}
+
+
 MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
@@ -57,7 +101,7 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>
 }
 
 MySQLRouter::MySQLRouter(const int argc, char **argv)
-    : MySQLRouter(mysql_harness::Path(argv[0]).dirname(),
+    : MySQLRouter(mysql_harness::Path(find_full_path(argv[0])).dirname(),
                   vector<string>({argv + 1, argv + argc}))
 {
 }
@@ -159,7 +203,8 @@ void MySQLRouter::set_default_config_files(const char *locations) noexcept {
   for (string file; std::getline(ss_line, file, ';');) {
     bool ok = substitute_envvar(file);
     if (ok) { // if there's no placeholder in file path, this is OK too
-      default_config_files_.push_back(std::move(file));
+      default_config_files_.push_back(substitute_variable(file, "{origin}",
+                                                          origin_.str()));
     } else {
       // Any other problem with placeholders we ignore and don't use file
     }
@@ -244,7 +289,9 @@ void MySQLRouter::prepare_command_options() noexcept {
                           CmdOptionValueReq::required, "server_url",
                           [this](const string &server_url) {
         this->creating_config_ = true;
-        std::string config_file_path = MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf";
+        std::string config_file_path =
+            substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
+                                "{origin}", origin_.str());
         std::string primary_cluster_name_ = "";
         std::string primary_replicaset_servers_ = "";
         std::string primary_replicaset_name_ = "";
@@ -254,7 +301,8 @@ void MySQLRouter::prepare_command_options() noexcept {
         config_gen.fetch_bootstrap_servers(
           server_url, primary_replicaset_servers_, username_, password_,
           primary_cluster_name_, primary_replicaset_name_);
-        config_gen.create_config(config_file_path,
+        config_gen.create_config(
+                            config_file_path,
                             primary_replicaset_servers_,
                             primary_cluster_name_,
                             primary_replicaset_name_,

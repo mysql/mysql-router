@@ -84,6 +84,12 @@ endfunction()
 
 set_copyright(ORACLE_COPYRIGHT)
 
+if(INSTALL_LAYOUT STREQUAL "STANDALONE")
+  set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
+  set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
+  set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
+endif()
+
 # Default configuration file locations (similar to MySQL Server)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(ver "${MySQLRouter_VERSION_MAJOR}.${MySQLRouter_VERSION_MINOR}")
@@ -101,12 +107,6 @@ else()
       )
 endif()
 set(CONFIG_FILES ${CONFIG_FILE_LOCATIONS})
-
-if(INSTALL_LAYOUT STREQUAL "STANDALONE")
-  set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
-  set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
-  set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
-endif()
 
 # Platform/Compiler checks
 INCLUDE(TestBigEndian)
