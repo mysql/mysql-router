@@ -28,14 +28,17 @@ class ConfigGenerator {
                                std::string &username,
                                std::string &password,
                                std::string &metadata_cluster,
-                               std::string &metadata_replicaset);
+                               std::string &metadata_replicaset,
+                               bool &multi_master);
   const std::string prompt_password(const std::string &prompt);
   void create_config(const std::string &config_file_path,
+                     const std::string &default_log_path,
                      const std::string &bootstrap_server_addresses,
                      const std::string &metadat_cluster,
                      const std::string &metadata_replicaset,
                      const std::string &username,
-                     const std::string &password);
+                     const std::string &password,
+                     bool multi_master);
 };
 
 #endif //ROUTER_CONFIG_GENERATOR_INCLUDED

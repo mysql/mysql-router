@@ -292,22 +292,27 @@ void MySQLRouter::prepare_command_options() noexcept {
         std::string config_file_path =
             substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
                                 "{origin}", origin_.str());
+        std::string default_log_path =
+            substitute_variable(MYSQL_ROUTER_LOGGING_FOLDER,
+                                "{origin}", origin_.str());
         std::string primary_cluster_name_ = "";
         std::string primary_replicaset_servers_ = "";
         std::string primary_replicaset_name_ = "";
         std::string username_ = "";
         std::string password_ = "";
+        bool multi_master_ = false;
         ConfigGenerator config_gen;
         config_gen.fetch_bootstrap_servers(
           server_url, primary_replicaset_servers_, username_, password_,
-          primary_cluster_name_, primary_replicaset_name_);
-        config_gen.create_config(
-                            config_file_path,
+          primary_cluster_name_, primary_replicaset_name_, multi_master_);
+        config_gen.create_config(config_file_path,
+                            default_log_path,
                             primary_replicaset_servers_,
                             primary_cluster_name_,
                             primary_replicaset_name_,
                             username_,
-                            password_);
+                            password_,
+                            multi_master_);
       });
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),

@@ -96,7 +96,8 @@ void ConfigGenerator::fetch_bootstrap_servers(
   std::string &username,
   std::string &password,
   std::string &metadata_cluster,
-  std::string &metadata_replicaset) {
+  std::string &metadata_replicaset,
+  bool &multi_master) {
   // MySQL client connection to the bootstrap server.
   MYSQL *metadata_connection_;
   // Setup reconnection flag
@@ -127,6 +128,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
   query << "SELECT "
     "F.cluster_name, "
     "R.replicaset_name, "
+    "R.topology_type, "
     "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')), "
     "F.mysql_user_accounts "
     "FROM "
@@ -174,7 +176,8 @@ void ConfigGenerator::fetch_bootstrap_servers(
       std::ostringstream err;
       err << "Query failed: " << query.str() << "\n\tWith error: " <<
         mysql_error(metadata_connection_);
-      throw std::runtime_error(err.str());
+      //log_warning("%s", err.str().c_str());
+      throw std::runtime_error(std::string("Error querying metadata: ") + mysql_error(metadata_connection_));
     }
 
     MYSQL_RES *result = mysql_store_result(metadata_connection_);
@@ -188,7 +191,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
     unsigned int num_fields = mysql_num_fields(result);
 
-    if (num_fields != 4) {
+    if (num_fields != 5) {
        std::ostringstream err;
        err << "unexpected number of fields " << num_fields << " in result set";
        throw std::runtime_error(err.str());
@@ -212,9 +215,11 @@ void ConfigGenerator::fetch_bootstrap_servers(
       }
       if (bootstrap_servers != "")
         bootstrap_servers += ",";
-      bootstrap_servers += "mysql://"+get_string(row[2]);
-      if (row[3])
-        encrypted_account_data = std::string(row[3], lengths[3]);
+      if (row[2] && strcmp(row[2], "mm") == 0)
+        multi_master = true;
+      bootstrap_servers += "mysql://"+get_string(row[3]);
+      if (row[4])
+        encrypted_account_data = std::string(row[4], lengths[4]);
     }
 
     if (encrypted_account_data.empty()) {
@@ -264,11 +269,13 @@ static std::string find_my_base_dir() {
 
 void ConfigGenerator::create_config(
   const std::string &config_file_path,
+  const std::string &default_log_path,
   const std::string &bootstrap_server_addresses,
   const std::string &metadata_cluster,
   const std::string &metadata_replicaset,
   const std::string &username,
-  const std::string &password) {
+  const std::string &password,
+  bool multi_master) {
   std::ofstream cfp;
   std::string plugindir;
   int rw_port = 6446;
@@ -287,7 +294,7 @@ void ConfigGenerator::create_config(
   }
   cfp << "[DEFAULT]\n"
       << "plugin_folder=" << plugindir << "\n"
-      << "logging_folder=" << MYSQL_ROUTER_LOGGING_FOLDER << "\n"
+      << "# logging_folder=" << default_log_path << "\n"
       << "\n"
       << "[logger]\n"
       << "level = INFO\n"
@@ -299,28 +306,41 @@ void ConfigGenerator::create_config(
       << "metadata_cluster=" << metadata_cluster << "\n"
       << "ttl=300" << "\n"
       << "metadata_replicaset=" << metadata_replicaset << "\n"
-      << "\n"
-      << "[routing:" << metadata_replicaset << "_rw]\n"
-      << "bind_port=" << rw_port << "\n"
-      << "destinations=metadata-cache:///"
-          << metadata_replicaset << "?role=PRIMARY\n"
-      << "mode=read-write\n"
-      << "\n"
-      << "[routing:" << metadata_replicaset << "_ro]\n"
-      << "bind_port=" << ro_port << "\n"
-      << "destinations=metadata-cache:///"
-          << metadata_replicaset << "?role=SECONDARY\n"
-      << "mode=read-only\n";
+      << "\n";
+      if (multi_master) {
+        cfp
+          << "[routing:" << metadata_replicaset << "_rw]\n"
+          << "bind_port=" << rw_port << "\n"
+          << "destinations=metadata-cache:///"
+              << metadata_replicaset << "?role=PRIMARY\n"
+          << "mode=read-write\n"
+          << "\n"
+          << "[routing:" << metadata_replicaset << "_ro]\n"
+          << "bind_port=" << ro_port << "\n"
+          << "destinations=metadata-cache:///"
+              << metadata_replicaset << "?role=SECONDARY\n"
+          << "mode=read-only\n";
+      } else {
+        cfp
+          << "[routing:" << metadata_replicaset << "_rw]\n"
+          << "bind_port=" << rw_port << "\n"
+          << "destinations=metadata-cache:///"
+              << metadata_replicaset << "?role=PRIMARY\n"
+          << "mode=read-write\n"
+          << "\n";
+      }
   cfp.close();
 
   std::cout
-    << "MySQL Router has now been configured for the InnoDB cluster '" << metadata_cluster << "'.\n"
+    << "MySQL Router has now been configured for the InnoDB cluster '" << metadata_cluster << "'" << (multi_master ? " (multi-master)" : "") << ".\n"
     << "\n"
     << "The following connection information can be used to connect to the cluster.\n"
     << "\n"
     << "Classic MySQL protocol connections to cluster '" << metadata_cluster << "':\n"
-    << "- Read/Write Connections: localhost:" << rw_port << "\n"
-    << "- Read/Only Connections: localhost:" << ro_port << "\n";
+    << "- Read/Write Connections: localhost:" << rw_port << "\n";
+  if (!multi_master)
+    std::cout
+      << "- Read/Only Connections: localhost:" << ro_port << "\n";
 }
 
 /**

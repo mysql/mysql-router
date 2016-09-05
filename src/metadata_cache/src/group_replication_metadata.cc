@@ -54,7 +54,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
   mysql_free_result(result);
 
   result = run_query(mysql,
-      "SELECT member_id, member_host, member_port, member_state, if(member_port=3330,member_id, null)"
+      "SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode"
       " FROM performance_schema.replication_group_members"
       " WHERE channel_name = 'group_replication_applier'");
   if (mysql_num_fields(result) != 5) {
@@ -67,6 +67,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     const char *member_host = row[1];
     const char *member_port = row[2];
     const char *member_state = row[3];
+    const bool single_master = row[4] && strcmp(row[4], "ON") == 0;
     if (!member_id || !member_host || !member_port || !member_state) {
       mysql_free_result(result);
       throw metadata_cache::metadata_error("Unexpected value in group_replication_metadata query results");
@@ -87,7 +88,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
       log_info("Unknown state %s in replication_group_members table for %s", member_state, member_id);
       member.state = GroupReplicationMember::State::Other;
     }
-    if (primary_member == member.member_id)
+    if (primary_member == member.member_id || !single_master)
       member.role = GroupReplicationMember::Role::Primary;
     else
       member.role = GroupReplicationMember::Role::Secondary;
