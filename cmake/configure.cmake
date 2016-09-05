@@ -88,6 +88,7 @@ if(INSTALL_LAYOUT STREQUAL "STANDALONE")
   set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
   set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
   set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
+  set(ROUTER_LOGDIR "{origin}/../${INSTALL_LOGDIR_STANDALONE}")
 endif()
 
 # Default configuration file locations (similar to MySQL Server)
