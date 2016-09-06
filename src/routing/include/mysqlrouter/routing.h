@@ -24,6 +24,10 @@
 #include <map>
 #include <string>
 
+#ifdef _WIN32
+typedef long ssize_t;
+#endif
+
 namespace routing {
 
 /** @brief Timeout for idling clients (in seconds)
@@ -102,20 +106,43 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept;
  */
 void set_socket_blocking(int sock, bool blocking);
 
-/** @interface SocketOperationsInterface
- * @brief Interface to allow multiple SocketOperations implementations
+/** @class SocketOperationsBase
+ * @brief Base class to allow multiple SocketOperations implementations
  *        (at least one "real" and one mock for testing purposes)
  */
-class SocketOperationsInterface {
+class SocketOperationsBase {
  public:
+  virtual ~SocketOperationsBase() = default;
   virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept = 0;
+  virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
+  virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
+  virtual void close(int fd) = 0;
+  virtual void shutdown(int fd) = 0;
+
+  /** @brief Wrapper around socket library write() with a looping logic
+   *         making sure the whole buffer got written
+   */
+  virtual ssize_t write_all(int fd, void *buffer, size_t nbyte) {
+    ssize_t written = 0;
+    size_t buffer_offset = 0;
+    while (buffer_offset < nbyte) {
+      if ((written = this->write(fd, reinterpret_cast<char*>(buffer)+buffer_offset, nbyte-buffer_offset)) < 0) {
+        return -1;
+      }
+      buffer_offset += static_cast<size_t>(written);
+    }
+    return static_cast<ssize_t>(nbyte);
+  }
 };
 
 /** @class SocketOperations
  * @brief This class provides a "real" (not mock) implementation
  */
-class SocketOperations : public SocketOperationsInterface {
+class SocketOperations : public SocketOperationsBase {
  public:
+
+  static SocketOperations* instance();
+
   /** @brief Returns socket descriptor of connected MySQL server
    *
    * Returns a socket descriptor for the connection to the MySQL Server or
@@ -127,6 +154,22 @@ class SocketOperations : public SocketOperationsInterface {
    * @return a socket descriptor
    */
   int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept override;
+
+  /** @brief Thin wrapper around socket library write() */
+  ssize_t write(int fd, void *buffer, size_t nbyte) override;
+
+  /** @brief Thin wrapper around socket library read() */
+  ssize_t read(int fd, void *buffer, size_t nbyte) override;
+
+  /** @brief Thin wrapper around socket library close() */
+  void close(int fd)  override;
+
+  /** @brief Thin wrapper around socket library shutdown() */
+  void shutdown(int fd)  override;
+ private:
+  SocketOperations(const SocketOperations&) = delete;
+  SocketOperations operator=(const SocketOperations&) = delete;
+  SocketOperations() = default;
 };
 
 } // namespace routing

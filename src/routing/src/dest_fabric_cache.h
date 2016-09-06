@@ -39,7 +39,7 @@ public:
   /** @brief Constructor */
   DestFabricCacheGroup(const string fabric_cache, const string group, routing::AccessMode mode, URIQuery query,
                                                // default sock_ops = "real" (not mock) implementation
-      std::shared_ptr<routing::SocketOperationsInterface> sock_ops = std::make_shared<routing::SocketOperations>())
+                     routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance())
       : RouteDestination(sock_ops),
         cache_name(fabric_cache),
         ha_group(group),
