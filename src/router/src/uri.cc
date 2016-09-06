@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 #include "utils.h"
 
 #include <algorithm>
@@ -23,7 +24,7 @@
 #include <string>
 #include <memory>
 
-#include "mysqlrouter/utils.h"
+using std::string;
 
 namespace mysqlrouter {
 
@@ -49,7 +50,7 @@ static string parse_fragment(const string uri) {
 }
 
 
-static string parse_scheme(const string uri) {
+static string parse_scheme(const string &uri) {
   string tmp_scheme;
   auto pos = uri.find(':');
   if (pos == std::string::npos) {
@@ -67,7 +68,7 @@ static string parse_scheme(const string uri) {
   return tmp_scheme;
 }
 
-static URIAuthority parse_authority(const string uri) {
+static URIAuthority parse_authority(const string &uri) {
   string authority;
   string user_info;
   string host_port;

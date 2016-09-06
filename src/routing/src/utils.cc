@@ -62,10 +62,10 @@ std::pair<std::string, int > get_peer_name(int sock) {
   return std::make_pair(std::string(result_addr), port);
 }
 
-std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty) {
+std::vector<std::string> split_string(const std::string& data, const char delimiter, bool allow_empty) {
   std::stringstream ss(data);
   std::string token;
-  std::vector<string> result;
+  std::vector<std::string> result;
 
   if (data.empty()) {
     return {};
@@ -87,7 +87,7 @@ std::vector<string> split_string(const string& data, const char delimiter, bool 
   return result;
 }
 
-std::vector<string> split_string(const string& data, const char delimiter) {
+std::vector<std::string> split_string(const std::string& data, const char delimiter) {
   return split_string(data, delimiter, true);
 }
 

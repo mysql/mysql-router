@@ -17,10 +17,15 @@
 
 #include "gmock/gmock.h"
 
-#include <sys/fcntl.h>
 #include <sys/socket.h>
 
 #include "mysqlrouter/routing.h"
+
+#ifdef __sun
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
 
 using routing::AccessMode;
 using routing::set_socket_blocking;
@@ -42,7 +47,7 @@ TEST_F(RoutingTests, AccessModes) {
 }
 
 TEST_F(RoutingTests, AccessModeLiteralNames) {
-  std::map<string, AccessMode> exp = {
+  std::map<std::string, AccessMode> exp = {
       {"read-write", AccessMode::kReadWrite},
       {"read-only",  AccessMode::kReadOnly},
   };

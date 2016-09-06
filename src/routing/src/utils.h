@@ -26,8 +26,6 @@
 #include <sstream>
 #include <vector>
 
-using std::string;
-
 /**
  * Socket address from either IPv4 or IPv6
  *
@@ -56,10 +54,10 @@ std::pair<std::string, int > get_peer_name(int sock);
  * @param bool whether to allow empty tokens or not (default true)
  * @return std::vector<string> containing tokens
  */
-std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty);
+std::vector<std::string> split_string(const std::string& data, const char delimiter, bool allow_empty);
 
 /** @overload */
-std::vector<string> split_string(const string& data, const char delimiter);
+std::vector<std::string> split_string(const std::string& data, const char delimiter);
 
 /** @brief Converts IPv6 in6_addr to std::array
  *

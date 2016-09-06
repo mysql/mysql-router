@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ uint16_t TCPAddress::validate_port(uint32_t tcp_port) {
   return static_cast<uint16_t>(tcp_port);
 }
 
-string TCPAddress::str() const {
+std::string TCPAddress::str() const {
   std::ostringstream os;
 
   if (ip_family_ == Family::IPV6) {

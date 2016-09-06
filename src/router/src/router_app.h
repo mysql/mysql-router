@@ -27,18 +27,10 @@
 
 #include "arg_handler.h"
 #include "config.h"
-
-#include <cassert>
-#include <cstdint>
-#include <tuple>
-#include <vector>
-
 #include "loader.h"
 
-using std::string;
-using std::tuple;
-using std::make_tuple;
-using std::vector;
+#include <cstdint>
+#include <vector>
 
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
@@ -76,7 +68,8 @@ public:
    *     router.start();
    *
    */
-  MySQLRouter() : can_start_(false), showing_info_(false) {};
+  MySQLRouter() : can_start_(false), showing_info_(false),
+    creating_config_(false) {};
 
 
   /** @brief Constructor with command line arguments as vector
@@ -93,7 +86,7 @@ public:
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments);
+  MySQLRouter(const mysql_harness::Path& origin, const std::vector<std::string>& arguments);
 
   /** @brief Constructor with command line arguments
    *
@@ -114,7 +107,7 @@ public:
   MySQLRouter(const int argc, char** argv);
 
   // Information member function
-  string get_package_name() noexcept;
+  std::string get_package_name() noexcept;
 
   /** @brief Returns the MySQL Router version as string
    *
@@ -123,7 +116,7 @@ public:
    *
    * @return string containing the version
    */
-  string get_version() noexcept;
+  std::string get_version() noexcept;
 
   /** @brief Returns string version details.
    *
@@ -149,7 +142,7 @@ public:
    *
    * @return a string containing version details
    */
-  string get_version_line() noexcept;
+  std::string get_version_line() noexcept;
 
   /** @brief Prepares a command line option
    *
@@ -252,7 +245,7 @@ private:
    *
    * @param arguments command line arguments as vector of strings
    */
-  void init(const vector<string>& arguments);
+  void init(const std::vector<std::string>& arguments);
 
   /** @brief Finds all valid configuration files
    *
@@ -265,7 +258,7 @@ private:
    * @return returns a list of valid configuration file locations
    *
    */
-  vector<string> check_config_files();
+  std::vector<std::string> check_config_files();
 
   /** @brief Shows the help screen on the console
    *
@@ -326,16 +319,16 @@ private:
   void set_default_config_files(const char *locations) noexcept;
 
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
-  tuple<const uint8_t, const uint8_t, const uint8_t> version_;
+  std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
   /** @brief Vector with default configuration file locations as strings **/
-  std::vector<string> default_config_files_;
+  std::vector<std::string> default_config_files_;
   /** @brief Vector with extra configuration file locations as strings **/
-  std::vector<string> extra_config_files_;
+  std::vector<std::string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
-  std::vector<string> config_files_;
+  std::vector<std::string> config_files_;
   /** @brief PID file location **/
-  string pid_file_path_;
+  std::string pid_file_path_;
   /** @brief Vector with available and usable configuration files
    *
    * @devnote
@@ -344,7 +337,7 @@ private:
    * to make it ourselves easier when looping through all types of configuration files.
    * @enddevnote
    */
-  vector<string> available_config_files_;
+  std::vector<std::string> available_config_files_;
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;
   /** @brief Harness loader **/
@@ -353,6 +346,11 @@ private:
   bool can_start_;
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
   bool showing_info_;
+  /**
+   * @brief Whether we are creating the configuration file using -e or
+   *        --create-config
+   */
+  bool creating_config_;
 
   /**
    * Path to origin of executable.

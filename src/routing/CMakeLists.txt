@@ -18,6 +18,7 @@ set(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_fabric_cache.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_metadata_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_first_available.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
 )
@@ -32,6 +33,7 @@ set(include_dirs
   ${CMAKE_SOURCE_DIR}/src/router/include
   ${CMAKE_SOURCE_DIR}/src/routing/include
   ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
   ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
 )
 

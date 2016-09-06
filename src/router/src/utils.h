@@ -29,9 +29,6 @@
 #include <string>
 #include <vector>
 
-using std::vector;
-using std::string;
-
 /**
  * @brief MySQL Router utilities and exception classes
  */
@@ -67,7 +64,7 @@ bool substitute_envvar(std::string &line) noexcept;
  * @param indent number of spaces to prefix each line with
  * @return vector of strings
  */
-vector<string> wrap_string(const string &str, size_t width, size_t indent);
+std::vector<std::string> wrap_string(const std::string &str, size_t width, size_t indent);
 
 } // namespace mysqlrouter
 

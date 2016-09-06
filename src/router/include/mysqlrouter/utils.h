@@ -18,7 +18,6 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
-#include <cassert>
 #include <cstdarg>
 #include <netdb.h>
 #include <sstream>
@@ -26,8 +25,6 @@
 #include <vector>
 
 namespace mysqlrouter {
-
-using std::string;
 
 // Some (older) compiler have no std::to_string avialable 
 template<typename T>
@@ -46,7 +43,7 @@ std::string to_string(const T &data) {
 * @param ... variable argument list containing the data
 * @returns formatted text as string
 */
-string string_format(const char *format, ...);
+std::string string_format(const char *format, ...);
 
 /**
  * Split host and port
@@ -54,7 +51,7 @@ string string_format(const char *format, ...);
  * @param data a string with hostname and port
  * @return std::pair<string, uint16_t> containing address and port
  */
-std::pair<string, uint16_t> split_addr_port(const string data);
+std::pair<std::string, uint16_t> split_addr_port(const std::string data);
 
 /**
  * Validates a string containing a TCP port
@@ -71,7 +68,7 @@ std::pair<string, uint16_t> split_addr_port(const string data);
  * @param data string containing the TCP port number
  * @return uint16_t the TCP port number
  */
-uint16_t get_tcp_port(const string& data);
+uint16_t get_tcp_port(const std::string& data);
 
 /** @brief Splits a string using a delimiter
  *
@@ -84,28 +81,28 @@ uint16_t get_tcp_port(const string& data);
  * @param bool whether to allow empty tokens or not (default true)
  * @return std::vector<string> containing tokens
  */
-std::vector<string> split_string(const string& data, const char delimiter, bool allow_empty = true);
+std::vector<std::string> split_string(const std::string& data, const char delimiter, bool allow_empty = true);
 
 /**
  * Removes leading whitespaces from the string
  *
  * @param str the string to be trimmed
  */
-void left_trim(string& str);
+void left_trim(std::string& str);
 
 /**
  * Removes trailing whitespaces from the string
  *
  * @param str the string to be trimmed
  */
-void right_trim(string& str);
+void right_trim(std::string& str);
 
 /**
  * Removes both leading and trailing whitespaces from the string
  *
  * @param str the string to be trimmed
  */
-void trim(string& str);
+void trim(std::string& str);
 
 /** @brief Dumps buffer as hex values
  *
@@ -119,7 +116,7 @@ void trim(string& str);
  * @param literals whether to show a-zA-Z as-is
  * @return string containing the dump
  */
-string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
+std::string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
 
 } // namespace mysqlrouter
 

@@ -18,6 +18,7 @@
 #include "mysql_routing.h"
 #include "dest_first_available.h"
 #include "dest_fabric_cache.h"
+#include "dest_metadata_cache.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "mysqlrouter/routing.h"
@@ -39,18 +40,22 @@
 #include <sys/select.h>
 
 #include "mysqlrouter/fabric_cache.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"
 #include "logger.h"
 
 using std::runtime_error;
+using std::string;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
+using mysqlrouter::TCPAddress;
 
+static const char *kDefaultReplicaSetName = "default";
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
                            const mysql_harness::Path& named_socket,
@@ -199,7 +204,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
     log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
     blocked = true;
   } else {
-    log_info("[%s] %d authentication errors for %s (max %d)",
+    log_info("[%s] %d authentication errors for %s (max %u)",
              name.c_str(), auth_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
   }
 
@@ -228,13 +233,14 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 
   if (!(server > 0 && client > 0)) {
     std::stringstream os;
-    os << "Can't connect to MySQL server on '" << bind_address_.addr << "'";
+    os << "Can't connect to remote MySQL server on '" << bind_address_.addr << ":" << bind_address_.port << "'";
     auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
     // at this point, it does not matter whether client gets the error
     errno = 0;
     if (write(client, server_error.data(), server_error.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+      log_debug("[%s] write to client error: %s", name.c_str(), strerror(errno));
     }
+    log_warning("Routing: %s (error %i)", os.str().c_str(), error);
 
     shutdown(client, SHUT_RDWR);
     shutdown(server, SHUT_RDWR);
@@ -262,7 +268,6 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   log_debug(info.c_str());
 
   ++info_handled_routes_;
-  ++info_active_routes_;
 
   nfds = std::max(client, server) + 1;
 
@@ -398,6 +403,7 @@ void MySQLRouting::start_tcp_service() {
       log_error("[%s] Failed opening socket: %s", name.c_str(), strerror(errno));
       continue;
     }
+    log_debug("TCP connection from %i accepted at %s", sock_client, bind_address_.str().c_str());
 
     if (inet_ntop(AF_INET6, &client_addr, client_ip, static_cast<socklen_t>(sizeof(client_ip))) == nullptr) {
       log_error("[%s] inet_ntop failed: %s", name.c_str(), strerror(errno));
@@ -412,6 +418,7 @@ void MySQLRouting::start_tcp_service() {
       if (write(sock_client, server_error.data(), server_error.size()) < 0) {
         log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
       }
+      log_debug("%s", os.str().c_str());
       close(sock_client); // no shutdown() before close()
       continue;
     }
@@ -431,6 +438,7 @@ void MySQLRouting::start_tcp_service() {
       continue;
     }
 
+    ++info_active_routes_;
     std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
   }
 
@@ -558,8 +566,22 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
     } else {
       throw runtime_error("Invalid Fabric command in URI; was '" + fabric_cmd + "'");
     }
+  } else if (uri.scheme == "metadata-cache") {
+    // Syntax: metadata_cache://[<metadata_cache_config(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY
+    std::string replicaset_name = kDefaultReplicaSetName;
+    std::string role;
+
+    if (uri.path.size() > 0 && !uri.path[0].empty())
+      replicaset_name = uri.path[0];
+    if (uri.query.find("role") == uri.query.end())
+      throw runtime_error("Missing 'role' in routing destination specification");
+
+    destination_.reset(new DestMetadataCacheGroup(uri.host, replicaset_name,
+                                                  get_access_mode_name(mode_),
+                                                  uri.query));
   } else {
-    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s", uri.scheme.c_str()));
+    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s",
+                                      uri.scheme.c_str()));
   }
 }
 

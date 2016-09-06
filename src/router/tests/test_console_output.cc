@@ -18,6 +18,7 @@
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
 
+#include <cstring>
 #include <sstream>
 #include <streambuf>
 #include <unistd.h>
@@ -30,7 +31,8 @@ using mysql_harness::Path;
 Path g_origin;
 Path g_stage_dir;
 Path g_mysqlrouter_exec;
-bool g_in_git_repo = false;
+Path g_source_dir;
+bool g_skip_git_tests = false;
 
 const int kFirstYear = 2015;
 
@@ -38,35 +40,36 @@ std::string g_help_output_raw;
 std::vector<std::string> g_help_output;
 
 class ConsoleOutputTest : public ::testing::Test {
-  protected:
-    virtual void SetUp() {
-      if (g_help_output.empty()) {
-        std::ostringstream cmd;
-        cmd << g_mysqlrouter_exec << " --help";
-        auto result = cmd_exec(cmd.str());
-        std::string line;
-        std::istringstream iss(result.output);
-        while (std::getline(iss, line)) {
-          g_help_output.push_back(line);
-        }
-        g_help_output_raw = result.output;
+ protected:
+  virtual void SetUp() {
+    if (g_help_output.empty()) {
+      std::ostringstream cmd;
+      cmd << g_mysqlrouter_exec << " --help";
+      auto result = cmd_exec(cmd.str());
+      std::string line;
+      std::istringstream iss(result.output);
+      while (std::getline(iss, line)) {
+        g_help_output.push_back(line);
       }
+      g_help_output_raw = result.output;
     }
+  }
 
-    virtual void TearDown() {
-    }
+  virtual void TearDown() {}
 };
 
 TEST_F(ConsoleOutputTest, Copyright) {
+  SKIP_GIT_TESTS(g_skip_git_tests)
   int last_year = 0;
 
-  if (g_in_git_repo) {
-    // We need year of last commit. This year has to be present in copyright.
-    std::ostringstream os_cmd;
-    os_cmd << "git log --pretty=format:%ad --date=short -1";
-    auto result = cmd_exec(os_cmd.str());
+  // We need year of last commit. This year has to be present in copyright.
+  std::ostringstream os_cmd;
+  os_cmd << "git log --pretty=format:%ad --date=short -1";
+  auto result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
+  try {
     last_year = std::stoi(result.output.substr(0, 4));
-    std::cout << last_year << std::endl;
+  } catch (const std::invalid_argument &exc) {
+    FAIL() << "Failed getting year using '" << result.output.substr(0, 4) << "'";
   }
 
   for (auto &line: g_help_output) {
@@ -82,7 +85,6 @@ TEST_F(ConsoleOutputTest, Copyright) {
 }
 
 TEST_F(ConsoleOutputTest, Trademark) {
-
   for (auto &line: g_help_output) {
     if (starts_with(line, "Oracle is a registered trademark of Oracle")) {
       break;
@@ -149,19 +151,25 @@ TEST_F(ConsoleOutputTest, BasicOptionDescriptions) {
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
+  try {
+    g_source_dir = get_cmake_source_dir();
+    if (g_source_dir.is_set() && !Path(g_source_dir).join(".git").is_directory()) {
+      throw std::runtime_error("no git repository");
+    }
+  } catch (const std::runtime_error &exc) {
+    std::cerr << "WARNING: mysqlrouter source repository not available. " << std::endl
+        << "Use CMAKE_SOURCE_DIR environment variable to point to source repository. " << std::endl
+        << "Skipping tests using Git." << std::endl;
+    g_skip_git_tests = true;
+  }
+
   auto binary_dir = get_envvar_path("CMAKE_BINARY_DIR", Path(get_cwd()));
-  auto source_dir = get_envvar_path("CMAKE_SOURCE_DIR", Path(".."));
 
   g_stage_dir = binary_dir.join("stage");
   g_mysqlrouter_exec = g_stage_dir.join("bin").join("mysqlrouter");
   if (!g_mysqlrouter_exec.is_regular()) {
-    throw std::runtime_error(
-        "mysqlrouter not available. Use CMAKE_BINARY_DIR environment "
-            "variable to point to out-of-course build directory.");
-  }
-
-  if (!Path(source_dir).join(".git").is_directory()) {
-    g_in_git_repo = true;
+    std::cerr << "ERROR: mysqlrouter not available. Use CMAKE_BINARY_DIR environment "
+        "variable to point to out-of-source build directory." << std::endl;
     return 1;
   }
 

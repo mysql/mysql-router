@@ -197,7 +197,7 @@ Plugin* Loader::load_from(const std::string& plugin_name,
       {
         Version version(dep_plugin->plugin_version);
         std::ostringstream buffer;
-        buffer << "plugin version was " << version
+        buffer << designator.plugin << ": plugin version was " << version
                << ", expected " << designator.constraint;
         throw bad_plugin(buffer.str());
       }

@@ -28,7 +28,9 @@
 #include <vector>
 
 using std::string;
+using mysqlrouter::URI;
 using mysqlrouter::URIError;
+using mysqlrouter::TCPAddress;
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
@@ -99,6 +101,8 @@ static int init(const mysql_harness::AppInfo *info) {
   if (info->config != nullptr) {
     bool have_fabric_cache = false;
     bool need_fabric_cache = false;
+    bool have_metadata_cache = false;
+    bool need_metadata_cache = false;
     std::vector<TCPAddress> bind_addresses;
     for (const mysql_harness::ConfigSection* &section: info->config->sections()) {
       if (section->name == kSectionName) {
@@ -134,6 +138,8 @@ static int init(const mysql_harness::AppInfo *info) {
           auto uri = URI(config.destinations);
           if (uri.scheme == "fabric+cache") {
             need_fabric_cache = true;
+          } else if (uri.scheme == "metadata-cache") {
+            need_metadata_cache = true;
           }
         } catch (URIError) {
           // No URI, no extra plugin needed
@@ -141,12 +147,17 @@ static int init(const mysql_harness::AppInfo *info) {
       } else if (section->name == "fabric_cache") {
         // We have fabric_cache
         have_fabric_cache = true;
+      } else if (section->name == "metadata_cache") {
+        have_metadata_cache = true;
       }
     }
 
     // Make sure we have at least one configuration for Fabric Cache when needed
     if (need_fabric_cache && !have_fabric_cache) {
       throw std::invalid_argument("Routing needs Fabric Cache, but no none was found in configuration.");
+    } else if (need_metadata_cache && !have_metadata_cache) {
+      throw std::invalid_argument("Routing needs Metadata Cache, but no none "
+                                  "was found in configuration.");
     }
   }
   g_app_info = info;

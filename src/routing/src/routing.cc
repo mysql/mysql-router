@@ -28,6 +28,7 @@
 
 #endif
 
+#include <cassert>
 #include <netdb.h>
 #include <netinet/tcp.h>
 
@@ -46,17 +47,17 @@ namespace routing {
 const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
 const int kDefaultDestinationConnectionTimeout = 1;
-const string kDefaultBindAddress = "127.0.0.1";
+const std::string kDefaultBindAddress = "127.0.0.1";
 const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
 const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
 const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
 
-const std::map<string, AccessMode> kAccessModeNames = {
+const std::map<std::string, AccessMode> kAccessModeNames = {
     {"read-write", AccessMode::kReadWrite},
     {"read-only",  AccessMode::kReadOnly},
 };
 
-string get_access_mode_name(AccessMode access_mode) noexcept {
+std::string get_access_mode_name(AccessMode access_mode) noexcept {
   for (auto &it: kAccessModeNames) {
     if (it.second == access_mode) {
       return it.first;
@@ -100,7 +101,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
     if (log) {
       std::string errstr{(err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err)};
-      log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
+      log_warning("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
     }
     return -1;
   }
@@ -108,7 +109,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   errno = 0;
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      log_error("Failed opening socket: %s", strerror(errno));
+      log_warning("Failed opening socket: %s", strerror(errno));
       continue;
     }
     FD_ZERO(&readfds);
@@ -132,7 +133,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
         shutdown(sock, SHUT_RDWR);
         close(sock);
         if (log) {
-          log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
+          log_warning("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
         continue;
       }
@@ -142,11 +143,11 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 
     if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds)) {
       if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len) == -1) {
-        log_debug("Failed executing getsockopt on client socket: %s", strerror(errno));
+        log_warning("Failed executing getsockopt on client socket: %s", strerror(errno));
         continue;
       }
     } else {
-      log_debug("Failed connecting with MySQL server %s", addr.str().c_str());
+      log_warning("Failed connecting to MySQL server %s", addr.str().c_str());
       continue;
     }
     break;
@@ -164,7 +165,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     close(sock);
     err = so_error ? so_error : errno;
     if (log) {
-      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
+      log_warning("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
     }
     return -1;
   }
@@ -174,7 +175,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   set_socket_blocking(sock, true);
 
   if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
-    log_debug("Failed setting TCP_NODELAY on client socket");
+    log_warning("Failed setting TCP_NODELAY on client socket");
     return -1;
   }
 

@@ -18,6 +18,12 @@
 #ifndef ROUTER_TESTS_TEST_HELPERS_INCLUDED
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
+#define SKIP_GIT_TESTS(COND)\
+  if(COND) {\
+     std::cout << "[  SKIPPED ] Tests using Git repository skipped" << std::endl;\
+     return;\
+  }
+
 #include "filesystem.h"
 
 /** @brief Returns the CMake source root folder

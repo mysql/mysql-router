@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,13 @@
 #include <iostream>
 #include <thread>
 
+using std::cout;
+using std::endl;
+using std::list;
+using std::string;
+using std::thread;
+using fabric_cache::ManagedServer;
+
 const string kDefaultTestGroup = "group-1";  // group-1
 const string kDefaultTestShardTable = "db1.t1";  // db1.t1
 const string kTestShardKey = "100";  // 100
@@ -29,11 +36,6 @@ const string kDefaultFabricUser = "admin";  // admin
 const string kDefaultFabricPassword = "";  //
 const int kDefaultFabricPort = 32275; // 32275
 const int kTotalRuns = 1;
-
-using std::cout;
-using std::endl;
-using std::thread;
-using fabric_cache::ManagedServer;
 
 void print_server_dump(list<ManagedServer> server_list) {
   for (auto&& s: server_list) {

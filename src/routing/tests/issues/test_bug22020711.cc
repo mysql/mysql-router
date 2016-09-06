@@ -35,6 +35,7 @@
 #include <thread>
 
 using std::string;
+using mysql_harness::Path;
 
 string g_cwd;
 Path   g_origin;
@@ -155,7 +156,7 @@ TEST_F(Bug22020711, NoValidDestinations) {
   // check the response
   EXPECT_NO_THROW({
     mysql_protocol::ErrorPacket packet = mysql_protocol::ErrorPacket(buffer);
-    EXPECT_EQ(packet.get_message(), "Can't connect to MySQL server on '127.0.0.1'");
+    EXPECT_EQ(packet.get_message(), "Can't connect to remote MySQL server on '127.0.0.1'");
     EXPECT_EQ(packet.get_code(), 2003);
   });
 

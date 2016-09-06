@@ -35,6 +35,7 @@
 using std::string;
 using ::testing::StrEq;
 using ::testing::HasSubstr;
+using mysql_harness::Path;
 
 string g_cwd;
 Path g_origin;
@@ -95,6 +96,21 @@ TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
   }
 }
 
+TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[metadata_cache]\nbootstrap_server_addresses=mysql://127.0.0.1:13000,mysql://127.0.0.1:99999\n\n";
+  c.close();
+
+  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  try {
+    r.start();
+  } catch (const std::invalid_argument &exc) {
+    ASSERT_THAT(exc.what(), StrEq(
+      "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid TCP port: impossible port number)"));
+  }
+}
+
 TEST_F(Bug21771595, AppExecRoutingInvalidTimeout) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
@@ -120,6 +136,19 @@ TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {
   ASSERT_EQ(cmd_result.exit_code, 1);
   ASSERT_THAT(cmd_result.output, HasSubstr(
   "Configuration error: option address in [fabric_cache] is incorrect (invalid TCP port: impossible port number)\n"));
+}
+
+TEST_F(Bug21771595, AppExecMetadataCacheInvalidBindAddress) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[metadata_cache]\nbootstrap_server_addresses=mysql://127.0.0.1:13000,mysql://127.0.0.1:99999\n\n";
+  c.close();
+  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
+  auto cmd_result = cmd_exec(cmd, true);
+
+  //ASSERT_EQ(cmd_result.exit_code, 1);
+  ASSERT_THAT(cmd_result.output, HasSubstr(
+  "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid url: invalid port: impossible port number)\n"));
 }
 
 int main(int argc, char *argv[]) {

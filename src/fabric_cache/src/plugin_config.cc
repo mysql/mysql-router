@@ -29,6 +29,7 @@
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using std::invalid_argument;
+using std::string;
 
 string FabricCachePluginConfig::get_default(const string &option) {
 
@@ -44,7 +45,7 @@ string FabricCachePluginConfig::get_default(const string &option) {
 }
 
 bool FabricCachePluginConfig::is_required(const string &option) {
-  const vector<string> required{
+  const std::vector<string> required{
       "user",
   };
 

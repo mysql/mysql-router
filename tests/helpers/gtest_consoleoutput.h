@@ -21,16 +21,14 @@
 #include "filesystem.h"
 
 #include <memory>
-#include <string>
 
 #include "gmock/gmock.h"
-
-using mysql_harness::Path;
-using std::string;
 
 class ConsoleOutputTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
+    using mysql_harness::Path;
+
     char *stage_dir_c = std::getenv("STAGE_DIR");
     if (stage_dir_c == nullptr) {
       stage_dir.reset(new Path("./stage"));
@@ -60,9 +58,9 @@ protected:
     ssout.clear();
   }
 
-  std::unique_ptr<Path> stage_dir;
-  std::unique_ptr<Path> plugin_dir;
-  std::unique_ptr<Path> app_mysqlrouter;
+  std::unique_ptr<mysql_harness::Path> stage_dir;
+  std::unique_ptr<mysql_harness::Path> plugin_dir;
+  std::unique_ptr<mysql_harness::Path> app_mysqlrouter;
 
   std::stringstream ssout;
   std::streambuf *orig_cout_;

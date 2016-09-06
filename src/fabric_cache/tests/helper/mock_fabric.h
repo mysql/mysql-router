@@ -23,7 +23,7 @@ namespace fabric_cache {
  /**
   * Compare two server objects, managed by fabric.
   */
-  bool operator == (const ManagedServer & s1, const ManagedServer & s2);
+  bool operator == (const fabric_cache::ManagedServer & s1, const fabric_cache::ManagedServer & s2);
  }
 
 /** @class MockFabric
@@ -37,39 +37,39 @@ public:
   /**
    * Objects representing the servers that are part of the topology.
    */
-  ManagedServer ms1;
-  ManagedServer ms2;
-  ManagedServer ms3;
-  ManagedServer ms4;
-  ManagedServer ms5;
-  ManagedServer ms6;
+  fabric_cache::ManagedServer ms1;
+  fabric_cache::ManagedServer ms2;
+  fabric_cache::ManagedServer ms3;
+  fabric_cache::ManagedServer ms4;
+  fabric_cache::ManagedServer ms5;
+  fabric_cache::ManagedServer ms6;
 
   /**
    * Server list for each group in the topology. Each server object
    * represents all relevant information about the server that is
    * part of the topology.
    */
-  list<ManagedServer> group_1_list;
-  list<ManagedServer> group_2_list;
-  list<ManagedServer> group_3_list;
+  std::list<fabric_cache::ManagedServer> group_1_list;
+  std::list<fabric_cache::ManagedServer> group_2_list;
+  std::list<fabric_cache::ManagedServer> group_3_list;
 
   /**
    * Shard objects represent the information about the shard in the topology.
    */
-  ManagedShard shard1;
-  ManagedShard shard2;
+  fabric_cache::ManagedShard shard1;
+  fabric_cache::ManagedShard shard2;
 
-  list<ManagedShard> table_1_list;
+  std::list<fabric_cache::ManagedShard> table_1_list;
 
   /**
    * The information about the HA topology being managed by Fabric.
    */
-  map<string, list<ManagedServer>> group_map;
+  std::map<std::string, std::list<fabric_cache::ManagedServer>> group_map;
 
   /**
    * The information about the shards present in Fabric.
    */
-  map<string, list<ManagedShard>> shard_map;
+  std::map<std::string, std::list<fabric_cache::ManagedShard>> shard_map;
 
   /** @brief Constructor
    * @param host The host on which the fabric server is running.
@@ -82,8 +82,8 @@ public:
    *                            be attempted, when a connection attempt fails.
    *
    */
-  MockFabric(const string &host, int port, const string &user,
-         const string &password, int connection_timeout,
+  MockFabric(const std::string &host, int port, const std::string &user,
+         const std::string &password, int connection_timeout,
              int connection_attempts);
 
   /** @brief Destructor
@@ -114,7 +114,7 @@ public:
    *
    * @return Map of group ID, server list pairs.
    */
-  map<string, list<ManagedServer>> fetch_servers();
+  std::map<std::string, std::list<fabric_cache::ManagedServer>> fetch_servers();
 
   /**
    *
@@ -123,7 +123,7 @@ public:
    *
    * @return Map of shard ID, shard details pair.
    */
-  map<string, list<ManagedShard>> fetch_shards();
+  std::map<std::string, std::list<fabric_cache::ManagedShard>> fetch_shards();
 
   /**
    *

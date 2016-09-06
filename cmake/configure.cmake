@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,12 +77,19 @@ function(SET_COPYRIGHT TARGET)
   set(start_year "2015")
   set(years "${start_year},")
   if(NOT curr_year STREQUAL ${start_year})
-    set(years "${start_year}, ${curr_year}")
+    set(years "${start_year}, ${curr_year},")
   endif()
   set(${TARGET} "Copyright (c) ${years} Oracle and/or its affiliates. All rights reserved." PARENT_SCOPE)
 endfunction()
 
 set_copyright(ORACLE_COPYRIGHT)
+
+if(INSTALL_LAYOUT STREQUAL "STANDALONE")
+  set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
+  set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
+  set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
+  set(ROUTER_LOGDIR "{origin}/../${INSTALL_LOGDIR_STANDALONE}")
+endif()
 
 # Default configuration file locations (similar to MySQL Server)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -102,11 +109,19 @@ else()
 endif()
 set(CONFIG_FILES ${CONFIG_FILE_LOCATIONS})
 
-if(INSTALL_LAYOUT STREQUAL "STANDALONE")
-  set(ROUTER_PLUGINDIR "{origin}/../${INSTALL_PLUGINDIR_STANDALONE}")
-  set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
-  set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
-endif()
+# Platform/Compiler checks
+INCLUDE(TestBigEndian)
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
+
+INCLUDE(CheckTypeSize)
+CHECK_TYPE_SIZE("void *"    SIZEOF_VOIDP)
+CHECK_TYPE_SIZE("char *"    SIZEOF_CHARP)
+CHECK_TYPE_SIZE("long"      SIZEOF_LONG)
+CHECK_TYPE_SIZE("short"     SIZEOF_SHORT)
+CHECK_TYPE_SIZE("int"       SIZEOF_INT)
+CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
+CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
+CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
 
 configure_file(config.h.in config.h @ONLY)
 include_directories(${PROJECT_BINARY_DIR})

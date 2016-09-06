@@ -27,17 +27,12 @@
 #include "mysqlrouter/datatypes.h"
 #include "logger.h"
 
-using std::runtime_error;
-using std::chrono::system_clock;
-using mysqlrouter::TCPAddress;
-using mysqlrouter::URIQuery;
-
 const int kDefaultRefreshInterval = 3;
 
 class DestFabricCacheGroup final : public RouteDestination {
 public:
   /** @brief Constructor */
-  DestFabricCacheGroup(const string fabric_cache, const string group, routing::AccessMode mode, URIQuery query) :
+  DestFabricCacheGroup(const std::string fabric_cache, const std::string group, routing::AccessMode mode, mysqlrouter::URIQuery query) :
       cache_name(fabric_cache),
       ha_group(group),
       routing_mode(mode),
@@ -61,7 +56,7 @@ public:
 
   int get_server_socket(int connect_timeout, int *error) noexcept;
 
-  void add(const string &, uint16_t) { }
+  void add(const std::string &, uint16_t) { }
 
   /** @brief Returns whether there are destination servers
    *
@@ -96,10 +91,10 @@ public:
    *     host = fabric.example.com
    *
    */
-  const string cache_name;
+  const std::string cache_name;
 
   /** @brief The HA Group which will be used for looking up managed servers */
-  const string ha_group;
+  const std::string ha_group;
 
   /** @brief Routing mode, usually set to read-only or read-write
    *
@@ -123,7 +118,7 @@ public:
    *
    * The 'allow_primary_reads' is part of uri_query.
    */
-  const URIQuery uri_query;
+  const mysqlrouter::URIQuery uri_query;
 
 private:
   /** @brief Initializes
@@ -140,7 +135,7 @@ private:
    * servers.
    *
    */
-  std::vector<TCPAddress> get_available();
+  std::vector<mysqlrouter::TCPAddress> get_available();
 
   /** @brief Whether we allow a read operations going to the primary (master) */
   bool allow_primary_reads_;

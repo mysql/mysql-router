@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,8 +29,6 @@
 #include <mysql.h>
 #include <string.h>
 
-using std::string;
-
 /** @class Fabric
  *
  * The `Fabric` class encapsulates a connection to the Fabric server. It
@@ -50,8 +48,8 @@ public:
    *                            attempted, when a connection attempt fails.
    *
    */
-  Fabric(const string &host, int port, const string &user,
-         const string &password, int connection_timeout,
+  Fabric(const std::string &host, int port, const std::string &user,
+         const std::string &password, int connection_timeout,
          int connection_attempts);
 
   /** @brief Destructor
@@ -67,7 +65,7 @@ public:
    *
    * @return Map of group ID, server list pairs.
    */
-  map<string, list<ManagedServer>> fetch_servers();
+  std::map<std::string, std::list<fabric_cache::ManagedServer>> fetch_servers();
 
   /** @brief Returns relation between shard ID and list of servers
    *
@@ -75,7 +73,7 @@ public:
    *
    * @return Map of shard ID, shard details pair.
    */
-  map<string, list<ManagedShard>> fetch_shards();
+  std::map<std::string, std::list<fabric_cache::ManagedShard>> fetch_shards();
 
   /** @brief Returns the refresh interval provided by Fabric
    *
@@ -109,18 +107,18 @@ private:
    * @param remote_api Remote API to be executed
    * @return MYSQL_RES object containg result of remote API execution
    */
-  MYSQL_RES *fetch_metadata(string &remote_api);
+  MYSQL_RES *fetch_metadata(std::string &remote_api);
 
   // Fabric node connection information
-  string host_;
+  std::string host_;
   int port_;
-  string user_;
-  string password_;
+  std::string user_;
+  std::string password_;
 
   // Fabric node generic information
-  string fabric_uuid_;
+  std::string fabric_uuid_;
   int ttl_;
-  string message_;
+  std::string message_;
 
   // The time after which a connection to the fabric server should timeout.
   int connection_timeout_;

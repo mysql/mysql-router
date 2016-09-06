@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,12 +24,6 @@
 #include <map>
 #include <string>
 
-using std::list;
-using std::map;
-using std::string;
-using fabric_cache::ManagedServer;
-using fabric_cache::ManagedShard;
-
 /**
  * The fabric metadata class is used to create a pluggable transport layer
  * from which the metadata is fetched for the fabric cache.
@@ -37,8 +31,8 @@ using fabric_cache::ManagedShard;
 class FabricMetaData {
 public:
   virtual int fetch_ttl() = 0;
-  virtual map<string, list<ManagedServer>> fetch_servers() = 0;
-  virtual map<string, list<ManagedShard>> fetch_shards() = 0;
+  virtual std::map<std::string, std::list<fabric_cache::ManagedServer>> fetch_servers() = 0;
+  virtual std::map<std::string, std::list<fabric_cache::ManagedShard>> fetch_shards() = 0;
   virtual bool connect() = 0;
   virtual void disconnect() = 0;
 };

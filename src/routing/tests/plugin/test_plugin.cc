@@ -43,6 +43,7 @@ using ::testing::IsEmpty;
 using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::StrEq;
+using mysql_harness::Path;
 
 // define what is available in routing_plugin.cc
 extern mysql_harness::Plugin harness_plugin_routing;

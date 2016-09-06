@@ -30,9 +30,6 @@
 #include <sstream>
 #include <string>
 
-
-using std::string;
-
 namespace mysqlrouter {
 
 /** @class BasePluginConfig
@@ -44,7 +41,7 @@ namespace mysqlrouter {
  */
 class BasePluginConfig {
 public:
-  using defaults_map = std::map<string, string>;
+  using defaults_map = std::map<std::string, std::string>;
 
   /** @brief Constructor
    *
@@ -57,10 +54,10 @@ public:
    * @param section Instance of ConfigSection
    * @return Option value as std::string
    */
-  string get_option_string(const mysql_harness::ConfigSection *section, const string &option);
+  std::string get_option_string(const mysql_harness::ConfigSection *section, const std::string &option);
 
   /** @brief Name of the section */
-  string section_name;
+  std::string section_name;
 
 protected:
   /** @brief Constructor for derived classes */
@@ -71,7 +68,7 @@ protected:
    * @param section Instance of ConfigSection
    * @return the name for this configuration
    */
-  virtual string get_section_name(const mysql_harness::ConfigSection *) const noexcept;
+  virtual std::string get_section_name(const mysql_harness::ConfigSection *) const noexcept;
 
   /** @brief Gets the default for the given option
    *
@@ -81,13 +78,13 @@ protected:
    * @param string option
    * @return default value for given option as std::string
    */
-  virtual string get_default(const string &option) = 0;
+  virtual std::string get_default(const std::string &option) = 0;
 
   /** @brief Returns whether the given option is required
    *
    * @return bool
    */
-  virtual bool is_required(const string &option) = 0;
+  virtual bool is_required(const std::string &option) = 0;
 
   /** @brief Gets message prefix for option and section
    *
@@ -103,7 +100,7 @@ protected:
    * @param option Name of the option
    * @return Prefix as std::string
    */
-  virtual string get_log_prefix(const string &option) const noexcept;
+  virtual std::string get_log_prefix(const std::string &option) const noexcept;
 
   /** @brief Gets an unsigned integer using the given option
    *
@@ -123,9 +120,9 @@ protected:
    * @return mysqlrouter::TCPAddress
    */
   template<typename T>
-  T get_uint_option(const mysql_harness::ConfigSection *section, const string &option,
+  T get_uint_option(const mysql_harness::ConfigSection *section, const std::string &option,
                     T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
-    string value = get_option_string(section, option);
+    std::string value = get_option_string(section, option);
 
     char *rest;
     errno = 0;
@@ -158,10 +155,10 @@ protected:
    * @param require_port Whether a TCP port is required
    * @return mysqlrouter::TCPAddress
    */
-  TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const string &option,
+  TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const std::string &option,
                                     bool require_port = false, int default_port = -1);
 
-  int get_option_tcp_port(const mysql_harness::ConfigSection *section, const string &option);
+  int get_option_tcp_port(const mysql_harness::ConfigSection *section, const std::string &option);
 
   /** @brief Gets location of a named socket
    *
@@ -175,7 +172,7 @@ protected:
    * @param option Option name in section
    * @return Path object
    */
-  mysql_harness::Path get_option_named_socket(const mysql_harness::ConfigSection *section, const string &option);
+  mysql_harness::Path get_option_named_socket(const mysql_harness::ConfigSection *section, const std::string &option);
 };
 
 } // namespace mysqlrouter

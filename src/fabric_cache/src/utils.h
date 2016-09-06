@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,9 +19,6 @@
 #define FABRIC_CACHE_UTILS_INCLUDED
 
 #include <string>
-#include <time.h>
-
-using std::string;
 
 /**
  * Return a string representation of the input character string.
@@ -31,7 +28,7 @@ using std::string;
  * @return A string object encapsulation of the input character string. An empty
  *         string if input string is nullptr.
  */
-string get_string(const char *input_str);
+std::string get_string(const char *input_str);
 
 /** @class ValueComparator
  * Base utility class for comparing two values. The compare method will be
@@ -40,7 +37,7 @@ string get_string(const char *input_str);
  */
 class ValueComparator {
 public:
-  virtual int compare(string val_a, string val_b) = 0;
+  virtual int compare(std::string val_a, std::string val_b) = 0;
 };
 
 /** @class IntegerValueComparator
@@ -52,7 +49,7 @@ public:
    *
    * Compare two integer values.
    */
-  int compare(string val_a, string val_b);
+  int compare(std::string val_a, std::string val_b);
 };
 
 /** @class DateTimeValueComparator
@@ -66,7 +63,7 @@ public:
    *
    * @return The converted time_t value.
    */
-  time_t convert_to_time_t(string datetime_str);
+  time_t convert_to_time_t(std::string datetime_str);
 
   /** @brief Compares two strings containing DATETIME
    *
@@ -79,7 +76,7 @@ public:
    *        -1 if val_a < val_b
    *         0 if val_a = val_b
    */
-  int compare(string val_a, string val_b);
+  int compare(std::string val_a, std::string val_b);
 };
 
 /** @class StringValueComparator
@@ -98,7 +95,7 @@ public:
    *        -1 if val_a < val_b
    *         0 if val_a = val_b.
    */
-  int compare(string val_a, string val_b);
+  int compare(std::string val_a, std::string val_b);
 };
 
 /** @class MD5HashValueComparator
@@ -124,7 +121,7 @@ public:
    *        -1 if val_a < val_b
    *         0 if val_a = val_b.
    */
-  int compare(string val_a, string val_b);
+  int compare(std::string val_a, std::string val_b);
 };
 
 #endif // FABRIC_CACHE_UTILS_INCLUDED

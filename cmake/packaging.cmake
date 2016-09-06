@@ -42,6 +42,7 @@ set(source_include
   "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
   "${src_dir}/doc"
+  "${src_dir}/ext"
   "${src_dir}/src"
   "${src_dir}/tests"
   "${src_dir}/packaging"

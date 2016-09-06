@@ -60,11 +60,11 @@ void RouteDestination::add(const TCPAddress dest) {
   }
 }
 
-void RouteDestination::add(const string &address, uint16_t port) {
+void RouteDestination::add(const std::string &address, uint16_t port) {
   add(TCPAddress(address, port));
 }
 
-void RouteDestination::remove(const string &address, uint16_t port) {
+void RouteDestination::remove(const std::string &address, uint16_t port) {
   TCPAddress to_remove(address, port);
   std::lock_guard<std::mutex> lock(mutex_update_);
 
@@ -75,7 +75,7 @@ void RouteDestination::remove(const string &address, uint16_t port) {
 
 }
 
-TCPAddress RouteDestination::get(const string &address, uint16_t port) {
+TCPAddress RouteDestination::get(const std::string &address, uint16_t port) {
   TCPAddress needle(address, port);
   for (auto &it: destinations_) {
     if (it == needle) {
