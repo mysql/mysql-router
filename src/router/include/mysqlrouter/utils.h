@@ -124,7 +124,22 @@ void trim(string& str);
  */
 string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
 
+/** @brief Returns the platform specific error code of last operation
+ * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
+ * 
+ * @return the error code
+ */
 std::string get_last_error();
+
+/** @brief Prompts for a password from the console.
+ */
+const string prompt_password(const string &prompt);
+
+#ifdef _WIN32
+/** @brief Returns whether if the router process is running as a Windows Service
+ */
+bool is_running_as_service();
+#endif
 
 } // namespace mysqlrouter
 

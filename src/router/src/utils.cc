@@ -28,8 +28,11 @@
 #include <stdexcept>
 #include <string.h>
 
-#ifdef _WIN32
-#  include <windows.h>
+#ifndef _WIN32
+# include <termios.h>
+# include <unistd.h>
+#else
+# include <windows.h>
 #endif
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
@@ -312,5 +315,65 @@ std::string get_last_error()
   return result;
 #endif
   }
+
+#ifndef _WIN32
+const string prompt_password(const string &prompt) {
+  struct termios console;
+  tcgetattr(STDIN_FILENO, &console);
+
+  std::cout << prompt << ": ";
+
+  // prevent showing input
+  console.c_lflag &= ~(uint)ECHO;
+  tcsetattr(STDIN_FILENO, TCSANOW, &console);
+
+  string result;
+  std::getline(std::cin, result);
+
+  // reset
+  console.c_lflag |= ECHO;
+  tcsetattr(STDIN_FILENO, TCSANOW, &console);
+
+  std::cout << std::endl;
+  return result;
+}
+#else
+const string prompt_password(const string &prompt) {
+
+  std::cout << prompt << ": ";
+
+  // prevent showing input
+  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD mode;
+  GetConsoleMode(hStdin, &mode);
+  mode &= ~ENABLE_ECHO_INPUT;
+  SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+
+  string result;
+  std::getline(std::cin, result);
+
+  // reset
+  SetConsoleMode(hStdin, mode);
+
+  std::cout << std::endl;
+  return result;
+}
+#endif
+
+#ifdef _WIN32
+bool is_running_as_service() {
+  bool result = false;
+
+  HWINSTA h = GetProcessWindowStation();
+  if (h != NULL) {
+    USEROBJECTFLAGS uof = { 0 };
+    if (GetUserObjectInformation(h, UOI_FLAGS, &uof, sizeof(USEROBJECTFLAGS), NULL) 
+      && !(uof.dwFlags & WSF_VISIBLE)) {
+      result = true;
+    }
+  }
+  return result;
+}
+#endif
 
 } // namespace mysqlrouter

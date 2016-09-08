@@ -38,6 +38,7 @@
 #else
 #  include <process.h>
 #  define getpid _getpid
+#  include "mysqlrouter/windows/password_vault.h"
 #endif
 
 using std::string;
@@ -282,6 +283,31 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(CmdOption::OptionNames({"--service"}), "Start Router as Windows service",
                           CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--update-credentials-section" }), "Updates the credentials for the given section",
+    CmdOptionValueReq::required, "section_name", [this](const string& value) {
+    std::string prompt = mysqlrouter::string_format("Enter password for config section '%s'", value.c_str());
+    std::string pass = mysqlrouter::prompt_password(prompt);
+    PasswordVault pv;
+    pv.update_password(value, pass);
+    pv.store_passwords();
+    std::cout << "The password was stored in the vault successfully." << std::endl;
+  });
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--remove-credentials-section" }), "Removes the credentials for the given section",
+    CmdOptionValueReq::required, "section_name", [this](const string& value) {
+    PasswordVault pv;
+    pv.remove_password(value);
+    pv.store_passwords();
+    std::cout << "The password was removed successfully." << std::endl;
+  });
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--clear-all-credentials" }), "Clear the vault, removing all the credentials stored on it",
+    CmdOptionValueReq::none, "", [this](const string&) {
+    PasswordVault pv;
+    pv.clear_passwords();
+    std::cout << "Removed successfully all passwords from the vault." << std::endl;
+  });
 #endif
 
 }

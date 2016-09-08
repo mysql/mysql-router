@@ -29,11 +29,20 @@ set(FABRIC_CACHE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_api.cc
 )
 
-add_harness_plugin(fabric_cache SOURCES
-  src/fabric_cache_plugin.cc
-  src/plugin_config.cc
-  ${FABRIC_CACHE_SOURCES}
-  REQUIRES logger router_lib)
+if(WIN32)
+  add_harness_plugin(fabric_cache SOURCES
+    src/fabric_cache_plugin.cc
+    src/plugin_config.cc
+    ../router/src/windows/password_vault.cc
+    ${FABRIC_CACHE_SOURCES}
+    REQUIRES logger router_lib)
+else()
+  add_harness_plugin(fabric_cache SOURCES
+    src/fabric_cache_plugin.cc
+    src/plugin_config.cc
+    ${FABRIC_CACHE_SOURCES}
+    REQUIRES logger router_lib)
+endif()
 
 target_link_libraries(fabric_cache PUBLIC ${MySQL_LIBRARIES})
 if(WITH_HARNESS)

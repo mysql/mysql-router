@@ -57,3 +57,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 
 target_compile_definitions(test_fabric_cache_fabric_cache PRIVATE -Dfabric_cache_STATIC=1)
 target_compile_definitions(test_fabric_cache_cache_plugin PRIVATE -Dfabric_cache_STATIC=1)
+
+if(WIN32)
+  target_link_libraries(test_fabric_cache_cache_plugin crypt32)
+endif()
