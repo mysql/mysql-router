@@ -78,7 +78,7 @@ int remove_service(const TCHAR *service_name) {
   if (service == NULL) {
     WcaLog(LOGMSG_STANDARD, "Failed to open the service to delete (with code %d)\n", GetLastError());
     CloseServiceHandle(hSCM);
-    return result;
+    return 1;
   }
   if (!DeleteService(service)) {
     DWORD code = GetLastError();
