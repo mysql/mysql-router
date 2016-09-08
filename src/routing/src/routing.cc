@@ -72,6 +72,11 @@ void set_socket_blocking(int sock, bool blocking) {
 #endif
 }
 
+SocketOperations* SocketOperations::instance() {
+  static SocketOperations instance_;
+  return &instance_;
+}
+
 int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   fd_set readfds;
   fd_set writefds;
@@ -125,13 +130,13 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
 #ifdef _WIN32
       if (WSAGetLastError() != WSAEINPROGRESS && WSAGetLastError() != WSAEWOULDBLOCK) {
         log_error("Error connecting socket to %s:%i (%s)", addr.addr.c_str(), addr.port, get_message_error(SOCKET_ERROR).c_str());
-        closesocket(sock);
+        this->close(sock);
         continue;
       }
 #else
       if (errno != EINPROGRESS) {
         log_error("Error connecting socket to %s:%i (%s)", addr.addr.c_str(), addr.port, strerror(errno));
-        close(sock);
+        this->close(sock);
         continue;
       }
 #endif
@@ -140,13 +145,9 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
     res = select(sock + 1, &readfds, &writefds, &errfds, &timeout_val);
     if (res <= 0) {
       if (res == 0) {
-#ifndef _WIN32
-        shutdown(sock, SHUT_RDWR);
-        close(sock);
-#else
-        shutdown(sock, SD_BOTH);
-        closesocket(sock);
-#endif
+        this->shutdown(sock);
+        this->close(sock);
+
         if (log) {
           log_debug("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
@@ -178,8 +179,8 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   // Handle remaining errors
 #ifdef _WIN32
   if ((WSAGetLastError() > 0 && WSAGetLastError() != WSAEINPROGRESS) || so_error) {
-    shutdown(sock, SD_BOTH);
-    closesocket(sock);
+    this->shutdown(sock);
+    this->close(sock);
     err = so_error ? so_error : SOCKET_ERROR;
     if (log) {
       log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), get_message_error(err).c_str(), err);
@@ -188,8 +189,8 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   }
 #else
   if ((errno > 0 && errno != EINPROGRESS) || so_error) {
-    shutdown(sock, SHUT_RDWR);
-    close(sock);
+    this->shutdown(sock);
+    this->close(sock);
     err = so_error ? so_error : errno;
     if (log) {
       log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
@@ -197,7 +198,6 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
     return -1;
   }
 #endif
-
 
   // set blocking; MySQL protocol is blocking and we do not take advantage of
   // any non-blocking possibilities
@@ -218,5 +218,36 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   return sock;
 }
 
-} // routing
+ssize_t SocketOperations::write(int fd, void *buffer, size_t nbyte) {
+#ifndef _WIN32
+  return ::write(fd, buffer, nbyte);
+#else
+  return ::send(fd, reinterpret_cast<const char *>(buffer), nbyte, 0);
+#endif
+}
 
+ssize_t SocketOperations::read(int fd, void *buffer, size_t nbyte) {
+#ifndef _WIN32
+  return ::read(fd, buffer, nbyte);
+#else
+  return ::recv(fd, reinterpret_cast<char *>(buffer), nbyte, 0);
+#endif
+}
+
+void SocketOperations::close(int fd) {
+#ifndef _WIN32
+  ::close(fd);
+#else
+  ::closesocket(fd);
+#endif
+}
+
+void SocketOperations::shutdown(int fd) {
+#ifndef _WIN32
+  ::shutdown(fd, SHUT_RDWR);
+#else
+  ::shutdown(fd, SD_BOTH);
+#endif
+}
+
+} // routing

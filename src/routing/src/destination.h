@@ -53,8 +53,8 @@ public:
   using AddrVector = std::vector<TCPAddress>;
 
   /** @brief Default constructor */
-  RouteDestination(std::shared_ptr<routing::SocketOperationsInterface> sock_ops =
-                       std::make_shared<routing::SocketOperations>()) // default = "real" (not mock) implementation
+  RouteDestination(routing::SocketOperationsBase *sock_ops =
+                       routing::SocketOperations::instance()) // default = "real" (not mock) implementation
       : current_pos_(0), stopping_(false), socket_operations_(sock_ops) {};
 
   /** @brief Destructor */
@@ -258,7 +258,7 @@ protected:
   std::thread quarantine_thread_;
 
   /** @brief socket operation methods (facilitates dependency injection)*/
-  std::shared_ptr<routing::SocketOperationsInterface> socket_operations_;
+  routing::SocketOperationsBase *socket_operations_;
 };
 
 
