@@ -104,7 +104,8 @@ unsigned int MetadataCachePluginConfig::get_option_ttl(
   ttl_temp = std::strtol(ttl_option.c_str(), &p, 10);
 
   // verify that the parsing was successful.
-  if (errno == ERANGE || ttl_temp > UINT_MAX || *p != '\0' || ttl_temp <= 0) {
+  if (errno == ERANGE || ttl_temp > static_cast<long>(UINT_MAX) ||
+      *p != '\0' || ttl_temp <= 0) {
     // use a default
     ttl_temp = defaultTTL;
   }
