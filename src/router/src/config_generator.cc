@@ -307,7 +307,7 @@ void ConfigGenerator::create_config(
       << "ttl=300" << "\n"
       << "metadata_replicaset=" << metadata_replicaset << "\n"
       << "\n";
-      if (multi_master) {
+      if (!multi_master) {
         cfp
           << "[routing:" << metadata_replicaset << "_rw]\n"
           << "bind_port=" << rw_port << "\n"
