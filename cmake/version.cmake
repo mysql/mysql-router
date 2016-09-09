@@ -15,11 +15,17 @@
 
 # Version information of MySQL Router
 
-# Change following when releasing
+# Project version, has to be an X.Y.Z number since it is used with the
+# "project" CMake command
 set(PROJECT_VERSION_TEXT "2.1.0")
+
+# Can be arbitrary test that is added to the package file names after
+# the version, but before the extensions.
+set(PROJECT_PACKAGE_EXTRAS "-labs")
+
 set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
 
-# Nothing hereunder needs change when releasing
+# Nothing below this line needs change when releasing
 
 # Older CMake version do not set PROJECT_VERSION
 if(${CMAKE_VERSION} VERSION_LESS "3.0")
