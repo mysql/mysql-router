@@ -93,7 +93,8 @@ static int init(const mysql_harness::AppInfo *info) {
 #ifdef _WIN32
       PasswordVault pv;
       std::string pass;
-      if (pv.get_password(section->name + ((section->key.empty())? "" : ":" + section->key), pass)) {
+      std::string key = section->name + ((section->key.empty()) ? "" : ":" + section->key);
+      if (pv.get_password(key, pass)) {
         log_debug("Password found in the vault");
         fabric_cache_passwords.emplace(std::make_pair(password_key, pass));
         continue;

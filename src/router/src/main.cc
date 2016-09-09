@@ -35,7 +35,7 @@ int real_main(int argc, char **argv) {
     } catch (const std::runtime_error &exc) {
 	  std::cerr << "Error: " << exc.what() << std::endl;
 	  result = 1;
-	}
+    } catch (const silent_exception&) {}
   } catch(const std::invalid_argument &exc) {
     std::cerr << "Configuration error: " << exc.what() << std::endl;
     result = 1;
@@ -44,7 +44,7 @@ int real_main(int argc, char **argv) {
     result = 1;
   } catch (const mysql_harness::syntax_error &exc) {
     std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
-  }
+  } catch (const silent_exception&) {}
   return result;
 }
 

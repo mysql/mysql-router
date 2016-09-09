@@ -30,58 +30,6 @@
 
 #include "mysqlrouter/utils.h"
 
-/*
-* Attempts to create directory if doesn't exists, otherwise just returns.
-* If there is an error, an exception is thrown.
-*/
-static void ensure_dir_exists(const std::string& path) {
-  const char *dir_path = path.c_str();
-  DWORD dwAttrib = GetFileAttributesA(dir_path);
-
-  if (dwAttrib != INVALID_FILE_ATTRIBUTES) {
-    return;
-  } else if (!CreateDirectoryA(dir_path, NULL)) {
-    throw std::runtime_error(mysqlrouter::string_format(
-      "Error when creating directory %s with error: %s", dir_path,
-      GetLastError()));
-  }
-}
-
-
-static std::string get_user_config_path() {
-  std::string path_separator;
-  std::string path;
-  std::vector <std::string> to_append;
-
-  path_separator = "\\";
-  char szPath[MAX_PATH];
-  HRESULT hr;
-
-  if (SUCCEEDED(hr = SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, szPath))) {
-    path.assign(szPath);
-  } else {
-    _com_error err(hr);
-    throw std::runtime_error(mysqlrouter::string_format(
-      "Error when gathering the APPDATA folder path: %s", err.ErrorMessage()));
-  }
-
-  to_append.push_back("MySQL");
-  to_append.push_back("MySQL Router");
-
-  // Up to know the path must exist since it was retrieved from OS standard
-  // neabs we need to guarantee the rest of the path exists
-  if (!path.empty()) {
-    for (size_t index = 0; index < to_append.size(); index++) {
-      path += path_separator + to_append[index];
-      ensure_dir_exists(path);
-    }
-
-    path += path_separator;
-  }
-
-  return path;
-}
-
 
 PasswordVault::PasswordVault() {
   load_passwords();
@@ -99,7 +47,7 @@ PasswordVault::~PasswordVault() {
 }
 
 std::string PasswordVault::get_vault_path() const {
-  return get_user_config_path() + "mysql_router_user_data.dat";
+  return "C:\\ProgramData\\MySQL\\MySQL Router\\mysql_router_user_data.dat";
 }
 
 void PasswordVault::password_scrambler(std::string& pass) {
@@ -204,7 +152,7 @@ void PasswordVault::store_passwords() {
   std::string data = ss.str();
   buf_decrypted.pbData = reinterpret_cast<BYTE *>(const_cast<char *>(data.c_str()));
   buf_decrypted.cbData = ss.str().size();
-  if (!CryptProtectData(&buf_decrypted, NULL, NULL, NULL, NULL, 0, &buf_encrypted)) {
+  if (!CryptProtectData(&buf_decrypted, NULL, NULL, NULL, NULL, CRYPTPROTECT_LOCAL_MACHINE, &buf_encrypted)) {
     DWORD code = GetLastError();
     throw std::runtime_error(mysqlrouter::string_format(
       "Error when encrypting the vault with code '%d'", code));

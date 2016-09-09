@@ -292,6 +292,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     pv.update_password(value, pass);
     pv.store_passwords();
     std::cout << "The password was stored in the vault successfully." << std::endl;
+    throw silent_exception();
   });
 
   arg_handler_.add_option(CmdOption::OptionNames({ "--remove-credentials-section" }), "Removes the credentials for the given section",
@@ -300,6 +301,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     pv.remove_password(value);
     pv.store_passwords();
     std::cout << "The password was removed successfully." << std::endl;
+    throw silent_exception();
   });
 
   arg_handler_.add_option(CmdOption::OptionNames({ "--clear-all-credentials" }), "Clear the vault, removing all the credentials stored on it",
@@ -307,6 +309,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     PasswordVault pv;
     pv.clear_passwords();
     std::cout << "Removed successfully all passwords from the vault." << std::endl;
+    throw silent_exception();
   });
 #endif
 
