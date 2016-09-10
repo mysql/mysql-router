@@ -25,6 +25,13 @@ set(PROJECT_PACKAGE_EXTRAS "-labs")
 
 set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
 
+# create a string that is allowed in a RPM spec "release" field
+set(RPM_EXTRA_VERSION "${PROJECT_PACKAGE_EXTRAS}")
+if(RPM_EXTRA_VERSION)
+  string(REGEX REPLACE "[^A-Za-z0-9]" "" RPM_EXTRA_VERSION "${RPM_EXTRA_VERSION}")
+  set(RPM_EXTRA_VERSION ".${RPM_EXTRA_VERSION}")
+endif()
+
 # Nothing below this line needs change when releasing
 
 # Older CMake version do not set PROJECT_VERSION
