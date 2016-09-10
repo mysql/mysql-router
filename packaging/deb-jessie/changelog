@@ -1,4 +1,4 @@
-mysql-router (2.1.0-1debian8) jessie; urgency=low
+mysql-router (2.1.0-labs-1debian8) jessie; urgency=low
 
   * initial version
 
