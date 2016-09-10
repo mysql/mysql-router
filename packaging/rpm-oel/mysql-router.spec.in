@@ -100,7 +100,7 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 
 %prep
-%setup -q
+%setup -q -n %{name}-%{version}@PROJECT_PACKAGE_EXTRAS@
 
 %build
 mkdir release && pushd release
