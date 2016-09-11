@@ -42,7 +42,7 @@
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
 Version:       @PROJECT_VERSION_TEXT@
-Release:       0.1%@RPM_EXTRA_VERSION@%{?commercial:.1}%{?dist}
+Release:       0.1@RPM_EXTRA_VERSION@%{?commercial:.1}%{?dist}
 License:       @ORACLE_COPYRIGHT@ Under %{?license_type} license as shown in the Description field.
 Group:         Applications/Databases
 URL:           https://dev.mysql.com/downloads/router/
