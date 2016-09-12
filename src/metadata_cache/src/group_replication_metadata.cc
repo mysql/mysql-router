@@ -67,7 +67,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     const char *member_host = row[1];
     const char *member_port = row[2];
     const char *member_state = row[3];
-    const bool single_master = row[4] && strcmp(row[4], "ON") == 0;
+    const bool single_master = row[4] && (strcmp(row[4], "1") == 0 || strcmp(row[4], "ON") == 0);
     if (!member_id || !member_host || !member_port || !member_state) {
       mysql_free_result(result);
       throw metadata_cache::metadata_error("Unexpected value in group_replication_metadata query results");
