@@ -371,7 +371,6 @@ class silent_exception : public std::exception
 {
 public:
   silent_exception() : std::exception() {}
-  silent_exception(const char *c) : std::exception(c) { }
 };
 
 #endif // ROUTER_MYSQL_ROUTER_INCLUDED
