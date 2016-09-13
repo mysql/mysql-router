@@ -24,6 +24,7 @@
 #include <thread>
 #include <unistd.h>
 
+#include "common.h"
 #include "config_parser.h"
 #include "filesystem.h"
 #include "plugin.h"
@@ -44,6 +45,7 @@ using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::StrEq;
 using mysql_harness::Path;
+using mysql_harness::get_strerror;
 
 // define what is available in routing_plugin.cc
 extern mysql_harness::Plugin harness_plugin_routing;
@@ -125,7 +127,7 @@ protected:
       if (errno != ENOENT) {
         // File missing is OK.
         std::cerr << "Failed removing " << config_path->str()
-        << ": " << strerror(errno) << "(" << errno << ")" << std::endl;
+        << ": " << get_strerror(errno) << "(" << errno << ")" << std::endl;
       }
     }
     ConsoleOutputTest::TearDown();

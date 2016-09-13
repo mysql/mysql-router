@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include "common.h"
 #include "config_parser.h"
 #include "filesystem.h"
 
@@ -42,6 +43,7 @@
 
 using std::string;
 using std::vector;
+using mysql_harness::get_strerror;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
@@ -128,7 +130,7 @@ void MySQLRouter::start() {
       std::cout << "PID " << pid << " written to " << pid_file_path_ << std::endl;
     } else {
       throw std::runtime_error(
-          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), std::strerror(errno)));
+          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), get_strerror(errno).c_str()));
     }
   }
   loader_->add_logger("INFO");

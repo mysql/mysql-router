@@ -16,6 +16,7 @@
 */
 
 #include "filesystem.h"
+#include "common.h"
 
 #include <cassert>
 #include <sstream>
@@ -188,13 +189,8 @@ Directory::DirectoryIterator::DirectoryIterator(const Path& path,
 {
   if (dirp_ == nullptr)
   {
-    ostringstream  buffer;
-    char msg[256];
-    if (strerror_r(errno, msg, sizeof(msg)))
-      buffer << "strerror_r failed: " << errno;
-    else
-      buffer << "Failed to open path " << path << " - " << msg;
-    throw std::runtime_error(buffer.str());
+    std::string msg = "Failed to open path " + get_strerror(errno);
+    throw std::runtime_error(msg);
   }
 
   fill_result();
@@ -220,13 +216,9 @@ Directory::DirectoryIterator::fill_result()
   {
     if (int error = readdir_r(dirp_, &entry_, &result_))
     {
-      ostringstream buffer;
-      char msg[256];
-      if (strerror_r(error, msg, sizeof(msg)))
-        buffer << "strerror_r failed: " << errno;
-      else
-        buffer << "Failed to read directory entry - " << msg;
-      throw std::runtime_error(buffer.str());
+      std::string msg = "Failed to read directory entry - "
+                        +  get_strerror(error);
+      throw std::runtime_error(msg);
     }
 
     // If there are no more entries, we're done.
@@ -250,13 +242,8 @@ Directory::DirectoryIterator::fill_result()
       break;
     else
     {
-      ostringstream buffer;
-      char msg[256];
-      if (strerror_r(error, msg, sizeof(msg)))
-        buffer << "strerror_r failed: " << errno;
-      else
-        buffer << "Match failed - " << msg;
-      throw std::runtime_error(buffer.str());
+      std::string msg = "Match failed - " +  get_strerror(error);
+      throw std::runtime_error(msg);
     }
   }
 }

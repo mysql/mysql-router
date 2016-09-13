@@ -15,34 +15,27 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
-#include "networking/ipv6_address.h"
+#ifndef MYSQL_HARNESS_COMMON_INCLUDED
+#define MYSQL_HARNESS_COMMON_INCLUDED
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
-#include <cerrno>
-#include <cstring>
 #include <string>
 
 
+/**
+ * @defgroup Various operations
+ *
+ * This module contain various utility operations.
+ */
+
 namespace mysql_harness {
 
-IPv6Address::IPv6Address(const char *data) {
-  if (inet_pton(AF_INET6, data, &address_) <= 0) {
-    throw std::invalid_argument(std::string("ipv6 parsing error"));
-  }
+/** @brief Wrapper for thread safe function returning error string.
+ *
+ * @param err error number
+ * @return string describing the error
+ */
+std::string get_strerror(int err);
+
 }
 
-std::string IPv6Address::str() const {
-  char tmp[INET6_ADDRSTRLEN];
-
-  if (inet_ntop(AF_INET6, &address_, tmp, INET6_ADDRSTRLEN)) {
-    return tmp;
-  }
-
-  throw std::runtime_error(std::string("inet_ntop failed: ") + get_strerror(errno));
-}
-
-} // namespace mysql_harness
+#endif /* MYSQL_HARNESS_COMMON_INCLUDED */

@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "common.h"
 #include "networking/ipv4_address.h"
 
 #include <arpa/inet.h>
@@ -40,7 +41,7 @@ std::string IPv4Address::str() const {
     return addr;
   }
 
-  throw std::runtime_error(std::string("inet_ntop failed: ") + strerror(errno));
+  throw std::runtime_error(std::string("inet_ntop failed: ") + get_strerror(errno));
 }
 
 }

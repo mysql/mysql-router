@@ -1,5 +1,4 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,10 +33,12 @@
 
 #include <sys/socket.h>
 
+#include "common.h"
 #include "mysqlrouter/utils.h"
 #include "logger.h"
 #include "utils.h"
 
+using mysql_harness::get_strerror;
 using mysqlrouter::to_string;
 using mysqlrouter::string_format;
 using mysqlrouter::TCPAddress;
@@ -100,7 +101,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   int err;
   if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
     if (log) {
-      std::string errstr{(err == EAI_SYSTEM) ? strerror(errno) : gai_strerror(err)};
+      std::string errstr{(err == EAI_SYSTEM) ? get_strerror(errno).c_str() : gai_strerror(err)};
       log_debug("Failed getting address information for '%s' (%s)", addr.addr.c_str(), errstr.c_str());
     }
     return -1;
@@ -109,7 +110,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
   errno = 0;
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      log_error("Failed opening socket: %s", strerror(errno));
+      log_error("Failed opening socket: %s", get_strerror(errno).c_str());
       continue;
     }
     FD_ZERO(&readfds);
@@ -143,7 +144,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
 
     if (FD_ISSET(sock, &readfds) || FD_ISSET(sock, &writefds)) {
       if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &error_len) == -1) {
-        log_debug("Failed executing getsockopt on client socket: %s", strerror(errno));
+        log_debug("Failed executing getsockopt on client socket: %s", get_strerror(errno).c_str());
         continue;
       }
     } else {
@@ -165,7 +166,7 @@ int get_mysql_socket(TCPAddress addr, int connect_timeout, bool log) noexcept {
     close(sock);
     err = so_error ? so_error : errno;
     if (log) {
-      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), strerror(err), err);
+      log_debug("MySQL Server %s: %s (%d)", addr.str().c_str(), get_strerror(err).c_str(), err);
     }
     return -1;
   }

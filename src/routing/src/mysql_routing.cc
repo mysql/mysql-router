@@ -39,6 +39,7 @@
 #define __FD_SETSIZE 4096
 #include <sys/select.h>
 
+#include "common.h"
 #include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -47,6 +48,7 @@
 
 using std::runtime_error;
 using std::string;
+using mysql_harness::get_strerror;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
@@ -127,7 +129,7 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
   if (FD_ISSET(sender, readfds)) {
     if ((res = read(sender, &buffer.front(), buffer_length)) <= 0) {
       if (res == -1) {
-        log_debug("sender read failed: (%d %s)", errno, strerror(errno));
+        log_debug("sender read failed: (%d %s)", errno, get_strerror(errno).c_str());
       }
       return -1;
     }
@@ -153,7 +155,7 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
         // We do not consider this a failed handshake
         auto server_error = mysql_protocol::ErrorPacket(buffer);
         if (write(receiver, server_error.data(), server_error.size()) ) {
-          log_debug("Write error: %s", strerror(errno));
+          log_debug("Write error: %s", get_strerror(errno).c_str());
         }
         // receiver socket closed by caller
         *curr_pktnr = 2; // we assume handshaking is done though there was an error
@@ -181,7 +183,7 @@ int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
     ssize_t written = 0;
     while (bytes_to_write > 0) {
       if ((written = write(receiver, buffer.data(), bytes_to_write)) < 0) {
-        log_debug("Write error: %s", strerror(errno));
+        log_debug("Write error: %s", get_strerror(errno).c_str());
         return -1;
       }
       bytes_to_write -= static_cast<size_t>(written);
@@ -210,7 +212,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
   if (server >= 0) {
     auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
     if (write(server, fake_response.data(), fake_response.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+      log_debug("[%s] write error: %s", name.c_str(), get_strerror(errno).c_str());
     }
   }
 
@@ -237,7 +239,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     // at this point, it does not matter whether client gets the error
     errno = 0;
     if (write(client, server_error.data(), server_error.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+      log_debug("[%s] write error: %s", name.c_str(), get_strerror(errno).c_str());
     }
 
     shutdown(client, SHUT_RDWR);
@@ -292,7 +294,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
       if (res == 0) {
         extra_msg = string("Select timed out");
       } else if (errno > 0) {
-        extra_msg = string("Select failed with error: " + to_string(strerror(errno)));
+        extra_msg = string("Select failed with error: " + get_strerror(errno));
       } else {
         extra_msg = string("Select failed (" + to_string(res) + ")");
       }
@@ -310,7 +312,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
                                     &readfds, buffer, &pktnr,
                                     handshake_done, &bytes_read) == -1) {
       if (errno > 0) {
-        extra_msg = string("Copy server-client failed: " + to_string(strerror(errno)));
+        extra_msg = string("Copy server-client failed: " + get_strerror(errno));
       }
       break;
     }
@@ -398,12 +400,12 @@ void MySQLRouting::start_tcp_service() {
 
   while (!stopping()) {
     if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
-      log_error("[%s] Failed opening socket: %s", name.c_str(), strerror(errno));
+      log_error("[%s] Failed opening socket: %s", name.c_str(), get_strerror(errno).c_str());
       continue;
     }
 
     if (inet_ntop(AF_INET6, &client_addr, client_ip, static_cast<socklen_t>(sizeof(client_ip))) == nullptr) {
-      log_error("[%s] inet_ntop failed: %s", name.c_str(), strerror(errno));
+      log_error("[%s] inet_ntop failed: %s", name.c_str(), get_strerror(errno).c_str());
       continue;
     }
 
@@ -413,7 +415,7 @@ void MySQLRouting::start_tcp_service() {
       auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");
       errno = 0;
       if (write(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+        log_debug("[%s] write error: %s", name.c_str(), get_strerror(errno).c_str());
       }
       close(sock_client); // no shutdown() before close()
       continue;
@@ -422,7 +424,7 @@ void MySQLRouting::start_tcp_service() {
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
       auto server_error = mysql_protocol::ErrorPacket(0, 1040, "Too many connections", "HY000");
       if (write(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), strerror(errno));
+        log_debug("[%s] write error: %s", name.c_str(), get_strerror(errno).c_str());
       }
       close(sock_client); // no shutdown() before close()
       log_warning("[%s] reached max active connections (%d)", name.c_str(), max_connections_);
@@ -430,7 +432,7 @@ void MySQLRouting::start_tcp_service() {
     }
 
     if (setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, &opt_nodelay, static_cast<socklen_t>(sizeof(int))) == -1) {
-      log_error("[%s] client setsockopt error: %s", name.c_str(), strerror(errno));
+      log_error("[%s] client setsockopt error: %s", name.c_str(), get_strerror(errno).c_str());
       continue;
     }
 
@@ -449,7 +451,7 @@ void MySQLRouting::start_named_socket_service() {
 
   while (!stopping()) {
     if (errno > 0) {
-      log_error(strerror(errno));
+      log_error(get_strerror(errno).c_str());
       errno = 0;
     }
 
@@ -492,17 +494,17 @@ void MySQLRouting::setup_tcp_service() {
   // Try to setup socket and bind
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((service_tcp_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      throw std::runtime_error(strerror(errno));
+      throw std::runtime_error(get_strerror(errno));
     }
 
     option_value = 1;
     if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, &option_value, static_cast<socklen_t>(sizeof(int))) == -1) {
-      throw std::runtime_error(strerror(errno));
+      throw std::runtime_error(get_strerror(errno));
     }
 
     if (::bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
       close(service_tcp_);
-      throw std::runtime_error(strerror(errno));
+      throw std::runtime_error(get_strerror(errno));
     }
     break;
   }
@@ -529,20 +531,20 @@ void MySQLRouting::setup_named_socket_service() {
   if (unlink(socket_file.c_str()) == -1) {
     if (errno != 2) {
       throw std::runtime_error(
-          "Failed removing socket file " + socket_file + " (" + strerror(errno) + " (" + to_string(errno) + "))");
+          "Failed removing socket file " + socket_file + " (" + get_strerror(errno) + " (" + to_string(errno) + "))");
     }
     errno = 0;
   }
 
   if ((service_named_socket_ = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    throw std::runtime_error(strerror(errno));
+    throw std::runtime_error(get_strerror(errno));
   }
 
   sock_unix.sun_family = AF_UNIX;
   std::strncpy(sock_unix.sun_path, socket_file.c_str(), socket_file.size() + 1);
 
   if (::bind(service_named_socket_, (struct sockaddr *) &sock_unix, static_cast<socklen_t>(sizeof(sock_unix))) == -1) {
-    throw std::runtime_error(strerror(errno));
+    throw std::runtime_error(get_strerror(errno));
   }
 
   if (listen(service_named_socket_, 20) < 0) {
