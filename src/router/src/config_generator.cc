@@ -70,7 +70,7 @@ static void extract_account_info(const std::string &data, const std::string &key
                      reinterpret_cast<unsigned char*>(&decrypted_data[0]),
                      reinterpret_cast<const unsigned char*>(key.data()),
                      static_cast<uint32_t>(key.length()),
-                     myaes::my_aes_128_ecb, NULL, false)) < 0)
+                     myaes::my_aes_256_ecb, NULL, false)) < 0)
     throw std::runtime_error("Error decrypting account information");
   decrypted_data.resize((size_t)len);
 
