@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <openssl/bio.h>
 
 namespace myaes {
+
+/*
+  xplugin needs BIO_new_bio_pair, but the server does not.
+  Add an explicit dependency here, so that it is available when loading
+  the plugin.
+ */
+int dummy_function_needed_by_xplugin()
+{
+  BIO *bio1;
+  BIO *bio2;
+  return BIO_new_bio_pair(&bio1, 42U, &bio2, 42U);
+}
+
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 const char *my_aes_opmode_names[]=

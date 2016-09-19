@@ -41,26 +41,45 @@ using std::chrono::seconds;
 using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
 
-std::vector<TCPAddress> DestMetadataCacheGroup::get_available() {
-  auto managed_servers = lookup_replicaset(ha_replicaset).instance_vector;
-  std::vector<TCPAddress> available;
 
+DestMetadataCacheGroup::DestMetadataCacheGroup(
+  const std::string &metadata_cache, const std::string &replicaset,
+  const std::string &mode, const mysqlrouter::URIQuery &query) :
+    cache_name(metadata_cache),
+    ha_replicaset(replicaset),
+    uri_query(query),
+    allow_primary_reads_(false),
+    current_pos_(0) {
+  if (mode == "read-only")
+    routing_mode = ReadOnly;
+  else if (mode == "read-write")
+    routing_mode = ReadWrite;
+  else
+    throw std::runtime_error("Invalid routing mode value '"+mode+"'");
+  init();
+}
+
+std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::vector<std::string> *server_ids) {
+  auto managed_servers = lookup_replicaset(ha_replicaset).instance_vector;
+  std::vector<mysqlrouter::TCPAddress> available;
   for (auto &it: managed_servers) {
-    // Spare and Faulty are not used; skip until next
-    if (!(it.role == "scale-out" ||
-          it.role == "master")) {
+    if (!(it.role == "HA")) {
       continue;
     }
-
-    if (routing_mode == "read-only" && it.mode == "read-only") {
+    if (routing_mode == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
       // Secondary read-only
-      available.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
-    } else if ((routing_mode == "read-write" &&
-                (it.mode == "read-write" ||
-                 it.mode == "write-only")) ||
+      available.push_back(mysqlrouter::TCPAddress(
+                          it.host, static_cast<uint16_t >(it.port)));
+      if (server_ids)
+        server_ids->push_back(it.mysql_server_uuid);
+    } else if ((routing_mode == RoutingMode::ReadWrite &&
+                it.mode == metadata_cache::ServerMode::ReadWrite) ||
                allow_primary_reads_) {
       // Primary and secondary read-write/write-only
-      available.push_back(TCPAddress(it.host, static_cast<uint16_t >(it.port)));
+      available.push_back(mysqlrouter::TCPAddress(
+                          it.host, static_cast<uint16_t >(it.port)));
+      if (server_ids)
+        server_ids->push_back(it.mysql_server_uuid);
     }
   }
 
@@ -71,7 +90,7 @@ void DestMetadataCacheGroup::init() {
 
   auto query_part = uri_query.find("allow_primary_reads");
   if (query_part != uri_query.end()) {
-    if (routing_mode == "read-only") {
+    if (routing_mode == RoutingMode::ReadOnly) {
       auto value = query_part->second;
       std::transform(value.begin(), value.end(), value.begin(), ::tolower);
       if (value == "yes") {
@@ -86,9 +105,12 @@ void DestMetadataCacheGroup::init() {
 int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
 
   try {
-
-    auto available = get_available();
+    std::vector<std::string> server_ids;
+    auto available = get_available(&server_ids);
     if (available.empty()) {
+      log_warning("No available %s servers found for '%s'",
+          routing_mode == RoutingMode::ReadWrite ? "RW" : "RO",
+          ha_replicaset.c_str());
       return -1;
     }
 
@@ -103,7 +125,13 @@ int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) n
     if (current_pos_ >= available.size()) {
       current_pos_ = 0;
     }
-    return get_mysql_socket(available.at(next_up), connect_timeout);
+    int fd = get_mysql_socket(available.at(next_up), connect_timeout);
+    if (fd < 0) {
+      // Signal that we can't connect to the instance
+      mark_instance_reachability(server_ids.at(next_up),
+                                 metadata_cache::InstanceStatus::Unreachable);
+    }
+    return fd;
   } catch (std::runtime_error & re) {
     log_error("Failed getting managed servers from the Metadata server : %s",
               re.what());

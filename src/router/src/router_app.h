@@ -68,7 +68,8 @@ public:
    *     router.start();
    *
    */
-  MySQLRouter() : can_start_(false), showing_info_(false) {};
+  MySQLRouter() : can_start_(false), showing_info_(false),
+    creating_config_(false) {};
 
 
   /** @brief Constructor with command line arguments as vector
@@ -345,6 +346,11 @@ private:
   bool can_start_;
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
   bool showing_info_;
+  /**
+   * @brief Whether we are creating the configuration file using -e or
+   *        --create-config
+   */
+  bool creating_config_;
 
   /**
    * Path to origin of executable.

@@ -15,9 +15,10 @@
 
 set(METADATA_CACHE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata_factory.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/farm_metadata.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster_metadata.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_api.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/group_replication_metadata.cc
 )
 
 include_directories(
@@ -26,6 +27,8 @@ include_directories(
   src/
   ${MySQL_INCLUDE_DIRS}
 )
+
+add_definitions(${SSL_DEFINES})
 
 add_harness_plugin(metadata_cache SOURCES
   src/metadata_cache_plugin.cc

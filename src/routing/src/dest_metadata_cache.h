@@ -27,24 +27,18 @@
 #include "mysqlrouter/datatypes.h"
 #include "logger.h"
 
-using std::runtime_error;
-using std::chrono::system_clock;
-using mysqlrouter::TCPAddress;
-using mysqlrouter::URIQuery;
-
-
 class DestMetadataCacheGroup final : public RouteDestination {
 public:
-  /** @brief Constructor */
-  DestMetadataCacheGroup(const std::string metadata_cache, const std::string replicaset, const std::string mode, URIQuery query) :
-      cache_name(metadata_cache),
-      ha_replicaset(replicaset),
-      routing_mode(mode),
-      uri_query(query),
-      allow_primary_reads_(false),
-      current_pos_(0) {
-    init();
-  };
+   enum RoutingMode {
+     ReadWrite,
+     ReadOnly
+   };
+
+   /** @brief Constructor */
+   DestMetadataCacheGroup(const std::string &metadata_cache,
+                          const std::string &replicaset,
+                          const std::string &mode,
+                          const mysqlrouter::URIQuery &query);
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;
@@ -61,6 +55,7 @@ public:
   int get_server_socket(int connect_timeout, int *error) noexcept;
 
   void add(const std::string &, uint16_t) { }
+
 
   /** @brief Returns whether there are destination servers
    *
@@ -81,7 +76,7 @@ public:
    * Metadata Cache.
    */
   void prepare() noexcept {
-    destinations_ = get_available();
+    destinations_ = get_available(nullptr);
   }
 
   /** @brief The Metadata Cache to use
@@ -110,7 +105,7 @@ public:
    *
    * 'homepage' will be value of `ha_replicaset`.
    */
-  const std::string routing_mode;
+  RoutingMode routing_mode;
 
   /** @brief Query part of the URI given as destination in the configuration
    *
@@ -118,11 +113,11 @@ public:
    *
    *     [routing:metadata_read_only]
    *     ..
-   *     destination = metadata-cache://ham/replicaset/homepage?allow_primary_reads=yes
+   *     destination = metadata_cache:///cluster_name/replicaset_name?allow_primary_reads=yes
    *
    * The 'allow_primary_reads' is part of uri_query.
    */
-  const URIQuery uri_query;
+  const mysqlrouter::URIQuery uri_query;
 
 private:
   /** @brief Initializes
@@ -139,7 +134,7 @@ private:
    * servers.
    *
    */
-  std::vector<TCPAddress> get_available();
+  std::vector<mysqlrouter::TCPAddress> get_available(std::vector<std::string> *server_ids);
 
   /** @brief Whether we allow a read operations going to the primary (master) */
   bool allow_primary_reads_;

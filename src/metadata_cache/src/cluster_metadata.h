@@ -29,13 +29,15 @@
 #include <mysql.h>
 #include <string.h>
 
-/** @class FarmMetadata
+struct GroupReplicationMember;
+
+/** @class ClusterMetadata
  *
- * The `FarmMetadata` class encapsulates a connection to the Metadata server. It
+ * The `ClusterMetadata` class encapsulates a connection to the Metadata server. It
  * uses the MySQL Client C Library to setup, manage and retrieve results.
  *
  */
-class FarmMetadata : public MetaData {
+class ClusterMetadata : public MetaData {
 public:
   /** @brief Constructor
    *
@@ -48,7 +50,7 @@ public:
    *                            fails.
    * @param ttl The time to live of the data in the cache.
    */
-  FarmMetadata(const std::string &user, const std::string &password,
+  ClusterMetadata(const std::string &user, const std::string &password,
                int connection_timeout, int connection_attempts,
                unsigned int ttl);
 
@@ -56,16 +58,17 @@ public:
    *
    * Disconnect and release the connection to the metadata node.
    */
-  ~FarmMetadata();
+  ~ClusterMetadata();
 
 
   /** @brief Returns relation between replicaset ID and list of servers
    *
    * Returns relation as a std::map between replicaset ID and list of managed servers.
    *
+   * @param cluster_name the name of the cluster to query
    * @return Map of replicaset ID, server list pairs.
    */
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances();
+  InstancesByReplicaSet fetch_instances(const std::string &cluster_name);
 
   /** @brief Returns the refresh interval provided by the metadata server.
    *
@@ -96,14 +99,30 @@ public:
   void disconnect() noexcept;
 
 private:
-  /** @brief Returns result from remote API call
+  /** Connects a MYSQL connection descriptor to the given instance
+   */
+  bool do_connect(MYSQL *mysql, const metadata_cache::ManagedInstance &mi);
+
+  /** @brief Returns result from a query.
    *
-   * Returns result from remote API call executed on the Metadata Server.
+   * Returns result from a query executed on the Metadata Server.
    *
    * @param query Query to be executed
    * @return MYSQL_RES object containg result of remote API execution
    */
-  MYSQL_RES *fetch_metadata(const std::string &query);
+  MYSQL_RES *run_query(const std::string &query);
+
+  /** @brief Queries the metadata server for the list of instances and
+   * replicasets that belong to the desired cluster.
+   */
+  InstancesByReplicaSet fetch_instances_from_metadata_server(const std::string &cluster_name);
+
+  void update_replicaset_status(const std::string &name,
+      std::vector<metadata_cache::ManagedInstance> &instances);
+
+  metadata_cache::ReplicasetStatus check_replicaset_status(
+      std::vector<metadata_cache::ManagedInstance> &instances,
+      std::map<std::string, GroupReplicationMember> &member_status);
 
   // Metadata node connection information
   std::string user_;
@@ -112,7 +131,7 @@ private:
   // Metadata node generic information
   std::string metadata_uuid_;
   unsigned int ttl_;
-  std::string metadata_replicaset_;
+  std::string cluster_name_;
   std::string message_;
 
   // The time after which a connection to the metadata server should timeout.
@@ -124,6 +143,9 @@ private:
 
   // MySQL client objects
   MYSQL *metadata_connection_;
+
+  // The address of the instance metadata_connection_ is connected to
+  std::string metadata_connection_address_;
 
   // Boolean variable indicates if a connection to metadata has been established.
   bool connected_ = false;

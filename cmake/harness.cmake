@@ -24,19 +24,22 @@ message(STATUS "Adding MySQL Harness from ${WITH_HARNESS}")
 
 set(ENABLE_HARNESS_PROGRAM NO CACHE BOOL "Harness program is not installed")
 set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
-set(HARNESS_PLUGIN_RPATH ${ROUTER_PLUGINDIR} CACHE PATH "Path with directories where plugins can be found")
 set(HARNESS_INSTALL_LIBRARY_DIR "${INSTALL_LIBDIR}" CACHE PATH "Installation directory for Harness libraries")
 
-# This has to be after the set commands above (the setting of
-# HARNESS_PLUGIN_RPATH is the problem) but before including the
-# harness subdirectory.
+# This set a relative rpath for when using install layouts that
+# require this. The default is to use absolute paths, which are used
+# for all other layouts.
 if(INSTALL_LAYOUT STREQUAL "STANDALONE" OR INSTALL_LAYOUT STREQUAL "DEFAULT" OR
    INSTALL_LAYOUT STREQUAL "WIN")
- set(HARNESS_PLUGIN_RPATH ${RPATH_ORIGIN})
- set(CMAKE_INSTALL_RPATH "${RPATH_ORIGIN}/../lib")
+ set(CMAKE_INSTALL_RPATH
+   ${RPATH_ORIGIN}/../lib ${RPATH_ORIGIN}/../lib/mysqlrouter)
+else()
+ set(CMAKE_INSTALL_RPATH
+   ${CMAKE_INSTALL_PREFIX}/${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME})
 endif()
 
-mark_as_advanced(HARNESS_PLUGIN_RPATH)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # binary_dir needed when WITH_HARNESS is out-of-tree
 add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)

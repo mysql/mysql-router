@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,10 +20,11 @@ set(MYSQL_ROUTER_TARGET "mysqlrouter"
   CACHE STRING "Name of the MySQL Router application")  # Also used in CMAKE_INSTALL_PREFIX
 set(MYSQL_ROUTER_NAME "MySQL Router"
   CACHE STRING "MySQL Router project name")
-set(MYSQL_ROUTER_INI "mysqlrouter.ini"
+set(MYSQL_ROUTER_INI "mysqlrouter.conf"
   CACHE STRING "Name of default configuration file")
 
 # Command line options for CMake
+option(BUILD_SAMPLES "Build Samples" NO)
 option(ENABLE_TESTS "Enable Tests" NO)
 option(WITH_STATIC "Enable static linkage of external libraries" NO)
 option(GPL "Produce GNU GPLv2 source and binaries" YES)

@@ -39,62 +39,6 @@ static const char *kRoutingRequires[] = {
     "logger",
 };
 
-// We can modify the AppInfo object; we need to store password separately
-using PasswordKey = std::pair<string, string>;
-string metadata_cache_password;
-
-/**
- * Prompt for the password that will be used for accessing the metadata
- * in the metadata servers.
- *
- * @param prompt The password prompt.
- *
- * @return a string representing the password.
- */
-#ifndef _WIN32
-const string prompt_password(const string &prompt) {
-  struct termios console;
-  tcgetattr(STDIN_FILENO, &console);
-
-  std::cout << prompt << ": ";
-
-  // prevent showing input
-  console.c_lflag &= ~(uint)ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
-  string result;
-  std::getline(std::cin, result);
-
-  // reset
-  console.c_lflag |= ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
-  std::cout << std::endl;
-  return result;
-}
-#else
-const string prompt_password(const string &prompt) {
-
-  std::cout << prompt << ": ";
-
-  // prevent showing input
-  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-  DWORD mode;
-  GetConsoleMode(hStdin, &mode);
-  mode &= ~ENABLE_ECHO_INPUT;
-  SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
-
-  string result;
-  std::getline(std::cin, result);
-
-  // reset
-  SetConsoleMode(hStdin, mode);
-
-  std::cout << std::endl;
-  return result;
-}
-#endif
-
 /**
  * Load the metadata cache configuration from the router config file.
  *
@@ -104,32 +48,13 @@ const string prompt_password(const string &prompt) {
  */
 static int init(const mysql_harness::AppInfo *info) {
   g_app_info = info;
-  const mysql_harness::ConfigSection *section;
   // If a valid configuration object was found.
   if (info && info->config) {
     // if a valid metadata_cache section was found in the router
     // configuration.
-    if (!(info->config->get(kSectionName).empty())) {
-      section = (info->config->get(kSectionName)).front();
-    } else {
+    if (info->config->get(kSectionName).empty()) {
       throw std::invalid_argument("[metadata_cache] section is empty");
     }
-
-    // Create a configuration object encapsulating the metadata cache
-    // information.
-    MetadataCachePluginConfig config(section); // raises on errors
-    if (section->has("password")) {
-      throw std::invalid_argument(
-        "'password' option is not allowed in the configuration file. "
-        "Router will prompt for password instead.");
-    }
-    // we need to prompt for the password
-    auto prompt = mysqlrouter::string_format("Password for [%s%s%s], user %s",
-                                             section->name.c_str(),
-                                             section->key.empty() ? "" : ":",
-                                             section->key.c_str(),
-                                             config.user.c_str());
-    metadata_cache_password = prompt_password(prompt);
   }
   return 0;
 }
@@ -144,19 +69,19 @@ static void start(const mysql_harness::ConfigSection *section) {
  try {
     MetadataCachePluginConfig config(section);
     unsigned int ttl{config.ttl};
-    string metadata_replicaset{config.metadata_replicaset};
+    string metadata_cluster{config.metadata_cluster};
 
     // Initialize the defaults.
     ttl = ttl == 0 ? metadata_cache::kDefaultMetadataTTL : ttl;
-    metadata_replicaset = metadata_replicaset.empty()?
-      metadata_cache::kDefaultMetadataReplicaset : metadata_replicaset;
+    metadata_cluster = metadata_cluster.empty()?
+      metadata_cache::kDefaultMetadataCluster : metadata_cluster;
 
     log_info("Starting Metadata Cache");
 
     // Initialize the metadata cache.
     metadata_cache::cache_init(config.bootstrap_addresses, config.user,
-                               metadata_cache_password, ttl,
-                               metadata_replicaset);
+                               config.password, ttl,
+                               metadata_cluster);
   } catch (const std::runtime_error &exc) {
     // We continue and retry
     log_error(exc.what());

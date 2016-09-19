@@ -28,6 +28,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <set>
 
 #include "logger.h"
 
@@ -44,7 +45,7 @@ public:
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
                 int connection_timeout, int connection_attempts,
-                unsigned int ttl, const std::string &metadata_replicaset);
+                unsigned int ttl, const std::string &cluster_name);
 
   /** @brief Destructor */
   ~MetadataCache();
@@ -71,6 +72,18 @@ public:
   std::vector<metadata_cache::ManagedInstance> replicaset_lookup(
     const std::string &replicaset_name);
 
+  /** @brief Update the status of the instance
+   *
+   * Called when an instance from a replicaset cannot be reached for one reason or
+   * another. When a primary instance becomes unreachable, the rate of refresh of
+   * the metadata cache increases to once per second until a new primary is detected.
+   *
+   * @param instance_id - the mysql_server_uuid that identifies the server instance
+   * @param status - the status of the instance
+   */
+   void mark_instance_reachability(const std::string &instance_id,
+                                   metadata_cache::InstanceStatus status);
+
 private:
 
   /** @brief Refreshes the cache
@@ -85,8 +98,8 @@ private:
   std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
     replicaset_data_;
 
-  // The name of the primary replicaset in the topology.
-  std::string metadata_replicaset_;
+  // The name of the cluster in the topology.
+  std::string cluster_name_;
 
   // The list of servers that contain the metadata about the managed
   // topology.
@@ -110,6 +123,11 @@ private:
   // This mutex ensures that a refresh of the servers that contain the metadata
   // is consistent with the use of the server list.
   std::mutex metadata_servers_mutex_;
+
+  // Contains a set of replicaset names that have no primary
+  std::set<std::string> lost_primary_replicasets_;
+
+  std::mutex lost_primary_replicasets_mutex_;
 
   // Flag used to terminate the refresh thread.
   bool terminate_;

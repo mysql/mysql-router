@@ -32,7 +32,7 @@ set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
 set(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}${PROJECT_PACKAGE_EXTRAS}")
 
 # We ignore all files in the root of the repository and then
 # exclude from the list which we want to keep.
@@ -42,6 +42,7 @@ set(source_include
   "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
   "${src_dir}/doc"
+  "${src_dir}/ext"
   "${src_dir}/src"
   "${src_dir}/tests"
   "${src_dir}/packaging"

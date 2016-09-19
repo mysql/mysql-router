@@ -19,7 +19,7 @@
 
 #include <vector>
 
-#include "farm_metadata.h"
+#include "cluster_metadata.h"
 
 #include "mysqlrouter/datatypes.h"
 
@@ -36,7 +36,7 @@ namespace metadata_cache {
  *
  */
 
-class MockNG : public FarmMetadata {
+class MockNG : public ClusterMetadata {
 public:
   /**
    * Objects representing the servers that are part of the topology.
@@ -107,7 +107,9 @@ public:
    *
    * @return Map of replicaset ID, server list pairs.
    */
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances();
+  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances(const std::string &farm_name);
+
+
 
   /**
    *

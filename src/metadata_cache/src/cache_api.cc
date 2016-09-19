@@ -31,7 +31,7 @@ const std::string kDefaultMetadataAddress{"127.0.0.1:" + mysqlrouter::to_string(
     kDefaultMetadataPort)};
 const std::string kDefaultMetadataUser = "";
 const std::string kDefaultMetadataPassword = "";
-const std::string kDefaultMetadataReplicaset = "metadata_replicaset";
+const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick the 1st (and only) cluster
 
 /**
  * Initialize the metadata cache.
@@ -41,16 +41,16 @@ const std::string kDefaultMetadataReplicaset = "metadata_replicaset";
  * @param user The user name used to connect to the metadata servers.
  * @param password The password used to connect to the metadata servers.
  * @param ttl The ttl for the contents of the cache
- * @param metadata_replicaset The replicaset in the topology that stores the
- *                            metadata.
+ * @param cluster_name The name of the cluster from the metadata schema
  */
 void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
                   unsigned int ttl,
-                  const std::string &metadata_replicaset) {
+                  const std::string &cluster_name) {
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers, user, password, 1,
-                                           1, ttl, metadata_replicaset));
+                                           1, ttl, cluster_name));
+  g_metadata_cache->start();
 }
 
 /**
@@ -71,4 +71,13 @@ LookupResult lookup_replicaset(const std::string &replicaset_name) {
   return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
 }
 
+
+void mark_instance_reachability(const std::string &instance_id,
+                                InstanceStatus status) {
+  if (g_metadata_cache == nullptr) {
+    throw std::runtime_error("Metadata Cache not initialized");
+  }
+
+  g_metadata_cache->mark_instance_reachability(instance_id, status);
+}
 } // namespace metadata_cache

@@ -138,7 +138,7 @@ static int init(const mysql_harness::AppInfo *info) {
           auto uri = URI(config.destinations);
           if (uri.scheme == "fabric+cache") {
             need_fabric_cache = true;
-          } else if (uri.scheme == "metadata + cache") {
+          } else if (uri.scheme == "metadata-cache") {
             need_metadata_cache = true;
           }
         } catch (URIError) {

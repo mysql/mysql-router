@@ -59,10 +59,39 @@ if(ENABLE_HARNESS_PROGRAM)
   install(TARGETS harness-program RUNTIME DESTINATION bin)
 endif()
 
-set_target_properties(harness-archive harness-library PROPERTIES
-  OUTPUT_NAME "mysqlharness"
-  PREFIX "lib"
-  SOVERSION 0)
+if(NOT WIN32)
+  set_target_properties(harness-archive harness-library PROPERTIES
+    OUTPUT_NAME "mysqlharness"
+    PREFIX "lib"
+    SOVERSION 1)
+  set_target_properties(harness-library PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/stage/lib)
+else()
+  set_target_properties(harness-archive PROPERTIES
+    OUTPUT_NAME "mysqlharness_a"
+    PREFIX "lib"
+    SOVERSION 1)
+
+  # Fix install path in stage dir, so that files get to
+  # stage/${configuration_type}/{bin,etc,lib} instead of
+  # stage/{bin,etc,lib}/${configuration_type}
+  foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+    set_target_properties(harness-library PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY_${config_} ${CMAKE_BINARY_DIR}/stage/${config_}/bin) # <-- [SEARCH TAG] RUNTIME_OUTPUT_DIRECTORY
+  endforeach()
+
+  get_property(harness_library_location TARGET harness-library PROPERTY LOCATION)
+  foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+    add_custom_command(TARGET harness-library
+          COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${STAGE_DIR}/${conf}/lib/
+          COMMENT "Copying harness library from: ${harness_library_location}"
+    )
+    file(MAKE_DIRECTORY "${STAGE_DIR}/${conf}/lib/")
+  endforeach()
+endif()
+
+# copy harness headers
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
 
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
