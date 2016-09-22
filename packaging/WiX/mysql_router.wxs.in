@@ -202,10 +202,26 @@
       <Directory Id='@PlatformProgramFilesFolder@'>
         <Directory Id='directory.MySQL' Name='MySQL'>
           <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
+            <Directory Id='DOCDIR' Name='doc' />
           </Directory>
         </Directory>
       </Directory>
     </Directory>
+
+  <!-- Add documentation files to the installation -->
+  <DirectoryRef Id="DOCDIR">
+    <Component Id="License.txt" @Win64@ Guid="{9a064a62-989c-4076-b995-e10453cc6bab}">
+        <File Id="License.txt" Source="@CMAKE_CURRENT_SOURCE_DIR@\..\..\License.txt" KeyPath="yes"/>
+    </Component>
+    <Component Id="README.txt" @Win64@ Guid="{24109ac5-cf9a-465d-8b07-861654f5475a}">
+        <File Id="README.txt" Source="@CMAKE_CURRENT_SOURCE_DIR@\..\..\README.txt" KeyPath="yes"/>
+    </Component>
+  </DirectoryRef>
+
+  <Feature Id="Documentation" Title="MySQL Router Documentation Files" Level="1">
+     <ComponentRef Id="License.txt" />
+     <ComponentRef Id="README.txt" />
+  </Feature>
 
     <!-- CPACK_WIX_FEATURES -->
     @CPACK_WIX_FEATURES@
