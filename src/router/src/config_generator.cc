@@ -277,23 +277,16 @@ void ConfigGenerator::create_config(
   const std::string &password,
   bool multi_master) {
   std::ofstream cfp;
-  std::string plugindir;
   int rw_port = 6446;
   int ro_port = 6447;
 
   std::string basedir(find_my_base_dir());
 
-  if (access((basedir+"/lib64/mysqlrouter").c_str(), X_OK) == 0) {
-    plugindir = basedir+"/lib64/mysqlrouter";
-  } else {
-    plugindir = basedir+"/lib/mysqlrouter";
-  }
   cfp.open(config_file_path);
   if (cfp.fail()) {
     throw std::runtime_error("Could not open "+config_file_path+" for writing: "+strerror(errno));
   }
   cfp << "[DEFAULT]\n"
-      << "plugin_folder=" << plugindir << "\n"
       << "# logging_folder=" << default_log_path << "\n"
       << "\n"
       << "[logger]\n"

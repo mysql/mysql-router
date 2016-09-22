@@ -133,7 +133,7 @@ int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) n
     }
     return fd;
   } catch (std::runtime_error & re) {
-    log_error("Failed getting managed servers from the Metadata server : %s",
+    log_error("Failed getting managed servers from the Metadata server: %s",
               re.what());
   }
 
