@@ -232,12 +232,12 @@ TEST(TestIPAddress, Constructor) {
   }
 
   {
-    IPAddress addr = "127.0.0.1";
+    IPAddress addr("127.0.0.1");
     EXPECT_TRUE(addr.is_ipv4());
   }
 
   {
-    IPAddress addr = std::string("::1");
+    IPAddress addr("::1");
     EXPECT_TRUE(addr.is_ipv6());
   }
 

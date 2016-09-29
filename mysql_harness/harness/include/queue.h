@@ -24,11 +24,12 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <memory>
 
 namespace std {
 
-#if __cplusplus < 201402L
+// test for C++14 (in MSVC, use _MSC_VER as __cplusplus in unreliable there)
+#if (!defined(_WIN32) && __cplusplus < 201402L) \
+  || (defined(_WIN32) && _MSC_VER < 1900)
 
 /**
  * Construct an object and wrap it in a unique pointer.
@@ -132,7 +133,8 @@ class queue {
   }
 
   template <class Rep, class Period>
-  std::unique_ptr<Node> pop_front(const std::chrono::duration<Rep, Period>& rel_time) {
+  std::unique_ptr<Node>
+      pop_front(const std::chrono::duration<Rep, Period>& rel_time) {
     std::unique_lock<std::mutex> lock(head_mtx_);
     auto not_empty = [this]{
       return head_.get() != get_tail();
@@ -166,8 +168,9 @@ class queue {
    * @return A positive integer denoting the number of elements in the
    * queue.
    */
-  size_type size(std::memory_order memory_order = std::memory_order_seq_cst) const noexcept {
-    return size_.load(memory_order);
+  size_type size(std::memory_order order =
+                 std::memory_order_seq_cst) const noexcept {
+    return size_.load(order);
   }
 
   /**
@@ -204,16 +207,16 @@ class queue {
     cond_.notify_one();
   }
 
-  bool pop(T& result) {
+  bool pop(T* result) {
     auto head = pop_front();
-    result = std::move(*head->data_);
+    *result = std::move(*head->data_);
     return true;
   }
 
   template <class Rep, class Period>
-  bool pop(T& result, const std::chrono::duration<Rep, Period>& rel_time) {
+  bool pop(T* result, const std::chrono::duration<Rep, Period>& rel_time) {
     if (auto head = pop_front(rel_time)) {
-      result = std::move(*head->data_);
+      *result = std::move(*head->data_);
       return true;
     }
     return false;
@@ -231,9 +234,9 @@ class queue {
     return std::shared_ptr<T>();
   }
 
-  bool try_pop(T& result) {
+  bool try_pop(T* result) {
     if (std::unique_ptr<Node> head = try_pop_front()) {
-      result = std::move(*head->data_);
+      *result = std::move(*head->data_);
       return true;
     }
     return false;

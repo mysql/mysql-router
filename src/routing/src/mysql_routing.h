@@ -22,7 +22,7 @@
  * @brief Defining the class MySQLRouting
  *
  * This file defines the main class `MySQLRouting` which is used to configure,
- * start and manage a conenction routing from clients and MySQL servers.
+ * start and manage a connection routing from clients and MySQL servers.
  *
  */
 
@@ -30,22 +30,48 @@
 #include "destination.h"
 #include "filesystem.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/mysql_protocol.h"
 #include "plugin_config.h"
 #include "utils.h"
+#include "mysqlrouter/routing.h"
 
-#include <arpa/inet.h>
 #include <array>
 #include <atomic>
 #include <iostream>
 #include <map>
 #include <memory>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <thread>
-#include <unistd.h>
 
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#  include <netdb.h>
+#  include <netinet/in.h>
+#  include <netinet/tcp.h>
+#  include <sys/socket.h>
+#  include <unistd.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
+
+
+#ifdef _WIN32
+#  ifdef routing_DEFINE_STATIC
+#    define ROUTING_API
+#  else
+#    ifdef routing_EXPORTS
+#      define ROUTING_API __declspec(dllexport)
+#    else
+#      define ROUTING_API __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define ROUTING_API
+#endif
+
+using std::string;
+using mysqlrouter::URI;
 
 /** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers
@@ -54,7 +80,7 @@
  *  TCP port for incoming MySQL Client connection and route these to a MySQL
  *  Server.
  *
- *  Conenction routing will not analyze or parse any MySQL package nor will
+ *  Connection routing will not analyze or parse any MySQL package nor will
  *  it do any authentication. It will not handle errors from the MySQL server
  *  and not automatically recover. The client communicate through MySQL Router
  *  just like it would directly connecting.
@@ -89,15 +115,18 @@ public:
    * @param optional destination_connect_timeout Timeout trying to connect destination server
    * @param optional max_connect_errors Maximum connect or handshake errors per host
    * @param optional connect_timeout Timeout waiting for handshake response
+   * @param optional socket_operations object handling the operations on network sockets
    */
-  MySQLRouting(routing::AccessMode mode, uint16_t port, const std::string &bind_address = std::string{"0.0.0.0"},
+  MySQLRouting(routing::AccessMode mode, uint16_t port,
+               const string &bind_address = string{"0.0.0.0"},
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
-               const std::string &route_name = std::string{},
+               const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
                int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
                unsigned int connect_timeout = routing::kDefaultClientConnectTimeout,
-               unsigned int net_buffer_length = routing::kDefaultNetBufferLength);
+               unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
+               routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance());
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -210,6 +239,33 @@ public:
     return max_connections_;
   }
 
+  /** @brief Reads from sender and writes it back to receiver using select
+   *
+   * This function reads data from the sender socket and writes it back
+   * to the receiver socket. It uses `select`.
+   *
+   * Checking the handshaking is done when the client first connects and
+   * the server sends its handshake. The client replies and the server
+   * should reply with an OK (or Error) packet. This packet should be
+   * packet number 2. For secure connections, however, the client asks
+   * to switch to SSL and we can't check further packages (we can't
+   * decrypt). When SSL switch is detected, this function will set pktnr
+   * to 2, so we assume the handshaking was OK.
+   *
+   * @param sender Descriptor of the sender
+   * @param receiver Descriptor of the receiver
+   * @param readfds Read descriptors used with FD_ISSET
+   * @param buffer Buffer to use for storage
+   * @param curr_pktnr Pointer to storage for sequence id of packet
+   * @param handshake_done Whether handshake phase is finished or not
+   * @param report_bytes_read Pointer to storage to report bytes read
+   * @return 0 on success; -1 on error
+   */
+  static int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
+                                         mysql_protocol::Packet::vector_t &buffer, int *curr_pktnr,
+                                         bool handshake_done, size_t *report_bytes_read,
+                                         routing::SocketOperationsBase *socket_operations);
+
 private:
   /** @brief Sets up the TCP service
    *
@@ -296,7 +352,13 @@ private:
   std::thread thread_tcp_;
   /** @brief Named socket service thread */
   std::thread thread_named_socket_;
+  /** @brief object handling the operations on network sockets */
+  routing::SocketOperationsBase* socket_operations_;
 };
 
+extern "C"
+{
+  extern mysql_harness::Plugin ROUTING_API harness_plugin_routing;
+}
 
 #endif // ROUTING_MYSQLROUTING_INCLUDED

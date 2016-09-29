@@ -20,6 +20,9 @@
  *
  */
 
+#include "config_parser.h"
+#include "destination.h"
+#include "logger.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 
@@ -43,7 +46,7 @@
 #include "config_parser.h"
 #include "helper_logger.h"
 
-#include "destination.h"
+extern "C" { extern mysql_harness::Plugin LOGGER_API logger; }  // defined in logger.cc
 
 using mysqlrouter::TCPAddress;
 using mysqlrouter::to_string;
@@ -84,6 +87,26 @@ protected:
 private:
   std::streambuf *orig_cout_;
 };
+
+// NOTE: this test must run as first, it doesn't really test anything, just inits logger.
+// TODO: might want to move it to some common helper function and make it available to all tests
+TEST_F(Bug21962350, InitLogger) {
+
+  // set log level in Config
+  mysql_harness::Config config;
+  config.add("logger");
+  mysql_harness::Config::SectionList sections = config.get("logger");
+  mysql_harness::ConfigSection*       section = sections.front();
+  section->set("level", "DEBUG");
+
+  // package Config inside of AppInfo
+  mysql_harness::AppInfo info;
+  memset(&info, 0, sizeof(info)); // set to all-NULL
+  info.config = &config;
+
+  // init logger
+  logger.init(&info);
+}
 
 TEST_F(Bug21962350, AddToQuarantine) {
   size_t exp;
@@ -150,6 +173,9 @@ TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
   ASSERT_EQ(exp, d.size_quarantine());
 }
 
+#if !defined(_WIN32) && !defined(__FreeBSD__)
+// This test doesn't work in Windows or FreeBSD, because of how ASSERT_DEATH works
+// But this test is gone in newer branches anyway, so disabling for now
 TEST_F(Bug21962350, QuarantineServerNonExisting) {
   size_t exp;
   MockRouteDestination d;
@@ -161,6 +187,7 @@ TEST_F(Bug21962350, QuarantineServerNonExisting) {
   exp = 0;
   ASSERT_EQ(exp, d.size_quarantine());
 }
+#endif
 
 TEST_F(Bug21962350, AlreadyQuarantinedServer) {
   size_t exp;

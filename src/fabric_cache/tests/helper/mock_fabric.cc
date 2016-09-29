@@ -27,18 +27,18 @@
 using namespace std;
 
 namespace fabric_cache {
-  /**
-   * Compare two server objects, managed by fabric.
-   */
-  bool operator == (const fabric_cache::ManagedServer & s1, const fabric_cache::ManagedServer & s2) {
-    return (s1.server_uuid == s2.server_uuid &&
-            s1.group_id == s2.group_id &&
-            s1.host == s2.host &&
-            s1.port == s2.port &&
-            s1.mode == s2.mode &&
-            s1.status == s2.status &&
-            s1.weight == s2.weight);
-  }
+
+/**
+ * Compare two server objects, managed by fabric.
+ */
+bool operator == (const ManagedServer & s1, const ManagedServer & s2) {
+  return (s1.server_uuid == s2.server_uuid &&
+          s1.group_id == s2.group_id &&
+          s1.host == s2.host &&
+          s1.port == s2.port &&
+          s1.mode == s2.mode &&
+          s1.status == s2.status &&
+          s1.weight == s2.weight);
 }
 
 /** @brief Constructor
@@ -154,7 +154,7 @@ MockFabric::~MockFabric() {}
  *
  * @return Map of group ID, server list pairs.
  */
-map<string, list<fabric_cache::ManagedServer>> MockFabric::fetch_servers() {
+map<string, list<ManagedServer>> MockFabric::fetch_servers() {
   return group_map;
 }
 
@@ -184,7 +184,7 @@ void MockFabric::disconnect() noexcept {
  *
  * @return Map of shard ID, shard details pair.
  */
-map<string, list<fabric_cache::ManagedShard>> MockFabric::fetch_shards() {
+map<string, list<ManagedShard>> MockFabric::fetch_shards() {
   return shard_map;
 }
 
@@ -197,3 +197,5 @@ map<string, list<fabric_cache::ManagedShard>> MockFabric::fetch_shards() {
 int MockFabric::fetch_ttl() {
   return 5;
 }
+
+}  // namespace fabric_cache

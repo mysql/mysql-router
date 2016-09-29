@@ -32,7 +32,7 @@
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
   out << "{";
-  for (auto&& elem: v)
+  for (auto&& elem : v)
     out << " " << elem;
   out << " }";
   return out;
@@ -41,22 +41,21 @@ std::ostream& operator<<(std::ostream& out, const std::vector<T>& v) {
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const std::list<T>& v) {
   out << "{";
-  for (auto&& elem: v)
+  for (auto&& elem : v)
     out << " " << elem;
   out << " }";
   return out;
 }
 
 template <typename A, typename B>
-std::ostream& operator<<(std::ostream& out, const std::pair<A,B>& p) {
+std::ostream& operator<<(std::ostream& out, const std::pair<A, B>& p) {
   return out << p.first << ":" << p.second;
 }
 
 template <typename SeqCont1, typename SeqCont2>
 ::testing::AssertionResult
 AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
-               const SeqCont1& seq1, const SeqCont2& seq2)
-{
+               const SeqCont1& seq1, const SeqCont2& seq2) {
   std::vector<typename SeqCont1::value_type> c1(seq1.begin(), seq1.end());
   std::vector<typename SeqCont2::value_type> c2(seq2.begin(), seq2.end());
   std::sort(c1.begin(), c1.end());
@@ -69,7 +68,7 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
   if (c1_not_c2.size() > 0) {
     auto result = ::testing::AssertionFailure();
     result << seq1_expr << " had elements not in " << seq2_expr << ": ";
-    for (auto elem: c1_not_c2)
+    for (auto elem : c1_not_c2)
       result << elem << " ";
     return result;
   }
@@ -81,7 +80,7 @@ AssertSetEqual(const char* seq1_expr, const char *seq2_expr,
   if (c2_not_c1.size() > 0) {
     auto result = ::testing::AssertionFailure();
     result << seq2_expr << " had elements not in " << seq1_expr << ": ";
-    for (auto elem: c2_not_c1)
+    for (auto elem : c2_not_c1)
       result << elem << " ";
     return result;
   }

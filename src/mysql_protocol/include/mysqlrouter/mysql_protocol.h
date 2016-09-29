@@ -25,6 +25,16 @@
 #include <typeinfo>
 #include <vector>
 
+#ifdef _WIN32
+#  ifdef mysql_protocol_EXPORTS
+#    define MYSQL_PROTOCOL_API __declspec(dllexport)
+#  else
+#    define MYSQL_PROTOCOL_API __declspec(dllimport)
+#  endif
+#else
+#  define MYSQL_PROTOCOL_API
+#endif
+
 #include "mysql_protocol/constants.h" // comes first
 #include "mysql_protocol/base_packet.h"
 #include "mysql_protocol/error_packet.h"
@@ -36,7 +46,7 @@ namespace mysql_protocol {
  * @brief Exception raised for any errors with MySQL packets
  *
  */
-class packet_error : public std::runtime_error {
+class MYSQL_PROTOCOL_API packet_error : public std::runtime_error {
   public:
     explicit packet_error(const std::string &what_arg) : std::runtime_error(what_arg) { }
 };

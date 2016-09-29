@@ -15,11 +15,24 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-
-#include <sys/socket.h>
-
 #include "mysqlrouter/routing.h"
+#include "mysql_routing.h"
+
+#include "routing_mocks.h"
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#ifdef __sun
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
+#endif
 
 #ifdef __sun
 #include <fcntl.h>
@@ -29,16 +42,25 @@
 
 using routing::AccessMode;
 using routing::set_socket_blocking;
+
 using ::testing::ContainerEq;
+using ::testing::Eq;
+using ::testing::InSequence;
+using ::testing::Return;
 using ::testing::StrEq;
+using ::testing::_;
 
 class RoutingTests : public ::testing::Test {
 protected:
+  RoutingTests() {
+  }
   virtual void SetUp() {
   }
 
   virtual void TearDown() {
   }
+
+  MockSocketOperations socket_op;
 };
 
 TEST_F(RoutingTests, AccessModes) {
@@ -47,11 +69,9 @@ TEST_F(RoutingTests, AccessModes) {
 }
 
 TEST_F(RoutingTests, AccessModeLiteralNames) {
-  std::map<std::string, AccessMode> exp = {
-      {"read-write", AccessMode::kReadWrite},
-      {"read-only",  AccessMode::kReadOnly},
-  };
-  ASSERT_THAT(routing::kAccessModeNames, ContainerEq(exp));
+  using routing::get_access_mode;
+  ASSERT_THAT(get_access_mode("read-write"), Eq(AccessMode::kReadWrite));
+  ASSERT_THAT(get_access_mode("read-only"), Eq(AccessMode::kReadOnly));
 }
 
 TEST_F(RoutingTests, GetAccessLiteralName) {
@@ -70,7 +90,8 @@ TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultClientConnectTimeout, 9UL);
 }
 
-
+#ifndef _WIN32
+// No way to read nonblocking status in Windows
 TEST_F(RoutingTests, SetSocketBlocking) {
   int s = socket(PF_INET, SOCK_STREAM, 6);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
@@ -84,4 +105,83 @@ TEST_F(RoutingTests, SetSocketBlocking) {
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
 }
+#endif
 
+TEST_F(RoutingTests, CopyPacketsSingleWrite) {
+  int sender_socket = 1, receiver_socket = 2;
+  mysql_protocol::Packet::vector_t buffer(500);
+  fd_set readfds;
+  int curr_pktnr = 100;
+  bool handshake_done = true;
+  size_t report_bytes_read = 0u;
+
+  FD_ZERO(&readfds);
+  FD_SET(sender_socket, &readfds);
+  FD_SET(receiver_socket, &readfds);
+
+  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
+  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(200));
+
+  int res = MySQLRouting::copy_mysql_protocol_packets(1, 2, &readfds,
+                                  buffer, &curr_pktnr,
+                                  handshake_done, &report_bytes_read,
+                                  &socket_op);
+
+  ASSERT_EQ(0, res);
+  ASSERT_EQ(200u, report_bytes_read);
+}
+
+TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
+  int sender_socket = 1, receiver_socket = 2;
+  mysql_protocol::Packet::vector_t buffer(500);
+  fd_set readfds;
+  int curr_pktnr = 100;
+  bool handshake_done = true;
+  size_t report_bytes_read = 0u;
+
+  FD_ZERO(&readfds);
+  FD_SET(sender_socket, &readfds);
+  FD_SET(receiver_socket, &readfds);
+
+  InSequence seq;
+
+  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
+
+  // first write does not write everything
+  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(100));
+  // second does not do anything (which is not treated as an error
+  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100)).WillOnce(Return(0));
+  // third writes the remaining chunk
+  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100)).WillOnce(Return(100));
+
+  int res = MySQLRouting::copy_mysql_protocol_packets(1, 2, &readfds,
+                                  buffer, &curr_pktnr,
+                                  handshake_done, &report_bytes_read,
+                                  &socket_op);
+
+  ASSERT_EQ(0, res);
+  ASSERT_EQ(200u, report_bytes_read);
+}
+
+TEST_F(RoutingTests, CopyPacketsWriteError) {
+  int sender_socket = 1, receiver_socket = 2;
+  mysql_protocol::Packet::vector_t buffer(500);
+  fd_set readfds;
+  int curr_pktnr = 100;
+  bool handshake_done = true;
+  size_t report_bytes_read = 0u;
+
+  FD_ZERO(&readfds);
+  FD_SET(sender_socket, &readfds);
+  FD_SET(receiver_socket, &readfds);
+
+  EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
+  EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(-1));
+
+  int res = MySQLRouting::copy_mysql_protocol_packets(1, 2, &readfds,
+                                  buffer, &curr_pktnr,
+                                  handshake_done, &report_bytes_read,
+                                  &socket_op);
+
+  ASSERT_EQ(-1, res);
+}

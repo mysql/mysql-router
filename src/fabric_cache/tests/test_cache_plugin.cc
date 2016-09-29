@@ -49,6 +49,10 @@ const string kDefaultFabricUser = "admin";  // admin
 const string kDefaultFabricPassword = "";  //
 const int kDefaultFabricPort = 32275; // 32275
 
+using std::thread;
+using fabric_cache::ManagedServer;
+using fabric_cache::MockFabric;
+
 class FabricCachePluginTest : public ::testing::Test {
 public:
   string cache_name = "maintest";
@@ -163,4 +167,10 @@ TEST_F(FabricCachePluginTest, InvalidShardTest) {
                                              "InvalidShardTable",
                                              kTestShardKey_3).server_list;
   EXPECT_TRUE(server_list_2.empty());
+}
+
+int main(int argc, char *argv[])
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

@@ -16,15 +16,37 @@
 set(_TEST_RUNTIME_DIR ${CMAKE_BINARY_DIR}/tests)
 set(STAGE_DIR ${CMAKE_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
 
+# Set {RUNTIME,LIBRARY}_OUTPUT_DIRECTORY properties of a target to the stage dir.
+# On unix platforms this is just one directory, but on Windows it's per build-type,
+# e.g. build/stage/Debug/lib, build/stage/Release/lib, etc
+function(set_target_output_directory target target_output_directory dirname)
+  if(WIN32)
+    foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+      string(TOUPPER ${config_} config__)
+      set_property(TARGET ${target} PROPERTY
+        ${target_output_directory}_${config__} ${STAGE_DIR}/${config_}/${dirname})
+    endforeach()
+  else()
+    set_property(TARGET ${target} PROPERTY
+      ${target_output_directory} ${STAGE_DIR}/${dirname})
+  endif()
+endfunction()
+
 # Prepare staging area
 foreach(dir etc;run;log;bin;lib)
-  file(MAKE_DIRECTORY ${STAGE_DIR}/${dir})
+  if(WIN32)
+    foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+      file(MAKE_DIRECTORY ${STAGE_DIR}/${config_}/${dir})
+    endforeach()
+  else()
+    file(MAKE_DIRECTORY ${STAGE_DIR}/${dir})
+  endif()
 endforeach()
 
 function(ADD_TEST_FILE FILE)
-  set(oneValueArgs MODULE LABEL ENVIRONMENT)
-  set(multiValueArgs LIB_DEPENDS INCLUDE_DIRS)
-  cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  set(one_value_args MODULE LABEL ENVIRONMENT)
+  set(multi_value_args LIB_DEPENDS INCLUDE_DIRS)
+  cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
   if(NOT TEST_MODULE)
     message(FATAL_ERROR "Module name missing for test file ${FILE}")
@@ -58,9 +80,15 @@ function(ADD_TEST_FILE FILE)
       RUNTIME_OUTPUT_DIRECTORY ${runtime_dir}/)
     add_test(NAME ${test_name}
       COMMAND ${runtime_dir}/${test_target})
-    set_tests_properties(${test_name} PROPERTIES
-      ENVIRONMENT
-        "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
+    if(WIN32)
+      set_tests_properties(${test_name} PROPERTIES
+        ENVIRONMENT
+          "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};PATH=${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\lib\;${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
+    else()
+      set_tests_properties(${test_name} PROPERTIES
+        ENVIRONMENT
+          "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
+    endif()
   else()
     message(ERROR "Unknown test type; file '${FILE}'")
   endif()
@@ -68,9 +96,9 @@ function(ADD_TEST_FILE FILE)
 endfunction(ADD_TEST_FILE)
 
 function(ADD_TEST_DIR DIR_NAME)
-  set(oneValueArgs MODULE ENVIRONMENT)
-  set(multiValueArgs LIB_DEPENDS INCLUDE_DIRS)
-  cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  set(one_value_args MODULE ENVIRONMENT)
+  set(multi_value_args LIB_DEPENDS INCLUDE_DIRS)
+  cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
   if(NOT TEST_MODULE)
     message(FATAL_ERROR "Module name missing for test folder ${DIR_NAME}")

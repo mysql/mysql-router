@@ -26,6 +26,14 @@
 #include <iostream>
 #include <cctype>
 #include <stdexcept>
+#include <string.h>
+
+#ifndef _WIN32
+# include <termios.h>
+# include <unistd.h>
+#else
+# include <windows.h>
+#endif
 
 using std::string;
 
@@ -259,5 +267,116 @@ string hexdump(const unsigned char *buffer, size_t count, long start, bool liter
   }
   return os.str();
 }
+
+/*
+* Returns the last system specific error description (using GetLastError in Windows or errno in Unix/OSX).
+*/
+std::string get_last_error()
+{
+#ifdef WIN32
+  DWORD dwCode = GetLastError();
+  LPTSTR lpMsgBuf;
+
+  FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+    FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL,
+    dwCode,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR)&lpMsgBuf,
+    0, NULL);
+  std::string msgerr = "SystemError: ";
+  msgerr += lpMsgBuf;
+  msgerr += "with error code %d.";
+  std::string result = string_format(msgerr.c_str(), dwCode);
+  LocalFree(lpMsgBuf);
+  return result;
+#else
+  char sys_err[64];
+  int errnum = errno;
+
+  sys_err[0] = 0; // init, in case strerror_r() fails
+
+  // we do this #ifdef dance because on unix systems strerror_r() will generate
+  // a warning if we don't collect the result (warn_unused_result attribute)
+#if ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
+       (defined _XOPEN_SOURCE && (_XOPEN_SOURCE >= 600)))      &&    \
+      ! defined _GNU_SOURCE
+  int r = strerror_r(errno, sys_err, sizeof(sys_err));
+  (void)r;  // silence unused variable;
+#elif defined _GNU_SOURCE
+  const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
+  (void)r;  // silence unused variable;
+#else
+  strerror_r(errno, sys_err, sizeof(sys_err));
+#endif
+
+  std::string s = sys_err;
+  s += "with errno %d.";
+  std::string result = string_format(s.c_str(), errnum);
+  return result;
+#endif
+  }
+
+#ifndef _WIN32
+const string prompt_password(const string &prompt) {
+  struct termios console;
+  tcgetattr(STDIN_FILENO, &console);
+
+  std::cout << prompt << ": ";
+
+  // prevent showing input
+  console.c_lflag &= ~(uint)ECHO;
+  tcsetattr(STDIN_FILENO, TCSANOW, &console);
+
+  string result;
+  std::getline(std::cin, result);
+
+  // reset
+  console.c_lflag |= ECHO;
+  tcsetattr(STDIN_FILENO, TCSANOW, &console);
+
+  std::cout << std::endl;
+  return result;
+}
+#else
+const string prompt_password(const string &prompt) {
+
+  std::cout << prompt << ": ";
+
+  // prevent showing input
+  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD mode;
+  GetConsoleMode(hStdin, &mode);
+  mode &= ~ENABLE_ECHO_INPUT;
+  SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+
+  string result;
+  std::getline(std::cin, result);
+
+  // reset
+  SetConsoleMode(hStdin, mode);
+
+  std::cout << std::endl;
+  return result;
+}
+#endif
+
+#ifdef _WIN32
+bool is_running_as_service() {
+  bool result = false;
+
+  HWINSTA h = GetProcessWindowStation();
+  if (h != NULL) {
+    USEROBJECTFLAGS uof = { 0 };
+    if (GetUserObjectInformation(h, UOI_FLAGS, &uof, sizeof(USEROBJECTFLAGS), NULL) 
+      && !(uof.dwFlags & WSF_VISIBLE)) {
+      result = true;
+    }
+  }
+  return result;
+}
+#endif
 
 } // namespace mysqlrouter

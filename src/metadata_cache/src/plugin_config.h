@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "config_parser.h"
-#include "plugin.h"
+#include "mysql/harness/plugin.h"
 #include <mysqlrouter/datatypes.h>
 #include <mysqlrouter/plugin_config.h>
 

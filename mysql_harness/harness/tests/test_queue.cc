@@ -69,7 +69,7 @@ TEST_F(TestFilledQueue, BasicPop1) {
 TEST_F(TestFilledQueue, BasicPop2) {
   for (int i = 0 ; i < 10 ; ++i) {
     int value;
-    my_queue.pop(value);
+    my_queue.pop(&value);
     EXPECT_THAT(value, Eq(i));
   }
 }
@@ -85,10 +85,10 @@ TEST_F(TestFilledQueue, BasicPopTimeout1) {
 TEST_F(TestFilledQueue, BasicPopTimeout2) {
   int value;
   for (int i = 0 ; i < 10 ; ++i) {
-    my_queue.pop(value, milliseconds(100));
+    my_queue.pop(&value, milliseconds(100));
     EXPECT_THAT(value, Eq(i));
   }
-  EXPECT_THAT(my_queue.pop(value, milliseconds(100)), Eq(false));
+  EXPECT_THAT(my_queue.pop(&value, milliseconds(100)), Eq(false));
 }
 
 TEST_F(TestFilledQueue, BasicTryPop1) {
@@ -102,10 +102,10 @@ TEST_F(TestFilledQueue, BasicTryPop1) {
 TEST_F(TestFilledQueue, BasicTryPop2) {
   int value;
   for (int i = 0 ; i < 10 ; ++i) {
-    my_queue.try_pop(value);
+    my_queue.try_pop(&value);
     EXPECT_THAT(value, Eq(i));
   }
-  EXPECT_THAT(my_queue.try_pop(value), Eq(false));
+  EXPECT_THAT(my_queue.try_pop(&value), Eq(false));
 }
 
 TEST(TestQueue, PopEmpty) {
@@ -116,7 +116,7 @@ TEST(TestQueue, PopEmpty) {
   EXPECT_THAT(my_queue.try_pop(), Eq(nullptr));
   EXPECT_THAT(my_queue.pop(milliseconds(100)), Eq(nullptr));
   int value;
-  EXPECT_THAT(my_queue.pop(value, milliseconds(100)), Eq(false));
+  EXPECT_THAT(my_queue.pop(&value, milliseconds(100)), Eq(false));
 }
 
 TEST(TestQueue, PopPush) {
@@ -125,7 +125,7 @@ TEST(TestQueue, PopPush) {
 
   auto f1 = [&my_queue]{
     int value;
-    my_queue.pop(value);
+    my_queue.pop(&value);
     EXPECT_THAT(value, Eq(47));
   };
 
@@ -146,7 +146,7 @@ TEST(TestQueue, ProducerConsumer) {
   std::atomic<bool> done(false);
 
   // Spawn intermediate threads first
-  auto intermediate_thread = [&queue,&done] {
+  auto intermediate_thread = [&queue, &done] {
     try {
       while (!done)
         if (auto elem = queue[0].pop(milliseconds(100)))
@@ -156,10 +156,10 @@ TEST(TestQueue, ProducerConsumer) {
     }
   };
 
-  for (auto& intermediate: intermediates)
+  for (auto& intermediate : intermediates)
     intermediate = thread(intermediate_thread);
 
-  auto producer_thread = [&queue,&done]{
+  auto producer_thread = [&queue, &done]{
     try {
       for (int i = 0 ; i < 1000 ; ++i)
         queue[0].push(std::make_pair(std::this_thread::get_id(), i));
@@ -168,10 +168,10 @@ TEST(TestQueue, ProducerConsumer) {
     }
   };
 
-  for (auto& producer: producers)
+  for (auto& producer : producers)
     producer = thread(producer_thread);
 
-  auto consumer_thread = [&queue,&done]{
+  auto consumer_thread = [&queue, &done]{
     map<thread::id, set<int>> seen;
     try {
       while (!done) {
@@ -184,18 +184,18 @@ TEST(TestQueue, ProducerConsumer) {
     }
   };
 
-  for (auto& consumer: consumers)
+  for (auto& consumer : consumers)
     consumer = thread(consumer_thread);
 
   // Wait for the producers to finish
-  for (auto& producer: producers)
+  for (auto& producer : producers)
     producer.join();
 
   done = true;
 
-  for (auto& consumer: consumers)
+  for (auto& consumer : consumers)
     consumer.join();
 
-  for (auto& intermediate: intermediates)
+  for (auto& intermediate : intermediates)
     intermediate.join();
 }

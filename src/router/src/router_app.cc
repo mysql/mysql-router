@@ -15,26 +15,34 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router_app.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
+#include "router_app.h"
 #include "utils.h"
 #include "config_generator.h"
 
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include "common.h"
-#include "config_parser.h"
-#include "filesystem.h"
+
+#ifndef _WIN32
+#  include <fcntl.h>
+#  include <unistd.h>
+#else
+#  include <process.h>
+#  define getpid _getpid
+#  include "mysqlrouter/windows/password_vault.h"
+#endif
 
 #ifdef __sun
 #include <fcntl.h>
@@ -274,13 +282,13 @@ vector<string> MySQLRouter::check_config_files() {
 
 void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.clear_options();
-  arg_handler_.add_option(OptionNames({"-v", "--version"}), "Display version information and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-v", "--version"}), "Display version information and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         std::cout << this->get_version_line() << std::endl;
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(OptionNames({"-h", "--help"}), "Display this help and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-h", "--help"}), "Display this help and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         this->show_help();
         this->showing_info_ = true;
@@ -328,27 +336,70 @@ void MySQLRouter::prepare_command_options() noexcept {
         // When --config is used, no defaults shall be read
         default_config_files_.clear();
 
-        char *abspath = realpath(value.c_str(), nullptr);
-        if (abspath != nullptr) {
-          config_files_.push_back(string(abspath));
-          free(abspath);
+        std::string abspath = mysql_harness::Path(value).real_path().str();
+        if (!abspath.empty()) {
+          config_files_.push_back(abspath);
         } else {
           throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
 
-  arg_handler_.add_option(OptionNames({"-a", "--extra-config"}),
+  arg_handler_.add_option(CmdOption::OptionNames({"-a", "--extra-config"}),
                           "Read this file after configuration files are read from either "
                               "default locations or from files specified by the --config option.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
-        char *abspath = realpath(value.c_str(), nullptr);
-        if (abspath != nullptr) {
-          extra_config_files_.push_back(string(abspath));
-          free(abspath);
+        std::string abspath = mysql_harness::Path(value).real_path().str();
+        if (!abspath.empty()) {
+          extra_config_files_.push_back(abspath);
         } else {
           throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
+
+// These are additional Windows-specific options, added (at the time of writing) in check_service_operations().
+// Grep after '--install-service' and you shall find.
+#ifdef _WIN32
+  arg_handler_.add_option(CmdOption::OptionNames({"--install-service"}), "Install Router as Windows service",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--install-service-manual"}), "Install Router as Windows service, manually",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--remove-service"}), "Remove Router from Windows services",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({"--service"}), "Start Router as Windows service",
+                          CmdOptionValueReq::none, "", [this](const string &) {/*implemented elsewhere*/});
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--update-credentials-section" }), "Updates the credentials for the given section",
+    CmdOptionValueReq::required, "section_name", [this](const string& value) {
+    std::string prompt = mysqlrouter::string_format("Enter password for config section '%s'", value.c_str());
+    std::string pass = mysqlrouter::prompt_password(prompt);
+    PasswordVault pv;
+    pv.update_password(value, pass);
+    pv.store_passwords();
+    std::cout << "The password was stored in the vault successfully." << std::endl;
+    throw silent_exception();
+  });
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--remove-credentials-section" }), "Removes the credentials for the given section",
+    CmdOptionValueReq::required, "section_name", [this](const string& value) {
+    PasswordVault pv;
+    pv.remove_password(value);
+    pv.store_passwords();
+    std::cout << "The password was removed successfully." << std::endl;
+    throw silent_exception();
+  });
+
+  arg_handler_.add_option(CmdOption::OptionNames({ "--clear-all-credentials" }), "Clear the vault, removing all the credentials stored on it",
+    CmdOptionValueReq::none, "", [this](const string&) {
+    PasswordVault pv;
+    pv.clear_passwords();
+    std::cout << "Removed successfully all passwords from the vault." << std::endl;
+    throw silent_exception();
+  });
+#endif
+
 }
 
 void MySQLRouter::show_help() noexcept {

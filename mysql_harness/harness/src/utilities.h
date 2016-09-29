@@ -19,6 +19,9 @@
 #define MYSQL_HARNESS_UTILITIES_INCLUDED
 
 #include <string>
+#include <vector>
+
+#include "harness_export.h"
 
 /**
  * Class to turn C array into range.
@@ -28,11 +31,10 @@
 
 template <class Type>
 class Range {
-public:
-  class iterator
-  {
-  public:
-    iterator(Type* ptr) : ptr_(ptr)  {}
+ public:
+  class iterator {
+   public:
+    explicit iterator(Type* ptr) : ptr_(ptr)  {}
 
     iterator& operator++() {
       ++ptr_;
@@ -55,14 +57,11 @@ public:
       return *ptr_;
     }
 
-  private:
+   private:
     Type *ptr_;
   };
 
-  Range(Type* ptr, size_t length)
-    : start_(ptr), finish_(ptr + length)
-  {
-  }
+  Range(Type* ptr, size_t length) : start_(ptr), finish_(ptr + length) {}
 
   iterator begin() {
     return iterator(start_);
@@ -72,7 +71,7 @@ public:
     return iterator(finish_);
   }
 
-private:
+ private:
   Type* start_;
   Type* finish_;
 };
@@ -88,9 +87,8 @@ private:
  */
 
 template <class Type>
-Range<Type> make_range(Type* ptr, size_t length)
-{
-  return Range<Type>(ptr, length);
+Range<Type> make_range(Type* ptr, size_t length) {
+  return ::Range<Type>(ptr, length);
 }
 
 
@@ -99,36 +97,27 @@ Range<Type> make_range(Type* ptr, size_t length)
  */
 
 template <typename Range>
-class RangeReverse
-{
-public:
+class RangeReverse {
+ public:
+  explicit RangeReverse(Range& range) : range_(range) {}
 
-  RangeReverse(Range& range)
-    : range_(range)
-  {
-  }
-
-  typename Range::reverse_iterator begin()
-  {
+  typename Range::reverse_iterator begin() {
     return range_.rbegin();
   }
 
-  typename Range::const_reverse_iterator begin() const
-  {
+  typename Range::const_reverse_iterator begin() const {
     return range_.rbegin();
   }
 
-  typename Range::reverse_iterator end()
-  {
+  typename Range::reverse_iterator end() {
     return range_.rend();
   }
 
-  typename Range::const_reverse_iterator end() const
-  {
+  typename Range::const_reverse_iterator end() const {
     return range_.rend();
   }
 
-private:
+ private:
   Range& range_;
 };
 
@@ -147,17 +136,15 @@ private:
  * @endcode
  */
 template <typename Range>
-RangeReverse<Range> reverse(Range& x)
-{
+RangeReverse<Range> reverse(Range& x) {  // NOLINT(runtime/references)
   return RangeReverse<Range>(x);
 }
 
 template <class Map>
 std::pair<typename Map::iterator, typename Map::iterator>
-find_range_first(Map& assoc,
+find_range_first(Map& assoc,  // NOLINT(runtime/references)
                  const typename Map::key_type::first_type& first,
-                 typename Map::iterator start)
-{
+                 typename Map::iterator start) {
   typename Map::iterator finish = start;
   while (finish != assoc.end() && finish->first.first == first)
     ++finish;
@@ -166,9 +153,8 @@ find_range_first(Map& assoc,
 
 template <class Map>
 std::pair<typename Map::iterator, typename Map::iterator>
-find_range_first(Map& assoc,
-                 const typename Map::key_type::first_type& first)
-{
+find_range_first(Map& assoc,  // NOLINT(runtime/references)
+                 const typename Map::key_type::first_type& first) {
   typedef typename Map::key_type::second_type SType;
   return find_range_first(assoc, first,
                           assoc.lower_bound(make_pair(first, SType())));
@@ -179,8 +165,7 @@ template <class Map>
 std::pair<typename Map::const_iterator, typename Map::const_iterator>
 find_range_first(const Map& assoc,
                  const typename Map::key_type::first_type& first,
-                 typename Map::const_iterator start)
-{
+                 typename Map::const_iterator start) {
   typename Map::const_iterator finish = start;
   while (finish != assoc.end() && finish->first.first == first)
     ++finish;
@@ -190,13 +175,21 @@ find_range_first(const Map& assoc,
 template <class Map>
 std::pair<typename Map::const_iterator, typename Map::const_iterator>
 find_range_first(const Map& assoc,
-                 const typename Map::key_type::first_type& first)
-{
+                 const typename Map::key_type::first_type& first) {
   typedef typename Map::key_type::second_type SType;
   return find_range_first(assoc, first,
                           assoc.lower_bound(make_pair(first, SType())));
 }
 
-void strip(std::string& str, const char* chars = " \t\n\r\f\v");
+
+std::string dirname(const std::string& path);
+std::string basename(const std::string& path);
+void strip(std::string* str, const char* chars = " \t\n\r\f\v");
+std::string strip_copy(std::string str, const char* chars = " \t\n\r\f\v");
+std::string string_format(const char* format, ...);
+std::vector<std::string> wrap_string(const std::string& to_wrap,
+                                     size_t width, size_t indent_size);
+bool matches_glob(const std::string& word, const std::string& pattern);
+std::string get_message_error(int errcode);
 
 #endif /* MYSQL_HARNESS_UTILITIES_INCLUDED */

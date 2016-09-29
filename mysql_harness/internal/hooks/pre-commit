@@ -1,0 +1,45 @@
+#!/bin/sh
+
+if git rev-parse --verify HEAD >/dev/null 2>&1
+then
+	against=HEAD
+else
+	# Initial commit: diff against an empty tree object
+	against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+fi
+
+# Redirect output to stderr.
+exec 1>&2
+
+# We do not allow non-ASCII filenames.
+files_with_non_ascii=$(
+    git diff --cached --name-only --diff-filter=A -z $against |
+    LC_ALL=C tr -d '[ -~]\0' |
+    wc -c
+)
+if [ $files_with_non_ascii != 0 ]; then
+    echo "Error: Attempt to add a non-ASCII file name. This can cause problems"
+    echo "if you want to work with people on other platforms."
+    exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+git diff-index --check --cached $against -- || exit 1
+
+# Find cpplint and run it on all source and header files
+cpplint=`which cpplint cpplint.py | head -1`
+if [ -z "$cpplint" ]; then
+    echo "Command 'cpplint' or 'cpplint.py' not found in path"
+    exit 1
+fi
+
+dirs='harness plugins shared examples'
+find $dirs '(' -name '*.cc' -o -name '*.h' ')' \
+    -exec $cpplint {} + >/tmp/pre-commit-$$.txt 2>&1
+if [ $? -ne 0 ]; then
+    grep -v '^Done\|^Total' /tmp/pre-commit-$$.txt
+    rm /tmp/pre-commit-$$.txt
+    exit 1
+else
+    rm /tmp/pre-commit-$$.txt
+fi

@@ -18,6 +18,6 @@ enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
 add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
-add_custom_command(TARGET TestPluginKeepalive POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/keepalive)
-configure_file(data/keepalive.cfg.in data/keepalive.cfg)
+
+create_harness_test_directory_post_build(TestPluginKeepalive keepalive)
+configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)

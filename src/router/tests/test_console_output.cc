@@ -15,13 +15,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "gtest_consoleoutput.h"
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
 
 #include <cstring>
 #include <sstream>
 #include <streambuf>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -39,9 +42,13 @@ const int kFirstYear = 2015;
 std::string g_help_output_raw;
 std::vector<std::string> g_help_output;
 
-class ConsoleOutputTest : public ::testing::Test {
+class ConsoleOutputTestX : public ConsoleOutputTest {
  protected:
   virtual void SetUp() {
+    set_origin(g_origin);
+    ConsoleOutputTest::SetUp();
+    g_mysqlrouter_exec = app_mysqlrouter.get()->real_path();
+
     if (g_help_output.empty()) {
       std::ostringstream cmd;
       cmd << g_mysqlrouter_exec << " --help";
@@ -54,11 +61,11 @@ class ConsoleOutputTest : public ::testing::Test {
       g_help_output_raw = result.output;
     }
   }
-
-  virtual void TearDown() {}
 };
 
-TEST_F(ConsoleOutputTest, Copyright) {
+#ifndef _WIN32
+// In Windows, the git command is executed in its own shell, it is not available in the standard PATH of Windows.
+TEST_F(ConsoleOutputTestX, Copyright) {
   SKIP_GIT_TESTS(g_skip_git_tests)
   int last_year = 0;
 
@@ -83,8 +90,9 @@ TEST_F(ConsoleOutputTest, Copyright) {
     }
   }
 }
+#endif
 
-TEST_F(ConsoleOutputTest, Trademark) {
+TEST_F(ConsoleOutputTestX, Trademark) {
   for (auto &line: g_help_output) {
     if (starts_with(line, "Oracle is a registered trademark of Oracle")) {
       break;
@@ -92,7 +100,7 @@ TEST_F(ConsoleOutputTest, Trademark) {
   }
 }
 
-TEST_F(ConsoleOutputTest, ConfigurationFileList) {
+TEST_F(ConsoleOutputTestX, ConfigurationFileList) {
   bool found = false;
   std::vector<std::string> config_files;
   std::string indent = "  ";
@@ -118,7 +126,7 @@ TEST_F(ConsoleOutputTest, ConfigurationFileList) {
   ASSERT_TRUE(config_files.size() >= 2) << "Failed getting at least 2 configuration file locations";
 }
 
-TEST_F(ConsoleOutputTest, BasicUsage) {
+TEST_F(ConsoleOutputTestX, BasicUsage) {
   std::vector<std::string> options{
       "[-v|--version]",
       "[-h|--help]",
@@ -131,7 +139,7 @@ TEST_F(ConsoleOutputTest, BasicUsage) {
   }
 }
 
-TEST_F(ConsoleOutputTest, BasicOptionDescriptions) {
+TEST_F(ConsoleOutputTestX, BasicOptionDescriptions) {
   std::vector<std::string> options{
       "  -v, --version",
       "        Display version information and exit.",

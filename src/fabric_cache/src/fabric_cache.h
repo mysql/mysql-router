@@ -30,6 +30,11 @@
 #include <string>
 #include <thread>
 
+#include "mysql/harness/logger.h"
+
+using fabric_cache::ManagedServer;
+using fabric_cache::ManagedShard;
+
 const int kDefaultTimeToLive = 10;
 
 /** @class FabricCache

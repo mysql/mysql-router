@@ -20,9 +20,13 @@
  *
  */
 
-#include "plugin_config.h"
 #include "config_parser.h"
+#include "plugin_config.h"
+#include "router_test_helpers.h"
 
+#ifdef _WIN32
+#include <WinSock2.h>
+#endif
 #include "gmock/gmock.h"
 
 class Bug22062859 : public ::testing::Test {
@@ -50,4 +54,10 @@ TEST_F(Bug22062859, IgnoreSpacesInDestinations) {
         RoutingPluginConfig rconfig(&section);
       }
   );
+}
+
+int main(int argc, char *argv[]) {
+  init_windows_sockets();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

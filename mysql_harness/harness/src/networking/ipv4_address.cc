@@ -17,11 +17,18 @@
 
 #include "common.h"
 #include "networking/ipv4_address.h"
+#include "utilities.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
 #include <cerrno>
 #include <cstring>
 #include <string>
@@ -37,11 +44,13 @@ IPv4Address::IPv4Address(const char *data) {
 std::string IPv4Address::str() const {
   char tmp[INET_ADDRSTRLEN];
 
-  if (auto addr = inet_ntop(AF_INET, &address_, tmp, INET_ADDRSTRLEN)) {
+  if (auto addr = inet_ntop(AF_INET, const_cast<in_addr*>(&address_),
+                            tmp, INET_ADDRSTRLEN)) {
     return addr;
   }
 
-  throw std::runtime_error(std::string("inet_ntop failed: ") + get_strerror(errno));
+  throw std::runtime_error(
+      std::string("inet_ntop failed: ") + get_message_error(errno));
 }
 
 }

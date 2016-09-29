@@ -98,7 +98,7 @@ public:
    * try indefinitely try to reconnect with the Fabric server.
    */
   void disconnect() noexcept;
-  
+
 private:
   /** @brief Returns result from remote API call
    *

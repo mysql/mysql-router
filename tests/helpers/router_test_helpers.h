@@ -102,4 +102,14 @@ bool starts_with(const std::string &str, const std::string &prefix);
  */
 size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_t timeout_in_ms);
 
+#ifdef _WIN32
+std::string get_last_error(int err_code);
+#endif
+
+/** @brief Initializes Windows sockets (no-op on other OSes)
+ *
+ * Exits program with error upon failure.
+ */
+void init_windows_sockets();
+
 #endif // ROUTER_TESTS_TEST_HELPERS_INCLUDED

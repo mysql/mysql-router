@@ -40,8 +40,7 @@ using mysql_harness::Directory;
 
 Path g_here;
 
-TEST(TestFilesystem, TestPath)
-{
+TEST(TestFilesystem, TestPath) {
   // Testing basic path construction
   EXPECT_EQ(Path("/data/logger.cfg"), "/data/logger.cfg");
   EXPECT_EQ(Path("data/logger.cfg"), "data/logger.cfg");
@@ -108,15 +107,14 @@ TEST(TestFilesystem, EmptyPath) {
 }
 
 
-TEST(TestFilesystem, TestDirectory)
-{
+TEST(TestFilesystem, TestDirectory) {
   Directory directory(g_here.join("data"));
 
   {
     // These are the files in the "data" directory in the test
     // directory. Please update it if you add more files.
     //
-    // TODO: Do not use the data directory for this but create a
+    // TODO(Mats): Do not use the data directory for this but create a
     // dedicated directory for testing this feature.
     std::vector<Path> expect{
       g_here.join("data/logger.d"),
@@ -148,8 +146,7 @@ TEST(TestFilesystem, TestDirectory)
   }
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);

@@ -29,7 +29,7 @@ namespace mysql_protocol {
  * the MySQL client after receiving the server's handshake packet.
  *
  */
-class HandshakeResponsePacket final : public Packet {
+class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
  public:
   /** @brief Default capability flags
    *

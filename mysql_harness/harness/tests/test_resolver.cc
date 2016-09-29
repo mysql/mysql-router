@@ -52,24 +52,26 @@ TEST(TestResolver, Hostname) {
 
   {
     // Some systems have both IPv4 and IPv6 for 'localhost'
-    mysql_harness::IPv4Address ip4("127.0.0.1");
-    mysql_harness::IPv6Address ip6("::1");
+    mysql_harness::IPAddress ip4("127.0.0.1");
+    mysql_harness::IPAddress ip6("::1");
 
     auto result = resolver.hostname("localhost");
     ASSERT_THAT(result, ::testing::AnyOf(Contains(ip4), Contains(ip6)));
   }
-
 }
 
 TEST(TestNameResolver, HostnameFail) {
   Resolver resolver;
-  ASSERT_THROW({resolver.hostname("foobar.dkkdkdk.r4nd0m");}, std::invalid_argument);
+  ASSERT_THROW({resolver.hostname("foobar.dkkdkdk.r4nd0m");},
+               std::invalid_argument);
 }
 
 TEST(TestResolver, TCPServiceName) {
   Resolver resolver;
   EXPECT_EQ(80, resolver.tcp_service_name("http"));
+#ifndef _WIN32
   EXPECT_EQ(3306, resolver.tcp_service_name("mysql"));
+#endif
 }
 
 TEST(TestResolver, TCPServiceNameFail) {
@@ -81,21 +83,40 @@ TEST(TestResolver, TCPServicePort) {
   Resolver resolver;
 
   EXPECT_EQ(std::string("http"), resolver.tcp_service_port(80));
+#ifndef _WIN32
   EXPECT_EQ(std::string("mysql"), resolver.tcp_service_port(3306));
+#endif
   EXPECT_EQ(std::string("https"), resolver.tcp_service_port(443));
   // port numbers without service name
-  EXPECT_EQ(std::string("49151"), resolver.tcp_service_port(49151)); // IANA reserved port number
+  EXPECT_EQ(std::string("49151"),
+            resolver.tcp_service_port(49151)); // IANA reserved port number
 }
 
 TEST(TestResolver, TCPServiceCache) {
-
   MockResolver resolver;
 
   // query, so cache is updated
   EXPECT_EQ(80, resolver.tcp_service_name("http"));
+#ifndef _WIN32
   EXPECT_EQ(std::string("mysql"), resolver.tcp_service_port(3306));
-
+#endif
   // check if in cache
+#ifndef _WIN32
   EXPECT_EQ(3306, resolver.cached_tcp_service_by_name("mysql"));
+#endif
   EXPECT_EQ(std::string("http"), resolver.cached_tcp_service_by_port(80));
+}
+
+int main(int argc, char *argv[]) {
+#ifdef _WIN32
+  WSADATA wsaData;
+  int iResult;
+  iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+  if (iResult != 0) {
+    std::cout << "WSAStartup() failed\n";
+    return 1;
+  }
+#endif
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

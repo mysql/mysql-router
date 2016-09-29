@@ -15,7 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#define UNIT_TESTS  // used in router_app.h
 #include "config.h"
+#include "config_parser.h"
+#include "loader.h"
 #include "router_app.h"
 
 //ignore GMock warnings
@@ -33,10 +36,19 @@
 #include <cstdio>
 #include <sstream>
 #include <streambuf>
-#include <unistd.h>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
-#include "loader.h"
-#include "config_parser.h"
+#ifdef __clang__
+// ignore GMock warnings
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-conversion"
+#  include "gmock/gmock.h"
+#  pragma clang diagnostic pop
+#else
+#  include "gmock/gmock.h"
+#endif
 
 using std::string;
 using std::vector;
@@ -54,7 +66,9 @@ using mysql_harness::Path;
 
 const string get_cwd() {
   char buffer[FILENAME_MAX];
-  getcwd(buffer, FILENAME_MAX);
+  if (!getcwd(buffer, FILENAME_MAX)) {
+    throw std::runtime_error("getcwd failed: " + string(strerror(errno)));
+  }
   return string(buffer);
 }
 
@@ -106,6 +120,14 @@ TEST_F(AppTest, GetVersionLine) {
   } else {
     ASSERT_THAT(r.get_version_line(), HasSubstr("32-bit"));
   }
+}
+
+TEST_F(AppTest, CheckConfigFilesSuccess) {
+  MySQLRouter r;
+
+  r.default_config_files_ = {};
+  r.extra_config_files_ = { stage_dir.join("/etc/mysqlrouter_extra.ini").str() };
+  ASSERT_THROW(r.check_config_files(), std::runtime_error);
 }
 
 TEST_F(AppTest, CmdLineConfig) {
@@ -271,6 +293,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   */
 }
 
+#ifndef _WIN32
 TEST_F(AppTest, CanStartTrue) {
   vector<string> argv = {
       "--config", stage_dir.join("etc").join("mysqlrouter.ini").str()
@@ -282,7 +305,6 @@ TEST_F(AppTest, CanStartFalse) {
   vector<vector<string> > cases = {
       {""},
   };
-
   for(auto &argv: cases) {
     ASSERT_THROW({MySQLRouter r(g_origin, argv); r.start();}, std::runtime_error);
   }
@@ -315,29 +337,29 @@ TEST_F(AppTest, ShowingInfoFalse) {
     ASSERT_NO_THROW({MySQLRouter r(g_origin, argv); r.start();});
   }
 }
-
+#endif
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
 
-  char *stage_dir_env = std::getenv("STAGE_DIR");
-  if (stage_dir_env == nullptr) {
+  if (char *stage_dir_env = std::getenv("STAGE_DIR")) {
+    g_stage_dir = Path(stage_dir_env).real_path();
+  } else {
     // try a few places
     g_stage_dir = Path(get_cwd()).join("..").join("..").join("stage");
     if (!g_stage_dir.is_directory()) {
       g_stage_dir = Path(get_cwd()).join("stage");
     }
-  } else {
-    g_stage_dir = Path(realpath(stage_dir_env, nullptr));
   }
+#ifdef _WIN32
+  g_stage_dir = g_stage_dir.join(g_origin.basename());
+#endif
 
   if (!g_stage_dir.is_directory()) {
     std::cout << "Stage dir not valid (was " << g_stage_dir << "; can use STAGE_DIR env var)" << std::endl;
     return -1;
   }
 
-
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

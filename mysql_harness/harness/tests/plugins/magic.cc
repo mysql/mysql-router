@@ -17,9 +17,9 @@
 
 #include "magic.h"
 
-#include "plugin.h"
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/logger.h"
+#include "mysql/harness/plugin.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -30,6 +30,13 @@ using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 
+#if defined(_MSC_VER) && defined(magic_EXPORTS)
+/* We are building this library */
+#  define MAGIC_API __declspec(dllexport)
+#else
+#  define MAGIC_API
+#endif
+
 const AppInfo* g_info;
 const ConfigSection* g_section;
 
@@ -38,7 +45,7 @@ static int init(const AppInfo* info) {
   return 0;
 }
 
-void do_magic() {
+extern "C" void MAGIC_API do_magic() {
   auto&& section = g_info->config->get("magic", "");
   auto&& message = section.get("message");
   log_info("%s", message.c_str());
@@ -49,17 +56,19 @@ static void start(const ConfigSection* section) {
     throw bad_suki("The suki was bad, please throw away");
 }
 
-Plugin harness_plugin_magic = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "A magic plugin",
-  VERSION_NUMBER(1,2,3),
-  0,
-  nullptr,
-  0,
-  nullptr,
-  init,
-  nullptr,  // deinit
-  start,    // start
-  nullptr,  // stop
-};
+extern "C" {
+  Plugin MAGIC_API magic = {
+    PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
+    "A magic plugin",
+    VERSION_NUMBER(1, 2, 3),
+    0,
+    nullptr,
+    0,
+    nullptr,
+    init,
+    nullptr,  // deinit
+    start,    // start
+    nullptr,  // stop
+  };
+}

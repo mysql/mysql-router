@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/routing.h"
 #include "logger.h"
 
 /** @class RouteDestination
@@ -49,7 +50,9 @@ public:
   using AddrVector = std::vector<mysqlrouter::TCPAddress>;
 
   /** @brief Default constructor */
-  RouteDestination() : current_pos_(0), stopping_(false) { };
+  RouteDestination(routing::SocketOperationsBase *sock_ops =
+                   routing::SocketOperations::instance()) // default = "real" (not mock) implementation
+      : current_pos_(0), stopping_(false), socket_operations_(sock_ops) {};
 
   /** @brief Destructor */
   ~RouteDestination();
@@ -213,7 +216,9 @@ protected:
    * Returns a socket descriptor for the connection to the MySQL Server or
    * -1 when an error occurred.
    *
-   * This method uses the free function routing::get_mysql_socket.
+   * This method normally calls SocketOperations::get_mysql_socket() (default
+   * "real" implementation), but can be configured to call another implementation
+   * (e.g. a mock counterpart).
    *
    * @param addr information of the server we connect with
    * @param connect_timeout number of seconds waiting for connection
@@ -248,6 +253,9 @@ protected:
 
   /** @brief Quarantine manager thread */
   std::thread quarantine_thread_;
+
+  /** @brief socket operation methods (facilitates dependency injection)*/
+  routing::SocketOperationsBase *socket_operations_;
 };
 
 

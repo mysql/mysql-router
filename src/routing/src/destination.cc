@@ -16,19 +16,25 @@
 */
 
 #include "destination.h"
-#include "utils.h"
+#include "logger.h"
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/utils.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-
-#include "mysqlrouter/datatypes.h"
-#include "mysqlrouter/utils.h"
-#include "logger.h"
+#ifndef _WIN32
+#  include <netdb.h>
+#  include <netinet/tcp.h>
+#  include <sys/socket.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
 
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
@@ -127,7 +133,11 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
       current_pos_ = (i + 1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
       return sock;
     } else {
+#ifndef _WIN32
       *error = errno;
+#else
+      *error = WSAGetLastError();
+#endif
       if (errno != ENFILE && errno != EMFILE) {
         // We failed to get a connection to the server; we quarantine.
         std::lock_guard<std::mutex> lock(mutex_quarantine_);
@@ -147,7 +157,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
 }
 
 int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect_timeout, const bool log_errors) {
-  return routing::get_mysql_socket(addr, connect_timeout, log_errors);
+  return socket_operations_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 
 void RouteDestination::add_to_quarantine(const size_t index) noexcept {
@@ -184,8 +194,13 @@ void RouteDestination::cleanup_quarantine() noexcept {
     auto sock = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
 
     if (sock != -1) {
+#ifndef _WIN32
       shutdown(sock, SHUT_RDWR);
       close(sock);
+#else
+      shutdown(sock, SD_BOTH);
+      closesocket(sock);
+#endif
       log_debug("Unquarantine destination server %s (index %d)", addr.str().c_str(), *it);
       std::lock_guard<std::mutex> lock(mutex_quarantine_);
       quarantined_.erase(std::remove(quarantined_.begin(), quarantined_.end(), *it));

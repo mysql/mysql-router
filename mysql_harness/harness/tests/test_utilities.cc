@@ -44,16 +44,14 @@ TEST(TestUtilities, Strip) {
     { "", "" },
   };
 
-  for (auto sample: make_range(strings, sizeof(strings)/sizeof(*strings)))
-  {
-    std::string str(sample[0]);
-    strip(str);
+  for (auto sample : make_range(strings, sizeof(strings)/sizeof(*strings))) {
+    std::string str = strip_copy(sample[0]);
     EXPECT_EQ(sample[1], str);
   }
 }
 
 TEST(TestUtilities, FindRangeFirst) {
-  typedef map<pair<string, string>, string> Map;
+  using Map = map<pair<string, string>, string>;
   Map assoc;
   assoc.emplace(make_pair("one", "first"), "alpha");
   assoc.emplace(make_pair("one", "second"), "beta");

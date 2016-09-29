@@ -17,11 +17,16 @@
 
 #include "common.h"
 #include "networking/ipv6_address.h"
+#include "utilities.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <ws2tcpip.h> // in6_addr, inet_pton, etc
+#endif
 #include <cerrno>
 #include <cstring>
 #include <string>
@@ -38,11 +43,13 @@ IPv6Address::IPv6Address(const char *data) {
 std::string IPv6Address::str() const {
   char tmp[INET6_ADDRSTRLEN];
 
-  if (inet_ntop(AF_INET6, &address_, tmp, INET6_ADDRSTRLEN)) {
+  if (inet_ntop(AF_INET6, const_cast<in6_addr*>(&address_),
+                tmp, INET6_ADDRSTRLEN)) {
     return tmp;
   }
 
-  throw std::runtime_error(std::string("inet_ntop failed: ") + get_strerror(errno));
+  throw std::runtime_error(
+    std::string("inet_ntop failed: ") + strerror(errno));
 }
 
 } // namespace mysql_harness

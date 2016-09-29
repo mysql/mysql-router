@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,9 +28,12 @@
 
 using ::testing::StartsWith;
 
+Path   g_origin;
+
 class Bug22074209 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
   }
 };
@@ -41,4 +44,10 @@ TEST_F(Bug22074209, HelpShowsVersion) {
 
   auto cmd_result = cmd_exec(cmd, false);
   EXPECT_THAT(cmd_result.output, StartsWith(r.get_version_line()));
+}
+
+int main(int argc, char *argv[]) {
+  g_origin = Path(argv[0]).dirname();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

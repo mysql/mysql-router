@@ -91,10 +91,7 @@ routing::AccessMode RoutingPluginConfig::get_option_mode(
   string value;
   string valid;
 
-  for (auto &it: routing::kAccessModeNames) {
-    valid += it.first + ", ";
-  }
-  valid.erase(valid.size() - 2, 2);  // remove the extra ", "
+  routing::get_access_mode_names(&valid);
 
   try {
     value = get_option_string(section, option);
@@ -103,12 +100,12 @@ routing::AccessMode RoutingPluginConfig::get_option_mode(
     throw invalid_argument(get_log_prefix(option) + " needs to be specified; valid are " + valid);
   }
 
-  auto lookup = routing::kAccessModeNames.find(value);
-  if (lookup == routing::kAccessModeNames.end()) {
-    throw invalid_argument(get_log_prefix(option) + " is invalid; valid are " + valid + " (was '" + value + "')");
+  routing::AccessMode result = routing::get_access_mode(value);
+  if (result == routing::AccessMode::kUndefined) {
+    throw invalid_argument(get_log_prefix(option) + " is invalid; valid are " +
+                           valid + " (was '" + value + "')");
   }
-
-  return lookup->second;
+  return result;
 }
 
 string RoutingPluginConfig::get_option_destinations(
@@ -134,7 +131,7 @@ string RoutingPluginConfig::get_option_destinations(
   try {
     auto uri = URI(value); // raises URIError when URI is invalid
     if (uri.scheme == "fabric+cache") {
-      auto fabric_cmd = uri.path[0];
+      string fabric_cmd{uri.path.size() > 0 ? uri.path[0] : ""};
       std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
       if (fabric_cmd != "group") {
         throw invalid_argument(

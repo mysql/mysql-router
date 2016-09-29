@@ -18,19 +18,34 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/plugin_config.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
-#include "plugin.h"
+
 #include "utils.h"
 
+#include <map>
 #include <string>
+
+using std::map;
+using std::string;
+using mysqlrouter::to_string;
+using mysqlrouter::TCPAddress;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
 public:
+  /** @brief Constructor
+   *
+   * @param section from configuration file provided as ConfigSection
+   */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
   std::string get_default(const std::string &option);

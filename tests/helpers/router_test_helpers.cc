@@ -17,16 +17,27 @@
 
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/utils.h"
 
 #include <cassert>
 #include <cerrno>
-#include <cstring>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <cstring>
+#include <iostream>
 #include <stdexcept>
 #include <thread>
-#include <unistd.h>
+
+#ifndef _WIN32
+#  include <unistd.h>
+#else
+#  include <windows.h>
+#  include <direct.h>
+#  define getcwd _getcwd
+typedef long ssize_t;
+#endif
 
 using mysql_harness::Path;
 
@@ -51,9 +62,9 @@ Path get_cmake_source_dir() {
   if (env_value == nullptr) {
     // try a few places
     result = Path(get_cwd()).join("..");
-    result = Path(realpath(result.c_str(), nullptr));
+    result = Path(result).real_path();
   } else {
-    result = Path(realpath(env_value, nullptr));
+    result = Path(env_value).real_path();
   }
 
   if (!result.join("src").join("router").join("src").join("router_app.cc").is_regular()) {
@@ -67,10 +78,10 @@ Path get_cmake_source_dir() {
 Path get_envvar_path(const std::string &envvar, Path alternative = Path()) {
   char *env_value = std::getenv(envvar.c_str());
   Path result;
-  if (env_value == nullptr && alternative.is_directory()) {
+  if (env_value == nullptr) {
     result = alternative;
   } else {
-    result = Path(realpath(env_value, nullptr));
+    result = Path(env_value).real_path();
   }
   return result;
 }
@@ -85,8 +96,12 @@ const std::string get_cwd() {
 
 const std::string change_cwd(std::string &dir) {
   auto cwd = get_cwd();
+#ifndef _WIN32
   if (chdir(dir.c_str()) == -1) {
-    throw std::runtime_error("chdir failed: " + std::string(strerror(errno)));
+#else
+  if (!SetCurrentDirectory(dir.c_str())) {
+#endif
+    throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
   }
   return cwd;
 }
@@ -121,25 +136,36 @@ size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_
   // read until 1 of 3 things happen: enough bytes were read, we time out or read() fails
   size_t bytes_read = 0;
   while (true) {
+#ifndef _WIN32
     ssize_t res = read(sockfd, static_cast<char*>(buffer) + bytes_read, n_bytes - bytes_read);
+#else
+    WSASetLastError(0);
+    ssize_t res = recv(sockfd, static_cast<char*>(buffer) + bytes_read, n_bytes - bytes_read, 0);
+#endif
 
     if (res == 0) {   // reached EOF?
       return bytes_read;
     }
 
-    if (get_epoch_in_ms() > deadline_epoch_in_ms)
-    {
+    if (get_epoch_in_ms() > deadline_epoch_in_ms) {
       throw std::runtime_error("read() timed out");
     }
 
     if (res == -1) {
+#ifndef _WIN32
       if (errno != EAGAIN) {
         throw std::runtime_error(std::string("read() failed: ") + strerror(errno));
       }
+#else
+      int err_code = WSAGetLastError();
+      if (err_code != 0) {
+        throw std::runtime_error("recv() failed with error: " + get_last_error(err_code));
+      }
+
+#endif
     } else {
       bytes_read += static_cast<size_t>(res);
-      if (bytes_read >= n_bytes)
-      {
+      if (bytes_read >= n_bytes) {
         assert(bytes_read == n_bytes);
         return bytes_read;
       }
@@ -149,3 +175,26 @@ size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_
   }
 }
 
+#ifdef _WIN32
+std::string get_last_error(int err_code) {
+  char message[512];
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM
+    | FORMAT_MESSAGE_IGNORE_INSERTS
+    | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+    nullptr, GetLastError(),
+    LANG_NEUTRAL, message, sizeof(message),
+    nullptr);
+  return std::string(message);
+}
+#endif
+
+void init_windows_sockets() {
+#ifdef _WIN32
+  WSADATA wsaData;
+  int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+  if (iResult != 0) {
+    std::cerr << "WSAStartup() failed\n";
+    exit(1);
+  }
+#endif
+}

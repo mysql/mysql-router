@@ -44,7 +44,7 @@ add_harness_plugin(routing
 target_include_directories(routing PRIVATE ${include_dirs})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
-  target_link_libraries(routing -lnsl -lsocket)
+  target_link_libraries(routing PRIVATE -lnsl PRIVATE -lsocket)
 endif()
 
 file(GLOB routing_headers include/mysqlrouter/*.h)
@@ -54,4 +54,3 @@ install(FILES ${routing_headers}
 if(ENABLE_TESTS)
   add_subdirectory(tests/)
 endif()
-

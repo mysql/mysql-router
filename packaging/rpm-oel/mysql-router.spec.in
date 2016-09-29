@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # MySQL MySQL Router is licensed under the terms of the GPLv2
 # <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -106,7 +106,7 @@ necessary to develop MySQL Router applications.
 mkdir release && pushd release
 %{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
 %{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
-cmake .. -DINSTALL_LAYOUT=RPM -DINSTALL_LIBDIR="%{_libdir}" \
+cmake .. -DINSTALL_LAYOUT=RPM \
   -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition}
 make %{?_smp_mflags} VERBOSE=1
 popd

@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# Check for basic programs
+
+# Find cpplint and run it on all source and header files
+lint=`which cpplint cpplint.py | head -1`
+if [ -z "$lint" ]; then
+    echo "Command 'cpplint' or 'cpplint.py' not found in path"
+    exit 1
+fi
+
+repository=$PWD
+
+# check-deletion <oldrev> <newrev> <refspec>
+#
+# True if no critical branch is deleted.
+function check-deletion() {
+    case $3 in
+        refs/heads/master|refs/heads/version/*)
+            return $(test `expr $2 : "0*$"` -eq 0)
+            ;;
+    esac
+    return 0
+}
+
+# check-branch-name <oldrev> <newrev> <refspec>
+#
+# True if branch name was OK.
+function check-branch-name () {
+    case $3 in
+        refs/heads/*)           # Reference to real branch
+            branch=${3##refs/heads/}
+            case $branch in
+                master|feature/*|issue/*)
+                    return 0
+                    ;;
+                version/*) # Version branch
+                    return $(expr $branch : "version/[0-9]\+.[0-9]\+")
+                    ;;
+                *)
+                    return 1
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# check-filenames <oldrev> <newrev> <refspec>
+#
+# Check that all file names are valid and acceptable.
+function check-filenames () {
+    files=$(
+        git diff --name-only --diff-filter=A -z $1 $2 |
+        LC_ALL=C tr -d '[ -~]\0' |
+        wc -c
+    )
+    test $files -eq 0
+}
+
+# check-coding-style <oldrev> <newrev> <refspec>
+#
+# Check that the coding style is followed. We do this by checking out
+# a temporary tree.
+function check-coding-style () (
+    local -r newrev=$2
+    local -r branch=${3##refs/heads/}
+    local -r safename=`echo $branch | tr '/' '-'`
+    local -r workdir=`mktemp --directory --tmpdir $safename.XXX`
+    local -r dirs='harness plugins shared examples'
+    local -r tmpfile=`mktemp --tmpdir`
+    local exit_code=0
+
+    # Ignore references that are not branches
+    if [ $(expr $3 : "refs/heads/") -eq 0 ]; then
+        return 0
+    fi
+
+    # Create the work directory and check out a temporary version of
+    # the tree.
+    git --git-dir=$repository --work-tree=$workdir checkout $newrev -f -q -- ./
+    cd $workdir
+
+    # Run Cpplint on all C++ files and print the offending lines, if
+    # there are any.
+    find $dirs '(' -name '*.cc' -o -name '*.h' ')' \
+        -exec $lint {} + >$tmpfile 2>&1
+    exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        grep -v '^Done\|^Total' $tmpfile
+    fi
+    rm $tmpfile
+    rm -rf $workdir
+    return $exit_code
+)
+
+function check-branch () {
+    check-deletion "$@" || return 1
+    check-branch-name "$@" || return 1
+    check-filenames "$@" || return 1
+
+    # Check for trailing whitespace on lines
+    git diff --check $1 $2 || return 1
+
+    check-coding-style "$@" || return 1
+}
+
+exit_code=0
+
+while read oldrev newrev refname; do
+    case $refname in
+        refs/heads/*)
+            branch=${refname##refs/heads/}
+            if ! check-branch $oldrev $newrev $refname; then
+                exit_code=1
+                continue
+            fi
+            ;;
+        *)
+            ;;
+    esac
+done
+
+exit $exit_code

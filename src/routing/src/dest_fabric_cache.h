@@ -27,12 +27,20 @@
 #include "mysqlrouter/datatypes.h"
 #include "logger.h"
 
+using std::runtime_error;
+using std::chrono::system_clock;
+using mysqlrouter::TCPAddress;
+using mysqlrouter::URIQuery;
+
 const int kDefaultRefreshInterval = 3;
 
 class DestFabricCacheGroup final : public RouteDestination {
 public:
   /** @brief Constructor */
-  DestFabricCacheGroup(const std::string fabric_cache, const std::string group, routing::AccessMode mode, mysqlrouter::URIQuery query) :
+DestFabricCacheGroup(const std::string fabric_cache, const std::string group, routing::AccessMode mode, URIQuery query,
+                     // default sock_ops = "real" (not mock) implementation
+                     routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance())
+    : RouteDestination(sock_ops),
       cache_name(fabric_cache),
       ha_group(group),
       routing_mode(mode),

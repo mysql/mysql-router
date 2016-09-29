@@ -19,11 +19,21 @@ include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} include)
 
 include(HarnessTesting)
 
-execute_process(
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
-)
+if(WIN32)
+  foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var/log/harness
+    )
+  endforeach()
+else()
+  execute_process(
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/harness
+  )
+endif()
 
 add_subdirectory(plugins)
 
@@ -33,7 +43,7 @@ if(ENABLE_HARNESS_PROGRAM)
   add_test(NAME TestHarness1
     COMMAND $<TARGET_FILE:harness-program> --foobar)
   set_tests_properties(TestHarness1 PROPERTIES
-    PASS_REGULAR_EXPRESSION "unrecognized option")
+    PASS_REGULAR_EXPRESSION "unknown option")
 
   add_test(NAME TestHarness2
     COMMAND $<TARGET_FILE:harness-program>)
@@ -56,6 +66,10 @@ add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
 add_harness_test(TestConfig SOURCES test_config.cc)
 add_harness_test(TestQueue SOURCES test_queue.cc)
 
+# future functionality, currently not used anywhere, still has rough edges
+# and fails sporadically on Linux, fails always on Windows
+#add_harness_test(TestQueue SOURCES test_queue.cc)
+
 add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
 
 add_harness_test(TestIPAddress SOURCES test_ip_address.cc)
@@ -63,14 +77,34 @@ add_harness_test(TestNameResolver SOURCES test_resolver.cc)
 
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
-foreach(_template ${_templates})
-  string(REGEX REPLACE ".in$" "" _output ${_template})
-  message(STATUS "Generating ${_output} from ${_template}")
-  configure_file(${_template} ${_output})
-endforeach()
+if(WIN32)
+  set(ORIG_HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+  foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    foreach(_template ${_templates})
+      string(REGEX REPLACE ".in$" "" _output ${config}/${_template})
+      message(STATUS "Generating ${_output} from ${_template}")
+      string(TOUPPER ${config} config_)
+      set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config_}})
+      configure_file(${_template} ${_output})
+    endforeach()
 
-# Copy plain configuration files
-file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
-foreach(_file ${_files})
-  configure_file(${_file} ${_file} COPYONLY)
-endforeach()
+    # Copy plain configuration files
+    file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
+    foreach(_file ${_files})
+      configure_file(${_file} ${config}/${_file} COPYONLY)
+    endforeach()
+  endforeach()
+  set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+else()
+  foreach(_template ${_templates})
+    string(REGEX REPLACE ".in$" "" _output ${_template})
+    message(STATUS "Generating ${_output} from ${_template}")
+    configure_file(${_template} ${_output})
+  endforeach()
+
+  # Copy plain configuration files
+  file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
+  foreach(_file ${_files})
+    configure_file(${_file} ${_file} COPYONLY)
+  endforeach()
+endif()

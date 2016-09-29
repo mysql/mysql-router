@@ -20,12 +20,15 @@
 
 #include "config.h"
 
+#include <cstdint>
 #include <exception>
 #include <map>
 #include <string>
 #include <tuple>
-#include <unistd.h>
 #include <vector>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
 namespace mysqlrouter {
 
@@ -96,7 +99,9 @@ public:
   /** @brief Fragment part of the URI */
   std::string fragment;
 
+#ifndef _MSC_VER  // disable on Windows for unit tests to build (linkage errors)
 private:
+#endif
   /** @brief Sets information using the given URI
    *
    * Takes a and parsers out all URI elements.

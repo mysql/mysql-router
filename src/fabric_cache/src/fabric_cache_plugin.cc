@@ -17,16 +17,21 @@
 
 #include "fabric_cache.h"
 #include "plugin_config.h"
-
-#include <string>
-#include <termios.h>
-#include <thread>
-#include <unistd.h>
-
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/logger.h"
+#include "mysql/harness/config_parser.h"
+
+#include <string>
+#include <thread>
+
+#ifndef _WIN32
+# include <termios.h>
+# include <unistd.h>
+#else
+# include "mysqlrouter/windows/password_vault.h"
+#endif
+
 
 using fabric_cache::LookupResult;
 using mysqlrouter::TCPAddress;
@@ -102,18 +107,41 @@ static int init(const mysql_harness::AppInfo *info) {
             "'password' option is not allowed in the configuration file. "
                 "Router will prompt for password instead.");
       }
-
       auto password_key = make_cache_password(config.address, section->get("user"));
       if (have_cache_password(password_key)) {
         // we got the password already for this address and user
         continue;
       }
+
+#ifdef _WIN32
+      PasswordVault pv;
+      std::string pass;
+      std::string key = section->name + ((section->key.empty()) ? "" : ":" + section->key);
+      if (pv.get_password(key, pass)) {
+        log_debug("Password found in the vault");
+        fabric_cache_passwords.emplace(std::make_pair(password_key, pass));
+        continue;
+      } else {
+        bool as_service = false;
+        try {
+          as_service = mysqlrouter::is_running_as_service();
+        }
+        catch (std::runtime_error &e) {
+          log_error("runtime_error with detail %s", e.what());
+        }
+        if (as_service) {
+          log_debug("Running as service and no password found in the vault");
+          throw std::invalid_argument(mysqlrouter::string_format("No password available in the vault for credentials of section '%s'", section->name));
+        }
+      }
+#endif
+      log_debug("Password not found in the vault and not running as service.");
       // we need to prompt for the password
       auto prompt = mysqlrouter::string_format("Password for [%s%s%s], user %s",
                                                section->name.c_str(),
                                                section->key.empty() ? "" : ":",
                                                section->key.c_str(), config.user.c_str());
-      auto password = prompt_password(prompt);
+      auto password = mysqlrouter::prompt_password(prompt);
       fabric_cache_passwords.emplace(std::make_pair(password_key, password));
     }
   }
@@ -153,15 +181,17 @@ static void start(const mysql_harness::ConfigSection *section) {
   }
 }
 
-mysql_harness::Plugin harness_plugin_fabric_cache = {
+extern "C" {
+  mysql_harness::Plugin FABRIC_CACHE_API harness_plugin_fabric_cache = {
     mysql_harness::PLUGIN_ABI_VERSION,
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Fabric Cache, managing information fetched from MySQL Fabric",
     VERSION_NUMBER(0, 0, 1),
     sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
-    0, NULL,                                      // Conflicts
-    init,
-    NULL,
-    start,                                       // start
-    NULL                                         // stop
-};
+    0, nullptr, // Conflicts
+    init,       // init
+    nullptr,    // deinit
+    start,      // start
+    nullptr,    // stop
+  };
+}

@@ -25,10 +25,18 @@
 #include "mysqlrouter/utils.h"
 
 #include <cerrno>
+#include <cassert>
+#include <cstdlib>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <sstream>
 #include <string>
+
+#ifdef _WIN32
+#  pragma push_macro("max")
+#  undef max
+#endif
 
 namespace mysqlrouter {
 
@@ -124,12 +132,15 @@ protected:
                     T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
     std::string value = get_option_string(section, option);
 
+    assert(max_value <= std::numeric_limits<long long>::max());
+
     char *rest;
     errno = 0;
-    long tol = std::strtol(value.c_str(), &rest, 0);
+    long long tol = std::strtoll(value.c_str(), &rest, 0);
     T result = static_cast<T>(tol);
 
     if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
+        result != tol || // if casting lost high-order bytes
         (max_value > 0 && result > max_value)) {
       std::ostringstream os;
       os << get_log_prefix(option) << " needs value between " << min_value << " and "
@@ -176,5 +187,10 @@ protected:
 };
 
 } // namespace mysqlrouter
+
+#ifdef _WIN32
+#  pragma pop_macro("max")
+#endif
+
 
 #endif // MYSQLROUTER_PLUGIN_CONFIG_INCLUDED

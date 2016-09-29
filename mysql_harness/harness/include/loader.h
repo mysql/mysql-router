@@ -20,7 +20,9 @@
 
 #include "config_parser.h"
 #include "filesystem.h"
-#include "plugin.h"
+#include "mysql/harness/plugin.h"
+
+#include "harness_export.h"
 
 #include <exception>
 #include <future>
@@ -30,6 +32,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <thread>
 
 namespace mysql_harness {
 
@@ -46,7 +49,16 @@ class Path;
  */
 
 class LoaderConfig : public Config {
-public:
+ public:
+  template <class AssocT, class SeqT>
+  explicit LoaderConfig(const AssocT& parameters,
+                        const SeqT& reserved,
+                        bool allow_keys = false)
+          : Config(parameters, allow_keys) {
+    for (const SeqT& word : reserved)
+      reserved_.push_back(word);
+  }
+
   using Config::Config;
 
   /**
@@ -114,8 +126,8 @@ public:
  * deinitialized.
  */
 
-class Loader {
-public:
+class HARNESS_EXPORT Loader {
+ public:
   /**
    * Constructor for Loader.
    *
@@ -127,18 +139,14 @@ public:
   Loader(const std::string& program,
          const AssocT& defaults = AssocT(),
          const SeqT& reserved = SeqT())
-    : config_(defaults, reserved, Config::allow_keys)
-    , program_(program)
-  {
-  }
+      : config_(defaults, reserved, Config::allow_keys),
+        program_(program) {}
 
   /** @overload */
   template <class AssocT>
-  Loader(const std::string& program,
-         const AssocT& defaults = AssocT())
-    : Loader(program, defaults, std::vector<std::string>())
-  {
-  }
+  explicit Loader(const std::string& program,
+                  const AssocT& defaults = AssocT())
+      : Loader(program, defaults, std::vector<std::string>()) {}
 
   /**
    * Destructor.
@@ -216,9 +224,21 @@ public:
   void start();
 
   /**
+   * Return true if we are logging to a file, false if we are logging
+   * to console instead.
+   */
+  bool logging_to_file() const {
+    return !config_.get_default("logging_folder").empty();
+  }
+
+  /**
+   * Return log filename.
+   *
+   * @throws std::invalid_argument if not logging to file
    */
   Path get_log_file() const {
-    return Path::make_path(config_.get_default("logging_folder"), program_, "log");
+    return Path::make_path(config_.get_default("logging_folder"),
+                           program_, "log");
   }
 
   /**
@@ -228,7 +248,7 @@ public:
    */
   void add_logger(const std::string& default_level);
 
-private:
+ private:
   void setup_info();
   void init_all();
   void start_all();
@@ -242,24 +262,46 @@ private:
    * to "bottom".
    */
   bool topsort();
-  bool visit(const std::string& name,
-             std::map<std::string, int>& seen,
-             std::list<std::string>& order);
+  bool visit(const std::string& name, std::map<std::string, int>* seen,
+             std::list<std::string>* order);
 
-private:
-  class PluginInfo {
-  public:
-    explicit PluginInfo(void* h, Plugin* ext)
-      : handle(h), plugin(ext)
-    {
-    }
+  /**
+   * Plugin information for managing a plugin.
+   *
+   * This class represents the harness part of managing a plugin and
+   * also works as an interface to the platform-specific parts of
+   * loading pluging using dynamic loading features of the platform.
+   */
+  class HARNESS_EXPORT PluginInfo {
+   public:
+    PluginInfo(const std::string& folder, const std::string& library);
+    PluginInfo(const PluginInfo&) = delete;
+    PluginInfo(PluginInfo&&);
+    PluginInfo(void* h, Plugin* ext) : handle(h), plugin(ext) {}
+    ~PluginInfo();
 
+    void load_plugin(const std::string& name);
+
+    /**
+     * Pointer to plugin structure.
+     *
+     * @note This pointer can be null, so remember to check it before
+     * using it.
+     *
+     * @todo Make this member private to avoid exposing the internal
+     * state.
+     */
     void *handle;
     Plugin *plugin;
+
+
+   private:
+    class Impl;
+    Impl* impl_;
   };
 
-  typedef std::map<std::string, PluginInfo> PluginMap;
-    typedef std::vector<std::future<std::exception_ptr>> SessionList;
+  using PluginMap = std::map<std::string, PluginInfo>;
+  using SessionList = std::vector<std::future<std::exception_ptr>>;
 
   // Init order is important, so keep config_ first.
 
@@ -295,6 +337,6 @@ private:
   AppInfo appinfo_;
 };
 
-}
+} // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_LOADER_INCLUDED */

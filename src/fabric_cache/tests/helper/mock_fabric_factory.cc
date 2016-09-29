@@ -21,6 +21,8 @@
 #include <memory>
 #include <mutex>
 
+using fabric_cache::MockFabric;
+
 std::once_flag fabric_metadata_flag;
 
 std::shared_ptr<FabricMetaData> fabric_meta_data(nullptr);

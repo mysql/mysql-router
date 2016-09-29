@@ -51,6 +51,7 @@ TEST_F(Bug22104451, ReadLongValues) {
     Config config(Config::allow_keys);
     std::istringstream input(c.str());
     config.read(input);
-    EXPECT_EQ(long_destinations, config.get("routing", "c").get("destinations"));
+    EXPECT_EQ(long_destinations,
+              config.get("routing", "c").get("destinations"));
   });
 }

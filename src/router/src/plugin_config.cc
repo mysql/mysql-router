@@ -17,8 +17,10 @@
 
 #include "mysqlrouter/plugin_config.h"
 
-#include <sys/un.h>
-#include <unistd.h>
+#ifndef _WIN32
+# include <sys/un.h>
+# include <unistd.h>
+#endif
 
 using std::invalid_argument;
 using std::string;

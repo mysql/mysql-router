@@ -15,11 +15,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 #include "exception.h"
-#include "filesystem.h"
-#include "plugin.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -53,10 +53,8 @@ using mysql_harness::bad_section;
 
 Path g_here;
 
-class LoaderTest
-  : public ::testing::TestWithParam<const char*>
-{
-protected:
+class LoaderTest : public ::testing::TestWithParam<const char*> {
+ protected:
   virtual void SetUp() {
     std::map<std::string, std::string> params;
     params["program"] = "harness";
@@ -73,10 +71,8 @@ protected:
   Loader *loader;
 };
 
-class LoaderReadTest
-  : public LoaderTest
-{
-protected:
+class LoaderReadTest : public LoaderTest {
+ protected:
   virtual void SetUp() {
     LoaderTest::SetUp();
     loader->read(Path(g_here).join(GetParam()));
@@ -122,7 +118,8 @@ const char *good_cfgs[] = {
   "data/tests-good-2.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest, ::testing::ValuesIn(good_cfgs));
+INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
+                        ::testing::ValuesIn(good_cfgs));
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
@@ -144,10 +141,10 @@ const char *bad_cfgs[] = {
   "data/tests-bad-3.cfg",
 };
 
-INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest, ::testing::ValuesIn(bad_cfgs));
+INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
+                        ::testing::ValuesIn(bad_cfgs));
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 
   ::testing::InitGoogleTest(&argc, argv);

@@ -18,21 +18,35 @@
 #ifndef MYSQL_HARNESS_LOGGER_INCLUDED
 #define MYSQL_HARNESS_LOGGER_INCLUDED
 
+#include <mysql/harness/plugin.h>
+
+#ifdef _MSC_VER
+#  ifdef logger_EXPORTS
+/* We are building this library */
+#    define LOGGER_API __declspec(dllexport)
+#  else
+/* We are using this library */
+#    define LOGGER_API __declspec(dllimport)
+#  endif
+#else
+#  define LOGGER_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void log_error(const char *fmt, ...);
-void log_warning(const char *fmt, ...);
-void log_info(const char *fmt, ...);
-void log_debug(const char *fmt, ...);
+void LOGGER_API log_error(const char *fmt, ...);
+void LOGGER_API log_warning(const char *fmt, ...);
+void LOGGER_API log_info(const char *fmt, ...);
+void LOGGER_API log_debug(const char *fmt, ...);
 
 #ifdef WITH_DEBUG
 #define log_debug2(args) log_debug args
 #define log_debug3(args) log_debug args
 #else
-#define log_debug2(args) do {;} while(0)
-#define log_debug3(args) do {;} while(0)
+#define log_debug2(args) do {;} while (0)
+#define log_debug3(args) do {;} while (0)
 #endif
 
 #ifdef __cplusplus

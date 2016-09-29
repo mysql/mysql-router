@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_ARG_HANDLER_INCLUDED
-#define ROUTER_ARG_HANDLER_INCLUDED
+#ifndef HARNESS_ARG_HANDLER_INCLUDED
+#define HARNESS_ARG_HANDLER_INCLUDED
 
 /** @file
  * @brief Defining the commandline argument handler class CmdArgHandler
@@ -24,7 +24,7 @@
  * This file defines the commandline argument handler class CmdArgHandler.
  */
 
-#include "config.h"
+#include "harness_export.h"
 
 #include <cstdint>
 #include <functional>
@@ -47,6 +47,9 @@ using OptionNames = std::vector<std::string>;
  *
  */
 struct CmdOption {
+  using ActionFunc  = std::function<void(const std::string &)>;
+  using OptionNames = std::vector<std::string>;
+
   OptionNames names;
   std::string description;
   CmdOptionValueReq value_req;
@@ -54,32 +57,36 @@ struct CmdOption {
   std::string metavar;
   ActionFunc action;
 
-  CmdOption(OptionNames names_, std::string description_, CmdOptionValueReq value_req_,
-            const std::string metavar_, ActionFunc action_) : names(names_),
-            description(description_),
-            value_req(value_req_), metavar(metavar_), action(action_) { };
-
+  CmdOption(OptionNames names_,
+            std::string description_,
+            CmdOptionValueReq value_req_,
+            const std::string metavar_,
+            ActionFunc action_)
+  : names(names_), description(description_), value_req(value_req_),
+    metavar(metavar_), action(action_) {}
 };
 
-/** @brief Definition of a vector holding unique pointers to CmdOption objects **/
+/** @brief Definition of a vector holding unique pointers to CmdOption
+ * objects **/
 using OptionContainer = std::vector<CmdOption>;
 
 /** @class CmdArgHandler
  *  @brief Handles command line arguments
  *
- * The CmdArgHandler class handles command line arguments. It is a replacement
- * and supports most of the POSIX GNU getopt library.
+ * The CmdArgHandler class handles command line arguments. It is a
+ * replacement and supports most of the POSIX GNU getopt library.
  *
- * Command line options can have multiple aliases. For example, the typical
- * `--help` can be also called `-h`, or even `--help-me`. Long names starting with
- * one dash are not supported.
+ * Command line options can have multiple aliases. For example, the
+ * typical `--help` can be also called `-h`, or even `--help-me`. Long
+ * names starting with one dash are not supported.
  *
- * Command line options are added through the `add_option()` method and can be
- * given 1 or more names and a description. It is also possible to require the
- * option to have a value, or make the value optional.
+ * Command line options are added through the `add_option()` method
+ * and can be given 1 or more names and a description. It is also
+ * possible to require the option to have a value, or make the value
+ * optional.
  *
- * During processing of the command line arguments, actions will be executed
- * when the option (and it's potential value) was found.
+ * During processing of the command line arguments, actions will be
+ * executed when the option (and it's potential value) was found.
  *
  * Usage example:
  *
@@ -110,7 +117,7 @@ using OptionContainer = std::vector<CmdOption>;
  *  value with a meta variable. Similar, method `option_descriptions()` will get
  *  all options and their descriptions. All this is text wrapped at a configurable
  *  margin as well as, if needed, indented.
- *  
+ *
  *  @devnote
  *  The command line argument handling in CmdArgHandler is the bare minimum needed
  *  for MySQL Router. It was needed to make sure that the application would compile
@@ -118,19 +125,20 @@ using OptionContainer = std::vector<CmdOption>;
  *  @enddevnote
  *
  */
-class CmdArgHandler {
-public:
+class HARNESS_EXPORT CmdArgHandler {
+ public:
   /** @brief Constructor
    *
    * @param allow_rest_arguments whether we allow rest arguments or not
    */
-  CmdArgHandler(bool allow_rest_arguments_) : allow_rest_arguments(allow_rest_arguments_) { };
+  explicit CmdArgHandler(bool allow_rest_arguments_)
+      : allow_rest_arguments(allow_rest_arguments_) {}
 
   /** @brief Default constructor
    *
    * By default, rest arguments are not allowed.
    */
-  CmdArgHandler() : CmdArgHandler(false) { };
+  CmdArgHandler() : CmdArgHandler(false) {}
 
   /** @brief Adds a command line option
    *
@@ -161,7 +169,7 @@ public:
    * with the (optional) value of the option. The function should
    * accept only a `const std::string`.
    *
-   * Example suage:
+   * Example usage:
    *
    *       handler_.add_option(OptionNames({"--config"}), "Configuration file",
    *                          CmdOptionValueReq::none, "",
@@ -179,10 +187,10 @@ public:
    * @param metavar for formatting help text when option accepts a value
    * @param action action to perform when the option was found
    */
-  void add_option(const OptionNames names,
-                  const std::string description,
-                  const CmdOptionValueReq value_req,
-                  const std::string metavar,
+  void add_option(const OptionNames& names,
+                  const std::string& description,
+                  const CmdOptionValueReq& value_req,
+                  const std::string& metavar,
                   ActionFunc action) noexcept;
 
   void add_option(const CmdOption &other) noexcept;
@@ -206,7 +214,11 @@ public:
    *
    * @param arguments vector of strings
    */
-  void process(const std::vector<std::string> arguments);
+  void process(const std::vector<std::string>& arguments);
+
+#ifndef NDEBUG
+  bool debug_check_option_names(const CmdOption::OptionNames& names) const;
+#endif
 
   /** @brief Checks whether given name is a valid option name
    *
@@ -241,7 +253,7 @@ public:
    * @param name option name to check
    * @return true if name is valid; false otherwise
    */
-  bool is_valid_option_name(const std::string name) noexcept;
+  bool is_valid_option_name(const std::string& name) const noexcept;
 
   /** @brief Finds the option by name
    *
@@ -254,7 +266,8 @@ public:
    * @param name name of the option as string
    * @returns iterator object
    */
-  OptionContainer::iterator find_option(const std::string name) noexcept;
+  OptionContainer::const_iterator
+      find_option(const std::string& name) const noexcept;
 
   /** @brief Produces lines of text suitable to show usage
    *
@@ -281,7 +294,10 @@ public:
    * @param width maximum length of each line
    * @return vector of strings
    */
-  std::vector<std::string> usage_lines(const std::string prefix, const std::string rest_metavar, size_t width) noexcept;
+  std::vector<std::string>
+      usage_lines(const std::string& prefix,
+                  const std::string& rest_metavar,
+                  size_t width) const noexcept;
 
   /** @brief Produces description of all options
    *
@@ -308,7 +324,8 @@ public:
    * @param indent how much the description should be indented.
    * @return vector of strings
    */
-  std::vector<std::string> option_descriptions(const size_t width, const size_t indent) noexcept;
+  std::vector<std::string> option_descriptions(const size_t width,
+                                               const size_t indent) noexcept;
 
   /** @brief Returns an iterator to first option
    *
@@ -353,7 +370,8 @@ public:
    *
    * Returns the rest arguments.
    *
-   * If rest arguments are not allow or there were no rest arguments, an empty vector is returned.
+   * If rest arguments are not allow or there were no rest arguments,
+   * an empty vector is returned.
    *
    * @return vector of strings
    */
@@ -364,11 +382,11 @@ public:
   /** @brief Whether to allow rest arguments or not **/
   bool allow_rest_arguments;
 
-private:
+ private:
   /** @brief Vector with registered options **/
   std::vector<CmdOption> options_;
   /** @brief Vector with arguments as strings not processed as options **/
   std::vector<std::string> rest_arguments_;
 };
 
-#endif // ROUTER_ARG_HANDLER_INCLUDED
+#endif // HARNESS_ARG_HANDLER_INCLUDED

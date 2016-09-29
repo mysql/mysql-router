@@ -22,9 +22,12 @@
 #include <iterator>
 #include <list>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "harness_export.h"
 
 namespace mysql_harness {
 
@@ -79,14 +82,12 @@ class Range {
  * Exception thrown for syntax errors.
  *
  * @ingroup ConfigParser
+ * Exception thrown for errors during parsing configuration file.
  */
 
 class syntax_error : public std::logic_error {
-public:
-  explicit syntax_error(const std::string& msg)
-    : std::logic_error(msg)
-  {
-  }
+ public:
+  explicit syntax_error(const std::string& msg) : std::logic_error(msg) {}
 };
 
 /**
@@ -95,13 +96,9 @@ public:
  * @ingroup ConfigParser
  */
 
-class bad_section : public std::runtime_error
-{
-public:
-  explicit bad_section(const std::string& msg)
-    : std::runtime_error(msg)
-  {
-  }
+class bad_section : public std::runtime_error {
+ public:
+  explicit bad_section(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 
@@ -111,13 +108,9 @@ public:
  * @ingroup ConfigParser
  */
 
-class bad_option : public std::runtime_error
-{
-public:
-  explicit bad_option(const std::string& msg)
-    : std::runtime_error(msg)
-  {
-  }
+class bad_option : public std::runtime_error {
+ public:
+  explicit bad_option(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 
@@ -130,16 +123,17 @@ public:
  * configuration file options.
  */
 
-class ConfigSection {
-public:
+class HARNESS_EXPORT ConfigSection {
+ public:
   using OptionMap = std::map<std::string, std::string>;
   using OptionRange = Range<OptionMap::const_iterator>;
 
   ConfigSection(const std::string& name,
                 const std::string& key,
-                const ConfigSection *defaults);
+                const std::shared_ptr<const ConfigSection>& defaults);
 
-  ConfigSection(const ConfigSection&, const ConfigSection* defaults);
+  ConfigSection(const ConfigSection&,
+                const std::shared_ptr<const ConfigSection>& defaults);
   ConfigSection& operator=(const ConfigSection&) = delete;
 
   /**
@@ -195,18 +189,23 @@ public:
 
 #ifndef NDEBUG
   bool assert_default(const ConfigSection* def) const {
-    return def == defaults_;
+    return def == defaults_.get();
   }
 #endif
 
-public:
+ public:
   const std::string name;
   const std::string key;
 
-private:
-  std::string do_replace(const std::string& value) const;
+ private:
+  std::string do_replace(const std::string& value, int depth = 0) const;
 
-  const ConfigSection* defaults_;
+  const int kMaxInterpolationDepth = 10;
+
+  std::pair<OptionMap::const_iterator, bool>
+      do_locate(const std::string& option) const;
+
+  const std::shared_ptr<const ConfigSection> defaults_;
   OptionMap options_;
 };
 
@@ -222,12 +221,12 @@ private:
  * different kind of parameters.
  */
 
-class Config {
-public:
-  typedef std::pair<std::string, std::string> SectionKey;
-  typedef ConfigSection::OptionMap OptionMap;
-  typedef std::list<ConfigSection*> SectionList;
-  typedef std::list<const ConfigSection*> ConstSectionList;
+class HARNESS_EXPORT Config {
+ public:
+  using SectionKey = std::pair<std::string, std::string>;
+  using OptionMap = ConfigSection::OptionMap;
+  using SectionList = std::list<ConfigSection*>;
+  using ConstSectionList = std::list<const ConfigSection*>;
 
   /**@{*/
   /** Flags for construction of configurations. */
@@ -257,10 +256,9 @@ public:
   /** @overload */
   template <class AssocT>
   explicit Config(const AssocT& parameters, unsigned int flags = 0U)
-    : Config(flags)
-  {
-    for (auto item: parameters)
-      defaults_.set(item.first, item.second);
+      : Config(flags) {
+    for (auto item : parameters)
+      defaults_->set(item.first, item.second);
   }
 
   /** @overload */
@@ -268,17 +266,15 @@ public:
   explicit Config(const AssocT& parameters,
                   const SeqT& reserved,
                   unsigned int flags = 0U)
-    : Config(parameters, flags)
-  {
-    for (auto word: reserved)
+      : Config(parameters, flags) {
+    for (auto word : reserved)
       reserved_.push_back(word);
   }
 
   virtual ~Config() = default;
 
   template <class SeqT>
-  void set_reserved(const SeqT& reserved)
-  {
+  void set_reserved(const SeqT& reserved) {
     reserved_.assign(reserved.begin(), reserved.end());
   }
 
@@ -387,7 +383,8 @@ public:
   ConfigSection& get(const std::string& section, const std::string& key);
 
   /** @overload */
-  const ConfigSection& get(const std::string& section, const std::string& key) const;
+  const ConfigSection& get(const std::string& section,
+                           const std::string& key) const;
 
   /**
    * Add a new section to the configuration.
@@ -410,10 +407,9 @@ public:
 
   bool is_reserved(const std::string& word) const;
 
-  std::list<Config::SectionKey> section_names() const
-  {
+  std::list<Config::SectionKey> section_names() const {
     decltype(section_names()) result;
-    for (auto& section: sections_)
+    for (auto& section : sections_)
       result.push_back(section.first);
     return result;
   }
@@ -423,9 +419,9 @@ public:
    */
   ConstSectionList sections() const;
 
-protected:
-  typedef std::map<SectionKey, ConfigSection> SectionMap;
-  typedef std::vector<std::string> ReservedList;
+ protected:
+  using SectionMap = std::map<SectionKey, ConfigSection>;
+  using ReservedList = std::vector<std::string>;
 
   /**
    * Copy the guts of another configuration.
@@ -454,7 +450,7 @@ protected:
 
   SectionMap sections_;
   ReservedList reserved_;
-  ConfigSection defaults_;
+  std::shared_ptr<ConfigSection> defaults_;
   unsigned int flags_;
 };
 

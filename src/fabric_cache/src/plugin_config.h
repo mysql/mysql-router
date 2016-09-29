@@ -18,13 +18,15 @@
 #ifndef FABRIC_CACHE_PLUGIN_CONFIG_INCLUDED
 #define FABRIC_CACHE_PLUGIN_CONFIG_INCLUDED
 
-#include "config_parser.h"
-#include "plugin.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/plugin_config.h"
 
+#include <map>
 #include <string>
+#include <vector>
 
 class FabricCachePluginConfig final : public mysqlrouter::BasePluginConfig {
 public:

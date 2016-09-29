@@ -27,10 +27,12 @@
 #include <mutex>
 #include <vector>
 
-using std::string;
+using mysql_harness::AppInfo;
+using mysql_harness::ConfigSection;
+using mysqlrouter::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
-using mysqlrouter::TCPAddress;
+using std::string;
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
@@ -164,7 +166,7 @@ static int init(const mysql_harness::AppInfo *info) {
   return 0;
 }
 
-static void start(const mysql_harness::ConfigSection *section) {
+static void start(const ConfigSection *section) {
   string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
@@ -194,15 +196,17 @@ static void start(const mysql_harness::ConfigSection *section) {
   }
 }
 
-mysql_harness::Plugin harness_plugin_routing = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Routing MySQL connections between MySQL clients/connectors and servers",
-    VERSION_NUMBER(0, 0, 1),
-    sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
-    0, nullptr,                                  // Conflicts
-    init,
-    nullptr,
-    start,                                       // start
-    nullptr                                      // stop
-};
+extern "C" {
+  mysql_harness::Plugin ROUTING_API harness_plugin_routing = {
+      mysql_harness::PLUGIN_ABI_VERSION,
+      mysql_harness::ARCHITECTURE_DESCRIPTOR,
+      "Routing MySQL connections between MySQL clients/connectors and servers",
+      VERSION_NUMBER(0, 0, 1),
+      sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+      0, nullptr, // Conflicts
+      init,       // init
+      nullptr,    // deinit
+      start,      // start
+      nullptr     // stop
+  };
+}

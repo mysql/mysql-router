@@ -27,10 +27,10 @@ namespace mysql_harness {
 IPAddress::IPAddress(const std::string &data) {
   // IPv6 has at least 2 colons
   if (std::count(data.begin(), data.end(), ':') >= 2) {
-    ipv6_address_ = data; // throws std::invalid_argument
+    ipv6_address_ = IPv6Address(data); // throws std::invalid_argument
     address_type_ = AddressType::kIPv6;
   } else {
-    ipv4_address_ = data; // throws std::invalid_argument
+    ipv4_address_ = IPv4Address(data); // throws std::invalid_argument
     address_type_ = AddressType::kIPv4;
   }
 }

@@ -57,7 +57,7 @@ class IPAddress {
    *
    * @param address an IPv4Address object
    */
-  IPAddress(const IPv4Address &address)
+  explicit IPAddress(const IPv4Address &address)
     : address_type_(AddressType::kIPv4),
       ipv4_address_(address), ipv6_address_() {}
 
@@ -67,7 +67,7 @@ class IPAddress {
    *
    * @param address an IPv6Address object
    */
-  IPAddress(const IPv6Address &address)
+  explicit IPAddress(const IPv6Address &address)
     : address_type_(AddressType::kIPv6),
       ipv4_address_(), ipv6_address_(address) {}
 
@@ -82,10 +82,10 @@ class IPAddress {
    *
    * @param data string representing an IP address
    */
-  IPAddress(const std::string &data);
+  explicit IPAddress(const std::string &data);
 
   /** @overload */
-  IPAddress(const char *data) : IPAddress(std::string(data)) {}
+  explicit IPAddress(const char *data) : IPAddress(std::string(data)) {}
 
   /** Copy constructor */
   IPAddress(const IPAddress &other)

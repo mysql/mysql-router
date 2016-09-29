@@ -26,15 +26,39 @@ include_directories(
   include/
   src/
   ${MySQL_INCLUDE_DIRS}
+  "${CMAKE_BINARY_DIR}/harness"
 )
 
-add_harness_plugin(fabric_cache SOURCES
-  src/fabric_cache_plugin.cc
-  src/plugin_config.cc
-  ${FABRIC_CACHE_SOURCES}
-  REQUIRES logger router_lib)
+set(FABRIC_CACHE_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric_factory.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/fabric_cache.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/cache_api.cc
+)
 
-target_link_libraries(fabric_cache ${MySQL_LIBRARIES})
+if(WIN32)
+  add_harness_plugin(fabric_cache SOURCES
+    src/fabric_cache_plugin.cc
+    src/plugin_config.cc
+    ../router/src/windows/password_vault.cc
+    ${FABRIC_CACHE_SOURCES}
+    REQUIRES logger router_lib)
+else()
+  add_harness_plugin(fabric_cache SOURCES
+    src/fabric_cache_plugin.cc
+    src/plugin_config.cc
+    ${FABRIC_CACHE_SOURCES}
+    REQUIRES logger router_lib)
+endif()
+
+target_link_libraries(fabric_cache PUBLIC ${MySQL_LIBRARIES})
+if(WITH_HARNESS)
+  target_include_directories(fabric_cache PUBLIC "${CMAKE_BINARY_DIR}")
+  target_include_directories(fabric_cache PUBLIC "${CMAKE_BINARY_DIR}/include/mysql/harness")
+  target_include_directories(fabric_cache PUBLIC "${CMAKE_BINARY_DIR}/include")
+endif()
+
 file(GLOB fabric_cache_headers include/mysqlrouter/*.h)
 install(FILES ${fabric_cache_headers}
   DESTINATION include/mysql/${HARNESS_NAME})
@@ -44,11 +68,11 @@ if(ENABLE_TESTS)
 endif()
 
 if(BUILD_SAMPLES)
-  add_executable(fabriccache_test fabric_cache_dev.cc)
-  target_link_libraries(fabriccache_test fabric_cache ${MySQL_LIBRARIES})
+  add_executable(cache_test fabric_cache_dev.cc)
+  target_link_libraries(cache_test fabric_cache ${MySQL_LIBRARIES})
   if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
-    target_link_libraries(fabriccache_test -lnsl -lsocket)
+    target_link_libraries(cache_test -lnsl -lsocket)
   endif()
-  set_target_properties(fabriccache_test PROPERTIES
+  set_target_properties(cache_test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)
 endif(BUILD_SAMPLES)

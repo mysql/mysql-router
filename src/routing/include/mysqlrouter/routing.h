@@ -19,9 +19,14 @@
 #define MYSQLROUTER_ROUTING_INCLUDED
 
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/plugin_config.h"
 
 #include <map>
 #include <string>
+
+#ifdef _WIN32
+typedef long ssize_t;
+#endif
 
 namespace routing {
 
@@ -40,6 +45,15 @@ extern const int kDefaultMaxConnections;
  * Constant defining how long we wait to establish connection with the server before we give up.
  */
 extern const int kDefaultDestinationConnectionTimeout;
+
+/** @brief Maximum connect or handshake errors per host
+ *
+ * Maximum connect or handshake errors after which a host will be
+ * blocked. Such errors can happen when the client does not reply
+ * the handshake, sends an incorrect packet, or garbage.
+ *
+ */
+extern const unsigned long long kDefaultMaxConnectErrors;
 
 /** @brief Maximum connect or handshake errors per host
  *
@@ -73,12 +87,13 @@ extern const unsigned int kDefaultClientConnectTimeout;
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
+  kUndefined = 0,
   kReadWrite = 1,
   kReadOnly = 2,
 };
 
-/** @brief Literal name for each Access Mode */
-extern const std::map<std::string, AccessMode> kAccessModeNames;
+void get_access_mode_names(std::string*);
+AccessMode get_access_mode(const std::string&);
 
 /** @brief Returns literal name of given access mode
  *
@@ -98,18 +113,72 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept;
  */
 void set_socket_blocking(int sock, bool blocking);
 
-/** @brief Returns socket descriptor of connected MySQL server
- *
- * Returns a socket descriptor for the connection to the MySQL Server or
- * -1 when an error occurred.
- *
- * @param addr information of the server we connect with
- * @param connect_timeout number of seconds waiting for connection
- * @param log whether to log errors or not
- * @return a socket descriptor
+/** @class SocketOperationsBase
+ * @brief Base class to allow multiple SocketOperations implementations
+ *        (at least one "real" and one mock for testing purposes)
  */
-int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept;
+class SocketOperationsBase {
+ public:
+  virtual ~SocketOperationsBase() = default;
+  virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept = 0;
+  virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
+  virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
+  virtual void close(int fd) = 0;
+  virtual void shutdown(int fd) = 0;
 
-}
+  /** @brief Wrapper around socket library write() with a looping logic
+   *         making sure the whole buffer got written
+   */
+  virtual ssize_t write_all(int fd, void *buffer, size_t nbyte) {
+    ssize_t written = 0;
+    size_t buffer_offset = 0;
+    while (buffer_offset < nbyte) {
+      if ((written = this->write(fd, reinterpret_cast<char*>(buffer)+buffer_offset, nbyte-buffer_offset)) < 0) {
+        return -1;
+      }
+      buffer_offset += static_cast<size_t>(written);
+    }
+    return static_cast<ssize_t>(nbyte);
+  }
+};
+
+/** @class SocketOperations
+ * @brief This class provides a "real" (not mock) implementation
+ */
+class SocketOperations : public SocketOperationsBase {
+ public:
+
+  static SocketOperations* instance();
+
+  /** @brief Returns socket descriptor of connected MySQL server
+   *
+   * Returns a socket descriptor for the connection to the MySQL Server or
+   * -1 when an error occurred.
+   *
+   * @param addr information of the server we connect with
+   * @param connect_timeout number of seconds waiting for connection
+   * @param log whether to log errors or not
+   * @return a socket descriptor
+   */
+  int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept override;
+
+  /** @brief Thin wrapper around socket library write() */
+  ssize_t write(int fd, void *buffer, size_t nbyte) override;
+
+  /** @brief Thin wrapper around socket library read() */
+  ssize_t read(int fd, void *buffer, size_t nbyte) override;
+
+  /** @brief Thin wrapper around socket library close() */
+  void close(int fd)  override;
+
+  /** @brief Thin wrapper around socket library shutdown() */
+  void shutdown(int fd)  override;
+ private:
+  SocketOperations(const SocketOperations&) = delete;
+  SocketOperations operator=(const SocketOperations&) = delete;
+  SocketOperations() = default;
+};
+
+} // namespace routing
 
 #endif // MYSQLROUTER_ROUTING_INCLUDED

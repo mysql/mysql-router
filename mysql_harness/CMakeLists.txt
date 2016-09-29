@@ -27,14 +27,19 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.1")
   cmake_policy(SET CMP0054 NEW)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
 
 # Basic variables
 set(HARNESS_NAME "harness" CACHE STRING
   "Name of Harness")
 
+if("${STAGE_DIR}" STREQUAL "")
+    set(STAGE_DIR ${CMAKE_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
+endif()
 set(HARNESS_INSTALL_LIBRARY_DIR "lib" CACHE PATH
     "Installation directory for Harness libraries")
+set(HARNESS_INSTALL_BIN_DIR "bin" CACHE PATH
+    "Installation directory for Harness main binaries")    
 set(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
@@ -106,11 +111,19 @@ endif()
 # Basic variables
 set(HARNESS_NAME "harness"
   CACHE STRING "Name of Harness")
+set(INSTALL_INCLUDE_DIR "include/mysql/harness")
 set(HARNESS_INSTALL_INCLUDE_PREFIX "include/mysql")
 set(HARNESS_INSTALL_PROGRAM YES
   CACHE BOOL "Whether to install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES
   CACHE BOOL "Whether to install the Harness provided plugins")
+if(WIN32)
+  foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config_} config__)
+    set(HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config__} ${STAGE_DIR}/${config_}/lib
+      CACHE STRING "Output directory for plugins ${config_} build")
+  endforeach()
+endif()
 set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib
   CACHE STRING "Output directory for plugins")
 set(ENABLE_TESTS OFF
@@ -121,6 +134,10 @@ include(Plugin)
 include(Arch)
 include(Docs)
 include(Coverage)
+include(Check)
+
+# Check for basic functions
+find_package(Threads REQUIRED)
 
 # Check for C++ 11 support
 include(CheckCXXCompilerFlag)
@@ -139,22 +156,30 @@ if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   else()
     message(STATUS "You need C++11 support, but ${CMAKE_CXX_COMPILER} does not have that.")
   endif()
-  if(NOT ENABLE_TESTS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic")
-  endif()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -Wconversion -Wpedantic")
   if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_COMPILER_IS_GNUCXX VERSION_LESS "4.9")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings")
   endif()
-else()
-  message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} not supported")
-endif()
-
-if(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-elseif(COMPILER_SUPPORTS_CXX0X)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+  if("${MSVC_VERSION}" VERSION_LESS 1800)
+    message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} is too old; need at least MSVC 12.0")
+  endif()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /TP")
 else()
   message(FATAL_ERROR "You need C++11 support, but ${CMAKE_CXX_COMPILER} does not have that.")
+endif()
+
+# Platform specifics
+if(WIN32)
+  include(CheckIncludeFileCXX)
+  check_include_file_cxx("shlwapi.h" Shlwapi_FOUND)
+  if(Shlwapi_FOUND)
+    set(SHLWAPI_LIBRARIES "shlwapi.dll")
+  else()
+    message(FATAL_ERROR "Shlwapi library not found")
+  endif()
+else()
+  set(SHLWAPI_LIBRARIES)
 endif()
 
 # Check for basic functions

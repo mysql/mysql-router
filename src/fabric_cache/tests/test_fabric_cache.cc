@@ -25,6 +25,7 @@
 #include "gmock/gmock.h"
 
 using fabric_cache::ManagedServer;
+using fabric_cache::MockFabric;
 
 class FabricCacheTest : public ::testing::Test {
 public:

@@ -25,12 +25,17 @@
  *
  */
 
-#include "arg_handler.h"
 #include "config.h"
 #include "loader.h"
+#include "mysql/harness/arg_handler.h"
 
 #include <cstdint>
 #include <vector>
+
+using std::string;
+using std::tuple;
+using std::make_tuple;
+using std::vector;
 
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
@@ -86,7 +91,7 @@ public:
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const mysql_harness::Path& origin, const std::vector<std::string>& arguments);
+  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments);
 
   /** @brief Constructor with command line arguments
    *
@@ -219,7 +224,12 @@ public:
     return available_config_files_;
   }
 
+#if !defined(_MSC_VER) && !defined(UNIT_TESTS)
+  // MSVC produces different symbols for private vs public methods, which mean
+  // the #define private public trick for unit-testing private methods doesn't
+  // work. Thus, we turn private methods public in Windows.
 private:
+#endif
 
   /** @brief Initializes the MySQL Router application
    *
@@ -326,7 +336,7 @@ private:
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<std::string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
-  std::vector<std::string> config_files_;
+  std::vector<string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
   /** @brief Vector with available and usable configuration files
@@ -359,6 +369,12 @@ private:
    * running from.
    */
   mysql_harness::Path origin_;
+};
+
+class silent_exception : public std::exception
+{
+public:
+  silent_exception() : std::exception() {}
 };
 
 #endif // ROUTER_MYSQL_ROUTER_INCLUDED

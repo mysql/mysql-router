@@ -20,11 +20,11 @@
 #include "fabric.h"
 
 namespace fabric_cache {
- /**
-  * Compare two server objects, managed by fabric.
-  */
-  bool operator == (const fabric_cache::ManagedServer & s1, const fabric_cache::ManagedServer & s2);
- }
+
+/**
+ * Compare two server objects, managed by fabric.
+ */
+bool operator == (const ManagedServer & s1, const ManagedServer & s2);
 
 /** @class MockFabric
  *
@@ -37,12 +37,12 @@ public:
   /**
    * Objects representing the servers that are part of the topology.
    */
-  fabric_cache::ManagedServer ms1;
-  fabric_cache::ManagedServer ms2;
-  fabric_cache::ManagedServer ms3;
-  fabric_cache::ManagedServer ms4;
-  fabric_cache::ManagedServer ms5;
-  fabric_cache::ManagedServer ms6;
+  ManagedServer ms1;
+  ManagedServer ms2;
+  ManagedServer ms3;
+  ManagedServer ms4;
+  ManagedServer ms5;
+  ManagedServer ms6;
 
   /**
    * Server list for each group in the topology. Each server object
@@ -83,7 +83,7 @@ public:
    *
    */
   MockFabric(const std::string &host, int port, const std::string &user,
-         const std::string &password, int connection_timeout,
+             const std::string &password, int connection_timeout,
              int connection_attempts);
 
   /** @brief Destructor
@@ -134,7 +134,7 @@ public:
   int fetch_ttl();
 };
 
-
+} // namespace fabric_cache
 
 #endif //MOCK_FABRIC_INCLUDED
 

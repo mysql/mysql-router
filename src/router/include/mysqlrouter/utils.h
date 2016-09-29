@@ -19,14 +19,17 @@
 #define MYSQLROUTER_UTILS_INCLUDED
 
 #include <cstdarg>
-#include <netdb.h>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
+#ifndef _WIN32
+#  include <netdb.h>
+#endif
 
 namespace mysqlrouter {
 
-// Some (older) compiler have no std::to_string avialable 
+// Some (older) compiler have no std::to_string available
 template<typename T>
 std::string to_string(const T &data) {
   std::ostringstream os;
@@ -117,6 +120,23 @@ void trim(std::string& str);
  * @return string containing the dump
  */
 std::string hexdump(const unsigned char *buffer, size_t count, long start = 0, bool literals = false);
+
+/** @brief Returns the platform specific error code of last operation
+ * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
+ *
+ * @return the error code
+ */
+std::string get_last_error();
+
+/** @brief Prompts for a password from the console.
+ */
+const std::string prompt_password(const std::string &prompt);
+
+#ifdef _WIN32
+/** @brief Returns whether if the router process is running as a Windows Service
+ */
+bool is_running_as_service();
+#endif
 
 } // namespace mysqlrouter
 

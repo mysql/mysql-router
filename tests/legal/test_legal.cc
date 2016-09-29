@@ -15,6 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef _WIN32 // this test fails on Windows due to Git/shell problems
+
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
 #include "filesystem.h"
@@ -63,8 +65,13 @@ const std::vector<std::string> kIgnoredExtensions{
 
 const std::vector<std::string> kIgnoredFileNames{
     ".gitignore",
+    "nt_servc.cc",
+    "nt_servc.h",
     "License.txt",
     "Doxyfile.in",
+#ifndef _WIN32
+    "README.md" // symlink on Unix-like, doesn't work on Windows
+#endif
 };
 
 // Paths to ignore; relative to repository root
@@ -79,7 +86,7 @@ const std::vector<Path> kIgnoredPaths{
 
 bool is_ignored_path(Path path, const std::vector<Path> ignored_paths) {
   // Check paths we are ignoring
-  Path fullpath(realpath(g_source_dir.c_str(), nullptr));
+  Path fullpath(Path(g_source_dir).real_path());
   for (auto &it: ignored_paths) {
     auto tmp = Path(fullpath).join(it);
     if (tmp == path) {
@@ -124,12 +131,12 @@ void prepare_git_tracked_files() {
   while (std::getline(cmd_output, tracked_file, '\n')) {
     Path tmp_path(g_source_dir);
     tmp_path.append(tracked_file);
-    char *real_path = realpath(tmp_path.c_str(), nullptr);
-    if (!real_path) {
+    Path real_path = tmp_path.real_path();
+    if (!real_path.is_set()) {
       std::cerr << "realpath failed for " << tracked_file << ": " << strerror(errno) << std::endl;
       continue;
     }
-    tracked_file = std::string(realpath(tmp_path.c_str(), nullptr));
+    tracked_file = real_path.str();
     if (!is_ignored(tracked_file)) {
       os_cmd.str("");
       os_cmd << "git log HEAD --pretty=format:%ad --date=short --diff-filter=AM -- " << tracked_file;
@@ -278,7 +285,6 @@ TEST_F(CheckLegal, GPLLicense) {
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
-  std::string err = "Test can only run in Git repository";
   try {
     g_source_dir = get_cmake_source_dir();
   } catch (const std::runtime_error &exc) {
@@ -293,3 +299,10 @@ int main(int argc, char *argv[]) {
   return RUN_ALL_TESTS();
 }
 
+#else
+
+int main(int, char*) {
+  return 0;
+}
+
+#endif // #ifndef _WIN32

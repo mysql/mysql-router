@@ -22,8 +22,16 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <netdb.h>
-#include <netinet/tcp.h>
+
+#ifndef _WIN32
+# include <netdb.h>
+# include <netinet/tcp.h>
+#else
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+#endif
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
@@ -31,7 +39,6 @@
 #include "logger.h"
 
 using mysqlrouter::to_string;
-using routing::get_mysql_socket;
 using std::out_of_range;
 using std::runtime_error;
 using std::chrono::duration_cast;
@@ -112,6 +119,10 @@ int DestFabricCacheGroup::get_server_socket(int connect_timeout, int *error) noe
     log_error("Failed getting managed servers from Fabric");
   }
 
+#ifndef _WIN32
   *error = errno;
+#else
+  *error = WSAGetLastError();
+#endif
   return -1;
 }

@@ -33,13 +33,15 @@ endif()
 set(lib_source_files
   config_generator.cc
   router_app.cc
-  arg_handler.cc
   utils.cc
   uri.cc
   datatypes.cc
   plugin_config.cc
   common/my_aes.cc
   ${MY_AES_IMPL})
+if(WIN32)
+  list(APPEND lib_source_files windows/nt_servc.cc windows/main-windows.cc windows/password_vault.cc)
+endif()
 
 # Disable warnings from 3rd party code that we have no control over
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -51,22 +53,46 @@ endif()
 
 set(source_files main.cc)
 
-add_library(router_lib SHARED ${lib_source_files} ${common_files})
+if(NOT WIN32)
+  add_library(router_lib SHARED ${lib_source_files} ${common_files})
+else()
+  # on Windows, we statically link the router lib to otherwise avoid exporting a bunch of symbols
+  add_library(router_lib STATIC ${lib_source_files})
+endif()
 target_link_libraries(router_lib ${CMAKE_DL_LIBS} harness-library ${MySQL_LIBRARIES} ${SSL_LIBRARIES})
+if(WIN32)
+  target_link_libraries(router_lib crypt32)
+endif()
 target_include_directories(router_lib PUBLIC ../include ${MySQL_INCLUDE_DIRS})
-set_target_properties(router_lib PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
-  OUTPUT_NAME "mysqlrouter"
-  SOVERSION 1
-)
+if(WITH_HARNESS)
+  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}")
+  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/include/mysql/harness")
+  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/include")
+  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/harness")
+endif()
+set_target_output_directory(router_lib LIBRARY_OUTPUT_DIRECTORY lib)
+if(NOT WIN32)
+  set_target_properties(router_lib PROPERTIES
+    OUTPUT_NAME "mysqlrouter"
+    SOVERSION 1
+  )
+else()
+  set_target_properties(router_lib PROPERTIES
+    OUTPUT_NAME "mysqlrouter_lib"
+    SOVERSION 1
+  )
+endif()
 
 add_executable(${MYSQL_ROUTER_TARGET} ${source_files})
 target_link_libraries(${MYSQL_ROUTER_TARGET} ${CMAKE_DL_LIBS} router_lib harness-library)
+if(WIN32)
+  target_link_libraries(${MYSQL_ROUTER_TARGET} crypt32)
+endif()
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   target_link_libraries(${MYSQL_ROUTER_TARGET} -lnsl -lsocket)
 endif()
-set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)
+
+set_target_output_directory(${MYSQL_ROUTER_TARGET} RUNTIME_OUTPUT_DIRECTORY bin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
@@ -77,11 +103,23 @@ endif()
 # For testing
 if(ENABLE_TESTS)
   file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/../tests/*.ini.in)
-  foreach(config_file ${config_files})
-    get_filename_component(dest_config_file ${config_file} NAME)
-    string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})
-    configure_file(${config_file} ${STAGE_DIR}/etc/${dest_config_file})
-  endforeach()
+  if(NOT WIN32)
+    set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
+    foreach(config_file ${config_files})
+      get_filename_component(dest_config_file ${config_file} NAME)
+      string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})
+      configure_file(${config_file} ${STAGE_DIR}/etc/${dest_config_file})
+    endforeach()
+  else()
+    foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+      set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage/${conf})
+      foreach(config_file ${config_files})
+        get_filename_component(dest_config_file ${config_file} NAME)
+        string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})
+        configure_file(${config_file} ${STAGE_DIR}/${conf}/etc/${dest_config_file})
+      endforeach()
+    endforeach()
+  endif()
 endif()
 
 install(TARGETS ${MYSQL_ROUTER_TARGET} router_lib

@@ -24,8 +24,10 @@
 #include "logger.h"
 
 class DestFirstAvailable final : public RouteDestination {
-public:
-  int get_server_socket(int connect_timeout, int *error) noexcept;
+ public:
+  using RouteDestination::RouteDestination;
+
+  int get_server_socket(int connect_timeout, int *error) noexcept override;
 };
 
 

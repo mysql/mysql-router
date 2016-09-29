@@ -24,6 +24,9 @@
 
 #include "gmock/gmock.h"
 
+using mysql_harness::Path;
+using std::string;
+
 class ConsoleOutputTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
@@ -35,14 +38,25 @@ protected:
     } else {
       stage_dir.reset(new Path(stage_dir_c));
     }
+#ifdef _WIN32
+    if (origin_dir) {
+      *stage_dir = stage_dir->join(origin_dir->basename());
+    } else {
+      *stage_dir = stage_dir->join("RelWithDebInfo");
+    }
+#endif
     plugin_dir.reset(new Path(*stage_dir));
     plugin_dir->append("lib");
+#ifndef _WIN32
     plugin_dir->append("mysqlrouter");
-
+#endif
     app_mysqlrouter.reset(new Path(*stage_dir));
     app_mysqlrouter->append("bin");
+#ifdef _WIN32
+    app_mysqlrouter->append("mysqlrouter.exe");
+#else
     app_mysqlrouter->append("mysqlrouter");
-
+#endif
     orig_cout_ = std::cout.rdbuf();
     std::cout.rdbuf(ssout.rdbuf());
   }
@@ -58,9 +72,14 @@ protected:
     ssout.clear();
   }
 
-  std::unique_ptr<mysql_harness::Path> stage_dir;
-  std::unique_ptr<mysql_harness::Path> plugin_dir;
-  std::unique_ptr<mysql_harness::Path> app_mysqlrouter;
+  void set_origin(const Path &origin) {
+    origin_dir.reset(new Path(origin));
+  }
+
+  std::unique_ptr<Path> stage_dir;
+  std::unique_ptr<Path> plugin_dir;
+  std::unique_ptr<Path> app_mysqlrouter;
+  std::unique_ptr<Path> origin_dir;
 
   std::stringstream ssout;
   std::streambuf *orig_cout_;

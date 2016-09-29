@@ -18,14 +18,26 @@
 #include "utils.h"
 
 #include <algorithm>
-#include <arpa/inet.h>
 #include <assert.h>
 #include <cstring>
-#include <fcntl.h>
 #include <stdexcept>
-#include <sys/fcntl.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <stdlib.h>
+
+#ifndef _MSC_VER
+# include <arpa/inet.h>
+# include <fcntl.h>
+# include <sys/socket.h>
+# include <sys/un.h>
+#else
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <stdint.h>
+# if _MSC_VER <= 1900
+#   define not !
+# endif
+#endif
 
 void *get_in_addr(struct sockaddr *addr) {
   if (addr->sa_family == AF_INET) {
@@ -97,4 +109,31 @@ std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr) {
     std::memcpy(result.data(), addr.s6_addr, 16);
   }
   return result;
+}
+
+
+std::string get_message_error(int errcode)
+{
+#ifndef _WIN32
+  return std::string(strerror(errcode));
+#else
+  if (errcode == SOCKET_ERROR || errcode == 0) {
+    errcode = WSAGetLastError();
+  }
+  LPTSTR lpMsgBuf;
+
+  FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+    FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL,
+    errcode,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR)&lpMsgBuf,
+    0, NULL);
+  std::string msgerr = "SystemError: ";
+  msgerr += lpMsgBuf;
+  LocalFree(lpMsgBuf);
+  return msgerr;
+#endif
 }

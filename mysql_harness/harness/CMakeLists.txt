@@ -15,34 +15,62 @@
 
 find_package(Threads REQUIRED)
 
+include(GenerateExportHeader)
+
 set(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
-  src/filesystem-posix.cc src/common.cc
+  src/common.cc
+  src/filesystem.cc
+  src/arg_handler.cc
   src/networking/ip_address.cc
   src/networking/ipv4_address.cc
   src/networking/ipv6_address.cc
   src/networking/resolver.cc)
 set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
   
+if(WIN32)
+  list(APPEND harness_source
+    src/filesystem-windows.cc src/utilities-windows.cc src/loader-windows.cc)
+else()
+  list(APPEND harness_source
+    src/filesystem-posix.cc src/utilities-posix.cc src/loader-posix.cc)
+endif()
+
 file(GLOB harness_headers include/*.h)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_BINARY_DIR}/include)
 
-configure_file(plugin.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.h
+if(WIN32)
+  set(WINSOCK_LIBRARIES Ws2_32.lib)
+endif()
+set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES})
+
+configure_file(plugin.h.in ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
   ESCAPE_QUOTES @ONLY)
 
+# create harness library - static version
 add_library(harness-archive STATIC ${harness_source})
 target_link_libraries(harness-archive ${common_libraries})
 target_include_directories(harness-archive PUBLIC include)
+if(WIN32)
+  set_target_properties(harness-archive PROPERTIES
+		COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
+endif()
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(PUBLIC harness-archive "-pthread")
 endif()
 
+# create harness library - dynamic version
 add_library(harness-library SHARED ${harness_source})
 target_link_libraries(harness-library ${common_libraries})
 target_include_directories(harness-library PUBLIC include)
+
+generate_export_header(harness-library
+	BASE_NAME HARNESS
+	EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/harness_export.h)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   target_link_libraries(harness-library -lnsl -lsocket)
@@ -54,8 +82,14 @@ if(ENABLE_HARNESS_PROGRAM)
   add_executable(harness-program src/main.cc)
   set_target_properties(harness-program PROPERTIES
     OUTPUT_NAME harness)
-  target_link_libraries(harness-program
-    ${common_libraries} harness-library)
+  if(NOT WIN32)
+    target_link_libraries(harness-program
+      ${common_libraries} harness-library)
+  else()
+    target_link_libraries(harness-program
+      ${common_libraries} harness-archive)
+    target_compile_definitions(harness-program PRIVATE -DHARNESS_STATIC_DEFINE=1)
+  endif()
   install(TARGETS harness-program RUNTIME DESTINATION bin)
 endif()
 
@@ -95,9 +129,17 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/$
 
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
-install(TARGETS harness-archive harness-library
+if(NOT WIN32)
+  install(TARGETS harness-archive harness-library
         LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}
         ARCHIVE DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
+else()
+  install(TARGETS harness-archive
+        ARCHIVE DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
+  install(TARGETS harness-library
+        RUNTIME DESTINATION ${HARNESS_INSTALL_BIN_DIR}
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})          
+endif()
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

@@ -15,18 +15,26 @@
 
 include_directories(helpers
   ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
+  ${CMAKE_SOURCE_DIR}/src/router/include/mysqlrouter
   )
 
-add_library(routertest_helpers SHARED
-  helpers/helper_logger.cc
-  helpers/cmd_exec.cc
-  helpers/router_test_helpers.cc
-)
-target_link_libraries(routertest_helpers harness-library)
+if(WIN32)
+  add_library(routertest_helpers STATIC
+    helpers/cmd_exec-windows.cc
+    helpers/router_test_helpers.cc
+  )
+else()
+  add_library(routertest_helpers SHARED
+    helpers/cmd_exec.cc
+    helpers/router_test_helpers.cc
+  )
+endif()
+
+target_link_libraries(routertest_helpers harness-library router_lib)
 set_target_properties(routertest_helpers PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
   INCLUDE_DIRECTORIES
-    "${CMAKE_SOURCE_DIR}/tests/helpers/;${CMAKE_SOURCE_DIR}/mysql_harness/harness/include"
+    "${CMAKE_SOURCE_DIR}/tests/helpers/;${CMAKE_SOURCE_DIR}/mysql_harness/harness/include;${CMAKE_BINARY_DIR}/harness;${CMAKE_BINARY_DIR}/include;"
 )
 
 foreach(test_dir legal tools)
@@ -34,4 +42,3 @@ foreach(test_dir legal tools)
         ADD_TEST_DIR(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
     endif()
 endforeach()
-

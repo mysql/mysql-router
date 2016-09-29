@@ -17,7 +17,7 @@
 
 #include "designator.h"
 
-#include "plugin.h"
+#include "mysql/harness/plugin.h"
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -32,20 +32,14 @@
 // Standard include files
 #include <iostream>
 
-void check_desig(const std::string& input,
-                 const std::string& plugin)
-{
+void check_desig(const std::string& input, const std::string& plugin) {
   Designator desig(input);
   EXPECT_EQ(plugin, desig.plugin);
 }
 
 void check_desig(const std::string& input,
-                 const std::string& plugin,
-                 Designator::Relation relation,
-                 long major_version,
-                 long minor_version,
-                 long patch_version)
-{
+                 const std::string& plugin, Designator::Relation relation,
+                 long major_version, long minor_version, long patch_version) {
   Designator desig(input);
   EXPECT_EQ(plugin, desig.plugin);
 
@@ -67,8 +61,7 @@ void check_desig(const std::string& input,
                  Designator::Relation relation2,
                  long major_version2,
                  long minor_version2,
-                 long patch_version2)
-{
+                 long patch_version2) {
   Designator desig(input);
   EXPECT_EQ(plugin, desig.plugin);
 
@@ -86,8 +79,7 @@ void check_desig(const std::string& input,
   EXPECT_EQ(patch_version2, elem2.second.ver_patch);
 }
 
-TEST(TestDesignator, TestGoodDesignators)
-{
+TEST(TestDesignator, TestGoodDesignators) {
   check_desig("foo", "foo");
   check_desig("foo(<<1)", "foo",
               Designator::LESS_THEN, 1, 0, 0);
@@ -106,14 +98,13 @@ TEST(TestDesignator, TestGoodDesignators)
   check_desig("foo (<=1.2 , >>1.3)  ", "foo",
               Designator::LESS_EQUAL, 1, 2, 0,
               Designator::GREATER_THEN, 1, 3, 0);
-  check_desig("foo(<=1.2,>>1.3)", "foo",
+  check_desig("foo(<=1.2, >>1.3)", "foo",
               Designator::LESS_EQUAL, 1, 2, 0,
               Designator::GREATER_THEN, 1, 3, 0);
 }
 
 
-TEST(TestDesignator, TestBadDesignators)
-{
+TEST(TestDesignator, TestBadDesignators) {
   const char *strings[] = {
     "foo(",
     "foo\t(!1.2.55)",
@@ -127,59 +118,59 @@ TEST(TestDesignator, TestBadDesignators)
     "foo<<1.2.55",
   };
 
-  for (auto input: make_range(strings, sizeof(strings)/sizeof(*strings)))
+  for (auto input : make_range(strings, sizeof(strings)/sizeof(*strings)))
     EXPECT_THROW({ Designator desig(input); }, std::runtime_error);
 }
 
-TEST(TestDesignator, TestVersion)
-{
-  EXPECT_EQ(Version(1,0,0), Version(1,0,0));
-  EXPECT_FALSE(Version(1,0,0) < Version(1,0,0));
-  EXPECT_LE(Version(1,0,0), Version(1,0,0));
-  EXPECT_FALSE(Version(1,0,0) > Version(1,0,0));
-  EXPECT_GE(Version(1,0,0), Version(1,0,0));
+TEST(TestDesignator, TestVersion) {
+  EXPECT_EQ(Version(1, 0, 0), Version(1, 0, 0));
+  EXPECT_FALSE(Version(1, 0, 0) < Version(1, 0, 0));
+  EXPECT_LE(Version(1, 0, 0), Version(1, 0, 0));
+  EXPECT_FALSE(Version(1, 0, 0) > Version(1, 0, 0));
+  EXPECT_GE(Version(1, 0, 0), Version(1, 0, 0));
 
-  EXPECT_NE(Version(1,0,0), Version(1,0,1));
-  EXPECT_LT(Version(1,0,0), Version(1,0,1));
-  EXPECT_LE(Version(1,0,0), Version(1,0,1));
-  EXPECT_FALSE(Version(1,0,0) > Version(1,0,1));
-  EXPECT_FALSE(Version(1,0,0) >= Version(1,0,1));
+  EXPECT_NE(Version(1, 0, 0), Version(1, 0, 1));
+  EXPECT_LT(Version(1, 0, 0), Version(1, 0, 1));
+  EXPECT_LE(Version(1, 0, 0), Version(1, 0, 1));
+  EXPECT_FALSE(Version(1, 0, 0) > Version(1, 0, 1));
+  EXPECT_FALSE(Version(1, 0, 0) >= Version(1, 0, 1));
 
-  EXPECT_FALSE(Version(1,0,0) == Version(1,1,0));
-  EXPECT_LT(Version(1,0,0), Version(1,1,0));
-  EXPECT_LE(Version(1,0,0), Version(1,1,0));
-  EXPECT_FALSE(Version(1,0,0) > Version(1,1,0));
-  EXPECT_FALSE(Version(1,0,0) >= Version(1,1,0));
+  EXPECT_FALSE(Version(1, 0, 0) == Version(1, 1, 0));
+  EXPECT_LT(Version(1, 0, 0), Version(1, 1, 0));
+  EXPECT_LE(Version(1, 0, 0), Version(1, 1, 0));
+  EXPECT_FALSE(Version(1, 0, 0) > Version(1, 1, 0));
+  EXPECT_FALSE(Version(1, 0, 0) >= Version(1, 1, 0));
 
-  EXPECT_FALSE(Version(1,0,0) == Version(1,1,5));
-  EXPECT_LT(Version(1,0,0), Version(1,1,5));
-  EXPECT_LE(Version(1,0,0), Version(1,1,5));
-  EXPECT_FALSE(Version(1,0,0) > Version(1,1,5));
-  EXPECT_FALSE(Version(1,0,0) >= Version(1,1,5));
+  EXPECT_FALSE(Version(1, 0, 0) == Version(1, 1, 5));
+  EXPECT_LT(Version(1, 0, 0), Version(1, 1, 5));
+  EXPECT_LE(Version(1, 0, 0), Version(1, 1, 5));
+  EXPECT_FALSE(Version(1, 0, 0) > Version(1, 1, 5));
+  EXPECT_FALSE(Version(1, 0, 0) >= Version(1, 1, 5));
 
-  EXPECT_FALSE(Version(1,0,0) == Version(2,1,5));
-  EXPECT_LT(Version(1,0,0), Version(2,1,5));
-  EXPECT_LE(Version(1,0,0), Version(2,1,5));
-  EXPECT_FALSE(Version(1,0,0) > Version(2,1,5));
-  EXPECT_FALSE(Version(1,0,0) >= Version(2,1,5));
+  EXPECT_FALSE(Version(1, 0, 0) == Version(2, 1, 5));
+  EXPECT_LT(Version(1, 0, 0), Version(2, 1, 5));
+  EXPECT_LE(Version(1, 0, 0), Version(2, 1, 5));
+  EXPECT_FALSE(Version(1, 0, 0) > Version(2, 1, 5));
+  EXPECT_FALSE(Version(1, 0, 0) >= Version(2, 1, 5));
 
-  EXPECT_EQ(Version(VERSION_NUMBER(1,0,0)), Version(1,0,0));
-  EXPECT_EQ(Version(VERSION_NUMBER(1,1,0)), Version(1,1,0));
-  EXPECT_EQ(Version(VERSION_NUMBER(1,2,0)), Version(1,2,0));
-  EXPECT_EQ(Version(VERSION_NUMBER(1,0,2)), Version(1,0,2));
-  EXPECT_EQ(Version(VERSION_NUMBER(1,2,3)), Version(1,2,3));
+  EXPECT_EQ(Version(VERSION_NUMBER(1, 0, 0)), Version(1, 0, 0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1, 1, 0)), Version(1, 1, 0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1, 2, 0)), Version(1, 2, 0));
+  EXPECT_EQ(Version(VERSION_NUMBER(1, 0, 2)), Version(1, 0, 2));
+  EXPECT_EQ(Version(VERSION_NUMBER(1, 2, 3)), Version(1, 2, 3));
 }
 
-TEST(TestDesignator, TestConstraints)
-{
-  EXPECT_TRUE(Designator("foo(<< 1.2)").version_good(Version(1,1)));
-  EXPECT_FALSE(Designator("foo(<< 1.2)").version_good(Version(1,2)));
-  EXPECT_TRUE(Designator("foo(<= 1.2)").version_good(Version(1,2)));
-  EXPECT_FALSE(Designator("foo(<= 1.2)").version_good(Version(1,2,1)));
-  EXPECT_TRUE(Designator("foo(>= 1.2)").version_good(Version(1,2,2)));
-  EXPECT_TRUE(Designator("foo(>>1.2)").version_good(Version(1,2,2)));
-  EXPECT_FALSE(Designator("foo(>= 1.2, !=1.2.2)").version_good(Version(1,2,2)));
-  EXPECT_FALSE(Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1,2,2)));
-  EXPECT_TRUE(Designator("foo(>> 1.2, !=1.2.2)").version_good(Version(1,2,3)));
+TEST(TestDesignator, TestConstraints) {
+  EXPECT_TRUE(Designator("foo(<< 1.2)").version_good(Version(1, 1)));
+  EXPECT_FALSE(Designator("foo(<< 1.2)").version_good(Version(1, 2)));
+  EXPECT_TRUE(Designator("foo(<= 1.2)").version_good(Version(1, 2)));
+  EXPECT_FALSE(Designator("foo(<= 1.2)").version_good(Version(1, 2, 1)));
+  EXPECT_TRUE(Designator("foo(>= 1.2)").version_good(Version(1, 2, 2)));
+  EXPECT_TRUE(Designator("foo(>>1.2)").version_good(Version(1, 2, 2)));
+  EXPECT_FALSE(Designator("foo(>= 1.2, !=1.2.2)")
+               .version_good(Version(1, 2, 2)));
+  EXPECT_FALSE(Designator("foo(>> 1.2, !=1.2.2)")
+               .version_good(Version(1, 2, 2)));
+  EXPECT_TRUE(Designator("foo(>> 1.2, !=1.2.2)")
+              .version_good(Version(1, 2, 3)));
 }
-

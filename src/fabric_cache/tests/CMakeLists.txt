@@ -36,12 +36,14 @@ set(include_dirs
 
 # We do not link to the fabric cache libraries since the sources are
 # already built as part of the test libraries.
-add_library(fabric_cache_tests SHARED ${FABRIC_CACHE_TESTS_HELPER})
-target_link_libraries(fabric_cache_tests router_lib logger ${MySQL_LIBRARIES})
+add_library(fabric_cache_tests STATIC ${FABRIC_CACHE_TESTS_HELPER})
+target_link_libraries(fabric_cache_tests router_lib logger ${MySQL_LIBRARIES} ${CMAKE_DL_LIBS})
 set_target_properties(fabric_cache_tests PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY
                       ${STAGE_DIR}/lib)
 target_include_directories(fabric_cache_tests PRIVATE ${include_dirs})
+
+target_compile_definitions(fabric_cache_tests PRIVATE -Dfabric_cache_STATIC=1)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              MODULE "fabric_cache"
@@ -52,3 +54,10 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              ${CMAKE_SOURCE_DIR}/src/fabric_cache/src
              ${CMAKE_SOURCE_DIR}/src/fabric_cache/tests/helper
 )
+
+target_compile_definitions(test_fabric_cache_fabric_cache PRIVATE -Dfabric_cache_STATIC=1)
+target_compile_definitions(test_fabric_cache_cache_plugin PRIVATE -Dfabric_cache_STATIC=1)
+
+if(WIN32)
+  target_link_libraries(test_fabric_cache_cache_plugin crypt32)
+endif()

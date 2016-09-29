@@ -24,13 +24,9 @@
  * Exception thrown when the plugin loading failed.
  */
 
-class bad_plugin : public std::runtime_error
-{
-public:
-  explicit bad_plugin(const std::string& msg)
-    : std::runtime_error(msg)
-  {
-  }
+class bad_plugin : public std::runtime_error {
+ public:
+  explicit bad_plugin(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 #endif /* MYSQL_HARNESS_EXCEPTION_INCLUDED */

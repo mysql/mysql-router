@@ -20,11 +20,13 @@
 #include "networking/ipv4_address.h"
 #include "networking/ipv6_address.h"
 
+#ifndef _WIN32
+#  include <netdb.h>
+#  include <sys/socket.h>
+#endif
 #include <algorithm>
-#include <netdb.h>
 #include <string>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <vector>
 
 #ifndef NI_MAXSERV
@@ -41,7 +43,8 @@ std::vector<IPAddress> Resolver::hostname(const char *name) const {
   hints.ai_socktype = SOCK_STREAM;
 
   if (auto err = getaddrinfo(name, nullptr, &hints, &result) != 0) {
-    throw std::invalid_argument(std::string("hostname resolve failed for ") + name + ": " + gai_strerror(err));
+    throw std::invalid_argument(std::string("hostname resolve failed for ")
+                                + name + ": " + gai_strerror(err));
   }
 
   std::vector<IPAddress> result_ips{};
@@ -49,10 +52,12 @@ std::vector<IPAddress> Resolver::hostname(const char *name) const {
   for (res = result; res; res = res->ai_next) {
     if (res->ai_family == AF_INET) {
       // IPv4
-      result_ips.push_back(IPv4Address(((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr));
+      result_ips.emplace_back(
+        IPv4Address(((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr));
     } else if (res->ai_family == AF_INET6) {
       // IPv6
-      result_ips.push_back(IPv6Address(((struct sockaddr_in6*)res->ai_addr)->sin6_addr.s6_addr));
+      result_ips.emplace_back(
+        IPv6Address(((struct sockaddr_in6*)res->ai_addr)->sin6_addr.s6_addr));
     }
   }
 
@@ -99,7 +104,8 @@ std::string Resolver::tcp_service_port(uint16_t port) const {
 }
 
 uint16_t Resolver::cached_tcp_service_by_name(const std::string &name) const {
-  auto result = std::find_if(cache_tcp_services_.begin(), cache_tcp_services_.end(),
+  auto result = std::find_if(cache_tcp_services_.begin(),
+                             cache_tcp_services_.end(),
                              [&name](ServiceCacheEntry service) {
                                return service.second == name;
                              });
@@ -112,7 +118,8 @@ uint16_t Resolver::cached_tcp_service_by_name(const std::string &name) const {
 }
 
 std::string Resolver::cached_tcp_service_by_port(uint16_t port) const {
-  auto result = std::find_if(cache_tcp_services_.begin(), cache_tcp_services_.end(),
+  auto result = std::find_if(cache_tcp_services_.begin(),
+                             cache_tcp_services_.end(),
                              [&port](ServiceCacheEntry service) {
                                return service.first == port;
                              });

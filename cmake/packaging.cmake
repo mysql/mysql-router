@@ -14,7 +14,13 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-set(CPACK_PACKAGE_NAME "mysql-router")
+if(NOT WIN32)
+  set(CPACK_PACKAGE_NAME "mysql-router")
+else()
+  set(CPACK_PACKAGE_NAME "MySQL Router")
+endif()  
+
+
 if(NOT GPL)
   MakeNonGPLPackageName(CPACK_PACKAGE_NAME)
 endif()
@@ -25,6 +31,18 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_TEXT})
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+
+set(EXTRA_NAME_SUFFIX "" CACHE STRING "Extra text in package name")
+
+if(WIN32)
+  include(CheckTypeSize)
+  if(CMAKE_SIZEOF_VOID_P MATCHES 8)
+    set(CPACK_SYSTEM_NAME "windows-x86-64bit")
+  else()
+    set(CPACK_SYSTEM_NAME "windows-x86-32bit")
+  endif()
+  set(CPACK_PACKAGE_FILE_NAME "mysql-router${EXTRA_NAME_SUFFIX}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}")
+endif()  
 
 #
 # Source Distribution
@@ -41,6 +59,7 @@ set(src_dir ${CMAKE_SOURCE_DIR})
 set(source_include
   "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
+  "${src_dir}/include"
   "${src_dir}/doc"
   "${src_dir}/ext"
   "${src_dir}/src"
@@ -65,4 +84,11 @@ include(CPack)
 #
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/rpm-oel")
+endif()
+
+#
+# MSI for Windows
+#
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/WiX")
 endif()

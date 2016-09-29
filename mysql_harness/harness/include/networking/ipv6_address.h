@@ -18,17 +18,21 @@
 #ifndef MYSQL_HARNESS_NETWORKING_IPV6_ADDRESS_INCLUDED
 #define MYSQL_HARNESS_NETWORKING_IPV6_ADDRESS_INCLUDED
 
-#include <arpa/inet.h>
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#  include <netinet/in.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <ws2tcpip.h> // in6_addr
+#endif
+#include <array>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <array>
-#include <netinet/in.h>
-#include <string>
-
 #include <iomanip>
-#include <sstream>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 namespace mysql_harness {
 
@@ -65,7 +69,7 @@ class IPv6Address {
    *
    * @param s6addr array of 16 uint8_t
    */
-  IPv6Address(const uint8_t s6addr[16]) {
+  explicit IPv6Address(const uint8_t s6addr[16]) {
     std::memcpy(address_.s6_addr, s6addr, sizeof(address_.s6_addr));
   }
 
@@ -77,10 +81,10 @@ class IPv6Address {
    * to an IPv6 address
    * @param data string representing an IPv6 address
    */
-  IPv6Address(const char *data);
+  explicit IPv6Address(const char *data);
 
   /** @overload */
-  IPv6Address(const std::string &data) : IPv6Address(data.c_str()) {}
+  explicit IPv6Address(const std::string &data) : IPv6Address(data.c_str()) {}
 
   /** Copy constructor */
   IPv6Address(const IPv6Address &other)
@@ -126,7 +130,8 @@ class IPv6Address {
   /**
    * Overload stream insertion operator
    */
-  friend std::ostream &operator<<(std::ostream &out, const IPv6Address &address) {
+  friend std::ostream &operator<<(std::ostream &out,
+                                  const IPv6Address &address) {
     out << address.str();
     return out;
   }

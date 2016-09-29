@@ -23,6 +23,14 @@
 
 #include "gmock/gmock.h"
 
+#ifdef _WIN32
+  // necessary in MSVC to allow #redefine keywords
+# define _ALLOW_KEYWORD_MACROS
+#endif
+#define private public    // hack to allow unit testing
+#include "mysql/harness/arg_handler.h"
+#undef  private
+
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -32,9 +40,26 @@
 #include <sstream>
 #include <streambuf>
 #include <vector>
-#include <unistd.h>
+#ifndef _WIN32
+#  include <unistd.h>
+#endif
 
-#include "../src/arg_handler.h"
+//ignore GMock warnings
+#ifdef __clang__
+#  ifndef __has_warning
+#    define __has_warning(x) 0
+#  endif
+#  if __has_warning("-Wkeyword-macro")
+#    pragma clang diagnostic ignored "-Wkeyword-macro"
+#  endif
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wsign-conversion"
+#  include "gmock/gmock.h"
+#  pragma clang diagnostic pop
+#else
+#  include "gmock/gmock.h"
+#endif
+
 
 using std::string;
 using std::vector;

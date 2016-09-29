@@ -18,11 +18,18 @@
 #ifndef MYSQL_HARNESS_NETWORKING_IPV4_ADDRESS_INCLUDED
 #define MYSQL_HARNESS_NETWORKING_IPV4_ADDRESS_INCLUDED
 
-#include <arpa/inet.h>
 #include <array>
+#include <iostream>
 #include <string>
 
-#include <iostream>
+#ifndef _WIN32
+#  include <arpa/inet.h>
+#else
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#endif
 
 namespace mysql_harness {
 
@@ -73,10 +80,10 @@ class IPv4Address {
    * to an IPv4 address
    * @param data string representing a IPv4 address
    */
-  IPv4Address(const char *data);
+  explicit IPv4Address(const char *data);
 
   /** @overload */
-  IPv4Address(const std::string &data) : IPv4Address(data.c_str()) {}
+  explicit IPv4Address(const std::string &data) : IPv4Address(data.c_str()) {}
 
   /** Copy constructor */
   IPv4Address(const IPv4Address &other) : address_(other.address_) {}
@@ -120,7 +127,8 @@ class IPv4Address {
   /**
    * Overload stream insertion operator
    */
-  friend std::ostream &operator<<(std::ostream &out, const IPv4Address &address) {
+  friend std::ostream &operator<<(std::ostream &out,
+                                  const IPv4Address &address) {
     out << address.str();
     return out;
   }

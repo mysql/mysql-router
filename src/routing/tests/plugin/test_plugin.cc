@@ -22,18 +22,22 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "common.h"
-#include "config_parser.h"
-#include "filesystem.h"
-#include "plugin.h"
+
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
-#include "helper_logger.h"
+#include "logger.h"
 #include "mysql_routing.h"
 #include "plugin_config.h"
+#include "router_test_helpers.h"
 
 // since this function is only meant to be used here (for testing purposes), it's not available in the headers.
 void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_harness::ConfigSection* section, const RoutingPluginConfig& config);
@@ -62,6 +66,7 @@ Path g_origin;
 class RoutingPluginTests : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
     config_path->append("test_routing_plugin.ini");
@@ -158,11 +163,11 @@ TEST_F(RoutingPluginTests, PluginConstants) {
 }
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, static_cast<uint32_t>(0x0101));
+  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0101U);
   ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
-  ASSERT_EQ(harness_plugin_routing.requires_length, static_cast<size_t>(1));
+  ASSERT_EQ(harness_plugin_routing.requires_length, 1U);
   ASSERT_THAT(harness_plugin_routing.requires[0], StrEq("logger"));
-  ASSERT_EQ(harness_plugin_routing.conflicts_length, static_cast<size_t>(0));
+  ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
   ASSERT_THAT(harness_plugin_routing.deinit, IsNull());
   ASSERT_THAT(harness_plugin_routing.brief,
@@ -198,7 +203,7 @@ TEST_F(RoutingPluginTests, StartMissingMode) {
   reset_config({"mode"});
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,
-              HasSubstr("option mode in [routing:tests] needs to be specified; valid are read-only, read-write"));
+              HasSubstr("option mode in [routing:tests] needs to be specified; valid are"));
 }
 
 TEST_F(RoutingPluginTests, StartCaseInsensitiveMode) {
@@ -206,7 +211,7 @@ TEST_F(RoutingPluginTests, StartCaseInsensitiveMode) {
   reset_config({}, true);
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,
-              Not(HasSubstr("valid are read-only, read-write")));
+              Not(HasSubstr("valid are")));
 }
 
 TEST_F(RoutingPluginTests, NoListeningSocket) {
@@ -405,6 +410,7 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);

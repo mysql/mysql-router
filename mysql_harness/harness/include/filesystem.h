@@ -18,8 +18,13 @@
 #ifndef MYSQL_HARNESS_FILESYSTEM_INCLUDED
 #define MYSQL_HARNESS_FILESYSTEM_INCLUDED
 
-#include <dirent.h>
+#include "harness_export.h"
+
+#include <memory>
 #include <string>
+
+
+namespace mysql_harness {
 
 /**
  * @defgroup Filesystem Platform-independent file system operations
@@ -27,22 +32,20 @@
  * This module contain platform-independent file system operations.
  */
 
-namespace mysql_harness {
-
-/** @ingroup Filesystem
+/**
  * Class representing a path in a file system.
  *
  * Paths are used to access files in the file system and can be either
  * relative or absolute. Absolute paths have a slash (`/`) first in
  * the path, otherwise, the path is relative.
  */
-class Path {
+class HARNESS_EXPORT Path {
   friend std::ostream& operator<<(std::ostream& out, const Path& path) {
     out << path.path_;
     return out;
   }
 
-public:
+ public:
   /**
    * Enum used to identify file types.
    */
@@ -87,7 +90,7 @@ public:
 
   friend std::ostream& operator<<(std::ostream& out, FileType type);
 
-  /**
+ /**
    * Construct a path
    *
    * @param path Non-empty string denoting the path.
@@ -95,10 +98,10 @@ public:
   Path();
 
   /** @overload */
-  Path(const std::string& path);
+  Path(const std::string& path);  // NOLINT(runtime/explicit)
 
   /** @overload */
-  Path(const char* path);
+  Path(const char* path);  // NOLINT(runtime/explicit)
 
   /**
    * Create a path from directory, basename, and extension.
@@ -107,9 +110,7 @@ public:
                         const std::string& basename,
                         const std::string& extension);
 
-  bool operator==(const Path& rhs) const {
-    return path_ == rhs.path_;
-  }
+  bool operator==(const Path& rhs) const;
 
   /**
    * Path ordering operator.
@@ -117,9 +118,7 @@ public:
    * This is mainly used for ordered containers. The paths are ordered
    * lexicographically.
    */
-  bool operator<(const Path& rhs) const {
-    return path_ < rhs.path_;
-  }
+  bool operator<(const Path& rhs) const;
 
   /**
    * Get the file type.
@@ -206,6 +205,11 @@ public:
   /** @overload */
   Path join(const char* other) const { return join(Path(other)); }
 
+  /**
+   * Returns the canonical form of the path, resolving relative paths.
+   */
+  Path real_path() const;
+
 
   /**
    * Get a C-string representation to the path.
@@ -238,12 +242,29 @@ public:
     return (type_ != FileType::EMPTY_PATH);
   }
 
-private:
+  /**
+   * Directory separator string.
+   *
+   * @note This is platform-dependent and defined in the apropriate
+   * source file.
+   */
+  static const char * const directory_separator;
+
+  /**
+   * Root directory string.
+   *
+   * @note This is platform-dependent and defined in the apropriate
+   * source file.
+   */
+  static const char * const root_directory;
+
+ private:
   void validate_non_empty_path() const;
 
   std::string path_;
   mutable FileType type_;
 };
+
 
 /**
  * Class representing a directory in a file system.
@@ -260,45 +281,82 @@ private:
  *   std::cout << entry << std::endl;
  * @endcode
  */
-class Directory
-  : public Path
-{
-public:
+class HARNESS_EXPORT Directory : public Path {
+ public:
   /**
    * Directory iterator for iterating over directory entries.
    *
    * A directory iterator is an input iterator.
    */
   class DirectoryIterator
-    : public std::iterator<std::input_iterator_tag, Path>
-  {
+      : public std::iterator<std::input_iterator_tag, Path> {
     friend class Directory;
 
+   public:
     DirectoryIterator(const Path& path,
                       const std::string& pattern = std::string());
-    DirectoryIterator(const Path& path, const std::string& glob,
-                      struct dirent *result);
 
-  public:
+    // Create an end iterator
+    DirectoryIterator();
+
+    /**
+     * Destructor.
+     *
+     * @note We need this *declared* because the default constructor
+     * try to generate a default constructor for shared_ptr on State
+     * below, which does not work since it is not visible. The
+     * destructor need to be *defined* in the corresponding .cc file
+     * since the State type is visible there (but you can use a
+     * default definition).
+     */
+    ~DirectoryIterator();
+
+    // We need these since the default move/copy constructor is
+    // deleted when you define a destructor.
+#if !defined(_MSC_VER) || (_MSC_VER >= 1900)
+    DirectoryIterator(DirectoryIterator&&);
+    DirectoryIterator(const DirectoryIterator&);
+#endif
+
     /** Standard iterator operators */
     /** @{ */
     Path operator*() const;
     DirectoryIterator& operator++();
     Path operator->() { return this->operator*(); }
-    bool operator!=(const DirectoryIterator& other);
+    bool operator!=(const DirectoryIterator& other) const;
+
+    // This avoids C2678 (no binary operator found) in MSVC,
+    // MSVC's std::copy implementation (used by TestFilesystem) uses operator==
+    // (while GCC's implementation uses operator!=).
+    bool operator==(const DirectoryIterator& other) const {
+      return !(this->operator!=(other));
+    }
     /** @} */
 
-  private:
-    void fill_result();
+   private:
+    /**
+     * Path to the root of the directory
+     */
+    const Path path_;
 
-    const Path root_;
-
-    // This is POSIX-specific, it need to be factored out into an
-    // implementation class that can vary between platforms.
-    DIR *dirp_;
-    struct dirent entry_;
-    struct dirent *result_;
+    /**
+     * Pattern that matches entries iterated over.
+     */
     std::string pattern_;
+
+    /*
+     * Platform-dependent container for iterator state.
+     *
+     * The definition of this class is different for different
+     * platforms, meaning that it is not defined here at all but
+     * rather in the corresponding `filesystem-<platform>.cc` file.
+     *
+     * The directory iterator is the most critical piece since it holds
+     * an iteration state for the platform: something that requires
+     * different types on the platforms.
+     */
+    class State;
+    std::shared_ptr<State> state_;
   };
 
   /**
@@ -307,16 +365,13 @@ public:
    * Construct a directory instance in different ways depending on the
    * version of the constructor used.
    */
-  Directory(const std::string& path)
-    : Path(path)
-  {
-  }
+  Directory(const std::string& path)  // NOLINT(runtime/explicit)
+      : Path(path) {}
 
   /** @overload */
-  Directory(const Path& path)
-    : Path(path)
-  {
-  }
+  Directory(const Path& path);  // NOLINT(runtime/explicit)
+
+  ~Directory();
 
   /**
    * Iterator to first entry.

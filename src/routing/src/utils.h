@@ -20,11 +20,19 @@
 
 #include <array>
 #include <iostream>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <unistd.h>
 #include <sstream>
 #include <vector>
+#ifndef _WIN32
+# include <netinet/in.h>
+# include <netdb.h>
+# include <unistd.h>
+#else
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <stdint.h>
+#endif
 
 /**
  * Socket address from either IPv4 or IPv6
@@ -68,5 +76,17 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
  * @return std::array<uint8_t, 16>
  */
 std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
+
+/** @brief Converts IPv6 in6_addr to std::array
+ *
+ * Converts a IPv6 address stored in a in6_addr struct to a
+ * std::array of size 16.
+ *
+ * @param addr a in6_addr struct
+ * @return std::array<uint8_t, 16>
+ */
+std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
+
+std::string get_message_error(int errcode);
 
 #endif // UTILS_ROUTING_INCLUDED

@@ -23,7 +23,8 @@ set(PROJECT_VERSION_TEXT "2.1.1")
 # the version, but before the extensions.
 set(PROJECT_PACKAGE_EXTRAS "")
 
-set(PROJECT_EDITION "GPL community edition" CACHE STRING "Edition of MySQL Router")
+set(PROJECT_EDITION "GPL community edition" CACHE STRING
+  "Edition of MySQL Router")
 
 # create a string that is allowed in a RPM spec "release" field
 set(RPM_EXTRA_VERSION "${PROJECT_PACKAGE_EXTRAS}")
