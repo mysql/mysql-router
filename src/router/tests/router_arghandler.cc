@@ -15,25 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-//ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-
-#include "gmock/gmock.h"
-
-#ifdef _WIN32
-  // necessary in MSVC to allow #redefine keywords
-# define _ALLOW_KEYWORD_MACROS
-#endif
-#define private public    // hack to allow unit testing
 #include "mysql/harness/arg_handler.h"
-#undef  private
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #include <cstdint>
 #include <cstdio>

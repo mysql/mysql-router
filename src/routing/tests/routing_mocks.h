@@ -19,8 +19,24 @@
 #  include "Winsock2.h"
 #endif
 
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+//ignore GMock warnings
+#ifdef __clang__
+#  ifndef __has_warning
+#    define __has_warning(x) 0
+#  endif
+#  pragma clang diagnostic push
+#  if __has_warning("-Winconsistent-missing-override")
+#    pragma clang diagnostic ignored "-Winconsistent-missing-override"
+#  endif
+#  if __has_warning("-Wsign-conversion")
+#    pragma clang diagnostic ignored "-Wsign-conversion"
+#  endif
+#  include "gmock/gmock.h"
+#  include "gtest/gtest.h"
+#else
+#  include "gmock/gmock.h"
+#  include "gtest/gtest.h"
+#endif
 
 class MockSocketOperations : public routing::SocketOperationsBase {
  public:
@@ -69,3 +85,7 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   int get_mysql_socket_fails_todo_ = 0;
   int get_mysql_socket_call_cnt_   = 0;
 };
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
