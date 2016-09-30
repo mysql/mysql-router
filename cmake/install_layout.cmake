@@ -552,6 +552,22 @@ FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
   MARK_AS_ADVANCED(INSTALL_${var}DIR)
 ENDFOREACH()
 
+# Set up the rpath correctly based on the information provided.
+# This set a relative rpath for when using install layouts that
+# require this. The default is to use absolute paths, which are used
+# for all other layouts.
+if(INSTALL_LAYOUT STREQUAL "STANDALONE" OR INSTALL_LAYOUT STREQUAL "DEFAULT" OR
+   INSTALL_LAYOUT STREQUAL "WIN")
+ set(rpath_prefix "${RPATH_ORIGIN}/..")
+else()
+  set(rpath_prefix "${CMAKE_INSTALL_PREFIX}")
+endif()
+
+set(CMAKE_INSTALL_RPATH
+  "${rpath_prefix}/${INSTALL_LIBDIR};${rpath_prefix}/${INSTALL_PLUGINDIR}")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 #
 # Set DEFAULT_SECURE_FILE_PRIV_DIR
 # This is used as default value for --secure-file-priv
