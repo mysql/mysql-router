@@ -19,7 +19,7 @@
 #define MYSQL_HARNESS_COMMON_INCLUDED
 
 #include <string>
-
+#include "harness_export.h"
 
 /**
  * @defgroup Various operations
@@ -34,7 +34,7 @@ namespace mysql_harness {
  * @param err error number
  * @return string describing the error
  */
-std::string get_strerror(int err);
+std::string HARNESS_EXPORT get_strerror(int err);
 
 }
 

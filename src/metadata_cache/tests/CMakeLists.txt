@@ -18,14 +18,16 @@
 # to the metadata node. In this case, mock_metadata.cc implements the metadata
 # interface without implementing a connection to the underlying metadata node.
 # The MockMetadata class does the functionality of the Metadata class.
+
 set(METADATA_CACHE_TESTS_HELPER
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
-    ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
 )
+
 
 set(include_dirs
   ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
@@ -36,11 +38,22 @@ set(include_dirs
 
 # We do not link to the metadata cache libraries since the sources are
 # already built as part of the test libraries.
-add_library(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-target_link_libraries(metadata_cache_tests router_lib logger ${MySQL_LIBRARIES})
+if(NOT WIN32)
+  add_library(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
+  target_link_libraries(metadata_cache_tests router_lib logger ${MySQL_LIBRARIES})
+else()
+  add_library(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
+  target_link_libraries(metadata_cache_tests router_lib logger metadata_cache ${MySQL_LIBRARIES})
+  target_link_libraries(metadata_cache_tests router_lib logger ${MySQL_LIBRARIES})
+  target_compile_definitions(metadata_cache_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  target_compile_definitions(metadata_cache_tests PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+endif()
+
 set_target_properties(metadata_cache_tests PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY
                       ${STAGE_DIR}/lib)
+
+
 target_include_directories(metadata_cache_tests PRIVATE ${include_dirs})
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
@@ -52,3 +65,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
 )
+
+target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_metadata_cache PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_metadata_cache PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)

@@ -245,6 +245,7 @@ TEST_F(RoutingPluginTests, ListeningTcpSocket) {
 
 }
 
+#ifndef _WIN32
 TEST_F(RoutingPluginTests, ListeningUnixSocket) {
   mysql_harness::Config         cfg;
   mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
@@ -271,6 +272,7 @@ TEST_F(RoutingPluginTests, ListeningBothSockets) {
     validate_socket_info_test_proxy("", &section, config);
   });
 }
+#endif
 
 TEST_F(RoutingPluginTests, StartMissingDestination) {
   {
@@ -305,6 +307,7 @@ TEST_F(RoutingPluginTests, StartImpossibleIPAddress) {
               HasSubstr("in [routing:tests]: invalid IP or name in bind_address '512.512.512.512:3306'"));
 }
 
+#ifndef _WIN32
 TEST_F(RoutingPluginTests, EmptyUnixSocket) {
   mysql_harness::Config         cfg;
   mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
@@ -353,11 +356,16 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
     FAIL() << "Expected std::invalid_argument to be thrown";
   }
 }
+#endif
 
 TEST_F(RoutingPluginTests, StartWithBindAddressInDestinations) {
   bind_address = "127.0.0.1:3306";
   destinations = "127.0.0.1";  // default port is 3306
+#ifndef _WIN32
   reset_config();
+#else
+  reset_config({"socket"});
+#endif
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output, HasSubstr("Bind Address can not be part of destinations"));
 }

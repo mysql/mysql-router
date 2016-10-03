@@ -641,7 +641,7 @@ TEST_F(MySQLProtocolPacketTest, UnpackString) {
     EXPECT_EQ(string("ham"), res);
     res = p.get_string(res.size() + 1UL);
     EXPECT_EQ(string("spam"), res);
-    res = p.get_string(0, p.size() + 1UL);
+    res = p.get_string(0, p.size());
     EXPECT_EQ(string("ham"), res);
   }
 

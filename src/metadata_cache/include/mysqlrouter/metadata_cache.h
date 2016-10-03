@@ -27,6 +27,20 @@
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/datatypes.h"
 
+#ifdef _WIN32
+#  ifdef metadata_cache_DEFINE_STATIC
+#    define METADATA_API
+#  else
+#    ifdef metadata_cache_EXPORTS
+#      define METADATA_API __declspec(dllexport)
+#    else
+#      define METADATA_API __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define METADATA_API
+#endif
+
 namespace metadata_cache {
 
 extern const uint16_t kDefaultMetadataPort;
@@ -36,20 +50,20 @@ extern const std::string kDefaultMetadataPassword;
 extern const unsigned int kDefaultMetadataTTL;
 extern const std::string kDefaultMetadataCluster;
 
-enum class ReplicasetStatus {
+enum class METADATA_API ReplicasetStatus {
   AvailableWritable,
   AvailableReadOnly,
   Partitioned,
   Unavailable
 };
 
-enum class ServerMode {
+enum class METADATA_API ServerMode {
   ReadWrite,
   ReadOnly,
   Unavailable
 };
 
-enum class InstanceStatus {
+enum class METADATA_API InstanceStatus {
   Reachable,
   InvalidHost, // Network connection cannot even be attempted (ie bad IP)
   Unreachable, // TCP connection cannot be opened
@@ -60,7 +74,7 @@ enum class InstanceStatus {
  *
  * Class ManagedInstance represents a server managed by the topology.
  */
-class ManagedInstance {
+class METADATA_API ManagedInstance {
 public:
   /** @brief The name of the replicaset to which the server belongs */
   std::string replicaset_name;
@@ -111,7 +125,7 @@ public:
  *
  * Class holding result after looking up data in the cache.
  */
-class LookupResult {
+class METADATA_API LookupResult {
 public:
   /** @brief Constructor */
   LookupResult(const std::vector<ManagedInstance> &instance_vector_) :
@@ -145,7 +159,7 @@ public:
  *                            metadata.
  * @param cluster_name The name of the cluster to be used.
  */
-void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
                 unsigned int ttl, const std::string &cluster_name);
 
@@ -157,7 +171,7 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
  * @param replicaset_name ID of the HA replicaset
  * @return List of ManagedInstance objects
  */
-LookupResult lookup_replicaset(const std::string &replicaset_name);
+LookupResult METADATA_API lookup_replicaset(const std::string &replicaset_name);
 
 
 /** @brief Update the status of the instance
@@ -169,7 +183,7 @@ LookupResult lookup_replicaset(const std::string &replicaset_name);
  * @param instance_id - the mysql_server_uuid that identifies the server instance
  * @param status - the status of the instance
  */
-void mark_instance_reachability(const std::string &instance_id,
+void METADATA_API mark_instance_reachability(const std::string &instance_id,
                                 InstanceStatus status);
 
 } // namespace metadata_cache

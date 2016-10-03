@@ -13,6 +13,17 @@ std::string get_strerror(int err) {
   int ret = strerror_r(err, msg, sizeof(msg));
   if (ret) {
     std::ostringstream oss;
+    //oss << err << " (strerror_r failed: " << ret << ")";
+    //result = oss.str();
+    return " (strerror_r failed: " + std::to_string(ret) + ")";
+  }
+  else {
+    result = std::string(msg);
+  }
+#elif defined(_WIN32)
+  int ret = strerror_s(msg, sizeof(msg), err);
+  if (ret) {
+    std::ostringstream oss;
     oss << err << " (strerror_r failed: " << ret << ")";
     result = oss.str();
   }

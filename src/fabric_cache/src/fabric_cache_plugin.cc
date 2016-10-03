@@ -68,27 +68,6 @@ static bool have_cache_password(const PasswordKey &key) {
   return fabric_cache_passwords.find(key) != fabric_cache_passwords.end();
 }
 
-const string prompt_password(const string &prompt) {
-  struct termios console;
-  tcgetattr(STDIN_FILENO, &console);
-
-  std::cout << prompt << ": ";
-
-  // prevent showing input
-  console.c_lflag &= ~(uint)ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
-  string result;
-  std::cin >> result;
-
-  // reset
-  console.c_lflag |= ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
-  std::cout << std::endl;
-  return result;
-}
-
 static int init(const mysql_harness::AppInfo *info) {
   g_app_info = info;
 

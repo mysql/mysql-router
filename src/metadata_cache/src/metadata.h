@@ -28,7 +28,7 @@
  * The metadata class is used to create a pluggable transport layer
  * from which the metadata is fetched for the metadata cache.
  */
-class MetaData {
+class METADATA_API MetaData {
 public:
   typedef std::map<std::string, std::vector<metadata_cache::ManagedInstance>> InstancesByReplicaSet;
 
@@ -38,6 +38,7 @@ public:
   virtual bool connect(const std::vector<metadata_cache::ManagedInstance>
                        & metadata_servers) = 0;
   virtual void disconnect() = 0;
+  virtual ~MetaData() { }
 };
 
 #endif // METADATA_CACHE_METADATA_INTERFACE_INCLUDED

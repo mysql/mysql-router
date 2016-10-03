@@ -171,16 +171,6 @@ int main(int argc, char *argv[]) {
     g_skip_git_tests = true;
   }
 
-  auto binary_dir = get_envvar_path("CMAKE_BINARY_DIR", Path(get_cwd()));
-
-  g_stage_dir = binary_dir.join("stage");
-  g_mysqlrouter_exec = g_stage_dir.join("bin").join("mysqlrouter");
-  if (!g_mysqlrouter_exec.is_regular()) {
-    std::cerr << "ERROR: mysqlrouter not available. Use CMAKE_BINARY_DIR environment "
-        "variable to point to out-of-source build directory." << std::endl;
-    return 1;
-  }
-
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

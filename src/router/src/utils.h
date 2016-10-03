@@ -66,6 +66,8 @@ bool substitute_envvar(std::string &line) noexcept;
  */
 std::vector<std::string> wrap_string(const std::string &str, size_t width, size_t indent);
 
+bool my_check_access(const std::string& path);
+
 } // namespace mysqlrouter
 
 #endif // ROUTER_UTILS_INCLUDED

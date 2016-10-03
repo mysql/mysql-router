@@ -22,8 +22,10 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <netdb.h>
-#include <netinet/tcp.h>
+#ifndef _WIN32
+#  include <netdb.h>
+#  include <netinet/tcp.h>
+#endif
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"

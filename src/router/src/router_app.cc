@@ -36,19 +36,26 @@
 #include "common.h"
 
 #ifndef _WIN32
-#  include <fcntl.h>
+#  ifdef __sun
+#    include <fcntl.h>
+#  else
+#    include <sys/fcntl.h>
+#  endif
 #  include <unistd.h>
+const char dir_sep = '/';
+const std::string path_sep = ":";
 #else
 #  include <process.h>
 #  define getpid _getpid
 #  include "mysqlrouter/windows/password_vault.h"
+#  include <string.h>
+#  include <io.h>
+#  define strtok_r strtok_s
+const char dir_sep = '\\';
+const std::string path_sep = ";";
 #endif
 
-#ifdef __sun
-#include <fcntl.h>
-#else
-#include <sys/fcntl.h>
-#endif
+
 
 using std::string;
 using std::vector;
@@ -62,25 +69,25 @@ static std::string find_full_path(const std::string &argv0) {
   if (argv0.find('/') != std::string::npos) {
     // Path is either absolute or relative to the current working dir, so
     // we can use realpath() to find the full absolute path
-    char *tmp = realpath(argv0.c_str(), NULL);
+    mysql_harness::Path path1(argv0.c_str());
+    mysql_harness::Path path2(path1.real_path());
+    const char *tmp = path2.c_str();
     std::string path(tmp);
-    free(tmp);
     return path;
   } else {
     // Program was found via PATH lookup by the shell, so we
     // try to find the program in one of the PATH dirs
     std::string path(std::getenv("PATH"));
     char *last = NULL;
-    char *p = strtok_r(&path[0], ":", &last);
+    char *p = strtok_r(&path[0], path_sep.c_str(), &last);
     while (p) {
-      std::string tmp(std::string(p)+"/"+argv0);
-      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
-        char *rp = realpath(tmp.c_str(), NULL);
-        path = rp;
-        free(rp);
-        return path;
+      std::string tmp(std::string(p)+dir_sep+argv0);
+      if(mysqlrouter::my_check_access(tmp)) {
+        mysql_harness::Path path1(tmp.c_str());
+        mysql_harness::Path path2(path1.real_path());
+        return path2.str();
       }
-      p = strtok_r(NULL, ":", &last);
+      p = strtok_r(NULL, path_sep.c_str(), &last);
     }
     throw std::logic_error("Could not find own installation directory");
   }
@@ -183,7 +190,7 @@ void MySQLRouter::start() {
       std::cout << "PID " << pid << " written to " << pid_file_path_ << std::endl;
     } else {
       throw std::runtime_error(
-          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), get_strerror(errno).c_str()));
+          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), mysqlrouter::get_last_error(errno).c_str()));
     }
   }
   loader_->add_logger("INFO");

@@ -18,6 +18,8 @@
 #include "config_generator.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/my_aes.h"
+#include "mysql/harness/filesystem.h"
+#include "utils.h"
 
 #if defined __GNUC__
 #pragma GCC diagnostic push
@@ -41,8 +43,18 @@
 #include <iostream>
 #include <mysql.h>
 #include <sstream>
-#include <termios.h>
-#include <unistd.h>
+#ifndef _WIN32
+#  include <termios.h>
+#  include <unistd.h>
+const char dir_sep = '/';
+const std::string path_sep = ":";
+#else
+#  include <string.h>
+#  include <io.h>
+#  define strtok_r strtok_s
+const char dir_sep = '\\';
+const std::string path_sep = ";";
+#endif
 #include <cstring>
 
 /**
@@ -239,28 +251,29 @@ void ConfigGenerator::fetch_bootstrap_servers(
 std::string g_program_name;
 
 static std::string find_my_base_dir() {
-  if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.substr(0, g_program_name.rfind('/')).c_str(), NULL);
+  if (g_program_name.find(dir_sep) != std::string::npos) {    
+    mysql_harness::Path path1(g_program_name.substr(0, g_program_name.rfind(dir_sep)).c_str());
+    mysql_harness::Path path2(path1.real_path());
+    const char *tmp = path2.c_str();
     std::string path(tmp);
-    free(tmp);
-    if (path.find('/') != std::string::npos)
-      return path.substr(0, path.rfind('/'));
+    if (path.find(dir_sep) != std::string::npos)
+      return path.substr(0, path.rfind(dir_sep));
     return path;
   } else {
     std::string path(std::getenv("PATH"));
     char *last = NULL;
-    char *p = strtok_r(&path[0], ":", &last);
+    char *p = strtok_r(NULL, path_sep.c_str(), &last);
     while (p) {
-      if (*p && p[strlen(p)-1] == '/')
+      if (*p && p[strlen(p)-1] == dir_sep)
         p[strlen(p)-1] = 0;
-      std::string tmp(std::string(p)+"/"+g_program_name);
-      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
+      std::string tmp(std::string(p)+ dir_sep +g_program_name);
+      if (mysqlrouter::my_check_access(tmp)) {
         path = p;
-        if (path.find('/') != std::string::npos)
-          return path.substr(0, path.rfind('/'));
+        if (path.find(dir_sep) != std::string::npos)
+          return path.substr(0, path.rfind(dir_sep));
         return path;
       }
-      p = strtok_r(NULL, ":", &last);
+      p = strtok_r(NULL, path_sep.c_str(), &last);
     }
     throw std::logic_error("Could not find own installation directory");
   }

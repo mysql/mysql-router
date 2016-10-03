@@ -19,8 +19,7 @@ include(GenerateExportHeader)
 
 set(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
-  src/common.cc
-  src/filesystem.cc
+  src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/networking/ip_address.cc
   src/networking/ipv4_address.cc

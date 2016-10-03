@@ -16,7 +16,7 @@
 */
 
 #include "cluster_metadata.h"
-#include "metadata_cache.h"
+//#include "metadata_cache.h"
 #include "group_replication_metadata.h"
 
 #include <cassert>

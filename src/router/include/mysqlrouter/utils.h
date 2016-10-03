@@ -123,10 +123,10 @@ std::string hexdump(const unsigned char *buffer, size_t count, long start = 0, b
 
 /** @brief Returns the platform specific error code of last operation
  * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
- *
+ * If myerrnum arg is not zero will use GetLastError in Windows (if myerrnum is zero in Unix will read *current* the errno).
  * @return the error code
  */
-std::string get_last_error();
+std::string get_last_error(int myerrnum = 0);
 
 /** @brief Prompts for a password from the console.
  */

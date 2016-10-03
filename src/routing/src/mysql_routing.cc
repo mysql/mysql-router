@@ -425,6 +425,7 @@ void MySQLRouting::start() {
     thread_tcp_ = std::thread(&MySQLRouting::start_tcp_service, this);
   }
 
+#ifndef _WIN32
   if (bind_named_socket_.is_set()) {
     try {
       setup_named_socket_service();
@@ -438,6 +439,7 @@ void MySQLRouting::start() {
              routing::get_access_mode_name(mode_).c_str());
     thread_named_socket_ = std::thread(&MySQLRouting::start_named_socket_service, this);
   }
+#endif
 }
 
 void MySQLRouting::start_tcp_service() {
@@ -499,6 +501,7 @@ void MySQLRouting::start_tcp_service() {
   log_info("[%s] stopped", name.c_str());
 }
 
+#ifndef _WIN32
 void MySQLRouting::start_named_socket_service() {
   struct sockaddr_in6 client_addr;
   socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
@@ -524,6 +527,7 @@ void MySQLRouting::start_named_socket_service() {
     std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
   }
 }
+#endif
 
 void MySQLRouting::stop() {
   stopping_.store(true);
@@ -583,6 +587,7 @@ void MySQLRouting::setup_tcp_service() {
   }
 }
 
+#ifndef _WIN32
 void MySQLRouting::setup_named_socket_service() {
   struct sockaddr_un sock_unix;
   string socket_file = bind_named_socket_.str();
@@ -615,6 +620,7 @@ void MySQLRouting::setup_named_socket_service() {
     throw runtime_error("Failed to start listening for connections using named socket");
   }
 }
+#endif
 
 void MySQLRouting::set_destinations_from_uri(const URI &uri) {
   if (uri.scheme == "fabric+cache") {

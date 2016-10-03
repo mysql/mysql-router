@@ -22,8 +22,6 @@
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
-#include "helper_logger.h"
-#include "logger.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"

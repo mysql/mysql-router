@@ -22,6 +22,7 @@
 #include "gtest_consoleoutput.h"
 #include "router_app.h"
 #include "config_parser.h"
+#include "router_test_helpers.h"
 
 #include <fstream>
 #include <string>
@@ -38,8 +39,10 @@ Path g_origin;
 class Bug22572346 : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
+    config_path->append("Bug21572346.ini");
   }
 
   void reset_config() {
@@ -67,9 +70,9 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtBeg) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw '#'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{#mysqld1}:3306'"));
   }
 }
 
@@ -82,9 +85,9 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysqld@'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld@1}:3306'"));
   }
 }
 
@@ -97,9 +100,9 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtEnd) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysqld1`'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld1`}:3306'"));
   }
 }
 
@@ -112,9 +115,9 @@ TEST_F(Bug22572346, ConfigVarWithSameMultIllegalChars) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysqld!'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld!!1}:3306'"));
   }
 }
 
@@ -127,9 +130,9 @@ TEST_F(Bug22572346, ConfigVarWithDiffMultIllegalChars) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysql$'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysql$d%1}:3306'"));
   }
 }
 
@@ -142,9 +145,9 @@ TEST_F(Bug22572346, ConfigBindPortWithIllegalChar) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysqld@'"));
+      "option bind_port in [routing:modeReadOnly] needs value between 1 and 65535 inclusive, was '{mysqld@1}'"));
   }
 }
 
@@ -157,9 +160,9 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtBeg) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw ' '"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{ mysqld1}:3306'"));
   }
 }
 
@@ -172,9 +175,9 @@ TEST_F(Bug22572346, ConfigVarWithSpaceInMid) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'my '"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{my sqld1}:3306'"));
   }
 }
 
@@ -187,9 +190,9 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtEnd) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'mysqld1 '"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld1 }:3306'"));
   }
 }
 
@@ -202,9 +205,9 @@ TEST_F(Bug22572346, ConfigVarWithSpaceBeforeIllegalChar) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw ' '"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{ @mysqld1}:3306'"));
   }
 }
 
@@ -217,9 +220,9 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharBeforeSpace) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'm@'"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{m@ysql d1}:3306'"));
   }
 }
 
@@ -232,13 +235,14 @@ TEST_F(Bug22572346, ConfigVarWithMultSpace) {
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
   try {
     r.start();
-  } catch (std::runtime_error &err) {
+  } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
-      "Only alphanumeric characters in variable names allowed. Saw 'my '"));
+      "option destinations in [routing:modeReadOnly] has an invalid destination address '{my sq ld1}:3306'"));
   }
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);

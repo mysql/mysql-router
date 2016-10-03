@@ -23,11 +23,25 @@
 
 #include "mysqlrouter/datatypes.h"
 
+#ifdef _WIN32
+#  ifdef metadata_cache_tests_DEFINE_STATIC
+#    define METADATA_TESTS_API
+#  else
+#    ifdef metadata_cache_tests_EXPORTS
+#      define METADATA_TESTS_API __declspec(dllexport)
+#    else
+#      define METADATA_TESTS_API __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define METADATA_TESTS_API
+#endif
+
 namespace metadata_cache {
  /**
   * Compare two server objects, found in the metadata cache.
   */
-  bool operator == (const metadata_cache::ManagedInstance & s1, const metadata_cache::ManagedInstance & s2);
+  bool METADATA_TESTS_API operator == (const metadata_cache::ManagedInstance & s1, const metadata_cache::ManagedInstance & s2);
  }
 
 /** @class MockNG
@@ -36,7 +50,7 @@ namespace metadata_cache {
  *
  */
 
-class MockNG : public ClusterMetadata {
+class METADATA_TESTS_API MockNG : public ClusterMetadata {
 public:
   /**
    * Objects representing the servers that are part of the topology.
@@ -82,7 +96,7 @@ public:
    *
    * Disconnect and release the connection to the metadata node.
    */
-  ~MockNG();
+  virtual ~MockNG();
 
   /** @brief Mock connect method.
    *
@@ -91,14 +105,14 @@ public:
    * @return a boolean to indicate if the connection was successful.
    */
   bool connect(const std::vector<metadata_cache::ManagedInstance> &
-               metadata_servers) noexcept;
+               metadata_servers) noexcept override;
 
   /** @brief Mock disconnect method.
    *
    * Mock method, does nothing.
    *
    */
-  void disconnect() noexcept;
+  void disconnect() noexcept override;
 
   /**
    *
@@ -107,7 +121,7 @@ public:
    *
    * @return Map of replicaset ID, server list pairs.
    */
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances(const std::string &farm_name);
+  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances(const std::string &farm_name) override;
 
 
 
@@ -117,7 +131,7 @@ public:
    *
    * @return refresh interval of the Metadata cache.
    */
-  unsigned int fetch_ttl();
+  unsigned int fetch_ttl() override;
 };
 
 

@@ -112,3 +112,8 @@ TEST_F(MetadataCachePluginTest, ValidReplicasetTest_1) {
   EXPECT_EQ(instance_vector_1[1], mf.ms2);
   EXPECT_EQ(instance_vector_1[2], mf.ms3);
 }
+
+int main(int argc, char *argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

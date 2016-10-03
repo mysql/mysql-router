@@ -29,10 +29,12 @@
 #include <string.h>
 
 #ifndef _WIN32
+# include <fcntl.h> 
 # include <termios.h>
 # include <unistd.h>
 #else
 # include <windows.h>
+# include <io.h>
 #endif
 
 using std::string;
@@ -79,6 +81,15 @@ std::vector<string> wrap_string(const string &to_wrap, size_t width, size_t inde
   }
 
   return res;
+}
+
+bool my_check_access(const std::string& path)
+{
+#ifndef _WIN32
+  return (access(path.c_str(), R_OK | X_OK) == 0);
+#else
+  return (_access(path.c_str(), 0x04) == 0);
+#endif
 }
 
 bool substitute_envvar(std::string &line) noexcept {
@@ -271,10 +282,10 @@ string hexdump(const unsigned char *buffer, size_t count, long start, bool liter
 /*
 * Returns the last system specific error description (using GetLastError in Windows or errno in Unix/OSX).
 */
-std::string get_last_error()
+std::string get_last_error(int myerrnum)
 {
 #ifdef WIN32
-  DWORD dwCode = GetLastError();
+  DWORD dwCode = myerrnum ? myerrnum : GetLastError();
   LPTSTR lpMsgBuf;
 
   FormatMessage(
@@ -294,7 +305,7 @@ std::string get_last_error()
   return result;
 #else
   char sys_err[64];
-  int errnum = errno;
+  int errnum = myerrnum ? myerrnum : errno;
 
   sys_err[0] = 0; // init, in case strerror_r() fails
 

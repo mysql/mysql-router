@@ -29,19 +29,6 @@
 #include <mysqlrouter/datatypes.h>
 #include <mysqlrouter/plugin_config.h>
 
-#ifdef _WIN32
-#  ifdef metadata_cache_DEFINE_STATIC
-#    define METADATA_API
-#  else
-#    ifdef metadata_cache_EXPORTS
-#      define METADATA_API __declspec(dllexport)
-#    else
-#      define METADATA_API __declspec(dllimport)
-#    endif
-#  endif
-#else
-#  define METADATA_API
-#endif
 
 extern "C"
 {

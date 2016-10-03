@@ -21,24 +21,19 @@
 #include "routing_mocks.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
 #else
-#include <sys/socket.h>
-#ifdef __sun
-#include <fcntl.h>
-#else
-#include <sys/fcntl.h>
-#endif
+#  include <sys/socket.h>
+#  ifdef __sun
+#    include <fcntl.h>
+#  else
+#    include <sys/fcntl.h>
+#  endif
 #endif
 
-#ifdef __sun
-#include <fcntl.h>
-#else
-#include <sys/fcntl.h>
-#endif
 
 using routing::AccessMode;
 using routing::set_socket_blocking;

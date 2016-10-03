@@ -19,9 +19,11 @@
 #include "plugin_config.h"
 
 #include <string>
-#include <termios.h>
 #include <thread>
-#include <unistd.h>
+#ifndef _WIN32
+#  include <termios.h>
+#  include <unistd.h>
+#endif
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"

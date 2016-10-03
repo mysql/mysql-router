@@ -91,7 +91,11 @@ public:
       /**
        * Sleep before retrying the lookup.
        */
+#ifndef _WIN32
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
+#else
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+#endif
     }
   }
 };

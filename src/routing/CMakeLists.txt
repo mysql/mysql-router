@@ -40,7 +40,7 @@ set(include_dirs
 # The Plugin
 add_harness_plugin(routing
         SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
-        REQUIRES logger mysql_protocol)
+        REQUIRES logger mysql_protocol fabric_cache metadata_cache)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")

@@ -37,7 +37,7 @@ struct GroupReplicationMember;
  * uses the MySQL Client C Library to setup, manage and retrieve results.
  *
  */
-class ClusterMetadata : public MetaData {
+class METADATA_API ClusterMetadata : public MetaData {
 public:
   /** @brief Constructor
    *
@@ -58,7 +58,7 @@ public:
    *
    * Disconnect and release the connection to the metadata node.
    */
-  ~ClusterMetadata();
+  virtual ~ClusterMetadata();
 
 
   /** @brief Returns relation between replicaset ID and list of servers
@@ -68,7 +68,7 @@ public:
    * @param cluster_name the name of the cluster to query
    * @return Map of replicaset ID, server list pairs.
    */
-  InstancesByReplicaSet fetch_instances(const std::string &cluster_name);
+  InstancesByReplicaSet fetch_instances(const std::string &cluster_name) override;
 
   /** @brief Returns the refresh interval provided by the metadata server.
    *
@@ -76,7 +76,7 @@ public:
    *
    * @return refresh interval of the Metadata cache.
    */
-  unsigned int fetch_ttl();
+  unsigned int fetch_ttl() override;
 
   /** @brief Connects with the Metadata server
    *
@@ -89,14 +89,14 @@ public:
    * @return a boolean to indicate if the connection was successful.
    */
   bool connect(const std::vector<metadata_cache::ManagedInstance> &
-               metadata_servers) noexcept;
+               metadata_servers) noexcept override;
 
   /** @brief Disconnects from the Metadata server
    *
    * Checks first whether we are connected. If not, this method will
    * try indefinitely try to reconnect with the Metadata server.
    */
-  void disconnect() noexcept;
+  void disconnect() noexcept override;
 
 private:
   /** Connects a MYSQL connection descriptor to the given instance

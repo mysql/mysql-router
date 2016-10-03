@@ -32,13 +32,14 @@
 
 #include "logger.h"
 
+
 /** @class MetadataCache
  *
  * The MetadataCache manages cached information fetched from the
  * MySQL Server.
  *
  */
-class MetadataCache {
+class METADATA_API MetadataCache {
 
 public:
   /** @brief Constructor */
