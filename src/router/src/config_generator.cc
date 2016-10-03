@@ -17,45 +17,52 @@
 
 #include "config_generator.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/my_aes.h"
-#include "mysql/harness/filesystem.h"
-#include "utils.h"
+#include "common.h"
+#include "filesystem.h"
+#include "config_parser.h"
+#include "mysqlrouter/mysql_session.h"
+#include "utils_sqlstring.h"
+#include "rapidjson/rapidjson.h"
+// #include "logger.h"
 
-#if defined __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#pragma GCC diagnostic ignored "-Wshadow"
-#pragma GCC diagnostic ignored "-Wconversion"
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#pragma GCC diagnostic ignored "-Wsign-compare"
-#elif defined _MSC_VER
-#pragma warning (push)
-#pragma warning (disable : ) //TODO: add MSVC code for pedantic and shadow
-#endif
-#include "rapidjson/document.h"
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#elif defined _MSC_VER
-#pragma warning (pop)
-#endif
-
-#include <fstream>
 #include <iostream>
-#include <mysql.h>
+#include <fstream>
 #include <sstream>
-#ifndef _WIN32
-#  include <termios.h>
-#  include <unistd.h>
-const char dir_sep = '/';
-const std::string path_sep = ":";
+#include <random>
+#ifdef _WIN32
+#include <Winsock2.h>
 #else
-#  include <string.h>
-#  include <io.h>
-#  define strtok_r strtok_s
-const char dir_sep = '\\';
-const std::string path_sep = ";";
+#include <termios.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#ifndef __APPLE__
+#include <ifaddrs.h>
+#include <net/if.h>
+#endif
 #endif
 #include <cstring>
+
+static const int kDefaultRWPort = 6446;
+static const int kDefaultROPort = 6447;
+static const char *kRWSocketName = "mysql.sock";
+static const char *kROSocketName = "mysqlro.sock";
+
+static const int kDefaultRWXPort = 64460;
+static const int kDefaultROXPort = 64470;
+static const char *kRWXSocketName = "mysqlx.sock";
+static const char *kROXSocketName = "mysqlxro.sock";
+
+static const std::string kSystemRouterName = "system";
+
+static const int kMetadataServerPasswordLength = 16;
+
+using mysql_harness::get_strerror;
+using mysqlrouter::sqlstring;
+using mysqlrouter::MySQLSession;
+
+static std::string prompt_password(const std::string &prompt);
 
 /**
  * Return a string representation of the input character string.
@@ -72,54 +79,189 @@ static std::string get_string(const char *input_str) {
   return std::string(input_str);
 }
 
-static void extract_account_info(const std::string &data, const std::string &key,
-    std::string &ret_username, std::string &ret_password) {
-  std::string decrypted_data;
-  decrypted_data.resize(data.length());
-  int len;
-  if ((len = myaes::my_aes_decrypt(reinterpret_cast<const unsigned char*>(data.data()),
-                     static_cast<uint32_t>(data.length()),
-                     reinterpret_cast<unsigned char*>(&decrypted_data[0]),
-                     reinterpret_cast<const unsigned char*>(key.data()),
-                     static_cast<uint32_t>(key.length()),
-                     myaes::my_aes_256_ecb, NULL, false)) < 0)
-    throw std::runtime_error("Error decrypting account information");
-  decrypted_data.resize((size_t)len);
 
-  rapidjson::Document document;
-  if (document.Parse(decrypted_data.c_str()).HasParseError())
-    throw std::runtime_error("Could not decode account information from metadata");
-  if (!document.IsObject())
-    throw std::runtime_error("Invalid account information in metadata");
-  auto member_iter = document.FindMember("clusterReader");
-  if (member_iter == document.MemberEnd())
-    throw std::runtime_error("Invalid account information in metadata");
-  const rapidjson::Value &member = document["clusterReader"];
-  if (member.FindMember("username") == member.MemberEnd() ||
-    member.FindMember("password") == member.MemberEnd())
-    throw std::runtime_error("Invalid account information in metadata");
-  ret_username = member["username"].GetString();
-  ret_password = member["password"].GetString();
+static std::string get_my_hostname() {
+#if defined(_WIN32) || defined(__APPLE__)
+  char hostname[1024];
+  if (gethostname(hostname, sizeof(hostname)) < 0) {
+    char msg[1024];
+    (void)strerror_r(errno, msg, sizeof(msg));
+    // log_error("Could not get hostname: %s", msg);
+    throw std::runtime_error("Could not get local hostname");
+  }
+  return hostname;
+}
+#else
+  struct ifaddrs *ifa, *ifap;
+  char buf[INET6_ADDRSTRLEN];
+  int ret = -1, family;
+  socklen_t addrlen;
+
+  if (getifaddrs(&ifa) != 0 || !ifa)
+    throw std::runtime_error("Could not get local host address: " + std::string(strerror(errno)));
+  for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
+    if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) || (!(ifap->ifa_flags & IFF_UP)))
+      continue;
+    family = ifap->ifa_addr->sa_family;
+    if (family != AF_INET && family != AF_INET6)
+      continue;
+    if (family == AF_INET6) {
+      struct sockaddr_in6 *sin6;
+
+      sin6 = (struct sockaddr_in6 *)ifap->ifa_addr;
+      if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) || IN6_IS_ADDR_MC_LINKLOCAL(&sin6->sin6_addr))
+        continue;
+    }
+    addrlen = static_cast<socklen_t>((family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
+    ret = getnameinfo(ifap->ifa_addr, addrlen, buf, sizeof(buf), NULL, 0, NI_NAMEREQD);
+  }
+  if (ret != EAI_NONAME && ret != 0)
+    throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret)));
+  return buf;
+}
+#endif
+
+static std::string generate_password(int password_length) {
+  std::random_device rd;
+  std::string pwd;
+  const char *alphabet = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
+  std::uniform_int_distribution<unsigned long> dist(0, strlen(alphabet) - 1);
+
+  for (int i = 0; i < password_length; i++)
+    pwd += alphabet[dist(rd)];
+
+  return pwd;
 }
 
-void ConfigGenerator::fetch_bootstrap_servers(
-  const std::string &server_url,
-  std::string &bootstrap_servers,
-  std::string &username,
-  std::string &password,
-  std::string &metadata_cluster,
-  std::string &metadata_replicaset,
-  bool &multi_master) {
-  // MySQL client connection to the bootstrap server.
-  MYSQL *metadata_connection_;
-  // Setup reconnection flag
-  bool reconnect_ = false;
+
+class MySQLInnoDBClusterMetadata {
+public:
+  MySQLInnoDBClusterMetadata(MySQLSession *mysql)
+  : mysql_(mysql) {}
+
+  void check_router_id(uint32_t router_id);
+  uint32_t register_router(const std::string &router_name);
+  void update_router_info(uint32_t router_id,
+                          const ConfigGenerator::Options &options);
+private:
+  MySQLSession *mysql_;
+};
+
+
+void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
+  // query metadata for this router_id
+  sqlstring query("SELECT h.host_id, h.host_name"
+                  " FROM mysql_innodb_cluster_metadata.routers r"
+                  " JOIN mysql_innodb_cluster_metadata.hosts h"
+                  "    ON r.host_id = h.host_id"
+                  " WHERE r.router_id = ?");
+  query << router_id << sqlstring::end;
+  std::unique_ptr<MySQLSession::ResultRow> row(mysql_->query_one(query));
+  if (!row) {
+    //log_warning("router_id %u not in metadata", router_id);
+    throw std::runtime_error("router_id "+std::to_string(router_id)+" not found in metadata");
+  }
+  std::string hostname = get_my_hostname();
+  if ((*row)[1] && strcasecmp((*row)[1], hostname.c_str()) == 0) {
+    return;
+  }
+  //log_warning("router_id %u maps to an instance at hostname %s, while this hostname is %s",
+  //                router_id, row[1], hostname.c_str());
+
+  // if the host doesn't match, we force a new router_id to be generated
+  throw std::runtime_error("router_id " + std::to_string(router_id)
+      + " is associated with a different host ("+(*row)[1]+")");
+}
+
+void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
+    const ConfigGenerator::Options &options) {
+  sqlstring query("UPDATE mysql_innodb_cluster_metadata.routers"
+                  " SET attributes = "
+                  "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,"
+                  "    'RWEndpoint', ?),"
+                  "    'ROEndpoint', ?),"
+                  "    'RWXEndpoint', ?),"
+                  "    'ROXEndpoint', ?)"
+                  " WHERE router_id = ?");
+  if (options.rw_endpoint.port > 0)
+    query << options.rw_endpoint.port;
+  else if (!options.rw_endpoint.socket.empty())
+    query << options.rw_endpoint.socket;
+  else
+    query << "null";
+  if (options.ro_endpoint.port > 0)
+    query << options.ro_endpoint.port;
+  else if (!options.ro_endpoint.socket.empty())
+    query << options.ro_endpoint.socket;
+  else
+    query << "null";
+
+  if (options.rw_x_endpoint.port > 0)
+    query << options.rw_x_endpoint.port;
+  else if (!options.rw_x_endpoint.socket.empty())
+    query << options.rw_x_endpoint.socket;
+  else
+    query << "null";
+  if (options.ro_x_endpoint.port > 0)
+    query << options.ro_x_endpoint.port;
+  else if (!options.ro_x_endpoint.socket.empty())
+    query << options.ro_x_endpoint.socket;
+  else
+    query << "null";
+  query << router_id;
+  query << sqlstring::end;
+
+  mysql_->execute(query);
+}
+
+uint32_t MySQLInnoDBClusterMetadata::register_router(
+    const std::string &router_name) {
+  uint32_t host_id;
+  std::string hostname = get_my_hostname();
+  // check if the host already exists in the metadata schema and if so, get
+  // our host_id.. if it doesn't, insert it and get the host_id
+  sqlstring query("SELECT host_id, host_name, ip_address"
+                   " FROM mysql_innodb_cluster_metadata.hosts"
+                   " WHERE host_name = ?"
+                   " LIMIT 1");
+  query << hostname << sqlstring::end;
+  {
+    std::unique_ptr<MySQLSession::ResultRow> row(mysql_->query_one(query));
+    if (!row) {
+      // host is not known to the metadata, register it
+      query = sqlstring("INSERT INTO mysql_innodb_cluster_metadata.hosts"
+                        "        (host_name, location, attributes)"
+                        " VALUES (?, '', "
+                        "         JSON_OBJECT('registeredFrom', 'mysql-router'))");
+      query << hostname << sqlstring::end;
+      mysql_->execute(query);
+      host_id = static_cast<uint32_t>(mysql_->last_insert_id());
+      // log_info("host_id for local host %s newly registered as %u",
+      //        hostname.c_str(), host_id);
+    } else {
+      host_id = static_cast<uint32_t>(std::strtoul((*row)[0], NULL, 10));
+      // log_info("host_id for local host %s already registered as %u",
+      //        hostname.c_str(), host_id);
+    }
+  }
+  // now insert the router and get the router id
+  query = sqlstring("INSERT INTO mysql_innodb_cluster_metadata.routers"
+                    "        (host_id, router_name)"
+                    " VALUES (?, ?)");
+  // log_info("Router instance '%s' registered with id %u", router_name.c_str(), router_id);
+  query << host_id << router_name << sqlstring::end;
+  mysql_->execute(query);
+  return static_cast<uint32_t>(mysql_->last_insert_id());
+}
+
+
+void ConfigGenerator::init(MySQLSession *session) {
+  mysql_ = session;
+}
+
+void ConfigGenerator::init(const std::string &server_url) {
   // Setup connection timeout
-  int connection_timeout_ = 1;
-  unsigned int protocol = MYSQL_PROTOCOL_TCP;
-
-  std::ostringstream query;
-
+  int connection_timeout_ = 5;
   // Extract connection information from the bootstrap server URL.
   std::string normalized_url(server_url);
   if (normalized_url.find("//") == std::string::npos) {
@@ -128,12 +270,268 @@ void ConfigGenerator::fetch_bootstrap_servers(
   mysqlrouter::URI u(normalized_url);
 
   // If the user name is mentioned as part of the URL throw an error.
-  if (!u.username.empty()) {
-    throw std::runtime_error("Username must be ommited in the URL for metadata server");
+  if (u.username.empty()) {
+    u.username = "root";
   }
-
   // setup localhost address.
   u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
+
+  // we need to prompt for the password
+  if (u.password.empty()) {
+    u.password = prompt_password(
+      "Please enter MySQL password for "+u.username);
+  }
+
+  MySQLSession *s(new MySQLSession());
+  try
+  {
+    s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
+  } catch (MySQLSession::Error &e) {
+    std::stringstream err;
+    err << "Unable to connect to the metadata server: " << e.what();
+    throw std::runtime_error(err.str());
+  }
+  init(s);
+  mysql_owned_ = true;
+}
+
+ConfigGenerator::~ConfigGenerator() {
+  if (mysql_owned_)
+    delete mysql_;
+}
+
+void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
+    const std::map<std::string, std::string> &options) {
+  if (options.find("name") != options.end()) {
+    throw std::runtime_error("Router instance name can only be specified with --directory option");
+  }
+  // check if the config file already exists and if it has a router_id
+  uint32_t router_id = get_router_id_from_config_file(config_file_path);
+  if (router_id > 0) {
+    std::cout << "Reconfiguring system wide MySQL Router instance...\n\n";
+  } else {
+    std::cout << "Bootstrapping system wide MySQL Router instance...\n\n";
+  }
+  // (re-)bootstrap the instance
+  std::ofstream config_file;
+  config_file.open(config_file_path+".tmp");
+  if (config_file.fail()) {
+    throw std::runtime_error("Could not open "+config_file_path+".tmp for writing: "+get_strerror(errno));
+  }
+  bootstrap_deployment(config_file, router_id, kSystemRouterName, options);
+  config_file.close();
+
+  // rename the .tmp file to the final file
+  if (rename((config_file_path+".tmp").c_str(), config_file_path.c_str()) < 0) {
+    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
+    //  config_file_path.c_str(), get_strerror(errno));
+    throw std::runtime_error("Could not save configuration file to final location");
+  }
+}
+
+static bool is_directory_empty(mysql_harness::Directory dir) {
+  for (auto di = dir.begin(); di != dir.end(); ++di) {
+    std::string name = (*di).basename().str();
+    if (name != "." && name != "..")
+      return false;;
+  }
+  return true;
+}
+
+/**
+ * Create a self-contained deployment of the Router in a directory.
+ */
+void ConfigGenerator::bootstrap_directory_deployment(const std::string &directory,
+    const std::map<std::string, std::string> &user_options) {
+  uint32_t router_id = 0;
+  bool force = user_options.find("force") != user_options.end();
+  mysql_harness::Path path(directory);
+  mysql_harness::Path config_file_path;
+  std::string router_name;
+  if (path.exists()) {
+    config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
+    if (config_file_path.exists()) {
+      router_id = get_router_id_from_config_file(config_file_path.str());
+    } else if (!force && !is_directory_empty(path)) {
+      std::cerr << "Directory " << directory << " already contains files\n";
+      throw std::runtime_error("Directory already exits");
+    }
+  } else {
+    if (mkdir(directory.c_str(), 0700) < 0) {
+      std::cerr << "Cannot create directory " << directory << ": " << mysql_harness::get_strerror(errno) << "\n";
+      throw std::runtime_error("Could not create deployment directory");
+    }
+    config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
+  }
+  if (user_options.find("name") != user_options.end()) {
+    if ((router_name = user_options.at("name")) == kSystemRouterName)
+      throw std::runtime_error("Router name " + kSystemRouterName + " is reserved");
+    for (auto c : router_name) {
+      if (c == '\'' || c == '`' || c == '"')
+        throw std::runtime_error("Router name "+router_name+" contains invalid characters");
+    }
+  } else {
+    throw std::runtime_error("Please use the --name option to give a label for this router instance");
+  }
+  std::map<std::string, std::string> options(user_options);
+  if (router_id > 0) {
+    std::cout << "Reconfiguring MySQL Router instance at " + directory + "...\n\n";
+  } else {
+    std::cout << "Bootstrapping MySQL Router instance at " + directory + "...\n\n";
+  }
+  if (user_options.find("logdir") == user_options.end())
+    options["logdir"] = path.join("log").str();
+  if (user_options.find("rundir") == user_options.end())
+    options["rundir"] = path.join("run").str();
+  if (mkdir(options["logdir"].c_str(), 0700) < 0 && errno != EEXIST) {
+    std::cerr << "Cannot create directory " << options["logdir"] << ": " << get_strerror(errno) << "\n";
+    throw std::runtime_error("Could not create deployment directory");
+  }
+  if (mkdir(options["rundir"].c_str(), 0700) < 0 && errno != EEXIST) {
+    std::cerr << "Cannot create directory " << options["rundir"] << ": " << get_strerror(errno) << "\n";
+    throw std::runtime_error("Could not create deployment directory");
+  }
+  // (re-)bootstrap the instance
+  std::ofstream config_file;
+  config_file.open(config_file_path.str()+".tmp");
+  if (config_file.fail()) {
+    throw std::runtime_error("Could not open "+config_file_path.str()+".tmp for writing: "+get_strerror(errno));
+  }
+  try {
+    bootstrap_deployment(config_file, router_id, router_name, options);
+  } catch (...) {
+    config_file.close();
+#ifndef _WIN32
+    unlink((config_file_path.str()+".tmp").c_str());
+#endif
+    throw;
+  }
+  config_file.close();
+
+  // rename the .tmp file to the final file
+  if (rename((config_file_path.str()+".tmp").c_str(), config_file_path.c_str()) < 0) {
+    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
+    //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
+    throw std::runtime_error("Could not save configuration file to final location");
+  }
+
+  // create start/stop scripts
+  create_start_scripts(directory);
+}
+
+ConfigGenerator::Options ConfigGenerator::fill_options(
+    bool multi_master,
+    const std::map<std::string, std::string> &user_options) {
+  bool use_sockets = false;
+  bool skip_classic_protocol = false;
+  bool skip_x_protocol = true; // no support for X protocol atm
+  int base_port = 0;
+  if (user_options.find("base-port") != user_options.end()) {
+    base_port = static_cast<int>(std::strtol(user_options.at("base-port").c_str(), NULL, 10));
+    if (base_port <= 0) {
+      throw std::runtime_error("Invalid base-port value " + user_options.at("base-port"));
+    }
+  }
+  if (user_options.find("use-sockets") != user_options.end())
+    use_sockets = true;
+  ConfigGenerator::Options options;
+  options.multi_master = multi_master;
+  if (!skip_classic_protocol) {
+    if (use_sockets) {
+      options.rw_endpoint.socket = kRWSocketName;
+      if (!multi_master)
+        options.ro_endpoint.socket = kROSocketName;
+    } else {
+      options.rw_endpoint.port = base_port == 0 ? kDefaultRWPort : base_port++;
+      if (!multi_master)
+        options.ro_endpoint.port = base_port == 0 ? kDefaultROPort : base_port++;
+    }
+  }
+  if (!skip_x_protocol) {
+    if (use_sockets) {
+      options.rw_x_endpoint.socket = kRWXSocketName;
+      if (!multi_master)
+        options.ro_x_endpoint.socket = kROXSocketName;
+    } else {
+      options.rw_x_endpoint.port = base_port == 0 ? kDefaultRWXPort : base_port++;
+      if (!multi_master)
+        options.ro_x_endpoint.port = base_port == 0 ? kDefaultROXPort : base_port++;
+    }
+  }
+  if (user_options.find("logdir") != user_options.end())
+    options.override_logdir = user_options.at("logdir");
+  if (user_options.find("rundir") != user_options.end())
+    options.override_rundir = user_options.at("rundir");
+  return options;
+}
+
+void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
+    uint32_t router_id, const std::string &router_name,
+    const std::map<std::string, std::string> &user_options) {
+  std::string primary_cluster_name;
+  std::string primary_replicaset_servers;
+  std::string primary_replicaset_name;
+  bool multi_master = false;
+
+  fetch_bootstrap_servers(
+    primary_replicaset_servers,
+    primary_cluster_name, primary_replicaset_name,
+    multi_master);
+
+  MySQLSession::Transaction transaction(mysql_);
+  MySQLInnoDBClusterMetadata metadata(mysql_);
+
+  // if reconfiguration
+  if (router_id > 0) {
+    std::string attributes;
+    // if router data is valid
+    try {
+      metadata.check_router_id(router_id);
+    } catch (std::exception &e) {
+      std::cerr << "WARNING: " << e.what() << "\n";
+      // TODO: abort here and suggest --force to force reconfiguration?
+      router_id = 0;
+    }
+  }
+  // router not registered yet (or router_id was invalid)
+  if (router_id == 0) {
+    try {
+      router_id = metadata.register_router(router_name);
+    } catch (MySQLSession::Error &e) {
+      throw std::runtime_error(std::string("While registering router instance in metadata server: ")+e.what());
+    }
+  }
+
+  Options options(fill_options(multi_master, user_options));
+
+  // Create or recreate the account used by this router instance to access
+  // metadata server
+  std::string username = "mysql_innodb_cluster_router"+std::to_string(router_id);
+  std::string password = generate_password(kMetadataServerPasswordLength);
+
+  create_account(username, password);
+
+  metadata.update_router_info(router_id, options);
+
+  // generate the new config file
+  create_config(config_file, router_id, router_name,
+                primary_replicaset_servers,
+                primary_cluster_name,
+                primary_replicaset_name,
+                username,
+                password,
+                options);
+
+  transaction.commit();
+}
+
+void ConfigGenerator::fetch_bootstrap_servers(
+  std::string &bootstrap_servers,
+  std::string &metadata_cluster,
+  std::string &metadata_replicaset,
+  bool &multi_master) {
+
+  std::ostringstream query;
 
   // Query the name of the replicaset, the servers in the replicaset and the
   // router credentials using the URL of a server in the replicaset.
@@ -141,8 +539,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
     "F.cluster_name, "
     "R.replicaset_name, "
     "R.topology_type, "
-    "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')), "
-    "F.mysql_user_accounts "
+    "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
     "FROM "
     "mysql_innodb_cluster_metadata.clusters AS F, "
     "mysql_innodb_cluster_metadata.instances AS I, "
@@ -156,125 +553,99 @@ void ConfigGenerator::fetch_bootstrap_servers(
     "AND "
     "R.cluster_id = F.cluster_id";
 
-  // we need to prompt for the password
-  std::string metadata_cache_password = prompt_password(
-    "Please enter the administrative MASTER key for the MySQL InnoDB cluster");
-
-  //Initialize the connection to the bootstrap server
-  metadata_connection_ = mysql_init(nullptr);
-
-  mysql_options(metadata_connection_, MYSQL_OPT_CONNECT_TIMEOUT,
-                &connection_timeout_);
-  mysql_options(metadata_connection_, MYSQL_OPT_PROTOCOL,
-                reinterpret_cast<char *> (&protocol));
-  mysql_options(metadata_connection_, MYSQL_OPT_RECONNECT, &reconnect_);
-
-  const unsigned long client_flags = (
-    CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
-    CLIENT_MULTI_RESULTS
-    );
-
-  if (mysql_real_connect(metadata_connection_,
-                         u.host.c_str(),
-                         "mysql_innodb_cluster_admin",
-                         metadata_cache_password.c_str(),
-                         nullptr,
-                         u.port,
-                         nullptr,
-                         client_flags)) {
-    int status = mysql_query(metadata_connection_, query.str().c_str());
-
-    if (status) {
-      std::ostringstream err;
-      err << "Query failed: " << query.str() << "\n\tWith error: " <<
-        mysql_error(metadata_connection_);
-      //log_warning("%s", err.str().c_str());
-      throw std::runtime_error(std::string("Error querying metadata: ") + mysql_error(metadata_connection_));
-    }
-
-    MYSQL_RES *result = mysql_store_result(metadata_connection_);
-
-    if (!result) {
-      std::ostringstream err;
-      err << "Failed fetching results: " << query.str() << "\n\tWith error: " <<
-        mysql_error(metadata_connection_);
-      throw std::runtime_error(err.str());
-    }
-
-    unsigned int num_fields = mysql_num_fields(result);
-
-    if (num_fields != 5) {
-       std::ostringstream err;
-       err << "unexpected number of fields " << num_fields << " in result set";
-       throw std::runtime_error(err.str());
-    }
-
-    std::string encrypted_account_data;
-    MYSQL_ROW row = nullptr;
-    metadata_cluster = "";
-    metadata_replicaset = "";
-    bootstrap_servers = "";
-    username = "";
-    password = "";
-
-    while ((row = mysql_fetch_row(result)) != nullptr) {
-      unsigned long *lengths = mysql_fetch_lengths(result);
+  metadata_cluster = "";
+  metadata_replicaset = "";
+  bootstrap_servers = "";
+  try {
+    mysql_->query(query.str(),
+        [this, &metadata_cluster, &metadata_replicaset, &bootstrap_servers,
+          &multi_master]
+          (const std::vector<const char*> &row)->bool {
       if (metadata_cluster == "") {
         metadata_cluster = get_string(row[0]);
+      } else if (metadata_cluster != get_string(row[0])) {
+        // metadata with more than 1 replicaset not currently supported
+        throw std::runtime_error("Metadata contains more than one cluster");
       }
       if (metadata_replicaset == "") {
         metadata_replicaset = get_string(row[1]);
+      } else if (metadata_replicaset != get_string(row[1])) {
+        // metadata with more than 1 replicaset not currently supported
+        throw std::runtime_error("Metadata contains more than one replica-set");
       }
       if (bootstrap_servers != "")
         bootstrap_servers += ",";
-      if (row[2] && strcmp(row[2], "mm") == 0)
-        multi_master = true;
+      if (row[2]) {
+        if (strcmp(row[2], "mm") == 0)
+          multi_master = true;
+        else if (strcmp(row[2], "pm") == 0)
+          multi_master = false;
+        else
+          throw std::runtime_error("Unknown topology type in metadata: "+std::string(row[2]));
+      }
       bootstrap_servers += "mysql://"+get_string(row[3]);
-      if (row[4])
-        encrypted_account_data = std::string(row[4], lengths[4]);
-    }
-
-    if (encrypted_account_data.empty()) {
-      throw std::runtime_error("Invalid metadata: no account data found");
-    }
-
-    extract_account_info(encrypted_account_data, metadata_cache_password,
-        username, password);
-  } else {
-    std::ostringstream err;
-    err << "Unable to connect to the metadata server " << u.host
-        << ":" <<  std::to_string(u.port) << ": " << mysql_error(metadata_connection_);
-    throw std::runtime_error(err.str());
+      return true;
+    });
+  } catch (MySQLSession::Error &e) {
+    // log_error("MySQL error: %s (%u)", e.what(), e.code());
+    // log_error("    Failed query: %s", query.str().c_str());
+    throw std::runtime_error(std::string("Error querying metadata: ") + e.what());
   }
+  if (metadata_cluster.empty())
+    throw std::runtime_error("No clusters defined in metadata server");
 }
 
 std::string g_program_name;
 
+static std::string find_executable_path() {
+  if (g_program_name.find('/') != std::string::npos) {
+    char *tmp = realpath(g_program_name.c_str(), NULL);
+    std::string path(tmp);
+    free(tmp);
+    return path;
+  } else {
+    std::string path(std::getenv("PATH"));
+    char *last = NULL;
+    char *p = strtok_r(&path[0], ":", &last);
+    while (p) {
+      if (*p && p[strlen(p)-1] == '/')
+        p[strlen(p)-1] = 0;
+      std::string tmp(std::string(p)+"/"+g_program_name);
+      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
+        return path;
+      }
+      p = strtok_r(NULL, ":", &last);
+    }
+    throw std::logic_error("Could not find own installation directory");
+  }
+}
+
+
 void ConfigGenerator::create_config(
-  const std::string &config_file_path,
-  const std::string &default_log_path,
+  std::ostream &cfp,
+  uint32_t router_id,
+  const std::string &router_name,
   const std::string &bootstrap_server_addresses,
   const std::string &metadata_cluster,
   const std::string &metadata_replicaset,
   const std::string &username,
   const std::string &password,
-  bool multi_master) {
-  std::ofstream cfp;
-  int rw_port = 6446;
-  int ro_port = 6447;
+  const Options &options) {
 
+  cfp << "# File automatically generated during MySQL Router bootstrap\n";
 
-  cfp.open(config_file_path);
-  if (cfp.fail()) {
-    throw std::runtime_error("Could not open "+config_file_path+" for writing: "+strerror(errno));
-  }
-  cfp << "[DEFAULT]\n"
-      << "# logging_folder=" << default_log_path << "\n"
-      << "\n"
+  cfp << "[DEFAULT]\n";
+  if (!options.override_logdir.empty())
+    cfp << "logging_folder=" << options.override_logdir << "\n";
+  if (!options.override_rundir.empty())
+      cfp << "runtime_folder=" << options.override_rundir << "\n";
+  cfp << "\n"
       << "[logger]\n"
       << "level = INFO\n"
       << "\n"
       << "[metadata_cache]\n"
+      << "router_id=" << router_id << "\n"
+      << "router_tag=" << router_name << "\n"
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
       << "password=" << password << "\n"
@@ -282,40 +653,162 @@ void ConfigGenerator::create_config(
       << "ttl=300" << "\n"
       << "metadata_replicaset=" << metadata_replicaset << "\n"
       << "\n";
-      if (!multi_master) {
-        cfp
-          << "[routing:" << metadata_replicaset << "_rw]\n"
-          << "bind_port=" << rw_port << "\n"
-          << "destinations=metadata-cache:///"
-              << metadata_replicaset << "?role=PRIMARY\n"
-          << "mode=read-write\n"
-          << "\n"
-          << "[routing:" << metadata_replicaset << "_ro]\n"
-          << "bind_port=" << ro_port << "\n"
-          << "destinations=metadata-cache:///"
-              << metadata_replicaset << "?role=SECONDARY\n"
-          << "mode=read-only\n";
-      } else {
-        cfp
-          << "[routing:" << metadata_replicaset << "_rw]\n"
-          << "bind_port=" << rw_port << "\n"
-          << "destinations=metadata-cache:///"
-              << metadata_replicaset << "?role=PRIMARY\n"
-          << "mode=read-write\n"
-          << "\n";
-      }
-  cfp.close();
+  if (options.rw_endpoint) {
+    cfp
+      << "[routing:" << metadata_replicaset << "_rw]\n"
+      << "bind_port=" << options.rw_endpoint.port << "\n"
+      << "destinations=metadata-cache:///"
+          << metadata_replicaset << "?role=PRIMARY\n"
+      << "mode=read-write\n"
+      << "\n";
+  }
+  if (options.ro_endpoint) {
+    cfp
+      << "[routing:" << metadata_replicaset << "_ro]\n"
+      << "bind_port=" << options.ro_endpoint.port << "\n"
+      << "destinations=metadata-cache:///"
+          << metadata_replicaset << "?role=SECONDARY\n"
+      << "mode=read-only\n"
+      << "\n";
+  }
+  if (options.rw_x_endpoint) {
+    cfp
+      << "[routing:" << metadata_replicaset << "_x_rw]\n"
+      << "bind_port=" << options.rw_x_endpoint.port << "\n"
+      << "destinations=metadata-cache:///"
+          << metadata_replicaset << "?role=PRIMARY\n"
+      << "mode=read-write\n"
+      << "\n";
+  }
+  if (options.ro_x_endpoint) {
+    cfp
+      << "[routing:" << metadata_replicaset << "_x_ro]\n"
+      << "bind_port=" << options.ro_x_endpoint.port << "\n"
+      << "destinations=metadata-cache:///"
+          << metadata_replicaset << "?role=SECONDARY\n"
+      << "mode=read-only\n"
+      << "\n";
+  }
+  cfp.flush();
 
   std::cout
-    << "MySQL Router has now been configured for the InnoDB cluster '" << metadata_cluster << "'" << (multi_master ? " (multi-master)" : "") << ".\n"
+    << "MySQL Router has now been configured for the InnoDB cluster '" << metadata_cluster << "'" << (options.multi_master ? " (multi-master)" : "") << ".\n"
     << "\n"
     << "The following connection information can be used to connect to the cluster.\n"
-    << "\n"
-    << "Classic MySQL protocol connections to cluster '" << metadata_cluster << "':\n"
-    << "- Read/Write Connections: localhost:" << rw_port << "\n";
-  if (!multi_master)
+    << "\n";
+  if (options.rw_endpoint || options.ro_endpoint) {
     std::cout
-      << "- Read/Only Connections: localhost:" << ro_port << "\n";
+      << "Classic MySQL protocol connections to cluster '" << metadata_cluster << "':\n";
+    if (options.rw_endpoint.port > 0)
+      std::cout << "- Read/Write Connections: localhost:" << options.rw_endpoint.port << "\n";
+    if (options.ro_endpoint.port > 0)
+      std::cout << "- Read/Only Connections: localhost:" << options.ro_endpoint.port << "\n";
+    std::cout << "\n";
+  }
+  if (options.rw_x_endpoint || options.ro_x_endpoint) {
+    std::cout
+      << "X protocol connections to cluster '" << metadata_cluster << "':\n";
+    if (options.rw_x_endpoint)
+      std::cout << "- Read/Write Connections: localhost:" << options.rw_x_endpoint.port << "\n";
+    if (options.ro_x_endpoint)
+      std::cout << "- Read/Only Connections: localhost:" << options.ro_x_endpoint.port << "\n";
+  }
+}
+
+
+/*
+  Create MySQL account for this instance of the router in the target cluster.
+
+  The account will have access to the cluster metadata and to the
+  replication_group_members table of the performance_schema.
+  Note that this assumes that the metadata schema is stored in the destinations
+  cluster and that there is only one replicaset in it.
+ */
+void ConfigGenerator::create_account(const std::string &username,
+                                     const std::string &password) {
+  std::string host = get_my_hostname();
+  std::string account = username + "@" + mysql_->quote(host);
+
+  std::vector<std::string> queries{
+    "DROP USER IF EXISTS " + account,
+    "CREATE USER " + account + " IDENTIFIED BY " + mysql_->quote(password),
+    "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + account,
+    "GRANT SELECT ON performance_schema.replication_group_members TO " + account
+  };
+
+  for (auto &q : queries) {
+    try {
+      mysql_->execute(q);
+    } catch (MySQLSession::Error &e) {
+      // log_error("%s: executing query: %s", e.what(), q.c_str());
+      try {
+        mysql_->execute("ROLLBACK");
+      } catch (...) {
+        // log_error("Could not rollback transaction explicitly.");
+      }
+      throw std::runtime_error(std::string("Error creating MySQL account for router: ") + e.what());
+    }
+  }
+}
+
+uint32_t ConfigGenerator::get_router_id_from_config_file(const std::string &config_file_path) {
+  mysql_harness::Path path(config_file_path);
+  if (path.exists()) {
+    mysql_harness::Config config(mysql_harness::Config::allow_keys);
+    config.read(path);
+    if (config.has("metadata_cache")) {
+      auto sections(config.get("metadata_cache"));
+      if (sections.size() > 1) {
+        throw std::runtime_error("Bootstrapping of Router with multiple metadata_cache sections not supported");
+      }
+      if (sections.front()->has("router_id")) {
+        std::string tmp = sections.front()->get("router_id");
+        char *end;
+        unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
+        if (end == tmp.c_str() || errno == ERANGE) {
+          // log_warning("Invalid router_id '%s' found in existing config file '%s'",
+              // tmp.c_str(), config_file_path.c_str());
+        } else {
+          return static_cast<uint32_t>(r);
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+void ConfigGenerator::create_start_scripts(const std::string &directory) {
+#ifdef _WIN32
+#else
+  std::ofstream script;
+  std::string script_path = directory+"/start.sh";
+
+  script.open(script_path);
+  if (script.fail()) {
+    throw std::runtime_error("Could not open "+script_path+" for writing: "+get_strerror(errno));
+  }
+  script << "#!/bin/bash\n";
+  script << "ROUTER_PID=" << directory << "/mysqlrouter.pid " << find_executable_path() << " -c " << directory << "/mysqlrouter.conf &\n";
+  script << "disown %-\n";
+  script.close();
+  if (chmod(script_path.c_str(), 0700) < 0) {
+    std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
+  }
+
+  script_path = directory+"/stop.sh";
+  script.open(script_path);
+  if (script.fail()) {
+    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
+  }
+  script << "if [ -f mysqlrouter.pid ]; then\n";
+  script << "  kill -HUP `cat " + directory + "/mysqlrouter.pid`\n";
+  script << "  rm -f " << directory + "/mysqlrouter.pid`\n";
+  script << "fi\n";
+  script.close();
+  if (chmod(script_path.c_str(), 0700) < 0) {
+    std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
+  }
+#endif
 }
 
 /**
@@ -327,7 +820,7 @@ void ConfigGenerator::create_config(
  * @return a string representing the password.
  */
 #ifndef _WIN32
-const std::string ConfigGenerator::prompt_password(const std::string &prompt) {
+static std::string prompt_password(const std::string &prompt) {
   struct termios console;
   tcgetattr(STDIN_FILENO, &console);
 
@@ -348,7 +841,7 @@ const std::string ConfigGenerator::prompt_password(const std::string &prompt) {
   return result;
 }
 #else
-const std::string ConfigGenerator::prompt_password(const std::string &prompt) {
+static std::string prompt_password(const std::string &prompt) {
 
   std::cout << prompt << ": ";
 
@@ -369,3 +862,4 @@ const std::string ConfigGenerator::prompt_password(const std::string &prompt) {
   return result;
 }
 #endif
+

@@ -73,8 +73,8 @@ public:
    *     router.start();
    *
    */
-  MySQLRouter() : can_start_(false), showing_info_(false),
-    creating_config_(false) {};
+  MySQLRouter() : can_start_(false), showing_info_(false)
+    {}
 
 
   /** @brief Constructor with command line arguments as vector
@@ -328,6 +328,8 @@ private:
    */
   void set_default_config_files(const char *locations) noexcept;
 
+  void bootstrap(const std::string &metadata_server_uri);
+
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
@@ -357,10 +359,18 @@ private:
   /** @brief Whether we are showing information on command line, for example, using --help or --version **/
   bool showing_info_;
   /**
-   * @brief Whether we are creating the configuration file using -e or
-   *        --create-config
+   * @brief Value of the argument passed to the -B or --bootstrap
+   *        command line option for bootstrapping.
    */
-  bool creating_config_;
+  std::string bootstrap_uri_;
+  /**
+   * @brief Valueof the argument passed to the --directory command line option
+   */
+  std::string bootstrap_directory_;
+  /**
+   * @brief key/value map of additional configuration options for bootstrap
+   */
+  std::map<std::string, std::string> bootstrap_options_;
 
   /**
    * Path to origin of executable.

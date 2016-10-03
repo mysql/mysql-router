@@ -120,7 +120,7 @@ static std::string substitute_variable(const std::string &s,
 MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
-      showing_info_(false), creating_config_(false),
+      showing_info_(false),
       origin_(origin)
 {
   init(arguments);
@@ -141,7 +141,11 @@ void MySQLRouter::init(const vector<string>& arguments) {
     throw std::runtime_error(exc.what());
   }
 
-  if (showing_info_ || creating_config_) {
+  if (!bootstrap_uri_.empty()) {
+    bootstrap(bootstrap_uri_);
+    return;
+  }
+  if (showing_info_) {
     return;
   }
 
@@ -150,7 +154,7 @@ void MySQLRouter::init(const vector<string>& arguments) {
 }
 
 void MySQLRouter::start() {
-  if (showing_info_ || creating_config_) {
+  if (showing_info_ || !bootstrap_uri_.empty()) {
     // when we are showing info like --help or --version, we do not throw
     return;
   }
@@ -165,7 +169,7 @@ void MySQLRouter::start() {
       {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
       {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
       {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
-      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)},
+      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)}
   };
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
@@ -314,31 +318,59 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Bootstrap and configure Router for operation with a MySQL InnoDB cluster.",
                           CmdOptionValueReq::required, "server_url",
                           [this](const string &server_url) {
-        this->creating_config_ = true;
-        std::string config_file_path =
-            substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
-                                "{origin}", origin_.str());
-        std::string default_log_path =
-            substitute_variable(MYSQL_ROUTER_LOGGING_FOLDER,
-                                "{origin}", origin_.str());
-        std::string primary_cluster_name_ = "";
-        std::string primary_replicaset_servers_ = "";
-        std::string primary_replicaset_name_ = "";
-        std::string username_ = "";
-        std::string password_ = "";
-        bool multi_master_ = false;
-        ConfigGenerator config_gen;
-        config_gen.fetch_bootstrap_servers(
-          server_url, primary_replicaset_servers_, username_, password_,
-          primary_cluster_name_, primary_replicaset_name_, multi_master_);
-        config_gen.create_config(config_file_path,
-                            default_log_path,
-                            primary_replicaset_servers_,
-                            primary_cluster_name_,
-                            primary_replicaset_name_,
-                            username_,
-                            password_,
-                            multi_master_);
+        this->bootstrap_uri_ = server_url;
+      });
+
+  arg_handler_.add_option(OptionNames({"-d", "--directory"}),
+                          "Creates a self-contained directory for a new instance of the Router. Requires --bootstrap",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &path) {
+        this->bootstrap_directory_ = path;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option -d/--directory can only be used together with -B/--bootstrap");
+        }
+      });
+
+#ifndef _WIN32
+  arg_handler_.add_option(OptionNames({"--conf-use-sockets"}),
+                          "Whether to use Unix domain sockets instead of TCP. Requires --bootstrap",
+                          CmdOptionValueReq::none, "",
+                          [this](const string &) {
+        throw std::runtime_error("--conf-use-sockets is currently not supported");
+        this->bootstrap_options_["use-sockets"] = "1";
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --conf-use-sockets can only be used together with -B/--bootstrap");
+        }
+      });
+#endif
+  arg_handler_.add_option(OptionNames({"--conf-base-port"}),
+                          "Base port to use for listening router ports. Requires --bootstrap",
+                          CmdOptionValueReq::required, "port",
+                          [this](const string &port) {
+        this->bootstrap_options_["base-port"] = port;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --conf-base-port can only be used together with -B/--bootstrap");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--name"}),
+                          "Gives a symbolic name for the router instance. Requires --bootstrap",
+                          CmdOptionValueReq::required, "name",
+                          [this](const string &name) {
+        this->bootstrap_options_["name"] = name;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --name can only be used together with -B/--bootstrap");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--force"}),
+                          "Force reconfiguration of a possibly existing instance of the router. Requires --bootstrap",
+                          CmdOptionValueReq::none, "",
+                          [this](const string &) {
+        this->bootstrap_options_["force"] = "1";
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --force can only be used together with -B/--bootstrap");
+        }
       });
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
@@ -417,6 +449,24 @@ void MySQLRouter::prepare_command_options() noexcept {
 #endif
 
 }
+
+void MySQLRouter::bootstrap(const std::string &server_url) {
+  ConfigGenerator config_gen;
+  config_gen.init(server_url);
+
+  if (bootstrap_directory_.empty()) {
+    std::string config_file_path =
+        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
+                            "{origin}", origin_.str());
+
+    config_gen.bootstrap_system_deployment(config_file_path,
+        bootstrap_options_);
+  } else {
+    config_gen.bootstrap_directory_deployment(bootstrap_directory_,
+        bootstrap_options_);
+  }
+}
+
 
 void MySQLRouter::show_help() noexcept {
   FILE *fp;
