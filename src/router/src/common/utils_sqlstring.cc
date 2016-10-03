@@ -18,6 +18,7 @@
  */
 
 #include "utils_sqlstring.h"
+#include <string.h>
 
 // updated as of 5.7
 static const char *reserved_keywords[] = {

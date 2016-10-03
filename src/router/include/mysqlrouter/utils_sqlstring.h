@@ -94,6 +94,6 @@ public:
     return *this;
   }
 };
-};
+}
 
 #endif

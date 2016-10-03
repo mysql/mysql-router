@@ -58,8 +58,8 @@ public:
 
   class Error : public std::runtime_error {
   public:
-    Error(const char *error, unsigned int code)
-    : std::runtime_error(error), code_(code) {}
+    Error(const char *error, unsigned int code__)
+    : std::runtime_error(error), code_(code__) {}
 
     unsigned int code() const { return code_; }
   private:

@@ -70,9 +70,9 @@ void MySQLSession::disconnect() {
   }
 }
 
-void MySQLSession::execute(const std::string &query) {
+void MySQLSession::execute(const std::string &q) {
   if (connection_) {
-    if (mysql_real_query(connection_, query.data(), query.length()) != 0) {
+    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
@@ -91,10 +91,10 @@ void MySQLSession::execute(const std::string &query) {
   values of each field of a row. It is called once per row.
   If the processor returns false, the result row iteration stops.
  */
-void MySQLSession::query(const std::string &query,
+void MySQLSession::query(const std::string &q,
                          const RowProcessor &processor) {
   if (connection_) {
-    if (mysql_real_query(connection_, query.data(), query.length()) != 0) {
+    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
@@ -142,9 +142,9 @@ private:
   MYSQL_RES *res_;
 };
 
-MySQLSession::ResultRow *MySQLSession::query_one(const std::string &query) {
+MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
   if (connection_) {
-    if (mysql_real_query(connection_, query.data(), query.length()) != 0) {
+    if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";

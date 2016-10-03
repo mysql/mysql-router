@@ -96,6 +96,15 @@ private:
 private:
   mysqlrouter::MySQLSession *mysql_;
   bool mysql_owned_;
+
+#ifdef FRIEND_TEST
+  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
+  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
+  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
+  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
+  FRIEND_TEST(ConfigGeneratorTest, create_config_single_master);
+  FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
+#endif
 };
 
 #endif //ROUTER_CONFIG_GENERATOR_INCLUDED

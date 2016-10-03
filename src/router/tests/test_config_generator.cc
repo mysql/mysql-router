@@ -43,9 +43,11 @@
 #endif
 
 #include "mysqlrouter/mysql_session.h"
+
+#include <gtest/gtest_prod.h>
 #include "config_generator.h"
 
-#if 0
+
 class MockMySQLSession : public mysqlrouter::MySQLSession {
 public:
   MOCK_METHOD5(connect, void(const std::string &host, unsigned int port,
@@ -253,38 +255,40 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 
 static void expect_create_account(MockMySQLSession &mock_mysql, const std::string &my_ip) {
   ::testing::InSequence s;
-  EXPECT_CALL(mock_mysql, execute("START TRANSACTION"));
   EXPECT_CALL(mock_mysql, execute("DROP USER IF EXISTS cluster_user@'"+my_ip+"'"));
   EXPECT_CALL(mock_mysql, execute("CREATE USER cluster_user@'"+my_ip+"' IDENTIFIED BY 'secret'"));
   EXPECT_CALL(mock_mysql, execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'"+my_ip+"'"));
   EXPECT_CALL(mock_mysql, execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'"+my_ip+"'"));
-  EXPECT_CALL(mock_mysql, execute("COMMIT"));
 }
 
 TEST_F(ConfigGeneratorTest, create_config_single_master) {
   std::stringstream output;
   MockMySQLSession mock_mysql;
 
+  std::map<std::string, std::string> user_options;
+
   ConfigGenerator config_gen;
   config_gen.init(&mock_mysql);
+  ConfigGenerator::Options options = config_gen.fill_options(false, user_options);
 
-  expect_create_account(mock_mysql, my_ip);
   config_gen.create_config(output,
-                      "somepath",
+                      123, "myrouter",
                       "server1,server2,server3",
                       "mycluster",
                       "myreplicaset",
                       "cluster_user",
                       "secret",
-                      ConfigGenerator::None);
+                      options);
   ASSERT_THAT(output.str(),
-    Eq("[DEFAULT]\n"
-        "# logging_folder=somepath\n"
+    Eq("# File automatically generated during MySQL Router bootstrap\n"
+        "[DEFAULT]\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
         "\n"
         "[metadata_cache]\n"
+        "router_id=123\n"
+        "router_tag=myrouter\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "password=secret\n"
@@ -300,7 +304,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[routing:myreplicaset_ro]\n"
         "bind_port=6447\n"
         "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
-        "mode=read-only\n"));
+        "mode=read-only\n\n"));
 }
 
 
@@ -308,26 +312,31 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   std::stringstream output;
   MockMySQLSession mock_mysql;
 
+  std::map<std::string, std::string> user_options;
+
   ConfigGenerator config_gen;
   config_gen.init(&mock_mysql);
+  ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
 
   expect_create_account(mock_mysql, my_ip);
   config_gen.create_config(output,
-                      "somepath",
+                      123, "myrouter",
                       "server1,server2,server3",
                       "mycluster",
                       "myreplicaset",
                       "cluster_user",
                       "secret",
-                      ConfigGenerator::MultiMaster);
+                      options);
   ASSERT_THAT(output.str(),
-    Eq("[DEFAULT]\n"
-        "# logging_folder=somepath\n"
+    Eq("# File automatically generated during MySQL Router bootstrap\n"
+        "[DEFAULT]\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
         "\n"
         "[metadata_cache]\n"
+        "router_id=123\n"
+        "router_tag=myrouter\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "password=secret\n"
@@ -341,4 +350,3 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
         "mode=read-write\n"
         "\n"));
 }
-#endif
