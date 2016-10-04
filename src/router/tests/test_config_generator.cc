@@ -58,8 +58,8 @@ public:
 
   MOCK_METHOD1(execute, void(const std::string &query));
 
-  virtual void query(const std::string &query, const RowProcessor &proc) {
-    (void)query;
+  virtual void query(const std::string &q, const RowProcessor &proc) {
+    (void)q;
     for (auto row : query_rows_)
       proc(row);
     query_rows_.clear();
