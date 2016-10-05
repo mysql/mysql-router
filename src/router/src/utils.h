@@ -68,6 +68,8 @@ std::vector<std::string> wrap_string(const std::string &str, size_t width, size_
 
 bool my_check_access(const std::string& path);
 
+int mkdir(const std::string& dir, int mode);
+
 } // namespace mysqlrouter
 
 #endif // ROUTER_UTILS_INCLUDED

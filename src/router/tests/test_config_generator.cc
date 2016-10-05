@@ -16,11 +16,11 @@
 */
 
 #include "router_test_helpers.h"
+#include "mysqlrouter/utils.h"
 
 #include <cstring>
 #include <sstream>
 #include <streambuf>
-#include <unistd.h>
 
 #ifdef _WIN32
 #include <Winsock2.h>
@@ -80,10 +80,18 @@ protected:
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) < 0) {
       char buf[100];
+#ifndef _WIN32
       strerror_r(errno, buf, sizeof(buf));
+#else
+      strerror_s(buf, sizeof(buf), errno);
+#endif
       throw std::runtime_error(std::string("Unable to get hostname: ") + buf);
     }
+#ifndef _WIN32
     struct hostent *hp = gethostbyname2(hostname, AF_INET);
+#else
+    struct hostent *hp = gethostbyname(hostname);
+#endif
     if (!hp) {
       throw std::runtime_error("Unable to get local IP address");
     }
@@ -349,4 +357,10 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
         "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "\n"));
+}
+
+int main(int argc, char *argv[]) {
+  init_windows_sockets();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

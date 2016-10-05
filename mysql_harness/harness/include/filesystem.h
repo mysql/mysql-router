@@ -288,7 +288,7 @@ class HARNESS_EXPORT Directory : public Path {
    *
    * A directory iterator is an input iterator.
    */
-  class DirectoryIterator
+  class HARNESS_EXPORT DirectoryIterator
       : public std::iterator<std::input_iterator_tag, Path> {
     friend class Directory;
 

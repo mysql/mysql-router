@@ -20,6 +20,10 @@
 #include "utils_sqlstring.h"
 #include <string.h>
 
+#ifdef _WIN32
+#  define strcasecmp _stricmp
+#endif
+
 // updated as of 5.7
 static const char *reserved_keywords[] = {
   "ACCESSIBLE",

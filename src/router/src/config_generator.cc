@@ -23,6 +23,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "utils_sqlstring.h"
 #include "rapidjson/rapidjson.h"
+#include "utils.h"
 // #include "logger.h"
 
 #include <iostream>
@@ -31,6 +32,12 @@
 #include <random>
 #ifdef _WIN32
 #include <Winsock2.h>
+#include <string.h>
+#include <io.h>
+#define strtok_r strtok_s
+#define strcasecmp _stricmp
+static const char kDirSep = '\\';
+static const std::string kPathSep = ";";
 #else
 #include <termios.h>
 #include <netdb.h>
@@ -41,6 +48,8 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #endif
+static const char kDirSep = '/';
+const std::string kPathSep = ":";
 #endif
 #include <cstring>
 
@@ -85,7 +94,11 @@ static std::string get_my_hostname() {
   char hostname[1024];
   if (gethostname(hostname, sizeof(hostname)) < 0) {
     char msg[1024];
+#ifdef __APPLE___ 
     (void)strerror_r(errno, msg, sizeof(msg));
+#else
+    (void)strerror_s(msg, sizeof(msg), errno);
+#endif
     // log_error("Could not get hostname: %s", msg);
     throw std::runtime_error("Could not get local hostname");
   }
@@ -357,7 +370,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       throw std::runtime_error("Directory already exits");
     }
   } else {
-    if (mkdir(directory.c_str(), 0700) < 0) {
+    if (mysqlrouter::mkdir(directory.c_str(), 0700) < 0) {
       std::cerr << "Cannot create directory " << directory << ": " << mysql_harness::get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
@@ -383,11 +396,11 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     options["logdir"] = path.join("log").str();
   if (user_options.find("rundir") == user_options.end())
     options["rundir"] = path.join("run").str();
-  if (mkdir(options["logdir"].c_str(), 0700) < 0 && errno != EEXIST) {
+  if(mysqlrouter::mkdir(options["logdir"].c_str(), 0700) < 0 && errno != EEXIST) {  
     std::cerr << "Cannot create directory " << options["logdir"] << ": " << get_strerror(errno) << "\n";
     throw std::runtime_error("Could not create deployment directory");
   }
-  if (mkdir(options["rundir"].c_str(), 0700) < 0 && errno != EEXIST) {
+  if (mysqlrouter::mkdir(options["rundir"].c_str(), 0700) < 0 && errno != EEXIST) {  
     std::cerr << "Cannot create directory " << options["rundir"] << ": " << get_strerror(errno) << "\n";
     throw std::runtime_error("Could not create deployment directory");
   }
@@ -598,23 +611,24 @@ void ConfigGenerator::fetch_bootstrap_servers(
 std::string g_program_name;
 
 static std::string find_executable_path() {
-  if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.c_str(), NULL);
+  if (g_program_name.find(kDirSep) != std::string::npos) {
+    mysql_harness::Path path1(g_program_name.substr(0, g_program_name.rfind(kDirSep)).c_str());
+    mysql_harness::Path path2(path1.real_path());
+    const char *tmp = path2.c_str();
     std::string path(tmp);
-    free(tmp);
     return path;
   } else {
     std::string path(std::getenv("PATH"));
     char *last = NULL;
-    char *p = strtok_r(&path[0], ":", &last);
+    char *p = strtok_r(&path[0], kPathSep.c_str(), &last);
     while (p) {
-      if (*p && p[strlen(p)-1] == '/')
+      if (*p && p[strlen(p)-1] == kDirSep)
         p[strlen(p)-1] = 0;
-      std::string tmp(std::string(p)+"/"+g_program_name);
-      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
+      std::string tmp(std::string(p)+kDirSep+g_program_name);
+      if (mysqlrouter::my_check_access(tmp)) {
         return path;
       }
-      p = strtok_r(NULL, ":", &last);
+      p = strtok_r(NULL, kPathSep.c_str(), &last);
     }
     throw std::logic_error("Could not find own installation directory");
   }

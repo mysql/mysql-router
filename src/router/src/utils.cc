@@ -29,12 +29,15 @@
 #include <string.h>
 
 #ifndef _WIN32
-# include <fcntl.h> 
-# include <termios.h>
-# include <unistd.h>
+#include <fcntl.h> 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
 #else
-# include <windows.h>
-# include <io.h>
+#include <windows.h>
+#include <direct.h>
+#include <io.h>
 #endif
 
 using std::string;
@@ -89,6 +92,15 @@ bool my_check_access(const std::string& path)
   return (access(path.c_str(), R_OK | X_OK) == 0);
 #else
   return (_access(path.c_str(), 0x04) == 0);
+#endif
+}
+
+int mkdir(const std::string& dir, int mode)
+{
+#ifndef _WIN32
+  return ::mkdir(dir.c_str(), mode);
+#else
+  return _mkdir(dir.c_str());
 #endif
 }
 
