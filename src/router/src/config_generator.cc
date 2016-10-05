@@ -90,7 +90,7 @@ static std::string get_string(const char *input_str) {
 
 
 static std::string get_my_hostname() {
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
   char hostname[1024];
   if (gethostname(hostname, sizeof(hostname)) < 0) {
     char msg[1024];
@@ -126,7 +126,8 @@ static std::string get_my_hostname() {
         continue;
     }
     addrlen = static_cast<socklen_t>((family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
-    ret = getnameinfo(ifap->ifa_addr, addrlen, buf, sizeof(buf), NULL, 0, NI_NAMEREQD);
+    ret = getnameinfo(ifap->ifa_addr, addrlen, buf,
+        static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
   }
   if (ret != EAI_NONAME && ret != 0)
     throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret)));
