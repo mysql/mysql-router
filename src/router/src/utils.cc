@@ -29,7 +29,7 @@
 #include <string.h>
 
 #ifndef _WIN32
-#include <fcntl.h> 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <termios.h>
@@ -98,7 +98,7 @@ bool my_check_access(const std::string& path)
 int mkdir(const std::string& dir, int mode)
 {
 #ifndef _WIN32
-  return ::mkdir(dir.c_str(), mode);
+  return ::mkdir(dir.c_str(), static_cast<mode_t>(mode));
 #else
   return _mkdir(dir.c_str());
 #endif
@@ -393,7 +393,7 @@ bool is_running_as_service() {
   HWINSTA h = GetProcessWindowStation();
   if (h != NULL) {
     USEROBJECTFLAGS uof = { 0 };
-    if (GetUserObjectInformation(h, UOI_FLAGS, &uof, sizeof(USEROBJECTFLAGS), NULL) 
+    if (GetUserObjectInformation(h, UOI_FLAGS, &uof, sizeof(USEROBJECTFLAGS), NULL)
       && !(uof.dwFlags & WSF_VISIBLE)) {
       result = true;
     }

@@ -60,6 +60,7 @@ private:
 
     std::string override_logdir;
     std::string override_rundir;
+    std::string socketsdir;
 
     bool multi_master;
   };
@@ -90,9 +91,12 @@ private:
 
   void create_account(const std::string &username, const std::string &password);
 
-  uint32_t get_router_id_from_config_file(const std::string &config_file_path);
+  uint32_t get_router_id_from_config_file(const std::string &config_file_path,
+                                          const std::string &name="");
 
   void update_router_info(uint32_t router_id, const Options &options);
+
+  std::string endpoint_option(const Options &options, const Options::Endpoint &ep);
 private:
   mysqlrouter::MySQLSession *mysql_;
   bool mysql_owned_;
@@ -104,6 +108,8 @@ private:
   FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
   FRIEND_TEST(ConfigGeneratorTest, create_config_single_master);
   FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
+  FRIEND_TEST(ConfigGeneratorTest, create_acount);
+  FRIEND_TEST(ConfigGeneratorTest, fill_options);
 #endif
 };
 

@@ -336,7 +336,6 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Whether to use Unix domain sockets instead of TCP. Requires --bootstrap",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
-        throw std::runtime_error("--conf-use-sockets is currently not supported");
         this->bootstrap_options_["use-sockets"] = "1";
         if (this->bootstrap_uri_.empty()) {
           throw std::runtime_error("Option --conf-use-sockets can only be used together with -B/--bootstrap");

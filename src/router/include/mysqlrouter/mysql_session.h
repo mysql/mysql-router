@@ -89,7 +89,7 @@ public:
 
   virtual void execute(const std::string &query);
   virtual void query(const std::string &query, const RowProcessor &processor);
-  ResultRow *query_one(const std::string &query);
+  virtual ResultRow *query_one(const std::string &query);
 
   uint64_t last_insert_id();
 
