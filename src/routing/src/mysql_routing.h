@@ -26,6 +26,7 @@
  *
  */
 
+#include "protocol/base_protocol.h"
 #include "config.h"
 #include "destination.h"
 #include "filesystem.h"
@@ -108,6 +109,7 @@ public:
   /** @brief Default constructor
    *
    * @param port TCP port for listening for incoming connections
+   * @param protocol_name name of the protocol for the routing
    * @param optional bind_address bind_address Bind to particular IP address
    * @param optional named_socket Bind to Unix socket/Windows named pipe
    * @param optional route Name of connection routing (can be empty string)
@@ -118,6 +120,7 @@ public:
    * @param optional socket_operations object handling the operations on network sockets
    */
   MySQLRouting(routing::AccessMode mode, uint16_t port,
+               const std::string &protocol_name,
                const string &bind_address = string{"0.0.0.0"},
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
                const string &route_name = string{},
@@ -239,33 +242,6 @@ public:
     return max_connections_;
   }
 
-  /** @brief Reads from sender and writes it back to receiver using select
-   *
-   * This function reads data from the sender socket and writes it back
-   * to the receiver socket. It uses `select`.
-   *
-   * Checking the handshaking is done when the client first connects and
-   * the server sends its handshake. The client replies and the server
-   * should reply with an OK (or Error) packet. This packet should be
-   * packet number 2. For secure connections, however, the client asks
-   * to switch to SSL and we can't check further packages (we can't
-   * decrypt). When SSL switch is detected, this function will set pktnr
-   * to 2, so we assume the handshaking was OK.
-   *
-   * @param sender Descriptor of the sender
-   * @param receiver Descriptor of the receiver
-   * @param readfds Read descriptors used with FD_ISSET
-   * @param buffer Buffer to use for storage
-   * @param curr_pktnr Pointer to storage for sequence id of packet
-   * @param handshake_done Whether handshake phase is finished or not
-   * @param report_bytes_read Pointer to storage to report bytes read
-   * @return 0 on success; -1 on error
-   */
-  static int copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
-                                         mysql_protocol::Packet::vector_t &buffer, int *curr_pktnr,
-                                         bool handshake_done, size_t *report_bytes_read,
-                                         routing::SocketOperationsBase *socket_operations);
-
 private:
   /** @brief Sets up the TCP service
    *
@@ -354,6 +330,8 @@ private:
   std::thread thread_named_socket_;
   /** @brief object handling the operations on network sockets */
   routing::SocketOperationsBase* socket_operations_;
+  /** @brief object to handle protocol specific stuff */
+  std::unique_ptr<BaseProtocol> protocol_;
 };
 
 extern "C"

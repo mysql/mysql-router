@@ -20,6 +20,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/metadata_cache.h"
+#include "protocol/protocol.h"
 
 #include <algorithm>
 #include <exception>
@@ -41,7 +42,8 @@ using mysqlrouter::to_string;
  */
 RoutingPluginConfig::RoutingPluginConfig(const mysql_harness::ConfigSection *section)
     : BasePluginConfig(section),
-      destinations(get_option_destinations(section, "destinations")),
+      protocol_name(get_protocol_name(section, "protocol")),
+      destinations(get_option_destinations(section, "destinations", protocol_name)),
       bind_port(get_option_tcp_port(section, "bind_port")),
       bind_address(get_option_tcp_address(section, "bind_address", false, bind_port)),
       named_socket(get_option_named_socket(section, "socket")),
@@ -108,8 +110,27 @@ routing::AccessMode RoutingPluginConfig::get_option_mode(
   return result;
 }
 
+std::string RoutingPluginConfig::get_protocol_name(const mysql_harness::ConfigSection *section,
+                                                   const std::string &option) {
+  string result;
+  try {
+    result = section->get(option);
+  } catch (const mysql_harness::bad_option&) {
+    result = Protocol::DEFAULT;
+  }
+
+  std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+  auto supported_protocols = Protocol::get_supported_protocols();
+  if (supported_protocols.find(result) == supported_protocols.end()) {
+    throw invalid_argument("invalid protocol '" + result + "'");
+  }
+
+  return result;
+}
+
 string RoutingPluginConfig::get_option_destinations(
-    const mysql_harness::ConfigSection *section, const string &option) {
+        const mysql_harness::ConfigSection *section, const string &option,
+        const string &protocol) {
   bool required = is_required(option);
   string value;
 
@@ -163,7 +184,7 @@ string RoutingPluginConfig::get_option_destinations(
       }
       info = mysqlrouter::split_addr_port(part);
       if (info.second == 0) {
-        info.second = 3306;
+       info.second = Protocol::get_default_port(protocol);
       }
       mysqlrouter::TCPAddress addr(info.first, info.second);
       if (!addr.is_valid()) {

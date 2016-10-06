@@ -50,9 +50,10 @@ public:
   using AddrVector = std::vector<mysqlrouter::TCPAddress>;
 
   /** @brief Default constructor */
-  RouteDestination(routing::SocketOperationsBase *sock_ops =
-                   routing::SocketOperations::instance()) // default = "real" (not mock) implementation
-      : current_pos_(0), stopping_(false), socket_operations_(sock_ops) {};
+  RouteDestination(std::string protocol = "",
+                   routing::SocketOperationsBase *sock_ops =
+                     routing::SocketOperations::instance()) // default = "real" (not mock) implementation
+      : current_pos_(0), stopping_(false), socket_operations_(sock_ops), protocol_(protocol) {};
 
   /** @brief Destructor */
   ~RouteDestination();
@@ -256,6 +257,9 @@ protected:
 
   /** @brief socket operation methods (facilitates dependency injection)*/
   routing::SocketOperationsBase *socket_operations_;
+
+  /** @brief Name of the protocol for the destination */
+  std::string protocol_;
 };
 
 

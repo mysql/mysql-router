@@ -18,6 +18,8 @@ set(CURR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB MODULE_DIRS
    RELATIVE ${CURR_DIR}
    ${CURR_DIR}/*)
+   
+list(SORT MODULE_DIRS)
 
 # Load all modules
 foreach(module_name ${MODULE_DIRS})

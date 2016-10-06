@@ -178,6 +178,7 @@ static void start(const ConfigSection *section) {
     RoutingPluginConfig config(section);
     config.section_name = name;
     MySQLRouting r(config.mode,                config.bind_address.port,
+                   config.protocol_name,
                    config.bind_address.addr,   config.named_socket,
                    name,                       config.max_connections,
                    config.connect_timeout,     config.max_connect_errors,

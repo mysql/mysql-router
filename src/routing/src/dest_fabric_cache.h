@@ -40,7 +40,7 @@ public:
 DestFabricCacheGroup(const std::string fabric_cache, const std::string group, routing::AccessMode mode, URIQuery query,
                      // default sock_ops = "real" (not mock) implementation
                      routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance())
-    : RouteDestination(sock_ops),
+    : RouteDestination("",sock_ops),
       cache_name(fabric_cache),
       ha_group(group),
       routing_mode(mode),

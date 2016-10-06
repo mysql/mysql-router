@@ -45,7 +45,9 @@ using metadata_cache::ManagedInstance;
 
 DestMetadataCacheGroup::DestMetadataCacheGroup(
   const std::string &metadata_cache, const std::string &replicaset,
-  const std::string &mode, const mysqlrouter::URIQuery &query) :
+  const std::string &mode, const mysqlrouter::URIQuery &query,
+  const std::string &protocol) :
+    RouteDestination(protocol),
     cache_name(metadata_cache),
     ha_replicaset(replicaset),
     uri_query(query),
@@ -67,18 +69,17 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::
     if (!(it.role == "HA")) {
       continue;
     }
+    auto port = (protocol_ == "x") ? static_cast<uint16_t>(it.xport) : static_cast<uint16_t>(it.port);
     if (routing_mode == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
       // Secondary read-only
-      available.push_back(mysqlrouter::TCPAddress(
-                          it.host, static_cast<uint16_t >(it.port)));
+      available.push_back(mysqlrouter::TCPAddress(it.host, port));
       if (server_ids)
         server_ids->push_back(it.mysql_server_uuid);
     } else if ((routing_mode == RoutingMode::ReadWrite &&
                 it.mode == metadata_cache::ServerMode::ReadWrite) ||
                allow_primary_reads_) {
       // Primary and secondary read-write/write-only
-      available.push_back(mysqlrouter::TCPAddress(
-                          it.host, static_cast<uint16_t >(it.port)));
+      available.push_back(mysqlrouter::TCPAddress(it.host, it.port));
       if (server_ids)
         server_ids->push_back(it.mysql_server_uuid);
     }

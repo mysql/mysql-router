@@ -26,11 +26,11 @@
 #include "mysql_routing.h"
 #include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "plugin_config.h"
+#include "protocol/protocol.h"
 
 #include <algorithm>
 #include <array>
@@ -74,11 +74,12 @@ using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 using mysqlrouter::TCPAddress;
-using routing::SocketOperationsBase;
 
 static const char *kDefaultReplicaSetName = "default";
 
-MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string &bind_address,
+MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
+                           const string &protocol_name,
+                           const string &bind_address,
                            const mysql_harness::Path& named_socket,
                            const string &route_name,
                            int max_connections,
@@ -99,7 +100,8 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string
       stopping_(false),
       info_active_routes_(0),
       info_handled_routes_(0),
-      socket_operations_(socket_operations) {
+      socket_operations_(socket_operations),
+      protocol_(Protocol::create_protocol(protocol_name, socket_operations)) {
 
   assert(socket_operations_ != nullptr);
 
@@ -120,132 +122,23 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port, const string
   }
 }
 
-/** @brief Reads from sender and writes it back to receiver using select
- *
- * This function reads data from the sender socket and writes it back
- * to the receiver socket. It use `select`.
- *
- * Checking the handshaking is done when the client first connects and
- * the server sends its handshake. The client replies and the server
- * should reply with an OK (or Error) packet. This packet should be
- * packet number 2. For secure connections, however, the client asks
- * to switch to SSL and we can not check further packages (we can not
- * decrypt). When SSL switch is detected, this function will set pktnr
- * to 2, so we assume the handshaking was OK.
- *
- * @param sender Descriptor of the sender
- * @param receiver Descriptor of the receiver
- * @param readfds Read descriptors used with FD_ISSET
- * @param buffer Buffer to use for storage
- * @param curr_pktnr Pointer to storage for sequence id of packet
- * @param handshake_done Whether handshake phase is finished or not
- * @param report_bytes_read Pointer to storage to report bytes read
- * @return 0 on success; -1 on error
- */
-
-int MySQLRouting::copy_mysql_protocol_packets(int sender, int receiver, fd_set *readfds,
-                                mysql_protocol::Packet::vector_t &buffer, int *curr_pktnr,
-                                bool handshake_done, size_t *report_bytes_read,
-                                SocketOperationsBase *socket_operations) {
-  assert(curr_pktnr);
-  assert(report_bytes_read);
-  ssize_t res = 0;
-  int pktnr = 0;
-  auto buffer_length = buffer.size();
-
-  size_t bytes_read = 0;
-
-  errno = 0;
-#ifdef _WIN32
-  WSASetLastError(0);
-#endif
-  if (FD_ISSET(sender, readfds)) {
-    if ((res = socket_operations->read(sender, &buffer.front(), buffer_length)) <= 0) {
-      if (res == -1) {
-        log_debug("sender read failed: (%d %s)", errno, get_message_error(errno).c_str());
-      }
-      return -1;
-    }
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
-    bytes_read += static_cast<size_t>(res);
-    if (!handshake_done) {
-      // Check packet integrity when handshaking. When packet number is 2, then we assume
-      // handshaking is satisfied. For secure connections, we stop when client asks to
-      // switch to SSL.
-      // The caller should set handshake_done to true when packet number is 2.
-      if (bytes_read < mysql_protocol::Packet::kHeaderSize) {
-        // We need packet which is at least 4 bytes
-        return -1;
-      }
-      pktnr = buffer[3];
-      if (*curr_pktnr > 0 && pktnr != *curr_pktnr + 1) {
-        log_debug("Received incorrect packet number; aborting (was %d)", pktnr);
-        return -1;
-      }
-
-      if (buffer[4] == 0xff) {
-        // We got error from MySQL Server while handshaking
-        // We do not consider this a failed handshake
-        auto server_error = mysql_protocol::ErrorPacket(buffer);
-        if (socket_operations->write_all(receiver, server_error.data(), server_error.size()) ) {
-          log_debug("Write error: %s", get_message_error(errno).c_str());
-        }
-        // receiver socket closed by caller
-        *curr_pktnr = 2; // we assume handshaking is done though there was an error
-        *report_bytes_read = bytes_read;
-        return 0;
-      }
-
-      // We are dealing with the handshake response from client
-      if (pktnr == 1) {
-        // if client is switching to SSL, we are not continuing any checks
-        uint32_t capabilities = 0;
-        try {
-          auto pkt = mysql_protocol::Packet(buffer);
-          capabilities = pkt.get_int<uint32_t>(4);
-        } catch (const mysql_protocol::packet_error &exc) {
-          log_debug(exc.what());
-          return -1;
-        }
-        if (capabilities & mysql_protocol::kClientSSL) {
-          pktnr = 2;  // Setting to 2, we tell the caller that handshaking is done
-        }
-      }
-    }
-
-    if (socket_operations->write_all(receiver, &buffer[0], bytes_read) < 0) {
-      log_debug("Write error: %s", get_message_error(errno).c_str());
-      return -1;
-    }
-  }
-
-  *curr_pktnr = pktnr;
-  *report_bytes_read = bytes_read;
-
-  return 0;
-}
-
 bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                                      const string &client_ip_str, int server) {
   bool blocked = false;
-  std::lock_guard<std::mutex> lock(mutex_auth_errors_);
+  {
+    std::lock_guard<std::mutex> lock(mutex_auth_errors_);
 
-  if (++auth_error_counters_[client_ip_array] >= max_connect_errors_) {
-    log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
-    blocked = true;
-  } else {
-    log_info("[%s] %d authentication errors for %s (max %u)",
-             name.c_str(), auth_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
+    if (++auth_error_counters_[client_ip_array] >= max_connect_errors_) {
+      log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
+      blocked = true;
+    } else {
+      log_info("[%s] %d authentication errors for %s (max %u)",
+               name.c_str(), auth_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
+    }
   }
 
   if (server >= 0) {
-    auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
-    if (socket_operations_->write_all(server, fake_response.data(), fake_response.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
-    }
+    protocol_->on_block_client_host(server, name);
   }
 
   return blocked;
@@ -259,7 +152,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   size_t bytes_up = 0;
   size_t bytes_read = 0;
   string extra_msg = "";
-  mysql_protocol::Packet::vector_t buffer(net_buffer_length_);
+  RoutingProtocolBuffer buffer(net_buffer_length_);
   bool handshake_done = false;
 
   int server = destination_->get_server_socket(destination_connect_timeout_, &error);
@@ -269,15 +162,8 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     os << "Can't connect to remote MySQL server on '" << bind_address_.addr << ":" << bind_address_.port << "'";
     log_warning("[%s] %s", name.c_str(), os.str().c_str());
 
-    auto server_error = mysql_protocol::ErrorPacket(0, 2003, os.str(), "HY000");
     // at this point, it does not matter whether client gets the error
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
-    if (socket_operations_->write_all(client, server_error.data(), server_error.size()) < 0) {
-      log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
-    }
+    protocol_->send_error(client, 2003, os.str(), "HY000", name);
 
     socket_operations_->shutdown(client);
     socket_operations_->shutdown(server);
@@ -345,16 +231,11 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
       break;
     }
 
-    if (!handshake_done && pktnr == 2) {
-      handshake_done = true;
-    }
-
     // Handle traffic from Server to Client
     // Note: Server _always_ talks first
-    if (copy_mysql_protocol_packets(server, client,
-                                    &readfds, buffer, &pktnr,
-                                    handshake_done, &bytes_read,
-                                    socket_operations_) == -1) {
+    if (protocol_->copy_packets(server, client,
+                                &readfds, buffer, &pktnr,
+                                handshake_done, &bytes_read, true) == -1) {
 #ifndef _WIN32
       if (errno > 0) {
 #else
@@ -366,15 +247,10 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     }
     bytes_up += bytes_read;
 
-    if (!handshake_done && pktnr == 2) {
-      handshake_done = true;
-    }
-
     // Handle traffic from Client to Server
-    if (copy_mysql_protocol_packets(client, server,
-                                    &readfds, buffer, &pktnr,
-                                    handshake_done, &bytes_read,
-                                    socket_operations_) == -1) {
+    if (protocol_->copy_packets(client, server,
+                                &readfds, buffer, &pktnr,
+                                handshake_done, &bytes_read, false) == -1) {
       break;
     }
     bytes_down += bytes_read;
@@ -451,9 +327,6 @@ void MySQLRouting::start_tcp_service() {
 
   destination_->start();
 
-  auto error_1041 = mysql_protocol::ErrorPacket(
-      0, 1041, "Out of resources (please check logs)", "HY000");
-
   while (!stopping()) {
     if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
       log_error("[%s] Failed opening socket: %s", name.c_str(), get_message_error(errno).c_str());
@@ -468,22 +341,14 @@ void MySQLRouting::start_tcp_service() {
 
     if (auth_error_counters_[in6_addr_to_array(client_addr.sin6_addr)] >= max_connect_errors_) {
       std::stringstream os;
-      os << std::string("Too many connection errors from ") << get_peer_name(sock_client).first;
-      auto server_error = mysql_protocol::ErrorPacket(0, 1129, os.str(), "HY000");
-      errno = 0;
-      if (socket_operations_->write_all(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
-      }
+      protocol_->send_error(sock_client, 1129, os.str(), "HY000", name);
       log_debug("%s", os.str().c_str());
       socket_operations_->close(sock_client); // no shutdown() before close()
       continue;
     }
 
     if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
-      auto server_error = mysql_protocol::ErrorPacket(0, 1040, "Too many connections", "HY000");
-      if (socket_operations_->write_all(sock_client, server_error.data(), server_error.size()) < 0) {
-        log_debug("[%s] write error: %s", name.c_str(), get_message_error(errno).c_str());
-      }
+      protocol_->send_error(sock_client, 1040, "Too many connections", "HY000", name);
       socket_operations_->close(sock_client); // no shutdown() before close()
       log_warning("[%s] reached max active connections (%d)", name.c_str(), max_connections_);
       continue;
@@ -646,7 +511,7 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
 
     destination_.reset(new DestMetadataCacheGroup(uri.host, replicaset_name,
                                                   get_access_mode_name(mode_),
-                                                  uri.query));
+                                                  uri.query, protocol_->get_name()));
   } else {
     throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s",
                                       uri.scheme.c_str()));

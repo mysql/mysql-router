@@ -43,7 +43,7 @@ FUNCTION(MYSQLX_PROTOBUF_GENERATE_CPP SRCS HDRS)
       COMMAND ${CMAKE_COMMAND}
             -E make_directory "${CMAKE_BINARY_DIR}/generated/protobuf"
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
-      ARGS --cpp_out "${CMAKE_BINARY_DIR}/generated/protobuf"
+      ARGS --cpp_out=dllexport_decl=X_PROTOCOL_API:${CMAKE_BINARY_DIR}/generated/protobuf
            -I "${CMAKE_SOURCE_DIR}/src/x_protocol/proto" ${ABS_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE}
       COMMENT "Running C++ protocol buffer compiler on ${FIL}"

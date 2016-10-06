@@ -38,7 +38,8 @@ public:
    DestMetadataCacheGroup(const std::string &metadata_cache,
                           const std::string &replicaset,
                           const std::string &mode,
-                          const mysqlrouter::URIQuery &query);
+                          const mysqlrouter::URIQuery &query,
+                          const std::string &protocol);
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;

@@ -36,8 +36,8 @@ int real_main(int argc, char **argv) {
       std::cerr << "Configuration error: " << exc.what() << std::endl;
       result = 1;
     } catch (const std::runtime_error &exc) {
-	  std::cerr << "Error: " << exc.what() << std::endl;
-	  result = 1;
+      std::cerr << "Error: " << exc.what() << std::endl;
+      result = 1;
     } catch (const silent_exception&) {}
   } catch(const std::invalid_argument &exc) {
     std::cerr << "Configuration error: " << exc.what() << std::endl;

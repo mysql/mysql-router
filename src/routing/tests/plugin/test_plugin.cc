@@ -20,6 +20,7 @@
 #include <chrono>
 #include <cstdio>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <thread>
 #ifndef _WIN32
@@ -79,6 +80,7 @@ protected:
     connect_timeout = "1";
     client_connect_timeout = "9";
     max_connect_errors = "100";
+    protocol = "classic";
   }
 
   bool in_missing(std::vector<std::string> missing, std::string needle) {
@@ -94,26 +96,22 @@ protected:
       ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
       ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
       ofs_config << "[routing:tests]\n";
-      if (!in_missing(missing, "bind_address")) {
-        ofs_config << "bind_address = " << bind_address << "\n";
-      }
-      if (!in_missing(missing, "socket")) {
-        ofs_config << "socket = " << socket << "\n";
-      }
-      if (!in_missing(missing, "destinations")) {
-        ofs_config << "destinations = " << destinations << "\n";
-      }
-      if (!in_missing(missing, "mode")) {
-        ofs_config << "mode = " << mode << "\n";
-      }
-      if (!in_missing(missing, "connect_timeout")) {
-        ofs_config << "connect_timeout = " << connect_timeout << "\n";
-      }
-      if (!in_missing(missing, "client_connect_timeout")) {
-        ofs_config << "client_connect_timeout = " << client_connect_timeout << "\n";
-      }
-      if (!in_missing(missing, "max_connect_errors")) {
-        ofs_config << "max_connect_errors = " << max_connect_errors << "\n";
+
+      using ConfigOption = std::pair<std::string, std::string&>;
+      std::vector<ConfigOption> routing_config_options{
+        {"bind_address",            std::ref(bind_address)},
+        {"socket",                  std::ref(socket)},
+        {"destinations",            std::ref(destinations)},
+        {"mode",                    std::ref(mode)},
+        {"connect_timeout",         std::ref(connect_timeout)},
+        {"client_connect_timeout",  std::ref(client_connect_timeout)},
+        {"max_connect_errors",      std::ref(max_connect_errors)},
+        {"protocol",                std::ref(protocol)}
+      };
+      for (auto& option: routing_config_options) {
+        if (!in_missing(missing, option.first)) {
+          ofs_config << option.first  << " = " << option.second << "\n";
+        }
       }
 
       // Following is an incorrect [routing] entry. If the above is valid, this
@@ -150,6 +148,7 @@ protected:
   string connect_timeout;
   string client_connect_timeout;
   string max_connect_errors;
+  string protocol;
 
   std::unique_ptr<Path> config_path;
   std::string cmd;
@@ -415,6 +414,22 @@ TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
   ASSERT_THAT(cmd_result.output,
               HasSubstr(
                   "option connect_timeout in [routing:tests] needs value between 1 and 65535 inclusive, was '0'"));
+}
+
+TEST_F(RoutingPluginTests, EmptyProtocolName) {
+  protocol = "";
+  reset_config();
+  auto cmd_result = cmd_exec(cmd, true);
+  ASSERT_THAT(cmd_result.output,
+              HasSubstr("Configuration error: invalid protocol ''"));
+}
+
+TEST_F(RoutingPluginTests, InvalidProtocolName) {
+  protocol = "invalid";
+  reset_config();
+  auto cmd_result = cmd_exec(cmd, true);
+  ASSERT_THAT(cmd_result.output,
+              HasSubstr("Configuration error: invalid protocol 'invalid'"));
 }
 
 int main(int argc, char *argv[]) {
