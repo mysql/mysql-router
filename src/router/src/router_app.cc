@@ -45,6 +45,7 @@
 const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
+#  include <windows.h>
 #  include <process.h>
 #  define getpid _getpid
 #  include "mysqlrouter/windows/password_vault.h"
@@ -65,12 +66,19 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-static std::string find_full_path(const std::string &argv0) {
-  if (argv0.find('/') != std::string::npos) {
+static std::string find_full_path(const std::string &argv0) {  
+#ifdef _WIN32
+  // the bin folder is not usually in the path, just the lib folder
+  char szPath[MAX_PATH];
+  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
+    return std::string(szPath);
+#else
+  mysql_harness::Path p_argv0(argv0);
+  // Path normalizes '\' to '/'
+  if (p_argv0.str().find('/') != std::string::npos) {
     // Path is either absolute or relative to the current working dir, so
-    // we can use realpath() to find the full absolute path
-    mysql_harness::Path path1(argv0.c_str());
-    mysql_harness::Path path2(path1.real_path());
+    // we can use realpath() to find the full absolute path    
+    mysql_harness::Path path2(p_argv0.real_path());
     const char *tmp = path2.c_str();
     std::string path(tmp);
     return path;
@@ -89,8 +97,9 @@ static std::string find_full_path(const std::string &argv0) {
       }
       p = strtok_r(NULL, path_sep.c_str(), &last);
     }
-    throw std::logic_error("Could not find own installation directory");
   }
+#endif
+  throw std::logic_error("Could not find own installation directory");
 }
 
 static std::string substitute_variable(const std::string &s,

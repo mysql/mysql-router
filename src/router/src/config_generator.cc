@@ -250,36 +250,6 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
 std::string g_program_name;
 
-static std::string find_my_base_dir() {
-  if (g_program_name.find(dir_sep) != std::string::npos) {    
-    mysql_harness::Path path1(g_program_name.substr(0, g_program_name.rfind(dir_sep)).c_str());
-    mysql_harness::Path path2(path1.real_path());
-    const char *tmp = path2.c_str();
-    std::string path(tmp);
-    if (path.find(dir_sep) != std::string::npos)
-      return path.substr(0, path.rfind(dir_sep));
-    return path;
-  } else {
-    std::string path(std::getenv("PATH"));
-    char *last = NULL;
-    char *p = strtok_r(NULL, path_sep.c_str(), &last);
-    while (p) {
-      if (*p && p[strlen(p)-1] == dir_sep)
-        p[strlen(p)-1] = 0;
-      std::string tmp(std::string(p)+ dir_sep +g_program_name);
-      if (mysqlrouter::my_check_access(tmp)) {
-        path = p;
-        if (path.find(dir_sep) != std::string::npos)
-          return path.substr(0, path.rfind(dir_sep));
-        return path;
-      }
-      p = strtok_r(NULL, path_sep.c_str(), &last);
-    }
-    throw std::logic_error("Could not find own installation directory");
-  }
-}
-
-
 void ConfigGenerator::create_config(
   const std::string &config_file_path,
   const std::string &default_log_path,
@@ -293,7 +263,6 @@ void ConfigGenerator::create_config(
   int rw_port = 6446;
   int ro_port = 6447;
 
-  std::string basedir(find_my_base_dir());
 
   cfp.open(config_file_path);
   if (cfp.fail()) {
