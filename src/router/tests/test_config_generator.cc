@@ -76,6 +76,14 @@ private:
 };
 
 
+class ResultRow : public mysqlrouter::MySQLSession::ResultRow {
+public:
+  ResultRow(const mysqlrouter::MySQLSession::Row &row) {
+    row_ = row;
+  }
+};
+
+
 class ConfigGeneratorTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
@@ -97,6 +105,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     // "F.cluster_name, "
@@ -117,6 +126,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     mock_mysql.feed_query_row({"mycluster", "myreplicaset", "mm", "somehost:3306"});
@@ -133,6 +143,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     mock_mysql.feed_query_row({"mycluster", "myreplicaset", "xxx", "somehost:3306"});
@@ -155,6 +166,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     // "F.cluster_name, "
@@ -186,6 +198,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
@@ -200,6 +213,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
@@ -224,6 +238,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 
   {
     ConfigGenerator config_gen;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     config_gen.init(&mock_mysql);
 
     // no replicasets/clusters defined
@@ -242,6 +257,7 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     MockMySQLSession mock_mysql;
 
     ::testing::InSequence s;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     EXPECT_CALL(mock_mysql, query_one(_));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'")));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'")));
@@ -257,14 +273,8 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     MockMySQLSession mock_mysql;
     std::vector<const char*> result{"::fffffff:123.45.67.8"};
 
-    class ResultRow : public mysqlrouter::MySQLSession::ResultRow {
-    public:
-      ResultRow(const mysqlrouter::MySQLSession::Row &row) {
-        row_ = row;
-      }
-    };
-
     ::testing::InSequence s;
+    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
     EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow(result)));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'123.45.67.8'")));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'123.45.67.8'")));
@@ -284,6 +294,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
+  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(false, user_options);
 
@@ -410,6 +421,7 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
+  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
 
@@ -448,6 +460,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   StrictMock<MockMySQLSession> mock_mysql;
 
   ConfigGenerator config_gen;
+  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
   config_gen.init(&mock_mysql);
 
   ConfigGenerator::Options options;

@@ -271,6 +271,14 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
 
 void ConfigGenerator::init(MySQLSession *session) {
   mysql_ = session;
+
+  // check that the server we're talking to actually looks like a metadata server
+  // 1- it must have the mysql_innodb_cluster_metadata schema
+  auto *result = session->query_one("SHOW SCHEMAS LIKE 'mysql_innodb_cluster_metadata'");
+  if (!result) {
+    throw std::runtime_error("The given server does not seem to contain metadata for a MySQL InnoDB cluster");
+  }
+  delete result;
 }
 
 void ConfigGenerator::init(const std::string &server_url) {
