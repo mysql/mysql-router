@@ -133,7 +133,6 @@ include(CPack)
 include(Plugin)
 include(Arch)
 include(Docs)
-include(Coverage)
 include(Check)
 
 # Check for basic functions
