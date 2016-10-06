@@ -36,8 +36,6 @@
 #include <io.h>
 #define strtok_r strtok_s
 #define strcasecmp _stricmp
-static const char kDirSep = '\\';
-static const std::string kPathSep = ";";
 #else
 #include <termios.h>
 #include <netdb.h>
@@ -48,8 +46,6 @@ static const std::string kPathSep = ";";
 #include <ifaddrs.h>
 #include <net/if.h>
 #endif
-static const char kDirSep = '/';
-const std::string kPathSep = ":";
 #endif
 #include <cstring>
 
@@ -321,7 +317,6 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   } else {
     std::cout << "Bootstrapping system wide MySQL Router instance...\n\n";
   }
-
   auto options(user_options);
 
   if (user_options.find("socketsdir") == user_options.end())
@@ -401,7 +396,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     options["rundir"] = path.join("run").str();
   if (user_options.find("socketsdir") == user_options.end())
     options["socketsdir"] = path.str();
-  if(mysqlrouter::mkdir(options["logdir"].c_str(), 0700) < 0 && errno != EEXIST) {
+  if (mysqlrouter::mkdir(options["logdir"].c_str(), 0700) < 0 && errno != EEXIST) {
     std::cerr << "Cannot create directory " << options["logdir"] << ": " << get_strerror(errno) << "\n";
     throw std::runtime_error("Could not create deployment directory");
   }
@@ -620,26 +615,34 @@ void ConfigGenerator::fetch_bootstrap_servers(
 std::string g_program_name;
 
 static std::string find_executable_path() {
-  if (g_program_name.find(kDirSep) != std::string::npos) {
-    mysql_harness::Path path(g_program_name);
-    return path.real_path().str();
+#ifdef _WIN32
+  // the bin folder is not usually in the path, just the lib folder
+  char szPath[MAX_PATH];
+  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
+    return std::string(szPath);
+#else
+  if (g_program_name.find('/') != std::string::npos) {
+    char *tmp = realpath(g_program_name.c_str(), NULL);
+    std::string path(tmp);
+    free(tmp);
+    return path;
   } else {
     std::string path(std::getenv("PATH"));
     char *last = NULL;
-    char *p = strtok_r(&path[0], kPathSep.c_str(), &last);
+    char *p = strtok_r(&path[0], ":", &last);
     while (p) {
-      if (*p && p[strlen(p)-1] == kDirSep)
+      if (*p && p[strlen(p)-1] == '/')
         p[strlen(p)-1] = 0;
-      std::string tmp(std::string(p)+kDirSep+g_program_name);
-      if (mysqlrouter::my_check_access(tmp)) {
+      std::string tmp(std::string(p)+"/"+g_program_name);
+      if (access(tmp.c_str(), R_OK|X_OK) == 0) {
         return path;
       }
-      p = strtok_r(NULL, kPathSep.c_str(), &last);
+      p = strtok_r(NULL, ":", &last);
     }
     throw std::logic_error("Could not find own installation directory");
   }
+#endif
 }
-
 
 std::string ConfigGenerator::endpoint_option(const Options &options,
                                              const Options::Endpoint &ep) {
@@ -726,7 +729,7 @@ void ConfigGenerator::create_config(
 
   std::cout
     << "MySQL Router " << ((router_name.empty() || router_name == kSystemRouterName) ? "" : "'"+router_name+"'")
-      << " has now been configured for the InnoDB cluster '" << metadata_cluster << "'" << (options.multi_master ? " (multi-master)" : "") << ".\n"
+        << " has now been configured for the InnoDB cluster '" << metadata_cluster << "'" << (options.multi_master ? " (multi-master)" : "") << ".\n"
     << "\n"
     << "The following connection information can be used to connect to the cluster.\n"
     << "\n";
@@ -812,8 +815,9 @@ void ConfigGenerator::create_account(const std::string &username,
   }
 }
 
-uint32_t ConfigGenerator::get_router_id_from_config_file(const std::string &config_file_path,
-                                                         const std::string &name) {
+uint32_t ConfigGenerator::get_router_id_from_config_file(
+    const std::string &config_file_path,
+    const std::string &name) {
   mysql_harness::Path path(config_file_path);
   if (path.exists()) {
     mysql_harness::Config config(mysql_harness::Config::allow_keys);
