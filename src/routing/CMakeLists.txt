@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 set(ROUTING_SOURCE_FILES_X_PROTOCOL
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc  
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
 )
 
 set(ROUTING_SOURCE_FILES
@@ -47,10 +47,20 @@ set(include_dirs
 )
 
 # this file includes protobuf generated header that is causing 'shadow' warning on some compilers
-CHECK_CXX_COMPILER_FLAG("-Wshadow" CXX_HAVE_SHADOW)
+check_cxx_compiler_flag("-Wshadow" CXX_HAVE_SHADOW)
 IF(CXX_HAVE_SHADOW)
-  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc 
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
     COMPILE_FLAGS "-Wno-shadow")
+ENDIF()
+check_cxx_compiler_flag("-Wsign-conversion" CXX_HAVE_SIGN_CONVERSION)
+IF(CXX_HAVE_SIGN_CONVERSION)
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
+    COMPILE_FLAGS "-Wno-sign-conversion")
+ENDIF()
+check_cxx_compiler_flag("-Wunused-parameter" CXX_HAVE_UNUSED_PARAMETER)
+IF(CXX_HAVE_UNUSED_PARAMETER)
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
+    COMPILE_FLAGS "-Wno-unused-parameter")
 ENDIF()
 
 link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)

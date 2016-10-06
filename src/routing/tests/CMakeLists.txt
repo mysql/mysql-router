@@ -29,14 +29,28 @@ check_cxx_compiler_flag("-Wshadow" CXX_HAVE_SHADOW)
 if(CXX_HAVE_SHADOW)
   add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
     "-Wno-shadow")
-  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc COMPILE_FLAGS
-    "-Wno-shadow")
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
+    COMPILE_FLAGS "-Wno-shadow")
 endif()
+check_cxx_compiler_flag("-Wsign-conversion" CXX_HAVE_SIGN_CONVERSION)
+IF(CXX_HAVE_SIGN_CONVERSION)
+  add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
+    "-Wno-sign-conversion")
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
+    COMPILE_FLAGS "-Wno-sign-conversion")
+ENDIF()
+check_cxx_compiler_flag("-Wunused-parameter" CXX_HAVE_UNUSED_PARAMETER)
+IF(CXX_HAVE_UNUSED_PARAMETER)
+  add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
+    "-Wno-unused-parameter")
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
+    COMPILE_FLAGS "-Wno-unused-parameter")
+ENDIF()
 
 if(MSVC)
   add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS "/DX_PROTOCOL_DEFINE_DYNAMIC"
                                                           "/FImysqlrouter/xprotocol.h")
-  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc COMPILE_FLAGS 
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc COMPILE_FLAGS
                                            "/DX_PROTOCOL_DEFINE_DYNAMIC"
                                            "/FImysqlrouter/xprotocol.h")
 else()
@@ -49,7 +63,7 @@ endif(MSVC)
 link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 
 add_library(routing_tests STATIC ${ROUTING_SOURCE_FILES})
-target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache metadata_cache 
+target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache metadata_cache
                       mysql_protocol x_protocol ${PB_LIBRARY})
 set_target_properties(routing_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
