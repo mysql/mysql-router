@@ -40,7 +40,6 @@ public:
   void bootstrap_directory_deployment(const std::string &directory,
       const std::map<std::string, std::string> &options);
 
-private:
   struct Options {
     struct Endpoint {
       int port;
@@ -64,6 +63,7 @@ private:
 
     bool multi_master;
   };
+private:
   friend class MySQLInnoDBClusterMetadata;
 
   Options fill_options(bool multi_master,

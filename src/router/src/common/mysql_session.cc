@@ -71,7 +71,7 @@ void MySQLSession::disconnect() {
 }
 
 void MySQLSession::execute(const std::string &q) {
-  if (connection_) {
+  if (connected_) {
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
@@ -93,7 +93,7 @@ void MySQLSession::execute(const std::string &q) {
  */
 void MySQLSession::query(const std::string &q,
                          const RowProcessor &processor) {
-  if (connection_) {
+  if (connected_) {
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";

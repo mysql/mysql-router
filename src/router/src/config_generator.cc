@@ -187,6 +187,15 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
       + " is associated with a different host ("+(*row)[1]+" vs "+hostname+")");
 }
 
+inline std::string str(const ConfigGenerator::Options::Endpoint &ep) {
+  if (ep.port > 0)
+    return std::to_string(ep.port);
+  else if (!ep.socket.empty())
+    return ep.socket;
+  else
+    return "null";
+}
+
 void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
     const ConfigGenerator::Options &options) {
   sqlstring query("UPDATE mysql_innodb_cluster_metadata.routers"
@@ -197,31 +206,10 @@ void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
                   "    'RWXEndpoint', ?),"
                   "    'ROXEndpoint', ?)"
                   " WHERE router_id = ?");
-  if (options.rw_endpoint.port > 0)
-    query << options.rw_endpoint.port;
-  else if (!options.rw_endpoint.socket.empty())
-    query << options.rw_endpoint.socket;
-  else
-    query << "null";
-  if (options.ro_endpoint.port > 0)
-    query << options.ro_endpoint.port;
-  else if (!options.ro_endpoint.socket.empty())
-    query << options.ro_endpoint.socket;
-  else
-    query << "null";
-
-  if (options.rw_x_endpoint.port > 0)
-    query << options.rw_x_endpoint.port;
-  else if (!options.rw_x_endpoint.socket.empty())
-    query << options.rw_x_endpoint.socket;
-  else
-    query << "null";
-  if (options.ro_x_endpoint.port > 0)
-    query << options.ro_x_endpoint.port;
-  else if (!options.ro_x_endpoint.socket.empty())
-    query << options.ro_x_endpoint.socket;
-  else
-    query << "null";
+  query << str(options.rw_endpoint);
+  query << str(options.ro_endpoint);
+  query << str(options.rw_x_endpoint);
+  query << str(options.ro_x_endpoint);
   query << router_id;
   query << sqlstring::end;
 
@@ -291,7 +279,6 @@ void ConfigGenerator::init(const std::string &server_url) {
   }
   mysqlrouter::URI u(normalized_url);
 
-  // If the user name is mentioned as part of the URL throw an error.
   if (u.username.empty()) {
     u.username = "root";
   }
@@ -304,7 +291,7 @@ void ConfigGenerator::init(const std::string &server_url) {
       "Please enter MySQL password for "+u.username);
   }
 
-  MySQLSession *s(new MySQLSession());
+  std::unique_ptr<MySQLSession> s(new MySQLSession());
   try
   {
     s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
@@ -313,7 +300,7 @@ void ConfigGenerator::init(const std::string &server_url) {
     err << "Unable to connect to the metadata server: " << e.what();
     throw std::runtime_error(err.str());
   }
-  init(s);
+  init(s.release());
   mysql_owned_ = true;
 }
 
