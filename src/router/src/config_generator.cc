@@ -639,12 +639,33 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
 std::string g_program_name;
 
+// This is only for Windows
+static std::string find_plugin_path() {
+#ifdef _WIN32
+  char szPath[MAX_PATH];
+  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
+  {
+    mysql_harness::Path mypath(szPath);
+    mysql_harness::Path mypath2(mypath.dirname().dirname());
+    mypath2.append("lib");
+    return std::string(mypath2.str());
+  }
+  throw std::logic_error("Could not find own installation directory");
+#endif
+  throw std::logic_error("Not implemented");
+}
+
 static std::string find_executable_path() {
 #ifdef _WIN32
   // the bin folder is not usually in the path, just the lib folder
   char szPath[MAX_PATH];
   if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
+  {
+    char *pc = szPath - 1;
+    while (*++pc)
+      if (*pc == '\\') *pc = '/';
     return std::string(szPath);
+  }
 #else
   if (g_program_name.find('/') != std::string::npos) {
     char *tmp = realpath(g_program_name.c_str(), NULL);
@@ -664,9 +685,10 @@ static std::string find_executable_path() {
       }
       p = strtok_r(NULL, ":", &last);
     }
-    throw std::logic_error("Could not find own installation directory");
+    
   }
 #endif
+  throw std::logic_error("Could not find own installation directory");
 }
 
 std::string ConfigGenerator::endpoint_option(const Options &options,
@@ -887,6 +909,35 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
 
 void ConfigGenerator::create_start_scripts(const std::string &directory) {
 #ifdef _WIN32
+  std::ofstream script;
+  std::string script_path = directory + "/start.ps1";
+
+  script.open(script_path);
+  if (script.fail())
+  {
+    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
+  }
+  script << "$env:path += \";" << find_plugin_path() << "\"" << std::endl;
+  script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\"," << "\"" << directory << "\\" << "mysqlrouter.pid\", \"Process\")" << std::endl;
+  //script << "Start-Job -ScriptBlock { & " << find_executable_path() << " -c " << directory << "/mysqlrouter.conf" << " }" << std::endl;
+  script << "Start-Process \"" << find_executable_path() << "\" \" -c " << directory << "/mysqlrouter.conf\"" << " -WindowStyle Hidden" << std::endl;
+  script.close();
+
+  script_path = directory + "/stop.ps1";
+  script.open(script_path);
+  if (script.fail()) {
+    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
+  }
+  script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", \"Process\")" << std::endl;
+  script << "If(Test-Path $filename) {" << std::endl;
+  script << "  $mypid = [IO.File]::ReadAllText($filename)" << std::endl;
+  script << "  Stop-Process -Id $mypid" << std::endl;
+  script << "  [IO.File]::Delete($filename)" << std::endl;
+  script << "}" << std::endl;
+  script << "else { Write-Host \"Error when trying to stop mysqlrouter process\" }" << std::endl;
+  script.close();
+
+
 #else
   std::ofstream script;
   std::string script_path = directory+"/start.sh";
