@@ -39,7 +39,10 @@ using ::testing::ContainerEq;
 class SubstituteEnvVarTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
-      putenv(strdup((env_name + "=" + env_value).c_str()));
+    static char env[64];
+
+    snprintf ( env, sizeof(env), "%s=%s", env_name.c_str(), env_value.c_str() );
+    putenv(env);
   }
   string env_name {"MYRTEST_ENVAR"};
   string env_value {"MySQLRouterTest"};
