@@ -155,7 +155,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 
   if (!(server > 0 && client > 0)) {
     std::stringstream os;
-    os << "Can't connect to remote MySQL server on '"
+    os << "Can't connect to remote MySQL server for client '"
       << bind_address_.addr << ":" << bind_address_.port << "'";
     log_warning("[%s] %s", name.c_str(), os.str().c_str());
 

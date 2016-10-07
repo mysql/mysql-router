@@ -43,19 +43,13 @@ Path g_source_dir;
 std::vector<GitInfo> g_git_tracked_files;
 bool g_skip_git_tests = false;
 
-const std::vector<std::string> kShortLicense{
-    "This program is free software; you can redistribute it and/or modify",
-    "it under the terms of the GNU General Public License as published by",
-    "the Free Software Foundation; version 2 of the License.",
+const std::vector<std::string> kLicenseSnippets{
+    "This program is free software; you can redistribute it",
+    "under the terms of the GNU General Public License",
+    "version 2",
     "",
-    "This program is distributed in the hope that it will be useful,",
-    "but WITHOUT ANY WARRANTY; without even the implied warranty of",
-    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
-    "GNU General Public License for more details.",
-    "",
-    "You should have received a copy of the GNU General Public License",
-    "along with this program; if not, write to the Free Software",
-    "Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA",
+    "This program is distributed in the hope that",
+    "02110-1301", // last line of the copyright header
 };
 
 // Ignored file extensions
@@ -82,6 +76,7 @@ const std::vector<Path> kIgnoredPaths{
     Path(".git"),
     Path(".idea"),
     Path("build"),
+    Path("ext"),
 };
 
 bool is_ignored_path(Path path, const std::vector<Path> ignored_paths) {
@@ -249,36 +244,23 @@ TEST_F(CheckLegal, GPLLicense) {
 
     std::ifstream curr_file(it.file.str());
     while (std::getline(curr_file, line, '\n')) {
-      if (index == kShortLicense.size()) {
-        break;
-      }
       problem = "";
-      if (line.find(kShortLicense[0]) != std::string::npos) {
+      if (line.find(kLicenseSnippets[index]) != std::string::npos) {
         found = true;
-        index = 1;
-        continue;
-      }
-
-      if (found) {
-        // Check empty line
-        if (kShortLicense[index].empty() && (line.empty() || line == "#")) {
-          ++index;
-          continue;
-        } else if (!kShortLicense[index].empty() && line.find(kShortLicense[index]) != std::string::npos) {
-          ++index;
-          continue;
-        } else {
-          problem = "Content of license not correct (line: " + std::to_string(index + 1) + ")";
+        index++;
+        if (index == kLicenseSnippets.size()) {// matched last line
           break;
         }
+        continue;
       }
     }
     curr_file.close();
 
     if (!found) {
       problem = "No license";
+    } else if (index != kLicenseSnippets.size()) {
+      problem = "Content of license not correct";
     }
-
     EXPECT_TRUE(problem.empty()) << "Problem in " << it.file << ": " << problem;
   }
 }
