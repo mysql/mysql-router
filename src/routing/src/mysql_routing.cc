@@ -159,7 +159,8 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 
   if (!(server > 0 && client > 0)) {
     std::stringstream os;
-    os << "Can't connect to remote MySQL server on '" << bind_address_.addr << ":" << bind_address_.port << "'";
+    os << "Can't connect to remote MySQL server on '"
+      << bind_address_.addr << ":" << bind_address_.port << "'";
     log_warning("[%s] %s", name.c_str(), os.str().c_str());
 
     // at this point, it does not matter whether client gets the error
@@ -183,10 +184,12 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   std::string info;
   if (c_ip.second == 0) {
     // Unix socket/Windows Named pipe
-    info = string_format("%s %s - [%s]:%d", name.c_str(), bind_named_socket_.c_str(),
+    info = string_format("[%s] source %s - dest [%s]:%d",
+                         name.c_str(), bind_named_socket_.c_str(),
                          s_ip.first.c_str(), s_ip.second);
   } else {
-    info = string_format("%s [%s]:%d - [%s]:%d", name.c_str(), c_ip.first.c_str(), c_ip.second,
+    info = string_format("[%s] source [%s]:%d - dest [%s]:%d",
+                         name.c_str(), c_ip.first.c_str(), c_ip.second,
                          s_ip.first.c_str(), s_ip.second);
   }
   log_debug(info.c_str());

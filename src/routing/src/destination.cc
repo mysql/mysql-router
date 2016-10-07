@@ -106,6 +106,7 @@ void RouteDestination::clear() {
 int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
 
   if (destinations_.empty()) {
+    log_warning("No destinations currently available for routing");
     return -1;  // no destination is available
   }
 

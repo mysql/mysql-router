@@ -150,7 +150,7 @@ public:
   : mysql_(mysql) {}
 
   void check_router_id(uint32_t router_id);
-  uint32_t register_router(const std::string &router_name);
+  uint32_t register_router(const std::string &router_name, bool overwrite);
   void update_router_info(uint32_t router_id,
                           const ConfigGenerator::Options &options);
 private:
@@ -213,7 +213,7 @@ void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
 }
 
 uint32_t MySQLInnoDBClusterMetadata::register_router(
-    const std::string &router_name) {
+    const std::string &router_name, bool overwrite) {
   uint32_t host_id;
   std::string hostname = get_my_hostname();
   // check if the host already exists in the metadata schema and if so, get
@@ -248,7 +248,22 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
                     " VALUES (?, ?)");
   // log_info("Router instance '%s' registered with id %u", router_name.c_str(), router_id);
   query << host_id << router_name << sqlstring::end;
-  mysql_->execute(query);
+  try {
+    mysql_->execute(query);
+  } catch (MySQLSession::Error &e) {
+    if (e.code() == 1062 && overwrite)  {
+      //log_warning("Replacing instance %s (host_id %i) of router",
+      //            router_name.c_str(), host_id);
+      query = sqlstring("SELECT router_id FROM mysql_innodb_cluster_metadata.routers"
+                        " WHERE host_id = ? AND router_name = ?");
+      query << host_id << router_name << sqlstring::end;
+      std::unique_ptr<MySQLSession::ResultRow> row(mysql_->query_one(query));
+      if (row) {
+        return static_cast<uint32_t>(std::stoul((*row)[0]));
+      }
+      throw;
+    }
+  }
   return static_cast<uint32_t>(mysql_->last_insert_id());
 }
 
@@ -358,6 +373,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
+  path = path.real_path();
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
       throw std::runtime_error("Router name " + kSystemRouterName + " is reserved");
@@ -429,7 +445,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
 
   // create start/stop scripts
-  create_start_scripts(directory);
+  create_start_scripts(path.str());
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
@@ -437,7 +453,7 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     const std::map<std::string, std::string> &user_options) {
   bool use_sockets = false;
   bool skip_classic_protocol = false;
-  bool skip_x_protocol = true; // no support for X protocol atm
+  bool skip_x_protocol = false;
   int base_port = 0;
   if (user_options.find("base-port") != user_options.end()) {
     char *end = NULL;
@@ -489,6 +505,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   std::string primary_replicaset_servers;
   std::string primary_replicaset_name;
   bool multi_master = false;
+  bool force = user_options.find("force") != user_options.end();
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
@@ -513,8 +530,15 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   // router not registered yet (or router_id was invalid)
   if (router_id == 0) {
     try {
-      router_id = metadata.register_router(router_name);
+      router_id = metadata.register_router(router_name, force);
     } catch (MySQLSession::Error &e) {
+      if (e.code() == 1062) { // duplicate key
+        throw std::runtime_error(
+            "It appears that a router instance named '" + router_name +
+            "' has been previously configured in this host. If that instance"
+            " no longer exists, use the --force option to overwrite it."
+        );
+      }
       throw std::runtime_error(std::string("While registering router instance in metadata server: ")+e.what());
     }
   }
@@ -598,9 +622,10 @@ void ConfigGenerator::fetch_bootstrap_servers(
         else if (strcmp(row[2], "pm") == 0)
           multi_master = false;
         else
-          throw std::runtime_error("Unknown topology type in metadata: "+std::string(row[2]));
+          throw std::runtime_error("Unknown topology type in metadata: "
+                                   + std::string(row[2]));
       }
-      bootstrap_servers += "mysql://"+get_string(row[3]);
+      bootstrap_servers += "mysql://" + get_string(row[3]);
       return true;
     });
   } catch (MySQLSession::Error &e) {
@@ -714,6 +739,7 @@ void ConfigGenerator::create_config(
       << "destinations=metadata-cache://" << router_tag << "/"
           << metadata_replicaset << "?role=PRIMARY\n"
       << "mode=read-write\n"
+      << "protocol=x\n"
       << "\n";
   }
   if (options.ro_x_endpoint) {
@@ -723,6 +749,7 @@ void ConfigGenerator::create_config(
       << "destinations=metadata-cache://" << router_tag << "/"
           << metadata_replicaset << "?role=SECONDARY\n"
       << "mode=read-only\n"
+      << "protocol=x\n"
       << "\n";
   }
   cfp.flush();
@@ -771,7 +798,24 @@ void ConfigGenerator::create_config(
  */
 void ConfigGenerator::create_account(const std::string &username,
                                      const std::string &password) {
-  std::string host;
+  std::string host = "%";
+  /*
+  Ideally, we create a single account for the specific host that the router is
+  running on. But that has several problems in real world, including:
+  - if you're configuring on localhost ref to metadata server, the router will
+  think it's in localhost and thus it will need 2 accounts: user@localhost
+  and user@public_ip... further, there could be more than 1 IP for the host,
+  which (like lan IP, localhost, internet IP, VPN IP, IPv6 etc). We don't know
+  which ones are needed, so either we need to automatically create all of those
+  or have some very complicated and unreliable logic.
+  - using hostname is not reliable, because not every place will have name
+  resolution availble
+  - using IP (even if we can detect it correctly) will not work if IP is not
+  static
+
+  So we create the accoun@%, to make things simple. The account has limited
+  privileges and is specific to the router instance (passwrd not shared), so
+  that shouldn't be a issue.
   {
     // try to find out what's our public IP address
     std::unique_ptr<MySQLSession::ResultRow> row(mysql_->query_one(
@@ -789,7 +833,7 @@ void ConfigGenerator::create_account(const std::string &username,
     } else {
       host = get_my_hostname();
     }
-  }
+  }*/
   std::string account = username + "@" + mysql_->quote(host);
   // log_info("Creating account %s", account.c_str());
 
@@ -852,7 +896,8 @@ void ConfigGenerator::create_start_scripts(const std::string &directory) {
     throw std::runtime_error("Could not open "+script_path+" for writing: "+get_strerror(errno));
   }
   script << "#!/bin/bash\n";
-  script << "ROUTER_PID=" << directory << "/mysqlrouter.pid " << find_executable_path() << " -c " << directory << "/mysqlrouter.conf &\n";
+  script << "basedir=" << directory << "\n";
+  script << "ROUTER_PID=$basedir/mysqlrouter.pid " << find_executable_path() << " -c " << "$basedir/mysqlrouter.conf &\n";
   script << "disown %-\n";
   script.close();
   if (chmod(script_path.c_str(), 0700) < 0) {
@@ -864,7 +909,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory) {
   if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
   }
-  script << "if [ -f mysqlrouter.pid ]; then\n";
+  script << "if [ -f " + directory + "/mysqlrouter.pid ]; then\n";
   script << "  kill -HUP `cat " + directory + "/mysqlrouter.pid`\n";
   script << "  rm -f " << directory + "/mysqlrouter.pid\n";
   script << "fi\n";

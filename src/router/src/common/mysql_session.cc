@@ -61,6 +61,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
     throw Error(ss.str().c_str(), mysql_errno(connection_));
   }
+  connected_ = true;
 }
 
 void MySQLSession::disconnect() {
@@ -81,7 +82,8 @@ void MySQLSession::execute(const std::string &q) {
     MYSQL_RES *res = mysql_store_result(connection_);
     if (res)
       mysql_free_result(res);
-  }
+  } else
+    throw std::logic_error("Not connected");
 }
 
 /*
@@ -125,7 +127,8 @@ void MySQLSession::query(const std::string &q,
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
-  }
+  } else
+    throw std::logic_error("Not connected");
 }
 
 class RealResultRow : public MySQLSession::ResultRow {

@@ -79,7 +79,7 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::
                 it.mode == metadata_cache::ServerMode::ReadWrite) ||
                allow_primary_reads_) {
       // Primary and secondary read-write/write-only
-      available.push_back(mysqlrouter::TCPAddress(it.host, it.port));
+      available.push_back(mysqlrouter::TCPAddress(it.host, port));
       if (server_ids)
         server_ids->push_back(it.mysql_server_uuid);
     }
