@@ -452,6 +452,7 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     bool multi_master,
     const std::map<std::string, std::string> &user_options) {
   bool use_sockets = false;
+  bool skip_tcp = false;
   bool skip_classic_protocol = false;
   bool skip_x_protocol = false;
   int base_port = 0;
@@ -463,8 +464,12 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
       throw std::runtime_error("Invalid base-port value " + user_options.at("base-port"));
     }
   }
-  if (user_options.find("use-sockets") != user_options.end())
+  if (user_options.find("use-sockets") != user_options.end()) {
     use_sockets = true;
+  }
+  if (user_options.find("skip-tcp") != user_options.end()) {
+    skip_tcp = true;
+  }
   ConfigGenerator::Options options;
   options.multi_master = multi_master;
   if (!skip_classic_protocol) {
@@ -472,7 +477,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
       options.rw_endpoint.socket = kRWSocketName;
       if (!multi_master)
         options.ro_endpoint.socket = kROSocketName;
-    } else {
+    }
+    if (!skip_tcp) {
       options.rw_endpoint.port = base_port == 0 ? kDefaultRWPort : base_port++;
       if (!multi_master)
         options.ro_endpoint.port = base_port == 0 ? kDefaultROPort : base_port++;
@@ -483,7 +489,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
       options.rw_x_endpoint.socket = kRWXSocketName;
       if (!multi_master)
         options.ro_x_endpoint.socket = kROXSocketName;
-    } else {
+    }
+    if (!skip_tcp) {
       options.rw_x_endpoint.port = base_port == 0 ? kDefaultRWXPort : base_port++;
       if (!multi_master)
         options.ro_x_endpoint.port = base_port == 0 ? kDefaultROXPort : base_port++;
@@ -639,9 +646,9 @@ void ConfigGenerator::fetch_bootstrap_servers(
 
 std::string g_program_name;
 
+#ifdef _WIN32
 // This is only for Windows
 static std::string find_plugin_path() {
-#ifdef _WIN32
   char szPath[MAX_PATH];
   if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
     mysql_harness::Path mypath(szPath);
@@ -650,10 +657,8 @@ static std::string find_plugin_path() {
     return std::string(mypath2.str());
   }
   throw std::logic_error("Could not find own installation directory");
-#else
-  throw std::logic_error("Not implemented");
-#endif
 }
+#endif
 
 static std::string find_executable_path() {
 #ifdef _WIN32
@@ -685,7 +690,7 @@ static std::string find_executable_path() {
       }
       p = strtok_r(NULL, ":", &last);
     }
-    
+
   }
 #endif
   throw std::logic_error("Could not find own installation directory");

@@ -66,7 +66,7 @@ using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
 
-static std::string find_full_path(const std::string &argv0) {  
+static std::string find_full_path(const std::string &argv0) {
 #ifdef _WIN32
   // the bin folder is not usually in the path, just the lib folder
   char szPath[MAX_PATH];
@@ -77,7 +77,7 @@ static std::string find_full_path(const std::string &argv0) {
   // Path normalizes '\' to '/'
   if (p_argv0.str().find('/') != std::string::npos) {
     // Path is either absolute or relative to the current working dir, so
-    // we can use realpath() to find the full absolute path    
+    // we can use realpath() to find the full absolute path
     mysql_harness::Path path2(p_argv0.real_path());
     const char *tmp = path2.c_str();
     std::string path(tmp);
@@ -333,12 +333,22 @@ void MySQLRouter::prepare_command_options() noexcept {
 
 #ifndef _WIN32
   arg_handler_.add_option(OptionNames({"--conf-use-sockets"}),
-                          "Whether to use Unix domain sockets instead of TCP. Requires --bootstrap",
+                          "Whether to use Unix domain sockets. Requires --bootstrap",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["use-sockets"] = "1";
         if (this->bootstrap_uri_.empty()) {
           throw std::runtime_error("Option --conf-use-sockets can only be used together with -B/--bootstrap");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--conf-skip-tcp"}),
+                          "Whether to disable binding of a TCP port for incoming connections. Requires --bootstrap",
+                          CmdOptionValueReq::none, "",
+                          [this](const string &) {
+        this->bootstrap_options_["skip-tcp"] = "1";
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --conf-skip-tcp can only be used together with -B/--bootstrap");
         }
       });
 #endif

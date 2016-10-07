@@ -258,9 +258,8 @@ TEST_F(ConfigGeneratorTest, create_acount) {
 
     ::testing::InSequence s;
     EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
-    EXPECT_CALL(mock_mysql, query_one(_));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@")));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'")));
     EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'")));
 
@@ -271,15 +270,14 @@ TEST_F(ConfigGeneratorTest, create_acount) {
   // using IP queried from PFS
   {
     MockMySQLSession mock_mysql;
-    std::vector<const char*> result{"::fffffff:123.45.67.8"};
+    //std::vector<const char*> result{"::fffffff:123.45.67.8"};
 
     ::testing::InSequence s;
     EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow(result)));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'123.45.67.8'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'123.45.67.8'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'123.45.67.8'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'123.45.67.8'")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'%'")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'%'")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'")));
+    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'")));
 
     ConfigGenerator config_gen;
     config_gen.init(&mock_mysql);
@@ -310,29 +308,42 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
                         options);
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
-          "[DEFAULT]\n"
-          "\n"
-          "[logger]\n"
-          "level = INFO\n"
-          "\n"
-          "[metadata_cache:myrouter]\n"
-          "router_id=123\n"
-          "bootstrap_server_addresses=server1,server2,server3\n"
-          "user=cluster_user\n"
-          "password=secret\n"
-          "metadata_cluster=mycluster\n"
-          "ttl=300\n"
-          "metadata_replicaset=myreplicaset\n"
-          "\n"
-          "[routing:myrouter_myreplicaset_rw]\n"
-          "bind_port=6446\n"
-          "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
-          "mode=read-write\n"
-          "\n"
-          "[routing:myrouter_myreplicaset_ro]\n"
-          "bind_port=6447\n"
-          "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
-          "mode=read-only\n\n"));
+        "[DEFAULT]\n"
+        "\n"
+        "[logger]\n"
+        "level = INFO\n"
+        "\n"
+        "[metadata_cache:myrouter]\n"
+        "router_id=123\n"
+        "bootstrap_server_addresses=server1,server2,server3\n"
+        "user=cluster_user\n"
+        "password=secret\n"
+        "metadata_cluster=mycluster\n"
+        "ttl=300\n"
+        "metadata_replicaset=myreplicaset\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_rw]\n"
+        "bind_port=6446\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_ro]\n"
+        "bind_port=6447\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "bind_port=64460\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "protocol=x\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_x_ro]\n"
+        "bind_port=64470\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "protocol=x\n"
+        "\n"));
   }
   {
     std::stringstream output;
@@ -369,7 +380,20 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
           "[routing:myreplicaset_ro]\n"
           "bind_port=6447\n"
           "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
-          "mode=read-only\n\n"));
+          "mode=read-only\n"
+          "\n"
+          "[routing:myreplicaset_x_rw]\n"
+          "bind_port=64460\n"
+          "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+          "mode=read-write\n"
+          "protocol=x\n"
+          "\n"
+          "[routing:myreplicaset_x_ro]\n"
+          "bind_port=64470\n"
+          "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+          "mode=read-only\n"
+          "protocol=x\n"
+          "\n"));
   }
   {
     std::stringstream output;
@@ -387,29 +411,42 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
                         options);
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
-          "[DEFAULT]\n"
-          "\n"
-          "[logger]\n"
-          "level = INFO\n"
-          "\n"
-          "[metadata_cache]\n"
-          "router_id=123\n"
-          "bootstrap_server_addresses=server1,server2,server3\n"
-          "user=cluster_user\n"
-          "password=secret\n"
-          "metadata_cluster=mycluster\n"
-          "ttl=300\n"
-          "metadata_replicaset=myreplicaset\n"
-          "\n"
-          "[routing:myreplicaset_rw]\n"
-          "bind_port=1234\n"
-          "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
-          "mode=read-write\n"
-          "\n"
-          "[routing:myreplicaset_ro]\n"
-          "bind_port=1235\n"
-          "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
-          "mode=read-only\n\n"));
+        "[DEFAULT]\n"
+        "\n"
+        "[logger]\n"
+        "level = INFO\n"
+        "\n"
+        "[metadata_cache]\n"
+        "router_id=123\n"
+        "bootstrap_server_addresses=server1,server2,server3\n"
+        "user=cluster_user\n"
+        "password=secret\n"
+        "metadata_cluster=mycluster\n"
+        "ttl=300\n"
+        "metadata_replicaset=myreplicaset\n"
+        "\n"
+        "[routing:myreplicaset_rw]\n"
+        "bind_port=1234\n"
+        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "\n"
+        "[routing:myreplicaset_ro]\n"
+        "bind_port=1235\n"
+        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "\n"
+        "[routing:myreplicaset_x_rw]\n"
+        "bind_port=1236\n"
+        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "protocol=x\n"
+        "\n"
+        "[routing:myreplicaset_x_ro]\n"
+        "bind_port=1237\n"
+        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "protocol=x\n"
+        "\n"));
   }
 }
 
@@ -453,6 +490,12 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
         "bind_port=6446\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "bind_port=64460\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "protocol=x\n"
         "\n"));
 }
 
@@ -472,7 +515,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
     ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
     ASSERT_THAT(options.ro_endpoint, Eq(false));
-    ASSERT_THAT(options.rw_x_endpoint, Eq(false));
+    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
     ASSERT_THAT(options.ro_x_endpoint, Eq(false));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
@@ -488,8 +531,8 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_endpoint, Eq(true));
     ASSERT_THAT(options.ro_endpoint.port, Eq(1235));
     ASSERT_THAT(options.ro_endpoint.socket, Eq(""));
-    ASSERT_THAT(options.rw_x_endpoint, Eq(false));
-    ASSERT_THAT(options.ro_x_endpoint, Eq(false));
+    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
   }
@@ -532,6 +575,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
+    user_options["skip-tcp"] = "1";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
@@ -540,8 +584,8 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_endpoint, Eq(true));
     ASSERT_THAT(options.ro_endpoint.port, Eq(0));
     ASSERT_THAT(options.ro_endpoint.socket, Eq("mysqlro.sock"));
-    ASSERT_THAT(options.rw_x_endpoint, Eq(false));
-    ASSERT_THAT(options.ro_x_endpoint, Eq(false));
+    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
   }
