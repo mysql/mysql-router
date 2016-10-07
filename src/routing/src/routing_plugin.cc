@@ -115,25 +115,29 @@ static int init(const mysql_harness::AppInfo *info) {
         RoutingPluginConfig config(section);                // throws std::invalid_argument
         validate_socket_info(err_prefix, section, config);  // throws std::invalid_argument
 
-        const TCPAddress& config_addr = config.bind_address;
+        // ensure that TCP port is unique
+        if (config.bind_address.port) {
 
-        // Check uniqueness of bind_address and port, using IP address
-        std::vector<TCPAddress>::iterator found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
-        if (found_addr != bind_addresses.end()) {
-          throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
-                                        config.bind_address.str() + "'");
-        }
-        // Check ADDR_ANY binding on same port
-        else if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
-          found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
-            return config.bind_address.port == addr.port;
-          });
+          const TCPAddress& config_addr = config.bind_address;
+
+          // Check uniqueness of bind_address and port, using IP address
+          std::vector<TCPAddress>::iterator found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
           if (found_addr != bind_addresses.end()) {
-            throw std::invalid_argument(
-                err_prefix + "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+            throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
+                                          config.bind_address.str() + "'");
           }
+          // Check ADDR_ANY binding on same port
+          else if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
+            found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
+              return config.bind_address.port == addr.port;
+            });
+            if (found_addr != bind_addresses.end()) {
+              throw std::invalid_argument(
+                  err_prefix + "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+            }
+          }
+          bind_addresses.push_back(config.bind_address);
         }
-        bind_addresses.push_back(config.bind_address);
 
         // We check if we need special plugins based on URI
         try {

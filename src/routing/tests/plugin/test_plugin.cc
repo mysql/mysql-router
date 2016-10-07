@@ -271,7 +271,76 @@ TEST_F(RoutingPluginTests, ListeningBothSockets) {
     validate_socket_info_test_proxy("", &section, config);
   });
 }
+
+TEST_F(RoutingPluginTests, TwoUnixSocketsWithoutTcp) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection& section1 = cfg.add("routing", "test_route1");
+  section1.add("destinations", "localhost:1234");
+  section1.add("mode", "read-only");
+  section1.add("socket", "./socket1");
+  mysql_harness::ConfigSection& section2 = cfg.add("routing", "test_route2");
+  section2.add("destinations", "localhost:1234");
+  section2.add("mode", "read-only");
+  section2.add("socket", "./socket2");
+
+  EXPECT_NO_THROW({
+    mysql_harness::AppInfo info;
+    info.config = &cfg;
+    harness_plugin_routing.init(&info);
+  });
+}
+
+TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection& section1 = cfg.add("routing", "test_route1");
+  section1.add("destinations", "localhost:1234");
+  section1.add("mode", "read-only");
+  section1.add("bind_address", "127.0.0.1:15501");
+  section1.add("socket", "./socket1");
+  mysql_harness::ConfigSection& section2 = cfg.add("routing", "test_route2");
+  section2.add("destinations", "localhost:1234");
+  section2.add("mode", "read-only");
+  section2.add("bind_address", "127.0.0.1:15502");
+  section2.add("socket", "./socket2");
+
+  EXPECT_NO_THROW({
+    mysql_harness::AppInfo info;
+    info.config = &cfg;
+    harness_plugin_routing.init(&info);
+  });
+}
+
+TEST_F(RoutingPluginTests, TwoNonuniqueUnixSockets) {
+  // TODO add after implementing plugin lifecycle (WL9558),
+  // use TwoNonuniqueTcpSockets as an example
+  // (exception is thrown in plugin start(), in a separate thread)
+}
+
 #endif
+
+TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection& section1 = cfg.add("routing", "test_route1");
+  section1.add("destinations", "localhost:1234");
+  section1.add("mode", "read-only");
+  section1.add("bind_address", "127.0.0.1:15508");
+  mysql_harness::ConfigSection& section2 = cfg.add("routing", "test_route2");
+  section2.add("destinations", "localhost:1234");
+  section2.add("mode", "read-only");
+  section2.add("bind_address", "127.0.0.1:15508");
+
+  try {
+    mysql_harness::AppInfo info;
+    info.config = &cfg;
+    harness_plugin_routing.init(&info);
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_STREQ("in [routing:test_route2]: duplicate IP or name found in bind_address '127.0.0.1:15508'", e.what());
+    SUCCEED();
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument to be thrown";
+  }
+}
 
 TEST_F(RoutingPluginTests, StartMissingDestination) {
   {

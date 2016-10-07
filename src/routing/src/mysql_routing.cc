@@ -105,10 +105,6 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
 
   assert(socket_operations_ != nullptr);
 
-  if (!bind_address_.port) {
-    throw std::invalid_argument(string_format("Invalid bind address, was '%s', port %d", bind_address.c_str(), port));
-  }
-
   #ifdef _WIN32
   if (named_socket.is_set()) {
     throw std::invalid_argument(string_format("'socket' configuration item is not supported on Windows platform"));
