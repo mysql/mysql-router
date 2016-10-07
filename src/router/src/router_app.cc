@@ -36,22 +36,22 @@
 #include "common.h"
 
 #ifndef _WIN32
-#  ifdef __sun
-#    include <fcntl.h>
-#  else
-#    include <sys/fcntl.h>
-#  endif
-#  include <unistd.h>
+#ifdef __sun
+#include <fcntl.h>
+#else
+#include <sys/fcntl.h>
+#endif
+#include <unistd.h>
 const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
-#  include <windows.h>
-#  include <process.h>
-#  define getpid _getpid
-#  include "mysqlrouter/windows/password_vault.h"
-#  include <string.h>
-#  include <io.h>
-#  define strtok_r strtok_s
+#include <windows.h>
+#include <process.h>
+#define getpid _getpid
+#include "mysqlrouter/windows/password_vault.h"
+#include <string.h>
+#include <io.h>
+#define strtok_r strtok_s
 const char dir_sep = '\\';
 const std::string path_sep = ";";
 #endif

@@ -643,16 +643,16 @@ std::string g_program_name;
 static std::string find_plugin_path() {
 #ifdef _WIN32
   char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
-  {
+  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
     mysql_harness::Path mypath(szPath);
     mysql_harness::Path mypath2(mypath.dirname().dirname());
     mypath2.append("lib");
     return std::string(mypath2.str());
   }
   throw std::logic_error("Could not find own installation directory");
-#endif
+#else
   throw std::logic_error("Not implemented");
+#endif
 }
 
 static std::string find_executable_path() {
@@ -913,13 +913,11 @@ void ConfigGenerator::create_start_scripts(const std::string &directory) {
   std::string script_path = directory + "/start.ps1";
 
   script.open(script_path);
-  if (script.fail())
-  {
+  if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
   }
   script << "$env:path += \";" << find_plugin_path() << "\"" << std::endl;
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\"," << "\"" << directory << "\\" << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  //script << "Start-Job -ScriptBlock { & " << find_executable_path() << " -c " << directory << "/mysqlrouter.conf" << " }" << std::endl;
   script << "Start-Process \"" << find_executable_path() << "\" \" -c " << directory << "/mysqlrouter.conf\"" << " -WindowStyle Hidden" << std::endl;
   script.close();
 
