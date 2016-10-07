@@ -175,7 +175,7 @@ protected:
    *
    * Gets location of a named socket. The option value is checked first
    * for its validity. For example, on UNIX system the path can be
-   * at most 104 characters.
+   * at most (sizeof(sockaddr_un().sun_path)-1) characters.
    *
    * Throws std::invalid_argument on errors.
    *

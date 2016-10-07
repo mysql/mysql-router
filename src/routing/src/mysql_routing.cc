@@ -458,7 +458,7 @@ void MySQLRouting::setup_named_socket_service() {
   errno = 0;
 
   assert(!socket_file.empty());
-  assert(socket_file.size() < 104); // We already did check reading the configuration
+  assert(socket_file.size() < (sizeof(sockaddr_un().sun_path)-1)); // We already did check reading the configuration
 
   // Try removing any socket previously created
   if (unlink(socket_file.c_str()) == -1) {
