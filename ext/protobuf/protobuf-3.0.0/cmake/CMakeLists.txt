@@ -7,7 +7,9 @@ endif()
 
 # CMake policies
 cmake_policy(SET CMP0022 NEW)
-cmake_policy(SET CMP0048 NEW)
+if(${CMAKE_VERSION} VERSION_GREATER "3.0")
+  cmake_policy(SET CMP0048 NEW)
+endif()
 
 # Project
 project(protobuf C CXX)
