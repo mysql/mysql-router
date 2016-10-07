@@ -61,6 +61,8 @@ std::vector<IPAddress> Resolver::hostname(const char *name) const {
     }
   }
 
+  freeaddrinfo(result);
+
   return result_ips;
 }
 

@@ -43,12 +43,11 @@ MetadataCache::MetadataCache(
   const std::string &cluster) {
   std::string host_;
   for (auto s : bootstrap_servers) {
-     metadata_cache::ManagedInstance *bootstrap_server_instance =
-       new metadata_cache::ManagedInstance;
+    metadata_cache::ManagedInstance bootstrap_server_instance;
     host_ = (s.addr == "localhost" ? "127.0.0.1" : s.addr);
-    bootstrap_server_instance->host = host_;
-    bootstrap_server_instance->port = s.port;
-    metadata_servers_.push_back(*bootstrap_server_instance);
+    bootstrap_server_instance.host = host_;
+    bootstrap_server_instance.port = s.port;
+    metadata_servers_.push_back(bootstrap_server_instance);
   }
   ttl_ = ttl;
   cluster_name_ = cluster;

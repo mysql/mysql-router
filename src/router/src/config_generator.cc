@@ -87,7 +87,7 @@ static std::string get_string(const char *input_str) {
 
 static std::string get_my_hostname() {
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
-  char hostname[1024];
+  char hostname[1024] = {0};
   if (gethostname(hostname, sizeof(hostname)) < 0) {
     char msg[1024];
 #ifndef WIN32
@@ -102,7 +102,7 @@ static std::string get_my_hostname() {
 }
 #else
   struct ifaddrs *ifa, *ifap;
-  char buf[INET6_ADDRSTRLEN];
+  char buf[INET6_ADDRSTRLEN] = {0};
   int ret = -1, family;
   socklen_t addrlen;
 
