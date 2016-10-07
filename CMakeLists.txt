@@ -67,11 +67,6 @@ MESSAGE(STATUS "SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
 include(cmake/compile_flags.cmake)
 include(cmake/protobuf.cmake)
 MYSQL_CHECK_PROTOBUF()
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(PB_LIBRARY "${PROTOBUF_LIBRARY_DEBUG}")
-else()
-  set(PB_LIBRARY "${PROTOBUF_LIBRARY}")
-endif()
 
 # Enable testing
 if(ENABLE_TESTS)

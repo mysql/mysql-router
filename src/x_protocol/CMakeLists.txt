@@ -92,7 +92,8 @@ add_harness_plugin(x_protocol
   REQUIRES router_lib logger)
 target_include_directories(x_protocol PRIVATE ${include_dirs})
 
-target_link_libraries(x_protocol PUBLIC ${PB_LIBRARY})
+target_link_libraries(x_protocol PUBLIC optimized ${PROTOBUF_LIBRARY} debug ${PROTOBUF_LIBRARY_DEBUG})
+
 
 file(GLOB xprotocol_headers "${CMAKE_BINARY_DIR}/generated/protobuf/*.h")
 install(FILES ${xprotocol_headers}
