@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-configure_file(mysql-router.spec.in ${CMAKE_BINARY_DIR}/mysql-router.spec @only)
+configure_file(mysql-router.spec.in ${CMAKE_BINARY_DIR}/mysql-router.spec @ONLY)
 
 if(ARCH_64BIT)
   set(RPM_LIBDIR "/usr/lib64")
@@ -21,7 +21,7 @@ else()
   set(RPM_LIBDIR "/usr/lib")
 endif()
 
-configure_file(mysqlrouter.ini.in ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.ini @only)
-configure_file(mysqlrouter.init ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.init @only)
-configure_file(mysqlrouter.service ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.service @only)
-configure_file(mysqlrouter.tmpfiles.d ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.tmpfiles.d @only)
+configure_file(mysqlrouter.ini.in ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.ini @ONLY)
+configure_file(mysqlrouter.init ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.init @ONLY)
+configure_file(mysqlrouter.service ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.service @ONLY)
+configure_file(mysqlrouter.tmpfiles.d ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.tmpfiles.d @ONLY)
