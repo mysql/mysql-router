@@ -19,6 +19,8 @@
 #define MYSQL_HARNESS_COMMON_INCLUDED
 
 #include <string>
+#include <sstream>
+#include <cstdlib>
 #include "harness_export.h"
 
 /**
@@ -28,6 +30,55 @@
  */
 
 namespace mysql_harness {
+
+/**
+ * Default callback for `StdFreeDeleter`.
+ */
+template<typename T>
+class DefaultStdFreeDeleterCallback {
+public:
+ void operator()(T* ptr) {
+ }
+};
+
+/**
+ * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
+ */
+template<typename T, typename Callback = DefaultStdFreeDeleterCallback<T>>
+class StdFreeDeleter {
+public:
+ void operator()(T* ptr) {
+   Callback callback;
+
+   callback(ptr);
+   std::free(ptr);
+ }
+};
+
+/**
+ * Changes file access permissions to be fully accessible by all users.
+ *
+ * On Unix, the function sets file permission mask to 777.
+ * On Windows, Everyone group is granted full access to the file.
+ *
+ * @param[in] file_name File name.
+ *
+ * @except std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT make_file_public(const std::string& file_name);
+
+/**
+ * Changes file access permissions to be accessible only by a limited set of
+ * users.
+ *
+ * On Unix, the function sets file permission mask to 600.
+ * On Windows, all permissions to this file are removed for Everyone group.
+ *
+ * @param[in] file_name File name.
+ *
+ * @except std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT make_file_private(const std::string& file_name);
 
 /** @brief Wrapper for thread safe function returning error string.
  *

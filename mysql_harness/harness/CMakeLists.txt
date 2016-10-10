@@ -15,18 +15,41 @@
 
 find_package(Threads REQUIRED)
 
+include(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
 include(GenerateExportHeader)
 
+set(MY_SSL_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/router/src/common)
+SET(MY_SSL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/router/include/mysqlrouter
+                        ${SSL_INCLUDE_DIRS})
+
 set(harness_source
+  ${MY_SSL_SOURCE_DIR}/my_aes.cc
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
+  src/keyring/keyring_memory.cc
+  src/keyring/keyring_file.cc
   src/networking/ip_address.cc
   src/networking/ipv4_address.cc
   src/networking/ipv6_address.cc
   src/networking/resolver.cc)
-set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
-  
+
+if(WITH_SSL STREQUAL "bundled")
+  set(MY_SSL_IMPL ${MY_SSL_SOURCE_DIR}/my_aes_yassl.cc)
+else()
+  set(MY_SSL_IMPL ${MY_SSL_SOURCE_DIR}/my_aes_openssl.cc)
+endif()
+
+set(harness_source ${harness_source} ${MY_SSL_IMPL})
+
+# Disable warnings from 3rd party code that we have no control over.
+if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  add_compile_flags(${MY_SSL_SOURCE_DIR}/my_aes.cc ${MY_SSL_IMPL} COMPILE_FLAGS
+    -Wno-sign-conversion
+    -Wno-unused-parameter
+    -Wno-conversion)
+endif()
+
 if(WIN32)
   list(APPEND harness_source
     src/filesystem-windows.cc src/utilities-windows.cc src/loader-windows.cc)
@@ -40,12 +63,14 @@ file(GLOB harness_headers include/*.h)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${CMAKE_BINARY_DIR}/include)
+  ${CMAKE_BINARY_DIR}/include
+  ${MY_SSL_INCLUDE_DIRS})
 
 if(WIN32)
   set(WINSOCK_LIBRARIES Ws2_32.lib)
 endif()
-set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT} ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES})
+set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
+                     ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES})
 
 configure_file(plugin.h.in ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
   ESCAPE_QUOTES @ONLY)

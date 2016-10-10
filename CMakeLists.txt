@@ -38,6 +38,17 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
   add_subdirectory(internal)
 endif()
 
+# SSL
+# Add bundled yassl/taocrypt or system openssl.
+include(cmake/ssl.cmake)
+if(NOT WITH_SSL)
+  set(WITH_SSL bundled)
+endif()
+MYSQL_CHECK_SSL()
+MESSAGE(STATUS "SSL_LIBRARIES:    ${SSL_LIBRARIES}")
+MESSAGE(STATUS "SSL_DEFINES:      ${SSL_DEFINES}")
+MESSAGE(STATUS "SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
+
 # Required tools, libraries, etc..
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
@@ -50,19 +61,8 @@ include(Coverage)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)
-include(cmake/ssl.cmake)
 find_package(MySQL 5.5 REQUIRED)
 include_directories(${CMAKE_BINARY_DIR}/include)
-
-# SSL
-# Add bundled yassl/taocrypt or system openssl.
-if(NOT WITH_SSL)
-  set(WITH_SSL bundled)
-endif()
-MYSQL_CHECK_SSL()
-MESSAGE(STATUS "SSL_LIBRARIES:    ${SSL_LIBRARIES}")
-MESSAGE(STATUS "SSL_DEFINES:      ${SSL_DEFINES}")
-MESSAGE(STATUS "SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
 
 include(cmake/compile_flags.cmake)
 include(cmake/protobuf.cmake)
