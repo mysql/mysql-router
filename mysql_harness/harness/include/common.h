@@ -38,6 +38,7 @@ template<typename T>
 class DefaultStdFreeDeleterCallback {
 public:
  void operator()(T* ptr) {
+   std::free(ptr);
  }
 };
 
@@ -51,7 +52,6 @@ public:
    Callback callback;
 
    callback(ptr);
-   std::free(ptr);
  }
 };
 

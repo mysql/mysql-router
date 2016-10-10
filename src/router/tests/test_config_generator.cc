@@ -304,7 +304,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
                         "mycluster",
                         "myreplicaset",
                         "cluster_user",
-                        "secret",
                         options);
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -317,7 +316,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
-        "password=secret\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
         "metadata_replicaset=myreplicaset\n"
@@ -354,7 +352,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
                         "mycluster",
                         "myreplicaset",
                         "cluster_user",
-                        "secret",
                         options);
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -367,7 +364,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
           "router_id=123\n"
           "bootstrap_server_addresses=server1,server2,server3\n"
           "user=cluster_user\n"
-          "password=secret\n"
           "metadata_cluster=mycluster\n"
           "ttl=300\n"
           "metadata_replicaset=myreplicaset\n"
@@ -407,7 +403,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
                         "mycluster",
                         "myreplicaset",
                         "cluster_user",
-                        "secret",
                         options);
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -420,7 +415,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
-        "password=secret\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
         "metadata_replicaset=myreplicaset\n"
@@ -468,7 +462,6 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
                       "mycluster",
                       "myreplicaset",
                       "cluster_user",
-                      "secret",
                       options);
   ASSERT_THAT(output.str(),
     Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -481,7 +474,6 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
-        "password=secret\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
         "metadata_replicaset=myreplicaset\n"

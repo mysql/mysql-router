@@ -70,6 +70,10 @@ bool my_check_access(const std::string& path);
 
 int mkdir(const std::string& dir, int mode);
 
+int rmdir(const std::string& dir);
+
+int delete_file(const std::string& path);
+
 } // namespace mysqlrouter
 
 #endif // ROUTER_UTILS_INCLUDED

@@ -45,6 +45,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   // for the user to change these values.
   mysql_options(connection_, MYSQL_OPT_CONNECT_TIMEOUT,
                 &connection_timeout);
+  mysql_options(connection_, MYSQL_OPT_READ_TIMEOUT,
+                &connection_timeout);
   mysql_options(connection_, MYSQL_OPT_PROTOCOL,
                 reinterpret_cast<char *> (&protocol));
 

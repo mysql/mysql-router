@@ -219,8 +219,8 @@ TYPED_TEST(KeyringTest, SaveAndLoadBroken) {
   // Try loading a few randomly broken keyring buffers.
   for (std::size_t test_count = 0; test_count < 20; ++test_count) {
     TypeParam keyring;
-    auto buffer_offset = std::rand() % keyring_data.size();
-    auto buffer_size = std::rand() % (keyring_data.size() - buffer_offset + 1);
+    auto buffer_offset = static_cast<size_t>(std::rand()) % keyring_data.size();
+    auto buffer_size = static_cast<size_t>(std::rand()) % (keyring_data.size() - buffer_offset + 1);
 
     if (buffer_offset + buffer_size == keyring_data.size()) {
       // Buffer valid, ignore.

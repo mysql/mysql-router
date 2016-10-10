@@ -81,6 +81,9 @@ add_harness_test(TestNameResolver SOURCES test_resolver.cc)
 add_harness_test(TestKeyring SOURCES test_keyring.cc)
 target_link_libraries(TestKeyring PRIVATE ${SSL_LIBRARIES})
 
+#add_harness_test(TestKeyringManager SOURCES test_keyring_manager.cc)
+#target_link_libraries(TestKeyringManager PRIVATE ${SSL_LIBRARIES})
+
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
 if(WIN32)

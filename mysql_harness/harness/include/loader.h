@@ -248,6 +248,11 @@ class HARNESS_EXPORT Loader {
    */
   void add_logger(const std::string& default_level);
 
+  /**
+   * Get reference to configuration object.
+   */
+  LoaderConfig &get_config() { return config_; }
+
  private:
   void setup_info();
   void init_all();

@@ -47,7 +47,6 @@ public:
                               section, "bootstrap_server_addresses",
                               metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
-        password(get_option_string(section, "password")),
         ttl(get_option_ttl(section, "ttl",
                            metadata_cache::kDefaultMetadataTTL)),
         metadata_cluster(get_option_string(section, "metadata_cluster"))
@@ -60,12 +59,6 @@ public:
   const std::vector<mysqlrouter::TCPAddress> bootstrap_addresses;
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
-  /** @brief
-   * Password for the user above. Going forward the password will be
-   * encrypted, instead of being displayed in clear text in the
-   * configuration file.
-   */
-  const std::string password;
   /** @brief TTL used for storing data in the cache */
   const unsigned int ttl;
   /** @brief Cluster in the metadata */

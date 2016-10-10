@@ -17,6 +17,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "keyring/keyring_manager.h"
 #include "mysqlrouter/utils.h"
 #include "router_app.h"
 #include "utils.h"
@@ -65,6 +66,7 @@ using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
 
+static const char *kDefaultKeyringFileName = "keyring";
 
 static std::string find_full_path(const std::string &argv0) {
 #ifdef _WIN32
@@ -141,11 +143,11 @@ void MySQLRouter::init(const vector<string>& arguments) {
     throw std::runtime_error(exc.what());
   }
 
-  if (!bootstrap_uri_.empty()) {
-    bootstrap(bootstrap_uri_);
+  if (showing_info_) {
     return;
   }
-  if (showing_info_) {
+  if (!bootstrap_uri_.empty()) {
+    bootstrap(bootstrap_uri_);
     return;
   }
 
@@ -212,6 +214,24 @@ void MySQLRouter::start() {
   if (plugins.size() < 2) {
     std::cout << "MySQL Router not configured to load or start any plugin. Exiting." << std::endl;
     return;
+  }
+
+  // Initialize keyring
+  std::string keyring_file = loader_->get_config().get_default("keyring_path");
+  std::string master_key_path = loader_->get_config().get_default("master_key_path");
+
+  // fill in default keyring file path, if not set
+  if (keyring_file.empty()) {
+    keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
+                                       "{origin}", origin_.str());
+    keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
+  }
+  // if keyring master key is in a file, read from it, else read from user
+  if (!master_key_path.empty()) {
+    mysql_harness::init_keyring(keyring_file, master_key_path, false);
+  } else {
+    std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
+    mysql_harness::init_keyring_with_key(keyring_file, master_key, false);
   }
 
   try {
@@ -322,7 +342,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(OptionNames({"-d", "--directory"}),
-                          "Creates a self-contained directory for a new instance of the Router. Requires --bootstrap",
+                          "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
         this->bootstrap_directory_ = path;
@@ -333,7 +353,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
 #ifndef _WIN32
   arg_handler_.add_option(OptionNames({"--conf-use-sockets"}),
-                          "Whether to use Unix domain sockets. Requires --bootstrap",
+                          "Whether to use Unix domain sockets. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["use-sockets"] = "1";
@@ -343,7 +363,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(OptionNames({"--conf-skip-tcp"}),
-                          "Whether to disable binding of a TCP port for incoming connections. Requires --bootstrap",
+                          "Whether to disable binding of a TCP port for incoming connections. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["skip-tcp"] = "1";
@@ -353,7 +373,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 #endif
   arg_handler_.add_option(OptionNames({"--conf-base-port"}),
-                          "Base port to use for listening router ports. Requires --bootstrap",
+                          "Base port to use for listening router ports. (bootstrap)",
                           CmdOptionValueReq::required, "port",
                           [this](const string &port) {
         this->bootstrap_options_["base-port"] = port;
@@ -363,7 +383,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(OptionNames({"--name"}),
-                          "Gives a symbolic name for the router instance. Requires --bootstrap",
+                          "Gives a symbolic name for the router instance. (bootstrap)",
                           CmdOptionValueReq::required, "name",
                           [this](const string &name) {
         this->bootstrap_options_["name"] = name;
@@ -372,8 +392,15 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+  arg_handler_.add_option(OptionNames({"--master-key-file"}),
+                          "Path to a file where keyring master keys are stored.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &name) {
+        keyring_master_key_file_path_ = name;
+      });
+
   arg_handler_.add_option(OptionNames({"--force"}),
-                          "Force reconfiguration of a possibly existing instance of the router. Requires --bootstrap",
+                          "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["force"] = "1";
@@ -463,16 +490,28 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   ConfigGenerator config_gen;
   config_gen.init(server_url);
 
-  if (bootstrap_directory_.empty()) {
-    std::string config_file_path =
-        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
-                            "{origin}", origin_.str());
+  try {
+    if (bootstrap_directory_.empty()) {
+      // bootstrap into a directory
+      std::string config_file_path =
+          substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
+                              "{origin}", origin_.str());
 
-    config_gen.bootstrap_system_deployment(config_file_path,
-        bootstrap_options_);
-  } else {
-    config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-        bootstrap_options_);
+      std::string default_keyring_file;
+      default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
+                                                 "{origin}", origin_.str());
+      default_keyring_file.append("/").append(kDefaultKeyringFileName);
+
+      config_gen.bootstrap_system_deployment(config_file_path,
+          bootstrap_options_, default_keyring_file, keyring_master_key_file_path_);
+    } else {
+      config_gen.bootstrap_directory_deployment(bootstrap_directory_,
+          bootstrap_options_, kDefaultKeyringFileName,
+          keyring_master_key_file_path_);
+    }
+  } catch (std::exception &e) {
+    if (strcmp(e.what(), "cancelled") != 0)
+      std::cerr << e.what() << "\n";
   }
 }
 

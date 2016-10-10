@@ -86,8 +86,7 @@ std::vector<string> wrap_string(const string &to_wrap, size_t width, size_t inde
   return res;
 }
 
-bool my_check_access(const std::string& path)
-{
+bool my_check_access(const std::string& path) {
 #ifndef _WIN32
   return (access(path.c_str(), R_OK | X_OK) == 0);
 #else
@@ -95,12 +94,27 @@ bool my_check_access(const std::string& path)
 #endif
 }
 
-int mkdir(const std::string& dir, int mode)
-{
+int mkdir(const std::string& dir, int mode) {
 #ifndef _WIN32
   return ::mkdir(dir.c_str(), static_cast<mode_t>(mode));
 #else
   return _mkdir(dir.c_str());
+#endif
+}
+
+int rmdir(const std::string& dir) {
+#ifndef _WIN32
+  return ::rmdir(dir.c_str());
+#else
+  return _rmdir(dir.c_str());
+#endif
+}
+
+int delete_file(const std::string& path) {
+#ifndef _WIN32
+  return ::unlink(path.c_str());
+#else
+  return DeleteFile(path.c_str()) ? 0 : -1;
 #endif
 }
 

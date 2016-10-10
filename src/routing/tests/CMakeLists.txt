@@ -33,19 +33,26 @@ if(CXX_HAVE_SHADOW)
     COMPILE_FLAGS "-Wno-shadow")
 endif()
 check_cxx_compiler_flag("-Wsign-conversion" CXX_HAVE_SIGN_CONVERSION)
-IF(CXX_HAVE_SIGN_CONVERSION)
+if(CXX_HAVE_SIGN_CONVERSION)
   add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
     "-Wno-sign-conversion")
   add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
     COMPILE_FLAGS "-Wno-sign-conversion")
-ENDIF()
+endif()
 check_cxx_compiler_flag("-Wunused-parameter" CXX_HAVE_UNUSED_PARAMETER)
-IF(CXX_HAVE_UNUSED_PARAMETER)
+if(CXX_HAVE_UNUSED_PARAMETER)
   add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
     "-Wno-unused-parameter")
   add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
     COMPILE_FLAGS "-Wno-unused-parameter")
-ENDIF()
+endif()
+check_cxx_compiler_flag("-Wdeprecated-declarations" CXX_HAVE_DEPRECATED_DECLARATIONS)
+if(CXX_HAVE_DEPRECATED_DECLARATIONS)
+  add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS
+    "-Wno-deprecated-declarations")
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/test_x_protocol.cc
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+endif()
 
 if(MSVC)
   add_compile_flags(${ROUTING_SOURCE_FILES} COMPILE_FLAGS "/DX_PROTOCOL_DEFINE_DYNAMIC"

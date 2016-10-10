@@ -27,6 +27,7 @@ set(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
+  src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
   src/keyring/keyring_file.cc
   src/networking/ip_address.cc
@@ -162,7 +163,7 @@ else()
         ARCHIVE DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
   install(TARGETS harness-library
         RUNTIME DESTINATION ${HARNESS_INSTALL_BIN_DIR}
-        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})          
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
 endif()
 
 if(ENABLE_TESTS)

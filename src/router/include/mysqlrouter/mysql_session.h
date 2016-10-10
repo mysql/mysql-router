@@ -36,8 +36,13 @@ public:
     }
 
     ~Transaction() {
-      if (session_)
-        session_->execute("ROLLBACK");
+      if (session_) {
+        try {
+          session_->execute("ROLLBACK");
+        } catch (...) {
+          // ignore errors during rollback on d-tor
+        }
+      }
     }
 
     void commit() {

@@ -27,7 +27,7 @@ constexpr unsigned char kAesIv[] = {
     0xcd, 0xca, 0xf7, 0x04, 0x65, 0x8e, 0x5d, 0x88
 };
 
-constexpr std::uint32_t kKeyringFileSignature = 0x043d4d0a;
+constexpr std::uint32_t kKeyringDataSignature = 0x043d4d0a;
 
 
 // Writes a raw data to buffer and returns new buffer offset.
@@ -71,8 +71,8 @@ static std::size_t serialize(
     char* buffer,
     const std::map<std::string, std::map<std::string, std::string>>& entries) {
   // Save keyring file signature.
-  auto offset = serialize(buffer, 0, &kKeyringFileSignature,
-                          sizeof(kKeyringFileSignature));
+  auto offset = serialize(buffer, 0, &kKeyringDataSignature,
+                          sizeof(kKeyringDataSignature));
 
   // Save keyring format version.
   offset = serialize(buffer, offset,
@@ -152,7 +152,7 @@ static void parse(
   auto offset = parse(buffer, buffer_size, 0, &keyring_file_signature,
                       sizeof(keyring_file_signature));
 
-  if (keyring_file_signature != kKeyringFileSignature) {
+  if (keyring_file_signature != kKeyringDataSignature) {
     throw std::runtime_error(
         "Invalid keyring file signature. The file is damaged or decryption key "
         "is invalid.");
@@ -230,7 +230,7 @@ std::vector<char> KeyringMemory::serialize(const std::string& key) const {
   // Encrypt buffer.
   auto aes_buffer_size = myaes::my_aes_get_size(
       static_cast<uint32_t>(buffer_size), kAesMode);
-  std::vector<char> aes_buffer(aes_buffer_size);
+  std::vector<char> aes_buffer(static_cast<std::size_t>(aes_buffer_size));
 
   auto encrypted_size = myaes::my_aes_encrypt(
       reinterpret_cast<const unsigned char*>(buffer.data()),
@@ -258,10 +258,10 @@ void KeyringMemory::parse(const std::string& key, const char* buffer,
       static_cast<uint32_t>(key.length()), kAesMode, kAesIv);
 
   if (decrypted_size < 0)
-    throw std::runtime_error("Keyring decryption failed.");
+    throw decryption_error("Keyring decryption failed.");
 
   // Parse keyring data.
-  ::parse(decrypted_buffer.data(), decrypted_size, entries_);
+  ::parse(decrypted_buffer.data(), static_cast<std::size_t>(decrypted_size), entries_);
 }
 
 

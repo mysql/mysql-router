@@ -19,6 +19,7 @@
 #include "common.h"
 #include <fstream>
 #include <memory>
+#include <string.h>
 
 #ifdef _WIN32
 #include <aclapi.h>
@@ -26,6 +27,7 @@
 #include <sys/stat.h>
 #endif
 
+constexpr const char kKeyringFileSignature[] = {'M', 'R', 'K', 'R'};
 
 #ifdef _WIN32
 
@@ -191,16 +193,15 @@ static void check_security_descriptor_access_rights(
  */
 static void check_file_access_rights(const std::string& file_name) {
 #ifdef _WIN32
-
   check_security_descriptor_access_rights(get_security_descriptor(file_name));
-
 #else
-
   struct stat status;
 
   if (stat(file_name.c_str(), &status) != 0) {
+    if (errno == ENOENT)
+      return;
     throw std::runtime_error("stat() failed (" + file_name + "): " +
-                             mysql_harness::get_strerror(errno));
+                             std::to_string(errno));
   }
 
   static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);
@@ -215,6 +216,9 @@ static void check_file_access_rights(const std::string& file_name) {
 
 namespace mysql_harness {
 
+void KeyringFile::set_header(const std::string &data) {
+  header_ = data;
+}
 
 void KeyringFile::save(const std::string& file_name,
                        const std::string& key) const {
@@ -228,7 +232,20 @@ void KeyringFile::save(const std::string& file_name,
   try {
     file.open(file_name,
               std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
-    file.write(buffer.data(), buffer.size());
+  } catch (std::exception& e) {
+    throw std::runtime_error(std::string("Failed to create keyring file: ") +
+                            file_name + ": " + get_strerror(errno));
+  }
+  try {
+    // write signature
+    file.write(kKeyringFileSignature, sizeof(kKeyringFileSignature));
+    // write header
+    uint32_t header_size = static_cast<uint32_t>(header_.size());
+    file.write(reinterpret_cast<char*>(&header_size), sizeof(header_size));
+    if (header_.size() > 0)
+      file.write(header_.data(), static_cast<std::streamsize>(header_.size()));
+    // write data
+    file.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     file.close();
     make_file_private(file_name);
   } catch (std::exception& e) {
@@ -243,26 +260,82 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
 
   // Read keyring data from file.
   std::ifstream file;
-  std::vector<char> buffer;
 
   file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   try {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
-
-    auto data_size = static_cast<std::size_t>(file.tellg());
-
-    buffer.resize(data_size);
-    file.seekg(0);
-    file.read(buffer.data(), data_size);
   } catch (std::exception& e) {
     throw std::runtime_error(std::string("Failed to load keyring file: ") +
                              e.what());
   }
 
+  std::size_t file_size = static_cast<std::size_t>(file.tellg());
+
+  file.seekg(0);
+  // read and check signature
+  {
+    char sig[sizeof(kKeyringFileSignature)];
+    file.read(sig, sizeof(sig));
+    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+      throw std::runtime_error("Invalid data found in keyring file " + file_name);
+  }
+  // read header, if there's one
+  {
+    uint32_t header_size;
+    file.read(reinterpret_cast<char*>(&header_size), sizeof(header_size));
+    if (header_size > 0) {
+      if (header_size > file_size - sizeof(kKeyringFileSignature) - sizeof(header_size)) {
+        throw std::runtime_error("Invalid data found in keyring file " + file_name);
+      }
+      header_.resize(header_size);
+      file.read(&header_[0], static_cast<std::streamsize>(header_.size()));
+    }
+  }
+
+  std::size_t data_size = file_size - static_cast<std::size_t>(file.tellg());
+
+  std::vector<char> buffer(static_cast<std::size_t>(data_size));
+  file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+
   // Parse keyring data.
   parse(key, buffer.data(), buffer.size());
 }
 
+std::string KeyringFile::read_header(const std::string& file_name) {
+  // Verify keyring file's access permissions.
+  check_file_access_rights(file_name);
 
+  // Read keyring data from file.
+  std::ifstream file;
+
+  file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  file.open(file_name,
+            std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
+
+  std::size_t file_size = static_cast<std::size_t>(file.tellg());
+
+  file.seekg(0);
+  // read and check signature
+  {
+    char sig[sizeof(kKeyringFileSignature)];
+    file.read(sig, sizeof(sig));
+    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+      throw std::runtime_error("Invalid data found in keyring file " + file_name);
+  }
+  // read header, if there's one
+  std::string header;
+  {
+    uint32_t header_size;
+    file.read(reinterpret_cast<char*>(&header_size), sizeof(header_size));
+    if (header_size > 0) {
+      if (header_size > file_size - sizeof(kKeyringFileSignature) - sizeof(header_size)) {
+        throw std::runtime_error("Invalid data found in keyring file " + file_name);
+      }
+      header.resize(header_size);
+      file.read(&header[0], static_cast<std::streamsize>(header.size()));
+    }
+  }
+  return header;
+}
 } // namespace mysql_harness

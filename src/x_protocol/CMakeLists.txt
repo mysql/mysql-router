@@ -70,6 +70,12 @@ if(CXX_HAVE_UNUSED_PARAMETER)
     "-Wno-unused-parameter")
 endif()
 
+check_cxx_compiler_flag("-Wdeprecated-declarations" CXX_HAVE_DEPRECATED_DECLARATIONS)
+if(CXX_HAVE_DEPRECATED_DECLARATIONS)
+  add_compile_flags(${PROTO_SRCS} COMPILE_FLAGS
+    "-Wno-deprecated-declarations")
+endif()
+
 if(MSVC)
   add_compile_flags(${PROTO_SRCS} COMPILE_FLAGS "/wd4018")
   add_compile_flags(${PROTO_SRCS} COMPILE_FLAGS "/DX_PROTOCOL_DEFINE_DYNAMIC" "/DX_PROTOCOL_EXPORTS"

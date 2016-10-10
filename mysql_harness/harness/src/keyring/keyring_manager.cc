@@ -1,0 +1,295 @@
+/*
+  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+#include "keyring/keyring_manager.h"
+#include "keyring/keyring_file.h"
+#include "filesystem.h"
+#include "common.h"
+#include "my_aes.h"
+#include <string.h>
+#include <random>
+#include <system_error>
+#include <fstream>
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
+
+/*
+ * Keyring Management
+ *
+ * One or more passwords can be stored in the keyring, which is persisted on
+ * disk in the keyring file.
+ * The encryption key of the keyring can be fed to the keyring in 2 ways:
+ * - interactively by the user
+ * - auto-generated and persisted on a master key file
+ *
+ * If the keyring's encryption key is stored in a file, it will be itself
+ * encrypted by a second key, which is generated automatically and stored
+ * in the keyring file. The location of the master key file is selected by the
+ * user and the same key file can be shared by multiple keyrings.
+ *
+ * File Layout:
+ *
+ *  Keyring File                 KeyFile
+ * +-------------+             +-------------------+
+ * | KeyFile Key |             | Keyring File Name |
+ * |-------------|             | Keyring Key       |
+ * | Password    |             | Keyring File Name |
+ * | Password    |             | Keyring Key       |
+ * | ...         |             +-------------------+
+ * +-------------+
+ */
+
+namespace mysql_harness {
+
+static std::unique_ptr<KeyringFile> g_keyring;
+static std::string g_keyring_file_path;
+static std::string g_keyring_key;
+
+constexpr auto kAesMode = myaes::my_aes_256_cbc;
+constexpr unsigned char kAesIv[] = {
+    0x39, 0x62, 0x9f, 0x52, 0x7f, 0x76, 0x9a, 0xae,
+    0xcd, 0xca, 0xf7, 0x04, 0x65, 0x8e, 0x5d, 0x88
+};
+
+static const int kKeyLength = 32;
+static const char kMasterKeyFileSignature[] = "MRKF";
+
+static std::string generate_password(int password_length) {
+  std::random_device rd;
+  std::string pwd;
+  static const char alphabet[] = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
+  std::uniform_int_distribution<unsigned long> dist(0, sizeof(alphabet) - 1);
+
+  for (int i = 0; i < password_length; i++)
+    pwd += alphabet[dist(rd)];
+
+  return pwd;
+}
+
+class MasterKeyFile {
+public:
+  MasterKeyFile(const std::string &file)
+      : path_(file) {
+  }
+
+  void load() {
+    std::ifstream f;
+    f.open(path_);
+    if (f.fail()) {
+      throw std::system_error(std::error_code(errno, std::system_category()), "Can't open file "+path_);
+    }
+    char buf[sizeof(kMasterKeyFileSignature)];
+    f.read(buf, sizeof(buf));
+    if (strncmp(buf, kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature)) != 0)
+      throw std::runtime_error("Invalid master key file "+path_);
+    entries_.clear();
+    try {
+      while (!f.eof()) {
+        uint32_t length;
+        f.read(reinterpret_cast<char*>(&length), sizeof(length));
+        std::string data;
+        data.resize(length);
+        f.read(&data[0], static_cast<std::streamsize>(data.size()));
+        std::string n, v;
+        n = std::string(data.data(), strlen(data.data()));
+        v = data.substr(n.size()+1);
+        entries_.push_back(std::make_pair(n, v));
+      }
+    } catch (std::exception &e) {
+      throw std::runtime_error("Error reading from master key file "+path_+
+          ": "+get_strerror(errno));
+    }
+    f.close();
+  }
+
+  void save() {
+    std::ofstream f;
+    f.open(path_, std::ios_base::binary|std::ios_base::trunc|std::ios_base::out);
+    if (f.fail()) {
+      throw std::runtime_error("Could not create master key file "+path_+
+          ": "+get_strerror(errno));
+    }
+#ifndef _WIN32
+    if (chmod(path_.c_str(), 0600) < 0) {
+      throw std::runtime_error("Could not set permissions of master key file "+path_+
+          ": "+get_strerror(errno));
+    }
+#endif
+    f.write(kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature));
+    for (auto &entry : entries_) {
+      uint32_t length = static_cast<uint32_t>(entry.first.length() + entry.second.length() + 1);
+      f.write(reinterpret_cast<char*>(&length), sizeof(length));
+      // write name of the entry
+      f.write(entry.first.data(), static_cast<std::streamsize>(entry.first.length()+1));
+      // write encrypted entry data
+      f.write(entry.second.data(), static_cast<std::streamsize>(entry.second.length()));
+    }
+    f.close();
+  }
+
+  void add(const std::string &id, const std::string &value,
+           const std::string &key) {
+    auto aes_buffer_size = myaes::my_aes_get_size(
+        static_cast<uint32_t>(value.length()), myaes::my_aes_256_cbc);
+    std::vector<char> aes_buffer(static_cast<size_t>(aes_buffer_size));
+
+    auto encrypted_size = myaes::my_aes_encrypt(
+        reinterpret_cast<const unsigned char*>(value.data()),
+        static_cast<uint32_t>(value.length()),
+        reinterpret_cast<unsigned char*>(aes_buffer.data()),
+        reinterpret_cast<const unsigned char*>(key.data()),
+        static_cast<uint32_t>(key.length()), myaes::my_aes_256_cbc, kAesIv);
+    if (encrypted_size < 0) {
+      throw std::runtime_error("Could not encrypt master key data");
+    }
+    aes_buffer.resize(static_cast<std::size_t>(encrypted_size));
+
+    entries_.push_back(std::make_pair(id, std::string(&aes_buffer[0], aes_buffer.size())));
+  }
+
+  std::string get(const std::string &id, const std::string &key) {
+    for (auto &entry : entries_) {
+      if (entry.first == id) {
+        std::vector<char> decrypted_buffer(entry.second.size());
+
+        auto decrypted_size = my_aes_decrypt(
+            reinterpret_cast<const unsigned char*>(entry.second.data()),
+            static_cast<uint32_t>(entry.second.length()),
+            reinterpret_cast<unsigned char*>(decrypted_buffer.data()),
+            reinterpret_cast<const unsigned char*>(key.data()),
+            static_cast<uint32_t>(key.length()), kAesMode, kAesIv);
+
+        if (decrypted_size < 0)
+          throw decryption_error("Decryption failed.");
+
+        return std::string(&decrypted_buffer[0], decrypted_buffer.size());
+      }
+    }
+    return "";
+  }
+
+private:
+  std::string path_;
+  std::vector<std::pair<std::string, std::string>> entries_;
+};
+
+
+/**
+ * Gets the master_key for the specified keyring_file from the master key store.
+ * If the master key store file does not exist, it will be created along with
+ * a new master_key, which will be stored and also returned.
+ * If the master key store already exists, but does not have an entry for the
+ * master key, it will be generated and then stored.
+ *
+ * Returns the master_key and the scramble for the master_key
+ */
+static std::pair<std::string,std::string>
+    get_master_key(const std::string &master_key_path,
+                   const std::string &keyring_file_path) {
+  KeyringFile kf;
+  MasterKeyFile mkf(master_key_path);
+
+  // get the scramble for the master key file from the keyring file itself
+  std::string master_scramble;
+
+  try {
+    master_scramble = kf.read_header(keyring_file_path);
+    if (master_scramble.empty()) {
+      throw std::runtime_error("Keyring file was created ");
+    }
+  } catch (...) {
+    if (errno != ENOENT)
+      throw;
+  }
+  std::string master_key;
+  // get the key for the keyring from the master key file, decrypting it with
+  // the scramble
+  if (!master_scramble.empty()) {
+    try {
+      mkf.load();
+      // look up for the master_key for this given keyring file
+      master_key = mkf.get(keyring_file_path, master_scramble);
+    } catch (...) {
+      if (errno != ENOENT)
+        throw;
+    }
+  }
+  if (master_key.empty()) {
+    // if the master key doesn't exist anywhere yet, generate one and store it
+    master_key = generate_password(kKeyLength);
+    // scramble to encrypt the master key with, which should be stored in the
+    // keyring
+    master_scramble = generate_password(kKeyLength);
+    mkf.add(keyring_file_path, master_key, master_scramble);
+    try {
+      mkf.save();
+    } catch (...) {
+      throw std::runtime_error("Unable to save master key to " + master_key_path
+          + ": " + get_strerror(errno));
+    }
+  }
+  return std::make_pair(master_key, master_scramble);
+}
+
+void init_keyring(const std::string &keyring_file_path,
+                  const std::string &master_key_path,
+                  bool create_if_needed) {
+  std::string master_key;
+  std::string master_scramble;
+
+  std::tie(master_key, master_scramble) = get_master_key(master_key_path,
+                                                         keyring_file_path);
+  init_keyring_with_key(keyring_file_path, master_key, create_if_needed);
+  g_keyring->set_header(master_scramble);
+  flush_keyring();
+}
+
+void init_keyring_with_key(const std::string &keyring_file_path,
+                           const std::string &master_key,
+                           bool create_if_needed) {
+  if (g_keyring)
+    throw std::logic_error("Keyring already initialized");
+  g_keyring_file_path = keyring_file_path;
+  g_keyring_key = master_key;
+
+  std::unique_ptr<KeyringFile> key_store(new KeyringFile());
+  try {
+    key_store->load(keyring_file_path, master_key);
+  } catch (std::exception &e) {
+    if (!create_if_needed)
+      throw;
+  }
+  g_keyring = std::move(key_store);
+}
+
+
+void flush_keyring() {
+  g_keyring->save(g_keyring_file_path, g_keyring_key);
+}
+
+Keyring *get_keyring() {
+  return g_keyring.get();
+}
+
+void reset_keyring() {
+  g_keyring.reset();
+}
+
+
+}

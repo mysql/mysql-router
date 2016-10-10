@@ -36,9 +36,13 @@ public:
   ~ConfigGenerator();
 
   void bootstrap_system_deployment(const std::string &config_file_path,
-      const std::map<std::string, std::string> &options);
+      const std::map<std::string, std::string> &options,
+      const std::string &default_keyring_path,
+      const std::string &keyring_master_key_file);
   void bootstrap_directory_deployment(const std::string &directory,
-      const std::map<std::string, std::string> &options);
+      const std::map<std::string, std::string> &options,
+      const std::string &default_keyring_file_name,
+      const std::string &keyring_master_key_file);
 
   struct Options {
     struct Endpoint {
@@ -61,6 +65,11 @@ public:
     std::string override_rundir;
     std::string socketsdir;
 
+    std::string keyring_file_path;
+    std::string keyring_master_key;
+    std::string keyring_master_key_file_path;
+
+
     bool multi_master;
   };
 private:
@@ -73,7 +82,12 @@ private:
 
   void bootstrap_deployment(std::ostream &config_file,
       uint32_t router_id, const std::string &name,
-      const std::map<std::string, std::string> &options);
+      const std::map<std::string, std::string> &options,
+      const std::string &keyring_file,
+      const std::string &keyring_master_key_file);
+
+  void init_keyring_file(const std::string &keyring_file,
+                         const std::string &keyring_master_key_file);
 
   void fetch_bootstrap_servers(std::string &bootstrap_servers,
                                std::string &metadata_cluster,
@@ -86,7 +100,6 @@ private:
                      const std::string &metadata_cluster,
                      const std::string &metadata_replicaset,
                      const std::string &username,
-                     const std::string &password,
                      const Options &options);
 
   void create_account(const std::string &username, const std::string &password);
@@ -97,6 +110,7 @@ private:
   void update_router_info(uint32_t router_id, const Options &options);
 
   std::string endpoint_option(const Options &options, const Options::Endpoint &ep);
+
 private:
   mysqlrouter::MySQLSession *mysql_;
   bool mysql_owned_;

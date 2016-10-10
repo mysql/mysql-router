@@ -48,20 +48,25 @@ set(include_dirs
 
 # this file includes protobuf generated header that is causing 'shadow' warning on some compilers
 check_cxx_compiler_flag("-Wshadow" CXX_HAVE_SHADOW)
-IF(CXX_HAVE_SHADOW)
+if(CXX_HAVE_SHADOW)
   add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
     COMPILE_FLAGS "-Wno-shadow")
-ENDIF()
+endif()
 check_cxx_compiler_flag("-Wsign-conversion" CXX_HAVE_SIGN_CONVERSION)
-IF(CXX_HAVE_SIGN_CONVERSION)
+if(CXX_HAVE_SIGN_CONVERSION)
   add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
     COMPILE_FLAGS "-Wno-sign-conversion")
-ENDIF()
+endif()
 check_cxx_compiler_flag("-Wunused-parameter" CXX_HAVE_UNUSED_PARAMETER)
-IF(CXX_HAVE_UNUSED_PARAMETER)
+if(CXX_HAVE_UNUSED_PARAMETER)
   add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
     COMPILE_FLAGS "-Wno-unused-parameter")
-ENDIF()
+endif()
+check_cxx_compiler_flag("-Wdeprecated-declarations" CXX_HAVE_DEPRECATED_DECLARATIONS)
+if(CXX_HAVE_DEPRECATED_DECLARATIONS)
+  add_compile_flags(${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+endif()
 
 link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 # The Plugin

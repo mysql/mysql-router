@@ -25,6 +25,10 @@
 
 namespace mysql_harness {
 
+class decryption_error : public std::runtime_error {
+public:
+  decryption_error(const char *what) : std::runtime_error(what) {}
+};
 
 /**
  * KeyringMemory class.

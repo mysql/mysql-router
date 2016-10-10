@@ -97,6 +97,10 @@ IF(HAVE_EC)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-enum-compare")
 ENDIF()
 
+CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DD)
+IF(HAVE_DD)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+ENDIF()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ADD_SUBDIRECTORY(protobuf-3.0.0/cmake)

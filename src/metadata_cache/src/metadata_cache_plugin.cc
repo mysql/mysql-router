@@ -25,6 +25,7 @@
 #  include <unistd.h>
 #endif
 
+#include "keyring/keyring_manager.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "logger.h"
@@ -36,6 +37,7 @@ using std::string;
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "metadata_cache";
+static const char *kKeyringAttributePassword = "password";
 
 static const char *kRoutingRequires[] = {
     "logger",
@@ -78,11 +80,14 @@ static void start(const mysql_harness::ConfigSection *section) {
     metadata_cluster = metadata_cluster.empty()?
       metadata_cache::kDefaultMetadataCluster : metadata_cluster;
 
+    std::string password = mysql_harness::get_keyring()->fetch(config.user,
+        kKeyringAttributePassword);
+
     log_info("Starting Metadata Cache");
 
     // Initialize the metadata cache.
     metadata_cache::cache_init(config.bootstrap_addresses, config.user,
-                               config.password, ttl,
+                               password, ttl,
                                metadata_cluster);
   } catch (const std::runtime_error &exc) {
     // We continue and retry

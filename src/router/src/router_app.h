@@ -341,6 +341,8 @@ private:
   std::vector<string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
+  /** @brief Path to keyring master key file */
+  std::string keyring_master_key_file_path_;
   /** @brief Vector with available and usable configuration files
    *
    * @devnote

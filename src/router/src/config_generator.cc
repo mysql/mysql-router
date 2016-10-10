@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "keyring/keyring_manager.h"
 #include "config_generator.h"
 #include "mysqlrouter/uri.h"
 #include "common.h"
@@ -62,6 +63,8 @@ static const char *kROXSocketName = "mysqlxro.sock";
 static const std::string kSystemRouterName = "system";
 
 static const int kMetadataServerPasswordLength = 16;
+
+static const char *kKeyringAttributePassword = "password";
 
 using mysql_harness::get_strerror;
 using mysqlrouter::sqlstring;
@@ -321,7 +324,9 @@ ConfigGenerator::~ConfigGenerator() {
 }
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
-    const std::map<std::string, std::string> &user_options) {
+    const std::map<std::string, std::string> &user_options,
+    const std::string &keyring_file_path,
+    const std::string &keyring_master_key_file) {
   if (user_options.find("name") != user_options.end()) {
     throw std::runtime_error("Router instance name can only be specified with --directory option");
   }
@@ -343,7 +348,9 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   if (config_file.fail()) {
     throw std::runtime_error("Could not open "+config_file_path+".tmp for writing: "+get_strerror(errno));
   }
-  bootstrap_deployment(config_file, router_id, kSystemRouterName, options);
+  init_keyring_file(keyring_file_path, keyring_master_key_file);
+  bootstrap_deployment(config_file, router_id, kSystemRouterName, options,
+                       keyring_file_path, keyring_master_key_file);
   config_file.close();
 
   // rename the .tmp file to the final file
@@ -352,6 +359,12 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
   }
+#ifndef _WIN32
+  if (chmod(config_file_path.c_str(), 0600) < 0) {
+    std::cerr << get_strerror(errno) << ": Could not change permission of the configuration file: "
+        << config_file_path << "\n";
+  }
+#endif
 }
 
 static bool is_directory_empty(mysql_harness::Directory dir) {
@@ -367,13 +380,14 @@ static bool is_directory_empty(mysql_harness::Directory dir) {
  * Create a self-contained deployment of the Router in a directory.
  */
 void ConfigGenerator::bootstrap_directory_deployment(const std::string &directory,
-    const std::map<std::string, std::string> &user_options) {
+    const std::map<std::string, std::string> &user_options,
+    const std::string &default_keyring_file_name,
+    const std::string &keyring_master_key_file) {
   uint32_t router_id = 0;
   bool force = user_options.find("force") != user_options.end();
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
-  path = path.real_path();
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
       throw std::runtime_error("Router name " + kSystemRouterName + " is reserved");
@@ -385,6 +399,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     throw std::runtime_error("Please use the --name option to give a label for this router instance");
   }
   if (path.exists()) {
+    path = path.real_path();
     config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
     if (config_file_path.exists()) {
       router_id = get_router_id_from_config_file(config_file_path.str(),
@@ -398,6 +413,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       std::cerr << "Cannot create directory " << directory << ": " << mysql_harness::get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
+    path = path.real_path();
     config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
   }
   std::map<std::string, std::string> options(user_options);
@@ -427,12 +443,16 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     throw std::runtime_error("Could not open "+config_file_path.str()+".tmp for writing: "+get_strerror(errno));
   }
   try {
-    bootstrap_deployment(config_file, router_id, router_name, options);
+    std::string keyring_path = mysql_harness::Path(options["rundir"]).
+        real_path().join(default_keyring_file_name).str();
+    init_keyring_file(keyring_path, keyring_master_key_file);
+    bootstrap_deployment(config_file, router_id, router_name, options,
+                         keyring_path, keyring_master_key_file);
   } catch (...) {
     config_file.close();
-#ifndef _WIN32
-    unlink((config_file_path.str()+".tmp").c_str());
-#endif
+    mysqlrouter::delete_file(config_file_path.str()+".tmp");
+    mysqlrouter::rmdir(options["logdir"]);
+    mysqlrouter::rmdir(options["rundir"]);
     throw;
   }
   config_file.close();
@@ -443,7 +463,12 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
   }
-
+  #ifndef _WIN32
+    if (chmod(config_file_path.c_str(), 0600) < 0) {
+      std::cerr << get_strerror(errno) << ": Could not change permission of the configuration file: "
+          << config_file_path << "\n";
+    }
+  #endif
   // create start/stop scripts
   create_start_scripts(path.str());
 }
@@ -507,7 +532,9 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
 
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     uint32_t router_id, const std::string &router_name,
-    const std::map<std::string, std::string> &user_options) {
+    const std::map<std::string, std::string> &user_options,
+    const std::string &keyring_file,
+    const std::string &keyring_master_key_file) {
   std::string primary_cluster_name;
   std::string primary_replicaset_servers;
   std::string primary_replicaset_name;
@@ -551,11 +578,22 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   }
 
   Options options(fill_options(multi_master, user_options));
+  options.keyring_file_path = keyring_file;
+  options.keyring_master_key_file_path = keyring_master_key_file;
 
   // Create or recreate the account used by this router instance to access
   // metadata server
   std::string username = "mysql_innodb_cluster_router"+std::to_string(router_id);
   std::string password = generate_password(kMetadataServerPasswordLength);
+  {
+    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+    keyring->store(username, kKeyringAttributePassword, password);
+    try {
+      mysql_harness::flush_keyring();
+    } catch (std::exception &e) {
+      throw std::runtime_error(std::string("Error storing encrypted password to disk: ")+e.what());
+    }
+  }
 
   create_account(username, password);
 
@@ -567,10 +605,40 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 primary_cluster_name,
                 primary_replicaset_name,
                 username,
-                password,
                 options);
 
   transaction.commit();
+}
+
+void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
+        const std::string &keyring_master_key_file) {
+  if (keyring_master_key_file.empty()) {
+    std::string master_key;
+    if (mysql_harness::Path(keyring_file).exists()) {
+      master_key = prompt_password("Please provide the encryption key for key file");
+    } else {
+      std::cout
+        << "MySQL Router needs to create a InnoDB cluster metadata client account.\n"
+        << "To allow secure storage of its password, please provide an encryption key.\n"
+        << "To generate a random encryption key to be stored in a local obscured file,\n"
+        << "and allow the router to start without interaction, press Return to cancel\n"
+        << "and use the --master-key-path option to specify a file location.\n\n";
+    again:
+      master_key = prompt_password("Please provide an encryption key");
+      if (master_key.empty()) {
+        throw std::runtime_error("cancelled");
+      } else {
+        std::string confirm = prompt_password("Please confirm encryption key");
+        if (confirm != master_key) {
+          std::cout << "Entered keys do not match. Please try again.\n";
+          goto again;
+        }
+      }
+    }
+    mysql_harness::init_keyring_with_key(keyring_file, master_key, true);
+  } else {
+    mysql_harness::init_keyring(keyring_file, keyring_master_key_file, true);
+  }
 }
 
 void ConfigGenerator::fetch_bootstrap_servers(
@@ -690,7 +758,6 @@ static std::string find_executable_path() {
       }
       p = strtok_r(NULL, ":", &last);
     }
-
   }
 #endif
   throw std::logic_error("Could not find own installation directory");
@@ -704,6 +771,7 @@ std::string ConfigGenerator::endpoint_option(const Options &options,
     return "socket=" + options.socketsdir + "/" + ep.socket;
 }
 
+
 void ConfigGenerator::create_config(
   std::ostream &cfp,
   uint32_t router_id,
@@ -712,7 +780,6 @@ void ConfigGenerator::create_config(
   const std::string &metadata_cluster,
   const std::string &metadata_replicaset,
   const std::string &username,
-  const std::string &password,
   const Options &options) {
 
   cfp << "# File automatically generated during MySQL Router bootstrap\n";
@@ -721,7 +788,12 @@ void ConfigGenerator::create_config(
   if (!options.override_logdir.empty())
     cfp << "logging_folder=" << options.override_logdir << "\n";
   if (!options.override_rundir.empty())
-      cfp << "runtime_folder=" << options.override_rundir << "\n";
+    cfp << "runtime_folder=" << options.override_rundir << "\n";
+  if (!options.keyring_file_path.empty())
+    cfp << "keyring_path=" << options.keyring_file_path << "\n";
+  if (!options.keyring_master_key_file_path.empty())
+    cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
+
   cfp << "\n"
       << "[logger]\n"
       << "level = INFO\n"
@@ -730,7 +802,6 @@ void ConfigGenerator::create_config(
       << "router_id=" << router_id << "\n"
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
-      << "password=" << password << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
       << "ttl=300" << "\n"
       << "metadata_replicaset=" << metadata_replicaset << "\n"

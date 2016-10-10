@@ -19,7 +19,7 @@
 #define MYSQL_HARNESS_KEYRING_FILE_INCLUDED
 
 #include "keyring_memory.h"
-
+#include <iostream>
 
 namespace mysql_harness {
 
@@ -33,6 +33,14 @@ namespace mysql_harness {
 class HARNESS_EXPORT KeyringFile : public KeyringMemory {
  public:
   KeyringFile() = default;
+
+  /**
+   * Sets additional data to be stored with the file but will not be
+   * encrypted.
+   *
+   * @param[in] data to store in header
+   */
+  void set_header(const std::string &data);
 
   /**
    * Saves keyring to file.
@@ -53,6 +61,18 @@ class HARNESS_EXPORT KeyringFile : public KeyringMemory {
    * @except std::exception Loading from file failed.
    */
   void load(const std::string& file_name, const std::string& key);
+
+  /**
+   * Read header data from file.
+   *
+   * @param[in] file_name Keyring file name.
+   *
+   * @except std::exception Loading from file failed.
+   */
+  std::string read_header(const std::string& file_name);
+
+ private:
+  std::string header_;
 };
 
 
