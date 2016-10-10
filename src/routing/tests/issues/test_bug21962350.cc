@@ -173,8 +173,9 @@ TEST_F(Bug21962350, QuarantineServerMultipleTimes) {
   ASSERT_EQ(exp, d.size_quarantine());
 }
 
-#if !defined(_WIN32) && !defined(__FreeBSD__)
+#if !defined(_WIN32) && !defined(__FreeBSD__) && !defined(NDEBUG)
 // This test doesn't work in Windows or FreeBSD, because of how ASSERT_DEATH works
+// It also fails on release version
 // But this test is gone in newer branches anyway, so disabling for now
 TEST_F(Bug21962350, QuarantineServerNonExisting) {
   size_t exp;

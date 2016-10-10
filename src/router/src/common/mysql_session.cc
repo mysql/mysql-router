@@ -29,7 +29,7 @@ MySQLSession::MySQLSession() {
 }
 
 MySQLSession::~MySQLSession() {
-  disconnect();
+  mysql_close(connection_);
   delete connection_;
 }
 
@@ -66,7 +66,6 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 
 void MySQLSession::disconnect() {
   if (connected_) {
-    mysql_close(connection_);
     connected_ = false;
   }
 }

@@ -163,13 +163,13 @@ TEST_F(Bug22020711, NoValidDestinations) {
   ASSERT_EQ(static_cast<size_t>(res), fake_request.size());
 
   // receive response
-  mysql_protocol::Packet::vector_t buffer(64);
+  mysql_protocol::Packet::vector_t buffer(128);
   receive_message(router, buffer);
 
   // check the response
   EXPECT_NO_THROW({
     mysql_protocol::ErrorPacket packet = mysql_protocol::ErrorPacket(buffer);
-    EXPECT_EQ("Can't connect to remote MySQL server on '127.0.0.1:7004'",
+    EXPECT_EQ("Can't connect to remote MySQL server for client '127.0.0.1:7004'",
               packet.get_message());
     EXPECT_EQ(packet.get_code(), 2003);
   });
