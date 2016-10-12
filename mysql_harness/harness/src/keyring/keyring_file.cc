@@ -201,7 +201,7 @@ static void check_file_access_rights(const std::string& file_name) {
     if (errno == ENOENT)
       return;
     throw std::runtime_error("stat() failed (" + file_name + "): " +
-                             std::to_string(errno));
+                             mysql_harness::get_strerror(errno));
   }
 
   static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);

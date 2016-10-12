@@ -78,7 +78,8 @@ private:
   Options fill_options(bool multi_master,
       const std::map<std::string, std::string> &user_options);
 
-  void create_start_scripts(const std::string &directory);
+  void create_start_scripts(const std::string &directory,
+                            bool interactive_master_key);
 
   void bootstrap_deployment(std::ostream &config_file,
       uint32_t router_id, const std::string &name,

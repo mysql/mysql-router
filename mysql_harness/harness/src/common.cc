@@ -133,7 +133,7 @@ static void set_everyone_group_access_rights(const std::string& file_name,
  */
 static void throwing_chmod(const std::string& file_name, mode_t mask) {
   if (chmod(file_name.c_str(), mask) != 0) {
-    throw std::runtime_error("chmod() failed: " +
+    throw std::runtime_error("chmod() failed: " + file_name + ": " +
                              mysql_harness::get_strerror(errno));
   }
 }

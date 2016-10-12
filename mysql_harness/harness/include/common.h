@@ -32,27 +32,14 @@
 namespace mysql_harness {
 
 /**
- * Default callback for `StdFreeDeleter`.
- */
-template<typename T>
-class DefaultStdFreeDeleterCallback {
-public:
- void operator()(T* ptr) {
-   std::free(ptr);
- }
-};
-
-/**
  * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
  */
-template<typename T, typename Callback = DefaultStdFreeDeleterCallback<T>>
+template<typename T>
 class StdFreeDeleter {
-public:
- void operator()(T* ptr) {
-   Callback callback;
-
-   callback(ptr);
- }
+ public:
+  void operator()(T* ptr) {
+    std::free(ptr);
+  }
 };
 
 /**

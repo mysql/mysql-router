@@ -21,6 +21,7 @@
 #include "common.h"
 #include "filesystem.h"
 #include "config_parser.h"
+#include "common.h"
 #include "mysqlrouter/mysql_session.h"
 #include "utils_sqlstring.h"
 #include "rapidjson/rapidjson.h"
@@ -359,19 +360,14 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
   }
-#ifndef _WIN32
-  if (chmod(config_file_path.c_str(), 0600) < 0) {
-    std::cerr << get_strerror(errno) << ": Could not change permission of the configuration file: "
-        << config_file_path << "\n";
-  }
-#endif
+  mysql_harness::make_file_private(config_file_path);
 }
 
 static bool is_directory_empty(mysql_harness::Directory dir) {
   for (auto di = dir.begin(); di != dir.end(); ++di) {
     std::string name = (*di).basename().str();
     if (name != "." && name != "..")
-      return false;;
+      return false;
   }
   return true;
 }
@@ -463,14 +459,9 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
   }
-  #ifndef _WIN32
-    if (chmod(config_file_path.c_str(), 0600) < 0) {
-      std::cerr << get_strerror(errno) << ": Could not change permission of the configuration file: "
-          << config_file_path << "\n";
-    }
-  #endif
+  mysql_harness::make_file_private(config_file_path.str());
   // create start/stop scripts
-  create_start_scripts(path.str());
+  create_start_scripts(path.str(), keyring_master_key_file.empty());
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
@@ -983,7 +974,8 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
   return 0;
 }
 
-void ConfigGenerator::create_start_scripts(const std::string &directory) {
+void ConfigGenerator::create_start_scripts(const std::string &directory,
+                                           bool interactive_master_key) {
 #ifdef _WIN32
   std::ofstream script;
   std::string script_path = directory + "/start.ps1";
@@ -1022,6 +1014,15 @@ void ConfigGenerator::create_start_scripts(const std::string &directory) {
   }
   script << "#!/bin/bash\n";
   script << "basedir=" << directory << "\n";
+  if (interactive_master_key) {
+    // prompt for password if master_key_path is not set
+    script << "old_stty=`stty -g`\n";
+    script << "stty -echo\n";
+    script << "echo -n 'Encryption key for router keyring:'\n";
+    script << "read password\n";
+    script << "stty $old_stty\n";
+    script << "echo $password | ";
+  }
   script << "ROUTER_PID=$basedir/mysqlrouter.pid " << find_executable_path() << " -c " << "$basedir/mysqlrouter.conf &\n";
   script << "disown %-\n";
   script.close();
