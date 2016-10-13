@@ -69,10 +69,6 @@ add_harness_test(TestConfig SOURCES test_config.cc)
 # and fails sporadically on Linux, fails always on Windows
 #add_harness_test(TestQueue SOURCES test_queue.cc)
 
-# future functionality, currently not used anywhere, still has rough edges
-# and fails sporadically on Linux, fails always on Windows
-#add_harness_test(TestQueue SOURCES test_queue.cc)
-
 add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
 
 add_harness_test(TestIPAddress SOURCES test_ip_address.cc)
@@ -81,8 +77,8 @@ add_harness_test(TestNameResolver SOURCES test_resolver.cc)
 add_harness_test(TestKeyring SOURCES test_keyring.cc)
 target_link_libraries(TestKeyring PRIVATE ${SSL_LIBRARIES})
 
-#add_harness_test(TestKeyringManager SOURCES test_keyring_manager.cc)
-#target_link_libraries(TestKeyringManager PRIVATE ${SSL_LIBRARIES})
+add_harness_test(TestKeyringManager SOURCES test_keyring_manager.cc)
+target_link_libraries(TestKeyringManager PRIVATE ${SSL_LIBRARIES})
 
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")

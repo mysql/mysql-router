@@ -222,6 +222,9 @@ void KeyringFile::set_header(const std::string &data) {
 
 void KeyringFile::save(const std::string& file_name,
                        const std::string& key) const {
+  if (key.empty()) {
+    throw std::runtime_error("Keyring encryption key must not be blank");
+  }
   // Serialize keyring.
   auto buffer = serialize(key);
 

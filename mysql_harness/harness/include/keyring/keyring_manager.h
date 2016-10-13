@@ -30,8 +30,10 @@ namespace mysql_harness {
  * @param keyring_file_path path to the file where keyring is stored
  * @param master_key_path path to the file keyring master keys are stored
  * @param create_if_needed creates the keyring if it doesn't exist yet
+ *
+ * @return false if the keyring had to be created
  */
-HARNESS_EXPORT void init_keyring(const std::string &keyring_file_path,
+HARNESS_EXPORT bool init_keyring(const std::string &keyring_file_path,
                                  const std::string &master_key_path,
                                  bool create_if_needed);
 
@@ -42,8 +44,10 @@ HARNESS_EXPORT void init_keyring(const std::string &keyring_file_path,
  * @param keyring_file_path path to the file where keyring is stored
  * @param master_key master key for the keyring
  * @param create_if_needed creates the keyring if it doesn't exist yet
+ *
+ * @return false if the keyring had to be created
  */
-HARNESS_EXPORT void init_keyring_with_key(const std::string &keyring_file_path,
+HARNESS_EXPORT bool init_keyring_with_key(const std::string &keyring_file_path,
                                           const std::string &master_key,
                                           bool create_if_needed);
 

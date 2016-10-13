@@ -113,7 +113,7 @@ public:
       }
     } catch (std::exception &e) {
       throw std::runtime_error("Error reading from master key file "+path_+
-          ": "+get_strerror(errno));
+          ": "+e.what());
     }
     f.close();
   }
@@ -125,12 +125,12 @@ public:
       throw std::runtime_error("Could not create master key file "+path_+
           ": "+get_strerror(errno));
     }
-#ifndef _WIN32
-    if (chmod(path_.c_str(), 0600) < 0) {
+    try {
+      make_file_private(path_);
+    } catch (std::exception &e) {
       throw std::runtime_error("Could not set permissions of master key file "+path_+
-          ": "+get_strerror(errno));
+          ": "+e.what());
     }
-#endif
     f.write(kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature));
     for (auto &entry : entries_) {
       uint32_t length = static_cast<uint32_t>(entry.first.length() + entry.second.length() + 1);
@@ -159,7 +159,6 @@ public:
       throw std::runtime_error("Could not encrypt master key data");
     }
     aes_buffer.resize(static_cast<std::size_t>(encrypted_size));
-
     entries_.push_back(std::make_pair(id, std::string(&aes_buffer[0], aes_buffer.size())));
   }
 
@@ -200,10 +199,10 @@ private:
  * Returns the master_key and the scramble for the master_key
  */
 static std::pair<std::string,std::string>
-    get_master_key(const std::string &master_key_path,
-                   const std::string &keyring_file_path) {
+    get_master_key(MasterKeyFile &mkf,
+                   const std::string &keyring_file_path,
+                   bool create_if_needed) {
   KeyringFile kf;
-  MasterKeyFile mkf(master_key_path);
 
   // get the scramble for the master key file from the keyring file itself
   std::string master_scramble;
@@ -211,10 +210,10 @@ static std::pair<std::string,std::string>
   try {
     master_scramble = kf.read_header(keyring_file_path);
     if (master_scramble.empty()) {
-      throw std::runtime_error("Keyring file was created ");
+      throw std::runtime_error("Keyring file requires interactive key input");
     }
-  } catch (...) {
-    if (errno != ENOENT)
+  } catch (std::exception&) {
+    if (errno != ENOENT || !create_if_needed)
       throw;
   }
   std::string master_key;
@@ -222,21 +221,48 @@ static std::pair<std::string,std::string>
   // the scramble
   if (!master_scramble.empty()) {
     try {
-      mkf.load();
       // look up for the master_key for this given keyring file
       master_key = mkf.get(keyring_file_path, master_scramble);
-    } catch (...) {
-      if (errno != ENOENT)
-        throw;
+    } catch (std::out_of_range&) {
+      // missing key will be handled further down
     }
   }
   if (master_key.empty()) {
+    if (!create_if_needed)
+      throw std::runtime_error("Master key for keyring at '" + keyring_file_path + "' could not be read");
     // if the master key doesn't exist anywhere yet, generate one and store it
     master_key = generate_password(kKeyLength);
     // scramble to encrypt the master key with, which should be stored in the
     // keyring
     master_scramble = generate_password(kKeyLength);
     mkf.add(keyring_file_path, master_key, master_scramble);
+  }
+  return std::make_pair(master_key, master_scramble);
+}
+
+bool init_keyring(const std::string &keyring_file_path,
+                  const std::string &master_key_path,
+                  bool create_if_needed) {
+  std::string master_key;
+  std::string master_scramble;
+  MasterKeyFile mkf(master_key_path);
+
+  try {
+    mkf.load();
+  } catch (std::exception&) {
+    if (errno == ENOENT && create_if_needed) {
+      // ignore the error and proceed to create the file
+    } else
+      throw;
+  }
+
+  std::tie(master_key, master_scramble) = get_master_key(mkf,
+                                                         keyring_file_path,
+                                                         create_if_needed);
+  bool existed = init_keyring_with_key(keyring_file_path, master_key, create_if_needed);
+  if (create_if_needed && !existed) {
+    g_keyring->set_header(master_scramble);
+    flush_keyring();
     try {
       mkf.save();
     } catch (...) {
@@ -244,42 +270,34 @@ static std::pair<std::string,std::string>
           + ": " + get_strerror(errno));
     }
   }
-  return std::make_pair(master_key, master_scramble);
+  return existed;
 }
 
-void init_keyring(const std::string &keyring_file_path,
-                  const std::string &master_key_path,
-                  bool create_if_needed) {
-  std::string master_key;
-  std::string master_scramble;
-
-  std::tie(master_key, master_scramble) = get_master_key(master_key_path,
-                                                         keyring_file_path);
-  init_keyring_with_key(keyring_file_path, master_key, create_if_needed);
-  g_keyring->set_header(master_scramble);
-  flush_keyring();
-}
-
-void init_keyring_with_key(const std::string &keyring_file_path,
+bool init_keyring_with_key(const std::string &keyring_file_path,
                            const std::string &master_key,
                            bool create_if_needed) {
   if (g_keyring)
     throw std::logic_error("Keyring already initialized");
-  g_keyring_file_path = keyring_file_path;
-  g_keyring_key = master_key;
-
+  bool existed = false;
   std::unique_ptr<KeyringFile> key_store(new KeyringFile());
   try {
     key_store->load(keyring_file_path, master_key);
+    existed = true;
   } catch (std::exception &e) {
     if (!create_if_needed)
       throw;
+    // force initial creation
+    key_store->save(keyring_file_path, master_key);
   }
   g_keyring = std::move(key_store);
+  g_keyring_file_path = keyring_file_path;
+  g_keyring_key = master_key;
+  return existed;
 }
 
-
 void flush_keyring() {
+  if (!g_keyring)
+    throw std::logic_error("No keyring loaded");
   g_keyring->save(g_keyring_file_path, g_keyring_key);
 }
 
