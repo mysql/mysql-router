@@ -756,10 +756,15 @@ static std::string find_executable_path() {
 
 std::string ConfigGenerator::endpoint_option(const Options &options,
                                              const Options::Endpoint &ep) {
+  std::string r;
   if (ep.port > 0)
-    return "bind_port=" + std::to_string(ep.port);
-  else
-    return "socket=" + options.socketsdir + "/" + ep.socket;
+    r.append("bind_port=" + std::to_string(ep.port));
+  if (!ep.socket.empty()) {
+    if (!r.empty())
+      r.append("\n");
+    r.append("socket=" + options.socketsdir + "/" + ep.socket);
+  }
+  return r;
 }
 
 
