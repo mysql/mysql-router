@@ -120,22 +120,16 @@ mysql_harness::Path BasePluginConfig::get_option_named_socket(const mysql_harnes
                                                               const string &option) {
   std::string value = get_option_string(section, option);
 
-  #ifndef _WIN32
+#ifndef _WIN32
   if (value.size() > (sizeof(sockaddr_un().sun_path)-1)) {
     throw invalid_argument("Socket file path can be at most " + to_string(sizeof(sockaddr_un().sun_path)-1) + " characters (was " + to_string(value.size()) + ")");
   }
-  #endif
+#endif
 
   if (value.empty()) {
     return mysql_harness::Path();
   }
-
-  mysql_harness::Path socket_path(value);
-  if (socket_path.exists()) {
-    throw std::invalid_argument(get_log_prefix(option) + " Socket file '" + value + "' already exists, cannot start");
-  }
-
-  return socket_path;
+  return mysql_harness::Path(value);
 }
 
 } // namespace mysqlrouter

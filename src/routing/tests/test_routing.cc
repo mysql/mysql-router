@@ -15,8 +15,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <gtest/gtest_prod.h>
+
 #include "mysqlrouter/routing.h"
 #include "mysql_routing.h"
+#include "common.h"
 
 #include "routing_mocks.h"
 #include "protocol/classic_protocol.h"
@@ -27,6 +30,7 @@
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #else
+#  include <sys/un.h>
 #  include <sys/socket.h>
 #  ifdef __sun
 #    include <fcntl.h>
@@ -182,3 +186,232 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
 
   ASSERT_EQ(-1, res);
 }
+
+#ifndef _WIN32
+
+class MockServer {
+public:
+  MockServer(uint16_t port) {
+    int option_value;
+
+    socket_operations_ = routing::SocketOperations::instance();
+
+    if ((service_tcp_ = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+      throw std::runtime_error(mysql_harness::get_strerror(errno));
+    }
+
+#ifndef _WIN32
+    option_value = 1;
+    if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&option_value),
+            static_cast<socklen_t>(sizeof(int))) == -1) {
+      throw std::runtime_error(get_message_error(errno));
+    }
+#endif
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+    if (::bind(service_tcp_, (const struct sockaddr *)&addr, sizeof(addr)) == -1) {
+      socket_operations_->close(service_tcp_);
+#ifdef _WIN32
+      int errcode = WSAGetLastError();
+#else
+      int errcode = errno;
+#endif
+      throw std::runtime_error(get_message_error(errcode));
+    }
+    if (listen(service_tcp_, 20) < 0) {
+      throw std::runtime_error("Failed to start listening for connections using TCP");
+    }
+  }
+
+  ~MockServer() {
+    stop();
+  }
+
+  void start() {
+    stop_ = false;
+    thread_ = std::thread(&MockServer::runloop, this);
+  }
+
+  void stop() {
+    if (!stop_) {
+      stop_ = true;
+      socket_operations_->close(service_tcp_);
+      thread_.join();
+    }
+  }
+
+  void runloop() {
+    while (!stop_) {
+      int sock_client;
+      struct sockaddr_in6 client_addr;
+      socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
+      if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+        continue;
+      }
+      std::thread([this, sock_client]() { new_client(sock_client); }).detach();
+    }
+  }
+
+  void new_client(int sock) {
+    num_connections_++;
+    char buf[3];
+    // block until we receive the bye msg
+    if (read(sock, buf, 3) < 0) {
+      FAIL() << "Unexpected results from read(): " << mysql_harness::get_strerror(errno);
+    }
+    socket_operations_->close(sock);
+    num_connections_--;
+  }
+
+public:
+  int num_connections_ = 0;
+
+private:
+  routing::SocketOperationsBase* socket_operations_;
+  std::thread thread_;
+  int service_tcp_;
+  bool stop_;
+};
+
+
+static int connect_local(uint16_t port) {
+  return routing::SocketOperations::instance()->get_mysql_socket(TCPAddress("127.0.0.1", port), 10, true);
+}
+
+static void disconnect(int sock) {
+  write(sock, "bye", 3);
+  routing::SocketOperations::instance()->close(sock);
+}
+
+#ifndef _WIN32
+static int connect_socket(const char *path) {
+  struct sockaddr_un addr;
+  int fd;
+
+  if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    throw std::runtime_error(mysql_harness::get_strerror(errno));
+  }
+
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_UNIX;
+  strncpy(addr.sun_path, path, sizeof(addr.sun_path)-1);
+
+  if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+    throw std::runtime_error(mysql_harness::get_strerror(errno));
+  }
+
+  return fd;
+}
+#endif
+
+static bool call_until(std::function<bool ()> f, int timeout = 2) {
+  time_t start = time(NULL);
+  while (time(NULL) - start < timeout) {
+    if (f())
+      return true;
+  }
+  return false;
+}
+
+// Bug#24841281 NOT ABLE TO CONNECT ANY CLIENTS WHEN ROUTER IS CONFIGURED WITH SOCKETS OPTION
+TEST_F(RoutingTests, bug_24841281) {
+  const uint16_t server_port = 4422;
+  const uint16_t router_port = 4444;
+
+  MockServer server(server_port);
+  server.start();
+
+  // check that connecting to a TCP socket or a UNIX socket works
+  MySQLRouting routing(routing::AccessMode::kReadWrite, router_port,
+               "x", "0.0.0.0", mysql_harness::Path("/tmp/sock"),
+               "testroute",
+               routing::kDefaultMaxConnections,
+               routing::kDefaultDestinationConnectionTimeout,
+               routing::kDefaultMaxConnectErrors,
+               routing::kDefaultClientConnectTimeout,
+               routing::kDefaultNetBufferLength);
+  routing.set_destinations_from_csv("127.0.0.1:"+std::to_string(server_port));
+  std::thread thd(&MySQLRouting::start, &routing);
+
+  EXPECT_EQ(routing.info_active_routes_.load(), 0);
+
+  // open connections to the socket and see if we get a matching outgoing
+  // socket connection attempt to our mock server
+
+  int sock1 = connect_local(router_port);
+  int sock2 = connect_local(router_port);
+
+  EXPECT_TRUE(sock1 > 0);
+  EXPECT_TRUE(sock2 > 0);
+
+  call_until([&server]() -> bool { return server.num_connections_ == 2; });
+  EXPECT_EQ(2, server.num_connections_);
+
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
+  EXPECT_EQ(2, routing.info_active_routes_.load());
+
+  disconnect(sock1);
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
+  EXPECT_EQ(1, routing.info_active_routes_.load());
+
+  {
+    int sock11 = connect_local(router_port);
+    int sock12 = connect_local(router_port);
+
+    EXPECT_TRUE(sock11 > 0);
+    EXPECT_TRUE(sock12 > 0);
+
+    call_until([&server]() -> bool { return server.num_connections_ == 3; });
+    EXPECT_EQ(3, server.num_connections_);
+
+    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 3; });
+    EXPECT_EQ(3, routing.info_active_routes_.load());
+
+    disconnect(sock11);
+    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
+    EXPECT_EQ(2, routing.info_active_routes_.load());
+
+    disconnect(sock12);
+    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
+    EXPECT_EQ(1, routing.info_active_routes_.load());
+
+    call_until([&server]() -> bool { return server.num_connections_ == 1; });
+    EXPECT_EQ(1, server.num_connections_);
+  }
+
+  disconnect(sock2);
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 0; });
+  EXPECT_EQ(0, routing.info_active_routes_.load());
+
+#ifndef _WIN32
+  // now try the same with socket ops
+  int sock3 = connect_socket("/tmp/sock");
+  int sock4 = connect_socket("/tmp/sock");
+
+  EXPECT_TRUE(sock3 > 0);
+  EXPECT_TRUE(sock4 > 0);
+
+  call_until([&server]() -> bool { return server.num_connections_ == 2; });
+  EXPECT_EQ(2, server.num_connections_);
+
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
+  EXPECT_EQ(2, routing.info_active_routes_.load());
+
+  disconnect(sock3);
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
+  EXPECT_EQ(1, routing.info_active_routes_.load());
+
+  disconnect(sock4);
+  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 0; });
+  EXPECT_EQ(0, routing.info_active_routes_.load());
+#endif
+  routing.stop();
+  server.stop();
+
+  thd.join();
+}
+#endif

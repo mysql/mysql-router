@@ -229,10 +229,6 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   // any non-blocking possibilities
   set_socket_blocking(sock, true);
 
-  // set blocking; MySQL protocol is blocking and we do not take advantage of
-  // any non-blocking possibilities
-  set_socket_blocking(sock, true);
-
   if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
                  reinterpret_cast<const char*>(&opt_nodelay), // cast keeps Windows happy (const void* on Unix)
                  static_cast<socklen_t>(sizeof(int))) == -1) {

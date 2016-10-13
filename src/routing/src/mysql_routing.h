@@ -274,8 +274,7 @@ private:
    */
   void routing_select_thread(int client, const in6_addr client_addr) noexcept;
 
-  void start_tcp_service();
-  void start_named_socket_service();
+  void start_acceptor();
 
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
@@ -324,14 +323,16 @@ private:
   std::map<std::array<uint8_t, 16>, size_t> auth_error_counters_;
   std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 
-  /** @brief TCP service thread */
-  std::thread thread_tcp_;
-  /** @brief Named socket service thread */
-  std::thread thread_named_socket_;
+  /** @brief TCP (and UNIX socket) service thread */
+  std::thread thread_acceptor_;
   /** @brief object handling the operations on network sockets */
   routing::SocketOperationsBase* socket_operations_;
   /** @brief object to handle protocol specific stuff */
   std::unique_ptr<BaseProtocol> protocol_;
+
+#ifdef FRIEND_TEST
+  FRIEND_TEST(RoutingTests, bug_24841281);
+#endif
 };
 
 extern "C"
