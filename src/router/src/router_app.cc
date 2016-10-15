@@ -216,27 +216,40 @@ void MySQLRouter::start() {
     return;
   }
 
-  // Initialize keyring
-  std::string keyring_file;
-  std::string master_key_path;
-
-  if (loader_->get_config().has_default("keyring_path"))
-    keyring_file = loader_->get_config().get_default("keyring_path");
-  if (loader_->get_config().has_default("master_key_path"))
-    master_key_path = loader_->get_config().get_default("master_key_path");
-
-  // fill in default keyring file path, if not set
-  if (keyring_file.empty()) {
-    keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
-                                       "{origin}", origin_.str());
-    keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
+  bool needs_keyring = false;
+  auto &config(loader_->get_config());
+  if (config.has("metadata_cache")) {
+    auto metadata_caches = config.get("metadata_cache");
+    for (auto &section : metadata_caches) {
+      if (section->has("user")) {
+        needs_keyring = true;
+        break;
+      }
+    }
   }
-  // if keyring master key is in a file, read from it, else read from user
-  if (!master_key_path.empty()) {
-    mysql_harness::init_keyring(keyring_file, master_key_path, false);
-  } else {
-    std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
-    mysql_harness::init_keyring_with_key(keyring_file, master_key, false);
+  if (needs_keyring) {
+    // Initialize keyring
+    std::string keyring_file;
+    std::string master_key_path;
+
+    if (config.has_default("keyring_path"))
+      keyring_file = config.get_default("keyring_path");
+    if (config.has_default("master_key_path"))
+      master_key_path = config.get_default("master_key_path");
+
+    // fill in default keyring file path, if not set
+    if (keyring_file.empty()) {
+      keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
+                                         "{origin}", origin_.str());
+      keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
+    }
+    // if keyring master key is in a file, read from it, else read from user
+    if (!master_key_path.empty()) {
+      mysql_harness::init_keyring(keyring_file, master_key_path, false);
+    } else {
+      std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
+      mysql_harness::init_keyring_with_key(keyring_file, master_key, false);
+    }
   }
   try {
     auto log_file = loader_->get_log_file();

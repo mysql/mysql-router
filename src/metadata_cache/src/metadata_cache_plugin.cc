@@ -80,8 +80,9 @@ static void start(const mysql_harness::ConfigSection *section) {
     metadata_cluster = metadata_cluster.empty()?
       metadata_cache::kDefaultMetadataCluster : metadata_cluster;
 
-    std::string password = mysql_harness::get_keyring()->fetch(config.user,
-        kKeyringAttributePassword);
+    std::string password = mysql_harness::get_keyring() ?
+      mysql_harness::get_keyring()->fetch(config.user,
+                                          kKeyringAttributePassword) : "";
 
     log_info("Starting Metadata Cache");
 
