@@ -556,15 +556,40 @@ ENDFOREACH()
 # This set a relative rpath for when using install layouts that
 # require this. The default is to use absolute paths, which are used
 # for all other layouts.
+
+SET(CMAKE_INSTALL_RPATH)
 if(INSTALL_LAYOUT STREQUAL "STANDALONE" OR INSTALL_LAYOUT STREQUAL "DEFAULT" OR
    INSTALL_LAYOUT STREQUAL "WIN")
- set(rpath_prefix "${RPATH_ORIGIN}/..")
+  # rpath for lib/mysqlrouter/ plugins that want to find lib/
+  set(RPATH_PLUGIN_TO_LIB "${RPATH_ORIGIN}/../")
+  set(RPATH_PLUGIN_TO_PLUGIN "${RPATH_ORIGIN}/")
+  # rpath for lib/ libraries that want to find other libs in lib/
+  set(RPATH_LIBRARY_TO_LIB "${RPATH_ORIGIN}/")
+  # rpath for bin/ binaries that want to find other libs in lib/
+  set(RPATH_BINARY_TO_LIB "${RPATH_ORIGIN}/../${INSTALL_LIBDIR}/")
+
 else()
-  set(rpath_prefix "${CMAKE_INSTALL_PREFIX}")
+  # rpath for lib/mysqlrouter/ plugins that want to find lib/
+  set(RPATH_PLUGIN_TO_LIB "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}")
+  set(RPATH_PLUGIN_TO_PLUGIN "${CMAKE_INSTALL_PREFIX}/${INSTALL_PLUGINDIR}")
+  # rpath for lib/ libraries that want to find other libs in lib/
+  set(RPATH_LIBRARY_TO_LIB "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}")
+  # rpath for bin/ binaries that want to find other libs in lib/
+  set(RPATH_BINARY_TO_LIB "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}")
+
 endif()
 
-set(CMAKE_INSTALL_RPATH
-  "${rpath_prefix}/${INSTALL_LIBDIR};${rpath_prefix}/${INSTALL_PLUGINDIR}")
+# plugins may depend on other plugins
+# plugins may depend on libs in lib/
+# executables may depend on libs in lib/
+LIST(APPEND CMAKE_INSTALL_RPATH
+  ${RPATH_PLUGIN_TO_LIB}
+  ${RPATH_PLUGIN_TO_PLUGIN}
+  ${RPATH_LIBRARY_TO_LIB}
+  ${RPATH_BINARY_TO_LIB})
+
+LIST(REMOVE_DUPLICATES CMAKE_INSTALL_RPATH)
+
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
