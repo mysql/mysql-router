@@ -137,12 +137,9 @@ static void log_message(Level level, const char* fmt, va_list ap) {
 
   // Get the thread ID
   std::stringstream ss;
-  ss << std::hex << std::this_thread::get_id();
+  ss << std::hex << std::noshowbase << std::this_thread::get_id();
 
   std::string thread_id = ss.str();
-  if (thread_id.at(1) == 'x') {
-    thread_id.erase(0, 2);
-  }
 
   // Emit a message on log file (or stdout).
   FILE *outfp = g_log_file.load(std::memory_order_consume);
