@@ -213,7 +213,8 @@ public:
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
-    if (::bind(service_tcp_, (const struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    if (::bind(service_tcp_, (const struct sockaddr *)&addr,
+               static_cast<socklen_t>(sizeof(addr))) == -1) {
       socket_operations_->close(service_tcp_);
 #ifdef _WIN32
       int errcode = WSAGetLastError();
@@ -283,7 +284,7 @@ static int connect_local(uint16_t port) {
 }
 
 static void disconnect(int sock) {
-  write(sock, "bye", 3);
+  (void)write(sock, "bye", 3);
   routing::SocketOperations::instance()->close(sock);
 }
 
@@ -300,7 +301,7 @@ static int connect_socket(const char *path) {
   addr.sun_family = AF_UNIX;
   strncpy(addr.sun_path, path, sizeof(addr.sun_path)-1);
 
-  if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+  if (connect(fd, (struct sockaddr*)&addr, static_cast<socklen_t>(sizeof(addr))) == -1) {
     throw std::runtime_error(mysql_harness::get_strerror(errno));
   }
 
