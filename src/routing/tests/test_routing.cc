@@ -240,19 +240,26 @@ public:
   void stop() {
     if (!stop_) {
       stop_ = true;
+      socket_operations_->shutdown(service_tcp_);
       socket_operations_->close(service_tcp_);
       thread_.join();
     }
   }
 
+  void stop_after_n_accepts(int c) {
+    max_expected_accepts_ = c;
+  }
+
   void runloop() {
-    while (!stop_) {
+    while (!stop_ && (max_expected_accepts_ == 0 || num_accepts_ < max_expected_accepts_)) {
       int sock_client;
       struct sockaddr_in6 client_addr;
       socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
       if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+        std::cout<< mysql_harness::get_strerror(errno)<<" ERROR\n";
         continue;
       }
+      num_accepts_++;
       std::thread([this, sock_client]() { new_client(sock_client); }).detach();
     }
   }
@@ -270,6 +277,8 @@ public:
 
 public:
   int num_connections_ = 0;
+  int num_accepts_ = 0;
+  int max_expected_accepts_ = 0;
 
 private:
   routing::SocketOperationsBase* socket_operations_;
@@ -338,12 +347,21 @@ TEST_F(RoutingTests, bug_24841281) {
   routing.set_destinations_from_csv("127.0.0.1:"+std::to_string(server_port));
   std::thread thd(&MySQLRouting::start, &routing);
 
+  // set the number of accepts that the server should expect for before stopping
+#ifdef _WIN32
+  server.stop_after_n_accepts(4);
+#else
+  server.stop_after_n_accepts(6);
+#endif
+
   EXPECT_EQ(routing.info_active_routes_.load(), 0);
 
   // open connections to the socket and see if we get a matching outgoing
   // socket connection attempt to our mock server
 
-  int sock1 = connect_local(router_port);
+  int sock1;
+  // router is running in a thread, so we need to sync it
+  call_until([&sock1]() -> bool { sock1 = connect_local(router_port); return sock1 > 0; });
   int sock2 = connect_local(router_port);
 
   EXPECT_TRUE(sock1 > 0);
@@ -412,7 +430,6 @@ TEST_F(RoutingTests, bug_24841281) {
 #endif
   routing.stop();
   server.stop();
-
   thd.join();
 }
 #endif

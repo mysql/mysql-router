@@ -313,8 +313,13 @@ std::string KeyringFile::read_header(const std::string& file_name) {
   std::ifstream file;
 
   file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  file.open(file_name,
-            std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
+  try {
+    file.open(file_name,
+              std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
+  } catch (std::exception& e) {
+    throw std::runtime_error(std::string("Failed to open keyring file: ") +
+                             e.what());
+  }
 
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
 
