@@ -16,6 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "common.h"
+#include <fstream>
 #include <sstream>
 #include <memory>
 #include <string.h>
@@ -279,7 +280,7 @@ void make_file_private(const std::string& file_name) {
   CloseHandle(h_file);
 #else
   std::ofstream f;
-  file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+  f.exceptions(std::ofstream::failbit | std::ofstream::badbit);
   try {
     f.open(file_name, std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
   } catch (std::runtime_error& e) {

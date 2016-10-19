@@ -274,10 +274,11 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
                              e.what());
   }
 
+  file.seekg(0, file.end);
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
 
-  file.seekg(0);
   // read and check signature
+  file.seekg(0, file.beg);
   {
     char sig[sizeof(kKeyringFileSignature)];
     file.read(sig, sizeof(sig));
