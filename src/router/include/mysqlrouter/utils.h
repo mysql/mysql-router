@@ -130,13 +130,57 @@ std::string get_last_error(int myerrnum = 0);
 
 /** @brief Prompts for a password from the console.
  */
-const std::string prompt_password(const std::string &prompt);
+std::string prompt_password(const std::string &prompt);
+
+/** @brief Override default prompt password function
+ */
+void set_prompt_password(const std::function<std::string (const std::string &)> &f);
 
 #ifdef _WIN32
 /** @brief Returns whether if the router process is running as a Windows Service
  */
 bool is_running_as_service();
 #endif
+
+/** @brief Substitutes placeholders of environment variables in a string
+ *
+ * Substitutes placeholders of environement variables in a string. A
+ * placeholder contains the name of the variable and will be fetched
+ * from the environment. The substitution is done in-place.
+ *
+ * Note that it is not an error to pass a string with no variable to
+ * be substituted - in such case success will be returned, and the
+ * original string will remain unchanged.
+ * Also note, that if an error occurs, the resulting string value is
+ * undefined (it will be left in an inconsistent state).
+ *
+ * @return bool (success flag)
+ */
+bool substitute_envvar(std::string &line) noexcept;
+
+/** @brief Wraps the given string
+ *
+ * Wraps the given string based on the spaces between words.
+ * New lines are respected; carriage return and tab characters are
+ * removed.
+ *
+ * The `width` specifies how much characters will in each line. It is also
+ * possible to prefix each line with a number of spaces using the `indent_size` argument.
+ *
+ * @param str string to wrap
+ * @param width maximum line length
+ * @param indent number of spaces to prefix each line with
+ * @return vector of strings
+ */
+std::vector<std::string> wrap_string(const std::string &str, size_t width, size_t indent);
+
+bool my_check_access(const std::string& path);
+
+int mkdir(const std::string& dir, int mode);
+
+int rmdir(const std::string& dir);
+
+int delete_file(const std::string& path);
 
 } // namespace mysqlrouter
 

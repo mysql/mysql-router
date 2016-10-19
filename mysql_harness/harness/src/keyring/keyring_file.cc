@@ -271,7 +271,7 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (std::exception& e) {
     throw std::runtime_error(std::string("Failed to load keyring file: ") +
-                             e.what());
+                             file_name + ": " + get_strerror(errno));
   }
 
   file.seekg(0, file.end);
@@ -320,7 +320,7 @@ std::string KeyringFile::read_header(const std::string& file_name) {
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (std::exception& e) {
     throw std::runtime_error(std::string("Failed to open keyring file: ") +
-                             e.what());
+                             file_name + ": " + get_strerror(errno));
   }
 
   std::size_t file_size = static_cast<std::size_t>(file.tellg());

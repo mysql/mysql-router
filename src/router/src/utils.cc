@@ -26,6 +26,7 @@
 #include <iostream>
 #include <cctype>
 #include <stdexcept>
+#include <functional>
 #include <string.h>
 
 #ifndef _WIN32
@@ -357,7 +358,7 @@ std::string get_last_error(int myerrnum)
   }
 
 #ifndef _WIN32
-const string prompt_password(const string &prompt) {
+static string default_prompt_password(const string &prompt) {
   struct termios console;
   tcgetattr(STDIN_FILENO, &console);
 
@@ -378,7 +379,7 @@ const string prompt_password(const string &prompt) {
   return result;
 }
 #else
-const string prompt_password(const string &prompt) {
+static string default_prompt_password(const string &prompt) {
 
   std::cout << prompt << ": ";
 
@@ -399,6 +400,17 @@ const string prompt_password(const string &prompt) {
   return result;
 }
 #endif
+
+static std::function<string (const string&)> g_prompt_password = default_prompt_password;
+
+void set_prompt_password(const std::function<std::string (const std::string &)> &f) {
+  g_prompt_password = f;
+}
+
+string prompt_password(const std::string &prompt) {
+  return g_prompt_password(prompt);
+}
+
 
 #ifdef _WIN32
 bool is_running_as_service() {

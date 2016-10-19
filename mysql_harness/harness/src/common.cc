@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <sstream>
 #include <memory>
 #include <string.h>
+#include <fstream>
 
 #ifdef _WIN32
 #include <aclapi.h>
@@ -46,7 +47,7 @@ typedef std::unique_ptr<SID, LocalFreeDeleter> SidPtr;
 
 /**
  * Gets the SID of the current process user.
- * The SID in Windows is the Security IDentifier, a security principal to which 
+ * The SID in Windows is the Security IDentifier, a security principal to which
  * permissions are attached (machine, user group, user).
  */
 static void GetCurrentUserSid(SidPtr& pSID) {
@@ -83,7 +84,7 @@ static void GetCurrentUserSid(SidPtr& pSID) {
 
 /**
  * Creates a file and makes it fully accessible by the current process user and
- * read only for LocalService account (which is the account under which the MySQL 
+ * read only for LocalService account (which is the account under which the MySQL
  * router runs as service). And not accessible for everyone else.
  */
 static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
@@ -93,7 +94,7 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
   DWORD sid_size = SECURITY_MAX_SID_SIZE;
   SID local_service_sid;
   DWORD dw_res;
-  // Obtains the SID of the LocalService account (the account under which runs 
+  // Obtains the SID of the LocalService account (the account under which runs
   // the Router as a service in Windows)
   if (CreateWellKnownSid(WinLocalServiceSid, NULL, &local_service_sid, &sid_size) == FALSE) {
     throw std::runtime_error("CreateWellKnownSid() failed: " + std::to_string(GetLastError()));
@@ -101,10 +102,10 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
   // Retrieves the current user process SID.
   GetCurrentUserSid(current_user);
 
-  // Sets the actual permissions: two ACEs (access control entries) (one for 
-  // current user, one for LocalService) are configured and attached to a 
+  // Sets the actual permissions: two ACEs (access control entries) (one for
+  // current user, one for LocalService) are configured and attached to a
   // Security Descriptor's DACL (Discretionary Access Control List), then
-  // the Security Descriptors is added to a Security Attributes struct, this 
+  // the Security Descriptors is added to a Security Attributes struct, this
   // last one is used in the API for file creation.
   EXPLICIT_ACCESSA ea[2];
   ZeroMemory(&ea, 2 * sizeof(EXPLICIT_ACCESSA));
@@ -128,7 +129,7 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
       throw std::runtime_error("SetEntriesInAcl() failed: " + std::to_string(dw_res));
     }
 
-    // create and initialize a security descriptor.  
+    // create and initialize a security descriptor.
     SecurityDescriptorPtr psd((SECURITY_DESCRIPTOR*)LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH));
     if (psd.get() == NULL) {
       throw std::runtime_error("LocalAlloc() failed: " + std::to_string(GetLastError()));
@@ -141,7 +142,7 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
     if (!SetSecurityDescriptorDacl(psd.get(), TRUE, new_dacl, FALSE)) {
       throw std::runtime_error("SetSecurityDescriptorDacl failed: " + std::to_string(GetLastError()));
     }
-    
+
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
     sa.lpSecurityDescriptor = psd.get();
     sa.bInheritHandle = FALSE;
@@ -266,7 +267,7 @@ void make_file_public(const std::string& file_name) {
 }
 
 void make_file_private(const std::string& file_name) {
-#ifdef _WIN32  
+#ifdef _WIN32
   SECURITY_ATTRIBUTES sa;
   try {
     make_file_private_win32(sa);

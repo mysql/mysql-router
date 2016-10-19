@@ -25,7 +25,6 @@
 #include <cstdlib>
 
 #include "mysqlrouter/utils.h"
-#include "utils.h"
 
 using std::string;
 

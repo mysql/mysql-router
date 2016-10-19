@@ -330,6 +330,8 @@ private:
 
   void bootstrap(const std::string &metadata_server_uri);
 
+  void init_keyring(mysql_harness::Config &config);
+
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
@@ -381,6 +383,11 @@ private:
    * running from.
    */
   mysql_harness::Path origin_;
+
+#ifdef FRIEND_TEST
+  FRIEND_TEST(Bug24909259, PasswordPrompt_plain);
+  FRIEND_TEST(Bug24909259, PasswordPrompt_keyed);
+#endif
 };
 
 class silent_exception : public std::exception
