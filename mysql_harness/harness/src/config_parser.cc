@@ -191,6 +191,13 @@ bool Config::has(const std::string& section, const std::string& key) const {
   return (it != sections_.end());
 }
 
+bool Config::has_any(const std::string& section) const {
+  for (auto it : sections_) {
+    if (it.first.first == section) return true;
+  }
+  return false;
+}
+
 Config::ConstSectionList Config::get(const std::string& section) const {
   auto rng = find_range_first(sections_, section);
   if (distance(rng.first, rng.second) == 0)

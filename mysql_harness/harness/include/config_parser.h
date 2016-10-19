@@ -400,6 +400,11 @@ class HARNESS_EXPORT Config {
 
   bool has(const std::string& section,
            const std::string& key = std::string()) const;
+  
+  /**
+   * @return True if a section exists, no matter what the key is.
+   */
+  bool has_any(const std::string& section) const;
 
   std::string get_default(const std::string& option) const;
   bool has_default(const std::string& option) const;

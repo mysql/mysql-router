@@ -218,7 +218,7 @@ void MySQLRouter::start() {
 
   bool needs_keyring = false;
   auto &config(loader_->get_config());
-  if (config.has("metadata_cache")) {
+  if (config.has_any("metadata_cache")) {
     auto metadata_caches = config.get("metadata_cache");
     for (auto &section : metadata_caches) {
       if (section->has("user")) {

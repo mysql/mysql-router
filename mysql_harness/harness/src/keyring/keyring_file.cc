@@ -232,11 +232,13 @@ void KeyringFile::save(const std::string& file_name,
   std::ofstream file;
 
   file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+  
+  make_file_private(file_name);
   try {
     file.open(file_name,
               std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
   } catch (std::exception& e) {
-    throw std::runtime_error(std::string("Failed to create keyring file: ") +
+    throw std::runtime_error(std::string("Failed to open keyring file for writing: ") +
                             file_name + ": " + get_strerror(errno));
   }
   try {
@@ -250,7 +252,6 @@ void KeyringFile::save(const std::string& file_name,
     // write data
     file.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     file.close();
-    make_file_private(file_name);
   } catch (std::exception& e) {
     throw std::runtime_error(std::string("Failed to save keyring file: ") +
                              e.what());
