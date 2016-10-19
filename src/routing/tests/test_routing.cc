@@ -293,7 +293,9 @@ static int connect_local(uint16_t port) {
 }
 
 static void disconnect(int sock) {
-  (void)write(sock, "bye", 3);
+  if (write(sock, "bye", 3) < 0)
+    std::cout << "write(bye) returned error\n";
+
   routing::SocketOperations::instance()->close(sock);
 }
 
