@@ -27,6 +27,7 @@
 #include "utils_sqlstring.h"
 #include "rapidjson/rapidjson.h"
 #include "utils.h"
+#include "router_app.h"
 // #include "logger.h"
 
 #include <iostream>
@@ -642,7 +643,8 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
     again:
       master_key = prompt_password("Please provide an encryption key");
       if (master_key.empty()) {
-        throw std::runtime_error("cancelled");
+        // handle this is cancelled by user
+        throw silent_exception();
       } else {
         std::string confirm = prompt_password("Please confirm encryption key");
         if (confirm != master_key) {

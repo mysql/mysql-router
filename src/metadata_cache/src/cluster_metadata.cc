@@ -268,7 +268,8 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
       }
     } else {
       member.mode = metadata_cache::ServerMode::Unavailable;
-      log_warning("Member %s defined in metadata not found in actual replicaset", member.mysql_server_uuid.c_str());
+      log_warning("Member %s:%d (%s) defined in metadata not found in actual replicaset",
+                   member.host.c_str(), member.port, member.mysql_server_uuid.c_str());
     }
   }
 

@@ -542,8 +542,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
           keyring_master_key_file_path_);
     }
   } catch (std::exception &e) {
-    if (strcmp(e.what(), "cancelled") != 0)
-      std::cerr << e.what() << "\n";
+    throw;
   }
 }
 
