@@ -17,6 +17,7 @@
 
 #include "keyring/keyring_manager.h"
 #include "config_generator.h"
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/uri.h"
 #include "common.h"
 #include "filesystem.h"
@@ -482,6 +483,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
 ConfigGenerator::Options ConfigGenerator::fill_options(
     bool multi_master,
     const std::map<std::string, std::string> &user_options) {
+  std::string bind_address{"0.0.0.0"};
   bool use_sockets = false;
   bool skip_tcp = false;
   bool skip_classic_protocol = false;
@@ -503,6 +505,14 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   }
   ConfigGenerator::Options options;
   options.multi_master = multi_master;
+  if (user_options.find("bind-address") != user_options.end()) {
+    auto address = user_options.at("bind-address");
+    mysqlrouter::TCPAddress tmp(address, 1);
+    if (!tmp.is_valid()) {
+      throw std::runtime_error("Invalid bind-address value " + address);
+    }
+    options.bind_address = address;
+  }
   if (!skip_classic_protocol) {
     if (use_sockets) {
       options.rw_endpoint.socket = kRWSocketName;
@@ -772,8 +782,11 @@ static std::string find_executable_path() {
 std::string ConfigGenerator::endpoint_option(const Options &options,
                                              const Options::Endpoint &ep) {
   std::string r;
-  if (ep.port > 0)
+  if (ep.port > 0) {
+    auto bind_address = (!options.bind_address.empty()) ? options.bind_address : "0.0.0.0";
+    r.append("bind_address=" + bind_address + "\n");
     r.append("bind_port=" + std::to_string(ep.port));
+  }
   if (!ep.socket.empty()) {
     if (!r.empty())
       r.append("\n");

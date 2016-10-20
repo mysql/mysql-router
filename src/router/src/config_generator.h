@@ -69,8 +69,8 @@ public:
     std::string keyring_master_key;
     std::string keyring_master_key_file_path;
 
-
     bool multi_master;
+    std::string bind_address;
   };
 private:
   friend class MySQLInnoDBClusterMetadata;

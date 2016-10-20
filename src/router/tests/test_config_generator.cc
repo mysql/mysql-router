@@ -321,22 +321,26 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "metadata_replicaset=myreplicaset\n"
         "\n"
         "[routing:myrouter_myreplicaset_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "\n"
         "[routing:myrouter_myreplicaset_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=6447\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "\n"
         "[routing:myrouter_myreplicaset_x_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
         "[routing:myrouter_myreplicaset_x_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=64470\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
@@ -369,22 +373,26 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
           "metadata_replicaset=myreplicaset\n"
           "\n"
           "[routing:myreplicaset_rw]\n"
+          "bind_address=0.0.0.0\n"
           "bind_port=6446\n"
           "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
           "mode=read-write\n"
           "\n"
           "[routing:myreplicaset_ro]\n"
+          "bind_address=0.0.0.0\n"
           "bind_port=6447\n"
           "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
           "mode=read-only\n"
           "\n"
           "[routing:myreplicaset_x_rw]\n"
+          "bind_address=0.0.0.0\n"
           "bind_port=64460\n"
           "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
           "mode=read-write\n"
           "protocol=x\n"
           "\n"
           "[routing:myreplicaset_x_ro]\n"
+          "bind_address=0.0.0.0\n"
           "bind_port=64470\n"
           "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
           "mode=read-only\n"
@@ -420,22 +428,26 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "metadata_replicaset=myreplicaset\n"
         "\n"
         "[routing:myreplicaset_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=1234\n"
         "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "\n"
         "[routing:myreplicaset_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=1235\n"
         "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "\n"
         "[routing:myreplicaset_x_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=1236\n"
         "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
         "[routing:myreplicaset_x_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=1237\n"
         "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
@@ -526,18 +538,21 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "metadata_replicaset=myreplicaset\n"
         "\n"
         "[routing:myreplicaset_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
         "socket=/tmp/mysql.sock\n"
         "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "\n"
         "[routing:myreplicaset_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=6447\n"
         "socket=/tmp/mysqlro.sock\n"
         "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "\n"
         "[routing:myreplicaset_x_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
         "socket=/tmp/mysqlx.sock\n"
         "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
@@ -545,6 +560,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "protocol=x\n"
         "\n"
         "[routing:myreplicaset_x_ro]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=64470\n"
         "socket=/tmp/mysqlxro.sock\n"
         "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
@@ -552,6 +568,62 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "protocol=x\n"
         "\n"));
   }
+  {
+    std::stringstream output;
+    auto opts = user_options;
+    opts["bind-address"] = "127.0.0.1";
+    options = config_gen.fill_options(false, opts);
+
+    config_gen.create_config(output,
+                        123, "myrouter",
+                        "server1,server2,server3",
+                        "mycluster",
+                        "myreplicaset",
+                        "cluster_user",
+                        options);
+    ASSERT_THAT(output.str(),
+      Eq("# File automatically generated during MySQL Router bootstrap\n"
+        "[DEFAULT]\n"
+        "\n"
+        "[logger]\n"
+        "level = INFO\n"
+        "\n"
+        "[metadata_cache:myrouter]\n"
+        "router_id=123\n"
+        "bootstrap_server_addresses=server1,server2,server3\n"
+        "user=cluster_user\n"
+        "metadata_cluster=mycluster\n"
+        "ttl=300\n"
+        "metadata_replicaset=myreplicaset\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_rw]\n"
+        "bind_address=127.0.0.1\n"
+        "bind_port=6446\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_ro]\n"
+        "bind_address=127.0.0.1\n"
+        "bind_port=6447\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "bind_address=127.0.0.1\n"
+        "bind_port=64460\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "mode=read-write\n"
+        "protocol=x\n"
+        "\n"
+        "[routing:myrouter_myreplicaset_x_ro]\n"
+        "bind_address=127.0.0.1\n"
+        "bind_port=64470\n"
+        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "mode=read-only\n"
+        "protocol=x\n"
+        "\n"));
+  }
+
 }
 
 
@@ -589,11 +661,13 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
         "metadata_replicaset=myreplicaset\n"
         "\n"
         "[routing:myrouter_myreplicaset_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "\n"
         "[routing:myrouter_myreplicaset_x_rw]\n"
+        "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
         "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
@@ -613,6 +687,22 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     std::map<std::string, std::string> user_options;
     options = config_gen.fill_options(true, user_options);
     ASSERT_THAT(options.multi_master, Eq(true));
+    ASSERT_THAT(options.bind_address, Eq(""));
+    ASSERT_THAT(options.rw_endpoint, Eq(true));
+    ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
+    ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
+    ASSERT_THAT(options.ro_endpoint, Eq(false));
+    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_x_endpoint, Eq(false));
+    ASSERT_THAT(options.override_logdir, Eq(""));
+    ASSERT_THAT(options.override_rundir, Eq(""));
+  }
+  {
+    std::map<std::string, std::string> user_options;
+    user_options["bind-address"] = "127.0.0.1";
+    options = config_gen.fill_options(true, user_options);
+    ASSERT_THAT(options.multi_master, Eq(true));
+    ASSERT_THAT(options.bind_address, Eq("127.0.0.1"));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
     ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
@@ -627,6 +717,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     user_options["base-port"] = "1234";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
+    ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(1234));
     ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
@@ -675,11 +766,27 @@ TEST_F(ConfigGeneratorTest, fill_options) {
       std::runtime_error);
   }
   {
+     std::map<std::string, std::string> user_options;
+     user_options["bind-address"] = "invalid";
+     ASSERT_THROW(
+       options = config_gen.fill_options(false, user_options),
+       std::runtime_error);
+     user_options["bind-address"] = "";
+     ASSERT_THROW(
+       options = config_gen.fill_options(false, user_options),
+       std::runtime_error);
+     user_options["bind-address"] = "1.2.3.4.5";
+     ASSERT_THROW(
+       options = config_gen.fill_options(false, user_options),
+       std::runtime_error);
+   }
+  {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
     user_options["skip-tcp"] = "1";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
+    ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
     ASSERT_THAT(options.rw_endpoint.socket, Eq("mysql.sock"));
@@ -696,6 +803,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     user_options["skip-tcp"] = "1";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
+    ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(false));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
     ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
@@ -712,6 +820,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     user_options["use-sockets"] = "1";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
+    ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
     ASSERT_THAT(options.rw_endpoint.socket, Eq("mysql.sock"));
@@ -727,6 +836,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     std::map<std::string, std::string> user_options;
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.multi_master, Eq(false));
+    ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
     ASSERT_THAT(options.rw_endpoint.socket, Eq(""));

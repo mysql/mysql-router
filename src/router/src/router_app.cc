@@ -404,6 +404,16 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+  arg_handler_.add_option(OptionNames({"--conf-bind-address"}),
+                          "IP address of the interface to which router's listening sockets should bind. (bootstrap)",
+                          CmdOptionValueReq::required, "address",
+                          [this](const string &address) {
+        this->bootstrap_options_["bind-address"] = address;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --conf-bind-address can only be used together with -B/--bootstrap");
+        }
+      });
+
   arg_handler_.add_option(OptionNames({"--name"}),
                           "Gives a symbolic name for the router instance. (bootstrap)",
                           CmdOptionValueReq::required, "name",
