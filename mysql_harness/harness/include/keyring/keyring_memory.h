@@ -27,7 +27,7 @@ namespace mysql_harness {
 
 class decryption_error : public std::runtime_error {
 public:
-  decryption_error(const char *what) : std::runtime_error(what) {}
+  decryption_error(const char *_what) : std::runtime_error(_what) {}
 };
 
 /**

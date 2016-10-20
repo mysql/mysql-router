@@ -144,7 +144,7 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
     }
 
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = psd.get();
+    sa.lpSecurityDescriptor = psd.release();
     sa.bInheritHandle = FALSE;
   } catch (...) {
     if (new_dacl != NULL)
@@ -268,6 +268,7 @@ void make_file_public(const std::string& file_name) {
 
 void make_file_private(const std::string& file_name) {
 #ifdef _WIN32
+  DeleteFile(file_name.c_str());
   SECURITY_ATTRIBUTES sa;
   try {
     make_file_private_win32(sa);
@@ -276,6 +277,7 @@ void make_file_private(const std::string& file_name) {
   }
   // create the file with the desired security descriptor
   HANDLE h_file = CreateFileA(file_name.c_str(), GENERIC_ALL, 0, &sa, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+  LocalFree(sa.lpSecurityDescriptor);
   if (h_file == INVALID_HANDLE_VALUE)
     throw std::runtime_error("Could not create the file '" + file_name + "'" + std::to_string(GetLastError()));
   CloseHandle(h_file);

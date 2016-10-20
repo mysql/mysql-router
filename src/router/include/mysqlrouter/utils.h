@@ -23,6 +23,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <functional>
 #ifndef _WIN32
 #  include <netdb.h>
 #endif
