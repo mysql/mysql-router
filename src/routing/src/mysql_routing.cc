@@ -553,7 +553,7 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
       throw runtime_error("Invalid Fabric command in URI; was '" + fabric_cmd + "'");
     }
   } else if (uri.scheme == "metadata-cache") {
-    // Syntax: metadata_cache://[<metadata_cache_config(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY
+    // Syntax: metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY
     std::string replicaset_name = kDefaultReplicaSetName;
     std::string role;
 

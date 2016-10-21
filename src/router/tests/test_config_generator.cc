@@ -21,7 +21,7 @@
 #include <cstring>
 #include <sstream>
 #include <streambuf>
-
+#include "keyring/keyring_manager.h"
 #ifdef _WIN32
 #include <Winsock2.h>
 #else
@@ -308,41 +308,43 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
+        "name=myrouter\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache:myrouter]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myrouter_myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myrouter_myreplicaset_ro]\n"
+        "[routing:mycluster_myreplicaset_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=6447\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
-        "[routing:myrouter_myreplicaset_x_ro]\n"
+        "[routing:mycluster_myreplicaset_x_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=64470\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "protocol=x\n"
         "\n"));
@@ -364,37 +366,38 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
           "[logger]\n"
           "level = INFO\n"
           "\n"
-          "[metadata_cache]\n"
+          "[metadata_cache:mycluster]\n"
           "router_id=123\n"
           "bootstrap_server_addresses=server1,server2,server3\n"
           "user=cluster_user\n"
           "metadata_cluster=mycluster\n"
           "ttl=300\n"
-          "metadata_replicaset=myreplicaset\n"
           "\n"
-          "[routing:myreplicaset_rw]\n"
+          "[routing:mycluster_myreplicaset_rw]\n"
           "bind_address=0.0.0.0\n"
           "bind_port=6446\n"
-          "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+          "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
           "mode=read-write\n"
+          "protocol=classic\n"
           "\n"
-          "[routing:myreplicaset_ro]\n"
+          "[routing:mycluster_myreplicaset_ro]\n"
           "bind_address=0.0.0.0\n"
           "bind_port=6447\n"
-          "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+          "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
           "mode=read-only\n"
+          "protocol=classic\n"
           "\n"
-          "[routing:myreplicaset_x_rw]\n"
+          "[routing:mycluster_myreplicaset_x_rw]\n"
           "bind_address=0.0.0.0\n"
           "bind_port=64460\n"
-          "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+          "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
           "mode=read-write\n"
           "protocol=x\n"
           "\n"
-          "[routing:myreplicaset_x_ro]\n"
+          "[routing:mycluster_myreplicaset_x_ro]\n"
           "bind_address=0.0.0.0\n"
           "bind_port=64470\n"
-          "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+          "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
           "mode=read-only\n"
           "protocol=x\n"
           "\n"));
@@ -419,37 +422,38 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=1234\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_ro]\n"
+        "[routing:mycluster_myreplicaset_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=1235\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=1236\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
-        "[routing:myreplicaset_x_ro]\n"
+        "[routing:mycluster_myreplicaset_x_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=1237\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "protocol=x\n"
         "\n"));
@@ -477,33 +481,34 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "socket=/tmp/mysql.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_ro]\n"
+        "[routing:mycluster_myreplicaset_ro]\n"
         "socket=/tmp/mysqlro.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "socket=/tmp/mysqlx.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
-        "[routing:myreplicaset_x_ro]\n"
+        "[routing:mycluster_myreplicaset_x_ro]\n"
         "socket=/tmp/mysqlxro.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "protocol=x\n"
         "\n"));
@@ -529,41 +534,42 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
         "socket=/tmp/mysql.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_ro]\n"
+        "[routing:mycluster_myreplicaset_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=6447\n"
         "socket=/tmp/mysqlro.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
         "socket=/tmp/mysqlx.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
-        "[routing:myreplicaset_x_ro]\n"
+        "[routing:mycluster_myreplicaset_x_ro]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=64470\n"
         "socket=/tmp/mysqlxro.sock\n"
-        "destinations=metadata-cache:///myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "protocol=x\n"
         "\n"));
@@ -584,41 +590,43 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
+        "name=myrouter\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache:myrouter]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myrouter_myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "bind_address=127.0.0.1\n"
         "bind_port=6446\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myrouter_myreplicaset_ro]\n"
+        "[routing:mycluster_myreplicaset_ro]\n"
         "bind_address=127.0.0.1\n"
         "bind_port=6447\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "bind_address=127.0.0.1\n"
         "bind_port=64460\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"
-        "[routing:myrouter_myreplicaset_x_ro]\n"
+        "[routing:mycluster_myreplicaset_x_ro]\n"
         "bind_address=127.0.0.1\n"
         "bind_port=64470\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=SECONDARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY\n"
         "mode=read-only\n"
         "protocol=x\n"
         "\n"));
@@ -648,28 +656,29 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   ASSERT_THAT(output.str(),
     Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
+        "name=myrouter\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
         "\n"
-        "[metadata_cache:myrouter]\n"
+        "[metadata_cache:mycluster]\n"
         "router_id=123\n"
         "bootstrap_server_addresses=server1,server2,server3\n"
         "user=cluster_user\n"
         "metadata_cluster=mycluster\n"
         "ttl=300\n"
-        "metadata_replicaset=myreplicaset\n"
         "\n"
-        "[routing:myrouter_myreplicaset_rw]\n"
+        "[routing:mycluster_myreplicaset_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=6446\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
+        "protocol=classic\n"
         "\n"
-        "[routing:myrouter_myreplicaset_x_rw]\n"
+        "[routing:mycluster_myreplicaset_x_rw]\n"
         "bind_address=0.0.0.0\n"
         "bind_port=64460\n"
-        "destinations=metadata-cache://myrouter/myreplicaset?role=PRIMARY\n"
+        "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY\n"
         "mode=read-write\n"
         "protocol=x\n"
         "\n"));
@@ -848,6 +857,188 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
   }
+}
+
+//XXX TODO: add recursive directory delete function
+
+static void expect_bootstrap_queries(MockMySQLSession &m, const char *cluster_name) {
+  EXPECT_CALL(m, execute(StartsWith("START TRANSACTION")));
+  EXPECT_CALL(m, query_one(StartsWith("SELECT host_id, host_name")));
+  EXPECT_CALL(m, execute(StartsWith("INSERT INTO mysql_innodb_cluster_metadata.hosts")));
+  EXPECT_CALL(m, execute(StartsWith("INSERT INTO mysql_innodb_cluster_metadata.routers")));
+  EXPECT_CALL(m, execute(StartsWith("DROP USER IF EXISTS mysql_innodb_cluster_router0@'%'")));
+  EXPECT_CALL(m, execute(StartsWith("CREATE USER mysql_innodb_cluster_router0@'%'")));
+  EXPECT_CALL(m, execute(StartsWith("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'")));
+  EXPECT_CALL(m, execute(StartsWith("GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'")));
+  EXPECT_CALL(m, execute(StartsWith("UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ")));
+  EXPECT_CALL(m, execute(StartsWith("COMMIT")));
+  m.feed_query_row({cluster_name, "myreplicaset", "pm", "somehost:3306"});
+}
+
+
+static void bootstrap_name_test(const std::string &dir,
+                           const std::string &name,
+                           bool expect_fail) {
+  StrictMock<MockMySQLSession> mysql;
+  ::testing::InSequence s;
+
+  ConfigGenerator config_gen;
+  EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  config_gen.init(&mysql);
+  if (!expect_fail)
+    expect_bootstrap_queries(mysql, "mycluster");
+
+  std::map<std::string, std::string> options;
+  options["name"] = name;
+  config_gen.bootstrap_directory_deployment(dir,
+      options, "delme", dir+"/delme.key");
+}
+
+
+TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
+  const std::string dir = "bug24807941";
+  mysqlrouter::delete_recursive(dir);
+
+  // Bug#24807941
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false));
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false));
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "", false));
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+
+  ASSERT_THROW_LIKE(
+    bootstrap_name_test(dir, "system", true),
+    std::runtime_error,
+    "Router name 'system' is reserved");
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+
+  std::vector<std::string> bad_names{
+    "new\nline",
+    "car\rreturn",
+  };
+  for (std::string &name : bad_names) {
+    ASSERT_THROW_LIKE(
+      bootstrap_name_test(dir, name, true),
+      std::runtime_error,
+      "Router name '"+name+"' contains invalid characters.");
+    mysqlrouter::delete_recursive(dir);
+    mysql_harness::reset_keyring();
+  }
+}
+
+
+static void bootstrap_overwrite_test(const std::string &dir,
+                                     const std::string &name,
+                                     bool force,
+                                     const char *cluster_name,
+                                     bool expect_fail) {
+  StrictMock<MockMySQLSession> mysql;
+  ::testing::InSequence s;
+
+  ConfigGenerator config_gen;
+  EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  config_gen.init(&mysql);
+  if (!expect_fail)
+    expect_bootstrap_queries(mysql, cluster_name);
+  else
+    mysql.feed_query_row({cluster_name, "myreplicaset", "pm", "somehost:3306"});
+
+  std::map<std::string, std::string> options;
+  options["name"] = name;
+  if (force)
+    options["force"] = "1";
+  config_gen.bootstrap_directory_deployment(dir,
+      options, "delme", dir+"/delme.key");
+}
+
+
+TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
+  const std::string dir = "configtest";
+
+  // pre-cleanup just in case
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+
+  // Overwrite tests. Run bootstrap twice on the same output directory
+  //
+  // Name    --force     cluster_name   Expected
+  // -------------------------------------------
+  // same    no          same           OK (refreshing config)
+  // same    no          diff           FAIL
+  // same    yes         same           OK
+  // same    yes         diff           OK (replacing config)
+  // diff    no          same           OK
+  // diff    no          diff           FAIL
+  // diff    yes         same           OK
+  // diff    yes         diff           OK
+  //
+  // diff name is just a rename, so no issue
+
+  // same    no          same           OK (refreshing config)
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // same    no          diff           FAIL
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "myname", false, "kluster", true),
+                    std::runtime_error,
+                    "If you'd like to replace it, please use the --force");
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // same    yes         same           OK
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  mysql_harness::reset_keyring();
+
+  // same    yes         diff           OK (replacing config)
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false));
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // diff    no          same           OK (refreshing config)
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // diff    no          diff           FAIL
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "xmyname", false, "kluster", true),
+                    std::runtime_error,
+                    "If you'd like to replace it, please use the --force");
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // diff    yes         same           OK
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false));
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+
+  // diff    yes         diff           OK (replacing config)
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  mysql_harness::reset_keyring();
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false));
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
 }
 
 int main(int argc, char *argv[]) {

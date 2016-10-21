@@ -16,6 +16,7 @@
 */
 
 #include "utils.h"
+#include "filesystem.h"
 #include "mysqlrouter/utils.h"
 
 #include <algorithm>
@@ -117,6 +118,24 @@ int delete_file(const std::string& path) {
 #else
   return DeleteFile(path.c_str()) ? 0 : -1;
 #endif
+}
+
+int delete_recursive(const std::string& dir) {
+  mysql_harness::Directory d(dir);
+  try {
+    for (auto const &f : d) {
+      if (f.is_directory()) {
+        if (delete_recursive(f.str()) < 0)
+          return -1;
+      } else {
+        if (delete_file(f.str()) < 0)
+          return -1;
+      }
+    }
+  } catch (...) {
+    return -1;
+  }
+  return rmdir(dir);
 }
 
 bool substitute_envvar(std::string &line) noexcept {

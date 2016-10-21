@@ -149,6 +149,15 @@ static std::string generate_password(int password_length) {
   return pwd;
 }
 
+static bool is_valid_name(const std::string& name) {
+  if (!name.empty()) {
+    for (char c : name) {
+      if (c == '\n' || c=='\r')
+        return false;
+    }
+  }
+  return true;
+}
 
 class MySQLInnoDBClusterMetadata {
 public:
@@ -330,17 +339,17 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     const std::map<std::string, std::string> &user_options,
     const std::string &keyring_file_path,
     const std::string &keyring_master_key_file) {
-  if (user_options.find("name") != user_options.end()) {
-    throw std::runtime_error("Router instance name can only be specified with --directory option");
-  }
-  // check if the config file already exists and if it has a router_id
-  uint32_t router_id = get_router_id_from_config_file(config_file_path);
-  if (router_id > 0) {
-    std::cout << "Reconfiguring system wide MySQL Router instance...\n\n";
-  } else {
-    std::cout << "Bootstrapping system wide MySQL Router instance...\n\n";
-  }
   auto options(user_options);
+  mysql_harness::Path _config_file_path(config_file_path);
+
+  std::string router_name;
+  if (user_options.find("name") != user_options.end()) {
+    router_name = user_options.at("name");
+    if (!is_valid_name(router_name))
+      throw std::runtime_error("Router name '"+router_name+"' contains invalid characters.");
+  }
+  if (router_name.empty())
+     router_name = kSystemRouterName;
 
   if (user_options.find("socketsdir") == user_options.end())
     options["socketsdir"] = "/tmp";
@@ -352,8 +361,10 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     throw std::runtime_error("Could not open "+config_file_path+".tmp for writing: "+get_strerror(errno));
   }
   init_keyring_file(keyring_file_path, keyring_master_key_file);
-  bootstrap_deployment(config_file, router_id, kSystemRouterName, options,
-                       keyring_file_path, keyring_master_key_file);
+  bootstrap_deployment(config_file, _config_file_path,
+                       router_name, options,
+                       keyring_file_path, keyring_master_key_file,
+                       false);
   config_file.close();
 
   // rename the .tmp file to the final file
@@ -381,45 +392,31 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     const std::map<std::string, std::string> &user_options,
     const std::string &default_keyring_file_name,
     const std::string &keyring_master_key_file) {
-  uint32_t router_id = 0;
   bool force = user_options.find("force") != user_options.end();
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
-      throw std::runtime_error("Router name " + kSystemRouterName + " is reserved");
-    for (auto c : router_name) {
-      if (c == '\'' || c == '`' || c == '"' || c == ':' || c == '[' || c == ']')
-        throw std::runtime_error("Router name "+router_name+" contains invalid characters");
-    }
-  } else {
-    throw std::runtime_error("Please use the --name option to give a label for this router instance");
+      throw std::runtime_error("Router name '" + kSystemRouterName + "' is reserved");
+    if (!is_valid_name(router_name))
+      throw std::runtime_error("Router name '"+router_name+"' contains invalid characters.");
   }
-  if (path.exists()) {
-    path = path.real_path();
-    config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
-    if (config_file_path.exists()) {
-      router_id = get_router_id_from_config_file(config_file_path.str(),
-                                                 router_name);
-    } else if (!force && !is_directory_empty(path)) {
-      std::cerr << "Directory " << directory << " already contains files\n";
-      throw std::runtime_error("Directory already exits");
-    }
-  } else {
+
+  if (!path.exists()) {
     if (mysqlrouter::mkdir(directory.c_str(), 0700) < 0) {
       std::cerr << "Cannot create directory " << directory << ": " << mysql_harness::get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
-    path = path.real_path();
-    config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
   }
+  path = path.real_path();
+  config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
+  if (!config_file_path.exists() && !force && !is_directory_empty(path)) {
+    std::cerr << "Directory " << directory << " already contains files\n";
+    throw std::runtime_error("Directory already exits");
+  }
+
   std::map<std::string, std::string> options(user_options);
-  if (router_id > 0) {
-    std::cout << "Reconfiguring MySQL Router instance at " + directory + "...\n\n";
-  } else {
-    std::cout << "Bootstrapping MySQL Router instance at " + directory + "...\n\n";
-  }
   if (user_options.find("logdir") == user_options.end())
     options["logdir"] = path.join("log").str();
   if (user_options.find("rundir") == user_options.end())
@@ -444,8 +441,9 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     std::string keyring_path = mysql_harness::Path(options["rundir"]).
         real_path().join(default_keyring_file_name).str();
     init_keyring_file(keyring_path, keyring_master_key_file);
-    bootstrap_deployment(config_file, router_id, router_name, options,
-                         keyring_path, keyring_master_key_file);
+    bootstrap_deployment(config_file, config_file_path, router_name, options,
+                         keyring_path, keyring_master_key_file,
+                         true);
   } catch (...) {
     config_file.close();
     mysqlrouter::delete_file(config_file_path.str()+".tmp");
@@ -533,20 +531,38 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
 }
 
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
-    uint32_t router_id, const std::string &router_name,
+    const mysql_harness::Path &config_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
     const std::string &keyring_file,
-    const std::string &keyring_master_key_file) {
+    const std::string &keyring_master_key_file,
+    bool directory_deployment) {
   std::string primary_cluster_name;
   std::string primary_replicaset_servers;
   std::string primary_replicaset_name;
   bool multi_master = false;
   bool force = user_options.find("force") != user_options.end();
+  uint32_t router_id = 0;
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
     primary_cluster_name, primary_replicaset_name,
     multi_master);
+
+  if (config_file_path.exists()) {
+    router_id = get_router_id_from_config_file(config_file_path.str(),
+                                               primary_cluster_name, force);
+  }
+
+  if (router_id > 0) {
+    std::cout << "\nReconfiguring";
+  } else {
+    std::cout << "\nBootstrapping";
+  }
+  if (directory_deployment) {
+    std::cout << " MySQL Router instance at " + config_file_path.dirname().str() + "...\n";
+  } else {
+    std::cout << " system MySQL Router instance...\n";
+  }
 
   MySQLSession::Transaction transaction(mysql_);
   MySQLInnoDBClusterMetadata metadata(mysql_);
@@ -617,7 +633,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
   if (keyring_master_key_file.empty()) {
     std::string master_key;
     if (mysql_harness::Path(keyring_file).exists()) {
-      master_key = prompt_password("Please provide the encryption key for key file");
+      master_key = prompt_password("Please provide the encryption key for key file at "+keyring_file);
     } else {
       std::cout
         << "MySQL Router needs to create a InnoDB cluster metadata client account.\n"
@@ -783,19 +799,19 @@ std::string ConfigGenerator::endpoint_option(const Options &options,
 }
 
 
-void ConfigGenerator::create_config(
-  std::ostream &cfp,
-  uint32_t router_id,
-  const std::string &router_name,
-  const std::string &bootstrap_server_addresses,
-  const std::string &metadata_cluster,
-  const std::string &metadata_replicaset,
-  const std::string &username,
-  const Options &options) {
-
+void ConfigGenerator::create_config(std::ostream &cfp,
+                                    uint32_t router_id,
+                                    const std::string &router_name,
+                                    const std::string &bootstrap_server_addresses,
+                                    const std::string &metadata_cluster,
+                                    const std::string &metadata_replicaset,
+                                    const std::string &username,
+                                    const Options &options) {
   cfp << "# File automatically generated during MySQL Router bootstrap\n";
 
   cfp << "[DEFAULT]\n";
+  if (!router_name.empty())
+    cfp << "name=" << router_name << "\n";
   if (!options.override_logdir.empty())
     cfp << "logging_folder=" << options.override_logdir << "\n";
   if (!options.override_rundir.empty())
@@ -805,47 +821,45 @@ void ConfigGenerator::create_config(
   if (!options.keyring_master_key_file_path.empty())
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
 
+  const std::string metadata_key = metadata_cluster;
   cfp << "\n"
       << "[logger]\n"
       << "level = INFO\n"
       << "\n"
-      << "[metadata_cache" << ((router_name.empty() || router_name == kSystemRouterName) ? "" : ":"+router_name) << "]\n"
+      << "[metadata_cache:" << metadata_key << "]\n"
       << "router_id=" << router_id << "\n"
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
       << "ttl=300" << "\n"
-      << "metadata_replicaset=" << metadata_replicaset << "\n"
       << "\n";
-  std::string router_tag;
-  std::string router_key = metadata_replicaset;
-  if (!router_name.empty() && router_name != kSystemRouterName) {
-    router_key = router_name+"_"+metadata_replicaset;
-    router_tag = router_name;
-  }
+
+  const std::string fast_router_key = metadata_key+"_"+metadata_replicaset;
   if (options.rw_endpoint) {
     cfp
-      << "[routing:" << router_key << "_rw]\n"
+      << "[routing:" << fast_router_key << "_rw]\n"
       << endpoint_option(options, options.rw_endpoint) << "\n"
-      << "destinations=metadata-cache://" << router_tag << "/"
+      << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=PRIMARY\n"
       << "mode=read-write\n"
+      << "protocol=classic\n"
       << "\n";
   }
   if (options.ro_endpoint) {
     cfp
-      << "[routing:" << router_key << "_ro]\n"
+      << "[routing:" << fast_router_key << "_ro]\n"
       << endpoint_option(options, options.ro_endpoint) << "\n"
-      << "destinations=metadata-cache://" << router_tag << "/"
+      << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=SECONDARY\n"
       << "mode=read-only\n"
+      << "protocol=classic\n"
       << "\n";
   }
   if (options.rw_x_endpoint) {
     cfp
-      << "[routing:" << router_key << "_x_rw]\n"
+      << "[routing:" << fast_router_key << "_x_rw]\n"
       << endpoint_option(options, options.rw_x_endpoint) << "\n"
-      << "destinations=metadata-cache://" << router_tag << "/"
+      << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=PRIMARY\n"
       << "mode=read-write\n"
       << "protocol=x\n"
@@ -853,9 +867,9 @@ void ConfigGenerator::create_config(
   }
   if (options.ro_x_endpoint) {
     cfp
-      << "[routing:" << router_key << "_x_ro]\n"
+      << "[routing:" << fast_router_key << "_x_ro]\n"
       << endpoint_option(options, options.ro_x_endpoint) << "\n"
-      << "destinations=metadata-cache://" << router_tag << "/"
+      << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=SECONDARY\n"
       << "mode=read-only\n"
       << "protocol=x\n"
@@ -968,28 +982,53 @@ void ConfigGenerator::create_account(const std::string &username,
   }
 }
 
+/**
+ * Get router_id value associated with a metadata_cache configuration for
+ * the given cluster_name.
+ *
+ * The lookup is done through the metadata_cluster option inside the
+ * metadata_cache section.
+ */
 uint32_t ConfigGenerator::get_router_id_from_config_file(
     const std::string &config_file_path,
-    const std::string &name) {
+    const std::string &cluster_name,
+    bool forcing_overwrite) {
   mysql_harness::Path path(config_file_path);
+  std::string existing_cluster;
   if (path.exists()) {
     mysql_harness::Config config(mysql_harness::Config::allow_keys);
     config.read(path);
-    if (config.get("metadata_cache").size() > 1) {
+    auto sections(config.get("metadata_cache"));
+    if (sections.size() > 1) {
       throw std::runtime_error("Bootstrapping of Router with multiple metadata_cache sections not supported");
     }
-    auto section(config.get("metadata_cache", name));
-    if (section.key == name && section.has("router_id")) {
-      std::string tmp = section.get("router_id");
-      char *end;
-      unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
-      if (end == tmp.c_str() || errno == ERANGE) {
-        // log_warning("Invalid router_id '%s' found in existing config file '%s'",
-            // tmp.c_str(), config_file_path.c_str());
-      } else {
-        return static_cast<uint32_t>(r);
+    for (auto const &section : sections) {
+      if (section->has("metadata_cluster")) {
+        existing_cluster = section->get("metadata_cluster");
+        if (existing_cluster == cluster_name) {
+          if (section->has("router_id")) {
+            std::string tmp = section->get("router_id");
+            char *end;
+            unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
+            if (end == tmp.c_str() || errno == ERANGE) {
+                throw std::runtime_error("Invalid router_id '"+tmp
+                    +"' for cluster '"+cluster_name+"' in "+config_file_path);
+            } else {
+              return static_cast<uint32_t>(r);
+            }
+          }
+          std::cerr << "WARNING: router_id not set for cluster "+cluster_name+"\n";
+          return 0;
+        }
       }
     }
+  }
+  if (!forcing_overwrite) {
+    std::string msg;
+    msg += "The given Router instance is already configured for a cluster named '"+existing_cluster+"'.\n";
+    msg += "If you'd like to replace it, please use the --force configuration option.";
+    //XXX when multiple-clusters is supported, also suggest --add
+    throw std::runtime_error(msg);
   }
   return 0;
 }

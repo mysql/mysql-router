@@ -181,6 +181,8 @@ int mkdir(const std::string& dir, int mode);
 
 int rmdir(const std::string& dir);
 
+int delete_recursive(const std::string& dir);
+
 int delete_file(const std::string& path);
 
 } // namespace mysqlrouter

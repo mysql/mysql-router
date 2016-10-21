@@ -28,7 +28,7 @@
 #endif
 
 #include "mysqlrouter/utils.h"
-
+#include <fstream>
 #include <vector>
 
 const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
@@ -183,4 +183,19 @@ EXPECT_THAT(exp, ContainerEq(split_string(";", ';', false)));
 // No trimming
 exp = {"  val1", "val2  "};
 EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
+}
+
+
+TEST_F(UtilsTests, delete_recursive) {
+  using mysqlrouter::mkdir;
+  std::ofstream ofs;
+  mkdir("testdir", 0700);
+  mkdir("testdir/a", 0700);
+  mkdir("testdir/a/b", 0700);
+  mkdir("testdir/a/a", 0700);
+  std::ofstream().open("testdir/f");
+  std::ofstream().open("testdir/f2");
+  std::ofstream().open("testdir/a/f");
+  std::ofstream().open("testdir/a/b/f");
+  EXPECT_EQ(0, mysqlrouter::delete_recursive("testdir"));
 }

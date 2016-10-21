@@ -416,7 +416,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(OptionNames({"--name"}),
                           "Gives a symbolic name for the router instance. (bootstrap)",
-                          CmdOptionValueReq::required, "name",
+                          CmdOptionValueReq::optional, "name",
                           [this](const string &name) {
         this->bootstrap_options_["name"] = name;
         if (this->bootstrap_uri_.empty()) {

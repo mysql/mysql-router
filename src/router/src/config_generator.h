@@ -27,6 +27,10 @@ namespace mysqlrouter {
   class MySQLSession;
 }
 
+namespace mysql_harness {
+  class Path;
+}
+
 class ConfigGenerator {
 public:
   ConfigGenerator()
@@ -82,10 +86,11 @@ private:
                             bool interactive_master_key);
 
   void bootstrap_deployment(std::ostream &config_file,
-      uint32_t router_id, const std::string &name,
+      const mysql_harness::Path &config_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::string &keyring_file,
-      const std::string &keyring_master_key_file);
+      const std::string &keyring_master_key_file,
+      bool directory_deployment);
 
   void init_keyring_file(const std::string &keyring_file,
                          const std::string &keyring_master_key_file);
@@ -106,7 +111,8 @@ private:
   void create_account(const std::string &username, const std::string &password);
 
   uint32_t get_router_id_from_config_file(const std::string &config_file_path,
-                                          const std::string &name="");
+                                          const std::string &cluster_name,
+                                          bool forcing_overwrite);
 
   void update_router_info(uint32_t router_id, const Options &options);
 
@@ -125,6 +131,7 @@ private:
   FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
   FRIEND_TEST(ConfigGeneratorTest, create_acount);
   FRIEND_TEST(ConfigGeneratorTest, fill_options);
+  FRIEND_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
 #endif
 };
 
