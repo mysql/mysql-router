@@ -119,12 +119,18 @@ public:
   }
 
   void save() {
-    make_file_private(path_);
     std::ofstream f;
     f.open(path_, std::ios_base::binary|std::ios_base::trunc|std::ios_base::out);
     if (f.fail()) {
       throw std::runtime_error("Could not open master key file "+path_+
           ": "+get_strerror(errno));
+    }
+    try {
+      make_file_private(path_);
+    }
+    catch (std::exception &e) {
+      throw std::runtime_error("Could not set permissions of master key file " + path_ +
+        ": " + e.what());
     }
     f.write(kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature));
     for (auto &entry : entries_) {

@@ -326,29 +326,6 @@ ConfigGenerator::~ConfigGenerator() {
     delete mysql_;
 }
 
-// Moves a file without assuming the dest is already created.
-void my_rename(const std::string& src, const std::string& dest)
-{
-  try {
-    std::ifstream is(src, std::ios_base::binary | std::ios_base::in);
-    if (!is)
-      throw std::runtime_error("Could not save configuration file to final location: " + std::to_string(errno));
-    std::ofstream os(dest, std::ios_base::binary | std::ios_base::out);
-    is.seekg(0, is.end);
-    int size = static_cast<int>(is.tellg());
-    std::unique_ptr<char> buf(new char[size]);
-    is.seekg(0, is.beg);
-    is.read(buf.get(), size);
-    os.write(buf.get(), size);
-    is.close();
-    os.close();
-    mysqlrouter::delete_file(src);
-  }
-  catch (...) {
-    throw std::runtime_error("Could not save configuration file to final location" + std::to_string(errno));
-  }
-}
-
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
     const std::map<std::string, std::string> &user_options,
     const std::string &keyring_file_path,
@@ -380,8 +357,12 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   config_file.close();
 
   // rename the .tmp file to the final file
+  if (rename((config_file_path + ".tmp").c_str(), config_file_path.c_str()) < 0) {
+    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
+    //  config_file_path.c_str(), get_strerror(errno));
+    throw std::runtime_error("Could not save configuration file to final location");
+  }
   mysql_harness::make_file_private(config_file_path);
-  my_rename(config_file_path + ".tmp", config_file_path);
 }
 
 static bool is_directory_empty(mysql_harness::Directory dir) {
@@ -475,8 +456,12 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   config_file.close();
 
   // rename the .tmp file to the final file
+  if (rename((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) < 0) {
+    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
+    //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
+    throw std::runtime_error("Could not save configuration file to final location");
+  }
   mysql_harness::make_file_private(config_file_path.str());
-  my_rename(config_file_path.str() + ".tmp", config_file_path.str());
   // create start/stop scripts
   create_start_scripts(path.str(), keyring_master_key_file.empty());
 }

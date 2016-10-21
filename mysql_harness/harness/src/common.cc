@@ -83,11 +83,11 @@ static void GetCurrentUserSid(SidPtr& pSID) {
 }
 
 /**
- * Creates a file and makes it fully accessible by the current process user and
+ * Makes a file fully accessible by the current process user and
  * read only for LocalService account (which is the account under which the MySQL
  * router runs as service). And not accessible for everyone else.
  */
-static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
+static void make_file_private_win32(const std::string& filename) {
   typedef std::unique_ptr<SECURITY_DESCRIPTOR, LocalFreeDeleter> SecurityDescriptorPtr;
   PACL new_dacl = NULL;
   SidPtr current_user((SID*)NULL);
@@ -105,8 +105,7 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
   // Sets the actual permissions: two ACEs (access control entries) (one for
   // current user, one for LocalService) are configured and attached to a
   // Security Descriptor's DACL (Discretionary Access Control List), then
-  // the Security Descriptors is added to a Security Attributes struct, this
-  // last one is used in the API for file creation.
+  // the Security Descriptors is used in SetFileSecurity API.
   EXPLICIT_ACCESSA ea[2];
   ZeroMemory(&ea, 2 * sizeof(EXPLICIT_ACCESSA));
   // Full acceess for current user
@@ -143,9 +142,12 @@ static void make_file_private_win32(SECURITY_ATTRIBUTES& sa) {
       throw std::runtime_error("SetSecurityDescriptorDacl failed: " + std::to_string(GetLastError()));
     }
 
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.lpSecurityDescriptor = psd.release();
-    sa.bInheritHandle = FALSE;
+    if (!SetFileSecurityA(filename.c_str(), DACL_SECURITY_INFORMATION, psd.get()))
+    {
+      dw_res = GetLastError();
+      throw std::runtime_error("SetFileSecurity failed: " + std::to_string(dw_res));
+    }
+    LocalFree((HLOCAL)new_dacl);
   } catch (...) {
     if (new_dacl != NULL)
       LocalFree((HLOCAL)new_dacl);
@@ -268,27 +270,12 @@ void make_file_public(const std::string& file_name) {
 
 void make_file_private(const std::string& file_name) {
 #ifdef _WIN32
-  DeleteFile(file_name.c_str());
-  SECURITY_ATTRIBUTES sa;
   try {
-    make_file_private_win32(sa);
+    make_file_private_win32(file_name);
   } catch (std::runtime_error &e) {
     throw std::runtime_error("Could not set permissions for file '" + file_name + "': " + e.what());
   }
-  // create the file with the desired security descriptor
-  HANDLE h_file = CreateFileA(file_name.c_str(), GENERIC_ALL, 0, &sa, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-  LocalFree(sa.lpSecurityDescriptor);
-  if (h_file == INVALID_HANDLE_VALUE)
-    throw std::runtime_error("Could not create the file '" + file_name + "'" + std::to_string(GetLastError()));
-  CloseHandle(h_file);
 #else
-  std::ofstream f;
-  f.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-  try {
-    f.open(file_name, std::ios_base::binary | std::ios_base::trunc | std::ios_base::out);
-  } catch (std::runtime_error& e) {
-    throw std::runtime_error("Could not create file '" + file_name + "':" + e.what());
-  }
   try {
     throwing_chmod(file_name, S_IRUSR | S_IWUSR);
   } catch (std::runtime_error& e) {

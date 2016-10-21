@@ -288,3 +288,9 @@ TEST_F(KeyringFileTest, LoadFromNonexistentFile) {
   // Setup() deletes keyring file.
   EXPECT_THROW(keyring.load(kKeyringFileName, kAesKey), std::exception);
 }
+
+int main(int argc, char *argv[]) {
+
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

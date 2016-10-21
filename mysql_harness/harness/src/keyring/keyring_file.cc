@@ -233,7 +233,6 @@ void KeyringFile::save(const std::string& file_name,
 
   file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
   
-  make_file_private(file_name);
   try {
     file.open(file_name,
               std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
@@ -242,6 +241,7 @@ void KeyringFile::save(const std::string& file_name,
                             file_name + ": " + get_strerror(errno));
   }
   try {
+    make_file_private(file_name);
     // write signature
     file.write(kKeyringFileSignature, sizeof(kKeyringFileSignature));
     // write header
