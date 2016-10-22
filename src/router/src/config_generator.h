@@ -106,7 +106,8 @@ private:
                      const std::string &metadata_cluster,
                      const std::string &metadata_replicaset,
                      const std::string &username,
-                     const Options &options);
+                     const Options &options,
+                     bool print_configs = false);
 
   void create_account(const std::string &username, const std::string &password);
 

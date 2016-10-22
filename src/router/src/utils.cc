@@ -17,6 +17,7 @@
 
 #include "utils.h"
 #include "filesystem.h"
+#include "common.h"
 #include "mysqlrouter/utils.h"
 
 #include <algorithm>
@@ -25,6 +26,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <cctype>
 #include <stdexcept>
 #include <functional>
@@ -94,6 +96,27 @@ bool my_check_access(const std::string& path) {
 #else
   return (_access(path.c_str(), 0x04) == 0);
 #endif
+}
+
+void copy_file(const std::string &from, const std::string &to) {
+  std::ofstream ofile;
+  std::ifstream ifile;
+
+  ofile.open(to, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
+  if (ofile.fail()) {
+    throw std::runtime_error("Could not create file '" + to + "': " +
+                             mysql_harness::get_strerror(errno));
+  }
+  ifile.open(from, std::ofstream::in | std::ofstream::binary);
+  if (ifile.fail()) {
+    throw std::runtime_error("Could not open file '" + from + "': " +
+                             mysql_harness::get_strerror(errno));
+  }
+
+  ofile << ifile.rdbuf();
+
+  ofile.close();
+  ifile.close();
 }
 
 int mkdir(const std::string& dir, int mode) {

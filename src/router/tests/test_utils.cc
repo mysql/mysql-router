@@ -199,3 +199,42 @@ TEST_F(UtilsTests, delete_recursive) {
   std::ofstream().open("testdir/a/b/f");
   EXPECT_EQ(0, mysqlrouter::delete_recursive("testdir"));
 }
+
+
+static bool files_equal(const std::string &f1, const std::string &f2) {
+  std::ifstream if1(f1);
+  std::ifstream if2(f2);
+
+  std::istreambuf_iterator<char> s1(if1), s1end;
+  std::istreambuf_iterator<char> s2(if1);
+
+  return std::equal(s1, s1end, s2);
+}
+
+
+TEST_F(UtilsTests, copy_file) {
+  std::ofstream("empty.tf").close();
+  std::ofstream dataf("data.tf");
+  for (int i = 0; i < 2000; i++)
+    dataf << "somedata\n";
+  dataf.close();
+
+  mysqlrouter::copy_file("empty.tf", "empty.tf2");
+  mysqlrouter::copy_file("data.tf", "data.tf2");
+
+  try
+  {
+    EXPECT_TRUE(files_equal("empty.tf", "empty.tf2"));
+    EXPECT_TRUE(files_equal("data.tf", "data.tf2"));
+  } catch (...) {
+    mysqlrouter::delete_file("empty.tf");
+    mysqlrouter::delete_file("empty.tf2");
+    mysqlrouter::delete_file("data.tf");
+    mysqlrouter::delete_file("data.tf2");
+    throw;
+  }
+  mysqlrouter::delete_file("empty.tf");
+  mysqlrouter::delete_file("empty.tf2");
+  mysqlrouter::delete_file("data.tf");
+  mysqlrouter::delete_file("data.tf2");
+}

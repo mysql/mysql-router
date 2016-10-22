@@ -645,7 +645,6 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
-
   config_gen.create_config(output,
                       123, "myrouter",
                       "server1,server2,server3",
@@ -861,17 +860,30 @@ TEST_F(ConfigGeneratorTest, fill_options) {
 
 //XXX TODO: add recursive directory delete function
 
+static struct {
+  const char *query;
+  bool execute;
+} expected_bootstrap_queries[] = {
+  {"START TRANSACTION", true},
+  {"SELECT host_id, host_name", false},
+  {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true},
+  {"INSERT INTO mysql_innodb_cluster_metadata.routers", true},
+  {"DROP USER IF EXISTS mysql_innodb_cluster_router0@'%'", true},
+  {"CREATE USER mysql_innodb_cluster_router0@'%'", true},
+  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'", true},
+  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'", true},
+  {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true},
+  {"COMMIT", true},
+  {NULL, true}
+};
+
 static void expect_bootstrap_queries(MockMySQLSession &m, const char *cluster_name) {
-  EXPECT_CALL(m, execute(StartsWith("START TRANSACTION")));
-  EXPECT_CALL(m, query_one(StartsWith("SELECT host_id, host_name")));
-  EXPECT_CALL(m, execute(StartsWith("INSERT INTO mysql_innodb_cluster_metadata.hosts")));
-  EXPECT_CALL(m, execute(StartsWith("INSERT INTO mysql_innodb_cluster_metadata.routers")));
-  EXPECT_CALL(m, execute(StartsWith("DROP USER IF EXISTS mysql_innodb_cluster_router0@'%'")));
-  EXPECT_CALL(m, execute(StartsWith("CREATE USER mysql_innodb_cluster_router0@'%'")));
-  EXPECT_CALL(m, execute(StartsWith("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'")));
-  EXPECT_CALL(m, execute(StartsWith("GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'")));
-  EXPECT_CALL(m, execute(StartsWith("UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ")));
-  EXPECT_CALL(m, execute(StartsWith("COMMIT")));
+  for (int i = 0; expected_bootstrap_queries[i].query; i++) {
+    if (expected_bootstrap_queries[i].execute)
+      EXPECT_CALL(m, execute(StartsWith(expected_bootstrap_queries[i].query)));
+    else
+      EXPECT_CALL(m, query_one(StartsWith(expected_bootstrap_queries[i].query)));
+  }
   m.feed_query_row({cluster_name, "myreplicaset", "pm", "somehost:3306"});
 }
 
@@ -890,6 +902,7 @@ static void bootstrap_name_test(const std::string &dir,
 
   std::map<std::string, std::string> options;
   options["name"] = name;
+  options["quiet"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
       options, "delme", dir+"/delme.key");
 }
@@ -931,6 +944,124 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
     mysqlrouter::delete_recursive(dir);
     mysql_harness::reset_keyring();
   }
+
+  ASSERT_THROW_LIKE(
+    bootstrap_name_test(dir, "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname", true),
+    std::runtime_error,
+    "too long (max 255).");
+  mysqlrouter::delete_recursive(dir);
+  mysql_harness::reset_keyring();
+}
+
+
+ACTION(ThrowMySQLError) {
+  throw mysqlrouter::MySQLSession::Error("boo!", 1234);
+}
+
+
+TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
+  const std::string dir = "bug24808634";
+  mysqlrouter::delete_recursive(dir);
+  mysqlrouter::delete_file("delme.key");
+
+  ASSERT_FALSE(mysql_harness::Path(dir).exists());
+  ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
+  // cleanup on failure when dir didn't exist before
+  {
+    StrictMock<MockMySQLSession> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    config_gen.init(&mysql);
+    mysql.feed_query_row({"mycluter", "myreplicaset", "pm", "somehost:3306"});
+    // force a failure during account creationg
+    EXPECT_CALL(mysql, execute(_)).WillOnce(ThrowMySQLError());
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foobar";
+    options["quiet"] = "1";
+    ASSERT_THROW(
+      config_gen.bootstrap_directory_deployment(dir,
+          options, "delme", "delme.key"),
+      mysqlrouter::MySQLSession::Error);
+
+    ASSERT_FALSE(mysql_harness::Path(dir).exists());
+    ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
+  }
+  mysql_harness::reset_keyring();
+
+  // this should succeed, so that we can test that cleanup doesn't delete existing stuff
+  {
+    StrictMock<MockMySQLSession> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    config_gen.init(&mysql);
+    expect_bootstrap_queries(mysql, "mycluster");
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foobar";
+    options["quiet"] = "1";
+    ASSERT_NO_THROW(
+      config_gen.bootstrap_directory_deployment(dir,
+          options, "delme", "delme.key"));
+
+    ASSERT_TRUE(mysql_harness::Path(dir).exists());
+    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+  }
+  mysql_harness::reset_keyring();
+
+  // don't cleanup on failure if dir already existed before
+  {
+    StrictMock<MockMySQLSession> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    config_gen.init(&mysql);
+    mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
+    // force a failure during account creationg
+    EXPECT_CALL(mysql, execute(_)).WillOnce(ThrowMySQLError());
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foobar";
+    options["quiet"] = "1";
+    ASSERT_THROW_LIKE(
+      config_gen.bootstrap_directory_deployment(dir,
+            options, "delme", "delme.key"),
+      std::runtime_error,
+      "boo!");
+
+    ASSERT_TRUE(mysql_harness::Path(dir).exists());
+    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+  }
+  mysql_harness::reset_keyring();
+
+  // don't cleanup on failure in early validation if dir already existed before
+  {
+    StrictMock<MockMySQLSession> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    config_gen.init(&mysql);
+    mysql.feed_query_row({"mycluter", "myreplicaset", "pm", "somehost:3306"});
+
+    std::map<std::string, std::string> options;
+    options["name"] = "force\nfailure";
+    options["quiet"] = "1";
+    ASSERT_THROW(
+      config_gen.bootstrap_directory_deployment(dir,
+            options, "delme", "delme.key"),
+      std::runtime_error);
+    ASSERT_TRUE(mysql_harness::Path(dir).exists());
+    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+  }
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+  mysqlrouter::delete_file("delme.key");
 }
 
 
@@ -952,6 +1083,7 @@ static void bootstrap_overwrite_test(const std::string &dir,
 
   std::map<std::string, std::string> options;
   options["name"] = name;
+  options["quiet"] = "1";
   if (force)
     options["force"] = "1";
   config_gen.bootstrap_directory_deployment(dir,

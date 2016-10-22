@@ -185,6 +185,12 @@ int delete_recursive(const std::string& dir);
 
 int delete_file(const std::string& path);
 
+/** @brief Copy contents of one file to another.
+ *
+ * Exception thrown if open, create read or write operation fails.
+ */
+void copy_file(const std::string &from, const std::string &to);
+
 } // namespace mysqlrouter
 
 #endif // MYSQLROUTER_UTILS_INCLUDED
