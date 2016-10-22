@@ -360,6 +360,9 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Bootstrap and configure Router for operation with a MySQL InnoDB cluster.",
                           CmdOptionValueReq::required, "server_url",
                           [this](const string &server_url) {
+        if (server_url.empty()) {
+          throw std::runtime_error("Invalid value for --bootstrap option");
+        }
         this->bootstrap_uri_ = server_url;
       });
 
@@ -367,6 +370,9 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
+        if (path.empty()) {
+          throw std::runtime_error("Invalid value for --directory option");
+        }
         this->bootstrap_directory_ = path;
         if (this->bootstrap_uri_.empty()) {
           throw std::runtime_error("Option -d/--directory can only be used together with -B/--bootstrap");

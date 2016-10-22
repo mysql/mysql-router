@@ -161,7 +161,7 @@ void CmdArgHandler::process(const vector<string>& arguments) {
           }
 
           ++part;
-          if (part->at(0) == '-') {
+          if (!part->empty() && part->at(0) == '-') {
             throw std::invalid_argument(err_value_req);
           }
           value = *part;
@@ -169,7 +169,7 @@ void CmdArgHandler::process(const vector<string>& arguments) {
       } else if (option.value_req == CmdOptionValueReq::optional) {
         if (value.empty() && part != (args_end - 1)) {
           ++part;
-          if (part->at(0) != '-') {
+          if (part->empty() || part->at(0) != '-') {
             value = *part;
           }
         }

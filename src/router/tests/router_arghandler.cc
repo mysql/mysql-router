@@ -255,6 +255,21 @@ TEST_F(ArgHandlerTest, ProcessOptionalRequired) {
   }
 }
 
+TEST_F(ArgHandlerTest, ProcessEmptyValue) {
+  // Bug#24809081
+  CmdArgHandler c;
+  for (auto &opt: cmd_options) {
+    c.add_option(opt);
+  }
+
+  string value = "";
+  ASSERT_NO_THROW(c.process({"-c", value}));
+  ASSERT_THAT(action_result, value);
+
+  ASSERT_NO_THROW(c.process({"-b", value}));
+  ASSERT_THAT(action_result, value);
+}
+
 TEST_F(ArgHandlerTest, ProcessUnknownOption) {
   CmdArgHandler c;
   for (auto &opt: cmd_options) {
