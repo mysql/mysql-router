@@ -525,7 +525,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 }
 
 void MySQLRouter::bootstrap(const std::string &server_url) {
-  ConfigGenerator config_gen;
+  mysqlrouter::ConfigGenerator config_gen;
   config_gen.init(server_url);
 
   try {

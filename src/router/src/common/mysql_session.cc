@@ -18,9 +18,130 @@
 #include "mysqlrouter/mysql_session.h"
 #include "logger.h"
 #include <sstream>
+#include <fstream>
 #include <mysql.h>
+#include <cstdlib>
+#include <iostream>
 
 using namespace mysqlrouter;
+
+/*
+   Mock recorder for MySQLSession
+   ------------------------------
+
+   In dev builds, #define MOCK_RECORDER below to enable recording of
+   MySQL sessions for mock test writing purposes.
+
+   When enabled, the MYSQL_ROUTER_RECORD_MOCK environment variable can be set
+   to make MySQLSession dump all calls to it, along with its results, so that
+   they can be replayed later with a MySQLSessionReplayer object.
+ */
+#define MOCK_RECORDER
+
+#if defined(NDEBUG)
+#ifdef MOCK_RECORDER
+#undef MOCK_RECORDER
+#warning MOCK_RECORDER shouldn't be enabled on Release builds!
+#endif
+#endif
+
+
+#ifdef MOCK_RECORDER
+class MockRecorder {
+public:
+  MockRecorder() : record_(false) {
+    const char *outfile = std::getenv("MYSQL_ROUTER_RECORD_MOCK");
+    if (outfile) {
+      std::cerr << "Enabled mock recording...\n";
+      record_ = true;
+      outf_.open(outfile, std::ofstream::trunc | std::ofstream::out);
+    }
+  }
+
+  void execute(const std::string &q) {
+    outf_ << "  m.expect_execute(\"" << q << "\");\n";
+  }
+
+  void query(const std::string &q) {
+    outf_ << "  m.expect_query(\"" << q << "\");\n";
+  }
+
+  void query_one(const std::string &q) {
+    outf_ << "  m.expect_query_one(\"" << q << "\");\n";
+  }
+
+  void execute_done(uint64_t last_insert_id) {
+    outf_ << "  m.then_ok("<< last_insert_id << ");\n";
+  }
+
+  void result_error(const char *error, unsigned int code, MySQLSession &s) {
+    outf_ << "  m.then_error(" << s.quote(error, '\"') << ", " << code << ");\n\n";
+  }
+
+  void result_rows_begin(unsigned int num_fields, MYSQL_FIELD *fields) {
+    nfields_ = num_fields;
+    need_comma_ = false;
+    outf_ << "  m.then_return("<< num_fields << ", {\n";
+    outf_ << "      // ";
+    for (unsigned int i = 0; i < num_fields; i++) {
+      if (i > 0)
+        outf_ << ", ";
+      outf_ << fields[i].name;
+    }
+    outf_ << "\n";
+  }
+
+  void result_rows_add(MYSQL_ROW row, MySQLSession &s) {
+    if (need_comma_) {
+      outf_ << ",\n";
+    }
+    need_comma_ = true;
+    outf_ << "      {";
+    for (unsigned int i = 0; i < nfields_; i++) {
+      if (i > 0)
+        outf_ << ", ";
+      if (row[i])
+        outf_ << "m.string_or_null(" << s.quote(row[i], '\"') << ")";
+      else
+        outf_ << "m.string_or_null()";
+    }
+    outf_ << "}";
+  }
+
+  void result_rows_end() {
+    if (need_comma_)
+      outf_ << "\n";
+    outf_ << "    });\n\n";
+  }
+
+private:
+  std::ofstream outf_;
+  unsigned int nfields_;
+  bool need_comma_;
+  bool record_;
+};
+
+static MockRecorder g_mock_recorder;
+
+#define MOCK_REC_EXECUTE(q) g_mock_recorder.execute(q)
+#define MOCK_REC_OK(lid) g_mock_recorder.execute_done(lid)
+#define MOCK_REC_QUERY(q) g_mock_recorder.query(q)
+#define MOCK_REC_QUERY_ONE(q) g_mock_recorder.query_one(q)
+#define MOCK_REC_ERROR(e, c, m) g_mock_recorder.result_error(e, c, m)
+#define MOCK_REC_BEGIN(nf,f) g_mock_recorder.result_rows_begin(nf, f)
+#define MOCK_REC_END() g_mock_recorder.result_rows_end()
+#define MOCK_REC_ROW(r, m) g_mock_recorder.result_rows_add(r, m)
+#else // !MOCK_RECORDER
+#define MOCK_REC_EXECUTE(q) do {} while(0)
+#define MOCK_REC_OK(lid) do {} while(0)
+#define MOCK_REC_QUERY(q) do {} while(0)
+#define MOCK_REC_QUERY_ONE(q) do {} while(0)
+#define MOCK_REC_ERROR(e, c, m) do {} while(0)
+#define MOCK_REC_BEGIN(nf,f) do {} while(0)
+#define MOCK_REC_END() do {} while(0)
+#define MOCK_REC_ROW(r, m) do {} while(0)
+#endif // !MOCK_RECORDER
+
 
 MySQLSession::MySQLSession() {
   connection_ = new MYSQL();
@@ -74,13 +195,16 @@ void MySQLSession::disconnect() {
 
 void MySQLSession::execute(const std::string &q) {
   if (connected_) {
+    MOCK_REC_EXECUTE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
+    MOCK_REC_OK(mysql_insert_id(connection_));
     if (res)
       mysql_free_result(res);
   } else
@@ -97,19 +221,23 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(const std::string &q,
                          const RowProcessor &processor) {
   if (connected_) {
+    MOCK_REC_QUERY(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
-    MYSQL_RES *res = mysql_use_result(connection_);
+    MYSQL_RES *res = mysql_store_result(connection_);
     if (res) {
       unsigned int nfields = mysql_num_fields(res);
+      MOCK_REC_BEGIN(nfields, mysql_fetch_fields(res));
       std::vector<const char*> outrow;
       outrow.resize(nfields);
       MYSQL_ROW row;
       while ((row = mysql_fetch_row(res))) {
+        MOCK_REC_ROW(row, *this);
         for (unsigned int i = 0; i < nfields; i++) {
           outrow[i] = row[i];
         }
@@ -121,11 +249,13 @@ void MySQLSession::query(const std::string &q,
           throw;
         }
       }
+      MOCK_REC_END();
       mysql_free_result(res);
     } else {
       std::stringstream ss;
       ss << "Error fetching query results: ";
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
   } else
@@ -148,23 +278,28 @@ private:
 
 MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
   if (connection_) {
+    MOCK_REC_QUERY_ONE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
-    MYSQL_RES *res = mysql_use_result(connection_);
+    MYSQL_RES *res = mysql_store_result(connection_);
     if (res) {
       std::vector<const char*> outrow;
       MYSQL_ROW row;
+      unsigned int nfields = mysql_num_fields(res);
+      MOCK_REC_BEGIN(nfields, mysql_fetch_fields(res));
       if ((row = mysql_fetch_row(res))) {
-        unsigned int nfields = mysql_num_fields(res);
+        MOCK_REC_ROW(row, *this);
         outrow.resize(nfields);
         for (unsigned int i = 0; i < nfields; i++) {
           outrow[i] = row[i];
         }
       }
+      MOCK_REC_END();
       if (outrow.empty()) {
         mysql_free_result(res);
         return nullptr;
@@ -174,6 +309,7 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
       std::stringstream ss;
       ss << "Error fetching query results: ";
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
   }
@@ -184,13 +320,13 @@ uint64_t MySQLSession::last_insert_id() {
   return mysql_insert_id(connection_);
 }
 
-std::string MySQLSession::quote(const std::string &s) {
+std::string MySQLSession::quote(const std::string &s, char qchar) {
   std::string r;
   r.resize(s.length()*2+3);
-  r[0] = '\'';
+  r[0] = qchar;
   unsigned long len = mysql_real_escape_string_quote(connection_, &r[1],
-                                                    s.c_str(), s.length(), '\'');
+                                                    s.c_str(), s.length(), qchar);
   r.resize(len+2);
-  r[len+1] = '\'';
+  r[len+1] = qchar;
   return r;
 }

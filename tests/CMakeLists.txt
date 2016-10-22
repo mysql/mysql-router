@@ -22,11 +22,13 @@ if(WIN32)
   add_library(routertest_helpers STATIC
     helpers/cmd_exec-windows.cc
     helpers/router_test_helpers.cc
+    helpers/mysql_session_replayer.cc
   )
 else()
   add_library(routertest_helpers SHARED
     helpers/cmd_exec.cc
     helpers/router_test_helpers.cc
+    helpers/mysql_session_replayer.cc
   )
 endif()
 

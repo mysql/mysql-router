@@ -42,47 +42,30 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "mysqlrouter/mysql_session.h"
+// Begin hack to workaround FRIEND_TEST() that doesn't work with namespaces
+#undef FRIEND_TEST
+#define FRIEND_TEST(test_case_name, test_name)\
+  class test_case_name##_##test_name##_Test
 
-#include <gtest/gtest_prod.h>
+FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
+FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
+FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
+FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
+FRIEND_TEST(ConfigGeneratorTest, create_config_single_master);
+FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
+FRIEND_TEST(ConfigGeneratorTest, create_acount);
+FRIEND_TEST(ConfigGeneratorTest, fill_options);
+FRIEND_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
+
+#undef FRIEND_TEST
+#define FRIEND_TEST(test_case_name, test_name)\
+  friend class ::test_case_name##_##test_name##_Test
+// End hack to workaround FRIEND_TEST() that doesn't work with namespaces
+
 #include "config_generator.h"
-
-
-class MockMySQLSession : public mysqlrouter::MySQLSession {
-public:
-  MOCK_METHOD5(connect, void(const std::string &host, unsigned int port,
-                             const std::string &username,
-                             const std::string &password,
-                             int connection_timeout));
-  MOCK_METHOD0(disconnect, void());
-
-  MOCK_METHOD1(execute, void(const std::string &query));
-
-  MOCK_METHOD1(query_one, ResultRow *(const std::string &query));
-
-  virtual void query(const std::string &q, const RowProcessor &proc) {
-    (void)q;
-    for (auto row : query_rows_)
-      proc(row);
-    query_rows_.clear();
-  }
-
-  void feed_query_row(const std::vector<const char*> &row) {
-    query_rows_.push_back(row);
-  }
-
-private:
-  std::vector<std::vector<const char*>> query_rows_;
-};
-
-
-class ResultRow : public mysqlrouter::MySQLSession::ResultRow {
-public:
-  ResultRow(const mysqlrouter::MySQLSession::Row &row) {
-    row_ = row;
-  }
-};
-
+#include "mysqlrouter/mysql_session.h"
+#include "mysql_session_replayer.h"
+#include "cluster_metadata.h"
 
 class ConfigGeneratorTest : public ::testing::Test {
 protected:
@@ -90,13 +73,46 @@ protected:
   }
 };
 
-
 using ::testing::Return;
 using namespace testing;
+using mysqlrouter::ConfigGenerator;
+
+
+static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
+  m.expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
+  m.then_return(2, {
+      // major, minor
+      {m.string_or_null("1"), m.string_or_null("0")}
+    });
+
+  m.expect_query_one("SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->'group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours");
+  m.then_return(2, {
+      // has_one_replicaset, replicaset_is_ours
+      {m.string_or_null("1"), m.string_or_null()}
+    });
+
+  m.expect_query_one("SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid");
+  m.then_return(1, {
+      // member_state
+      {m.string_or_null("ONLINE")}
+    });
+
+  m.expect_query_one("SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members");
+  m.then_return(2, {
+      // num_onlines, num_total
+      {m.string_or_null("3"), m.string_or_null("3")}
+    });
+
+  m.expect_query_one("SELECT @@group_replication_single_primary_mode='ON' as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+  m.then_return(3, {
+      // single_primary_mode, primary_member, my_uuid
+      {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
+    });
+}
 
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
-  MockMySQLSession mock_mysql;
+  MySQLSessionReplayer mock_mysql;
 
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
@@ -105,14 +121,11 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
 
-    // "F.cluster_name, "
-    // "R.replicaset_name, "
-    // "R.topology_type, "
-    // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "pm", "somehost:3306"}});
 
     config_gen.fetch_bootstrap_servers(
       primary_replicaset_servers_,
@@ -126,10 +139,11 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
 
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "mm", "somehost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "mm", "somehost:3306"}});
 
     config_gen.fetch_bootstrap_servers(
       primary_replicaset_servers_,
@@ -143,10 +157,11 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
 
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "xxx", "somehost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "xxx", "somehost:3306"}});
 
     ASSERT_THROW(
       config_gen.fetch_bootstrap_servers(
@@ -157,7 +172,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
-  MockMySQLSession mock_mysql;
+  MySQLSessionReplayer mock_mysql;
 
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
@@ -166,16 +181,17 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
 
     // "F.cluster_name, "
     // "R.replicaset_name, "
     // "R.topology_type, "
     // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "otherhost:3306"});
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "sumhost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "pm", "somehost:3306"},
+        {"mycluster", "myreplicaset", "pm", "otherhost:3306"},
+        {"mycluster", "myreplicaset", "pm", "sumhost:3306"}});
 
     config_gen.fetch_bootstrap_servers(
       primary_replicaset_servers_,
@@ -189,7 +205,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
-  MockMySQLSession mock_mysql;
+  MySQLSessionReplayer mock_mysql;
 
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
@@ -198,11 +214,11 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
-
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
-    mock_mysql.feed_query_row({"mycluster", "anotherreplicaset", "pm", "otherhost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "pm", "somehost:3306"},
+        {"mycluster", "anotherreplicaset", "pm", "otherhost:3306"}});
 
     ASSERT_THROW(
       config_gen.fetch_bootstrap_servers(
@@ -213,11 +229,11 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
-
-    mock_mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
-    mock_mysql.feed_query_row({"anothercluster", "anotherreplicaset", "pm", "otherhost:3306"});
+    mock_mysql.expect_query("").then_return(4, {
+        {"mycluster", "myreplicaset", "pm", "somehost:3306"},
+        {"anothercluster", "anotherreplicaset", "pm", "otherhost:3306"}});
 
     ASSERT_THROW(
       config_gen.fetch_bootstrap_servers(
@@ -229,7 +245,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
-  MockMySQLSession mock_mysql;
+  MySQLSessionReplayer mock_mysql;
 
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
@@ -238,9 +254,10 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 
   {
     ConfigGenerator config_gen;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mock_mysql);
     config_gen.init(&mock_mysql);
 
+    mock_mysql.expect_query("").then_return(4, {});
     // no replicasets/clusters defined
     ASSERT_THROW(
       config_gen.fetch_bootstrap_servers(
@@ -254,14 +271,14 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 TEST_F(ConfigGeneratorTest, create_acount) {
   // using hostname queried locally
   {
-    MockMySQLSession mock_mysql;
+    MySQLSessionReplayer mock_mysql;
 
     ::testing::InSequence s;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'")));
+    common_pass_metadata_checks(mock_mysql);
+    mock_mysql.expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("CREATE USER cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(&mock_mysql);
@@ -269,15 +286,15 @@ TEST_F(ConfigGeneratorTest, create_acount) {
   }
   // using IP queried from PFS
   {
-    MockMySQLSession mock_mysql;
+    MySQLSessionReplayer mock_mysql;
     //std::vector<const char*> result{"::fffffff:123.45.67.8"};
 
     ::testing::InSequence s;
-    EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("DROP USER IF EXISTS cluster_user@'%'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("CREATE USER cluster_user@'%'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'")));
-    EXPECT_CALL(mock_mysql, execute(HasSubstr("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'")));
+    common_pass_metadata_checks(mock_mysql);
+    mock_mysql.expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("CREATE USER cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(&mock_mysql);
@@ -287,12 +304,12 @@ TEST_F(ConfigGeneratorTest, create_acount) {
 
 
 TEST_F(ConfigGeneratorTest, create_config_single_master) {
-  StrictMock<MockMySQLSession> mock_mysql;
+  StrictMock<MySQLSessionReplayer> mock_mysql;
 
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
-  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  common_pass_metadata_checks(mock_mysql);
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(false, user_options);
 
@@ -637,12 +654,12 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
 
 TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   std::stringstream output;
-  StrictMock<MockMySQLSession> mock_mysql;
+  StrictMock<MySQLSessionReplayer> mock_mysql;
 
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
-  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  common_pass_metadata_checks(mock_mysql);
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
   config_gen.create_config(output,
@@ -684,10 +701,10 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
 }
 
 TEST_F(ConfigGeneratorTest, fill_options) {
-  StrictMock<MockMySQLSession> mock_mysql;
+  StrictMock<MySQLSessionReplayer> mock_mysql;
 
   ConfigGenerator config_gen;
-  EXPECT_CALL(mock_mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  common_pass_metadata_checks(mock_mysql);
   config_gen.init(&mock_mysql);
 
   ConfigGenerator::Options options;
@@ -877,25 +894,25 @@ static struct {
   {NULL, true}
 };
 
-static void expect_bootstrap_queries(MockMySQLSession &m, const char *cluster_name) {
+static void expect_bootstrap_queries(MySQLSessionReplayer &m, const char *cluster_name) {
+  m.expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
   for (int i = 0; expected_bootstrap_queries[i].query; i++) {
     if (expected_bootstrap_queries[i].execute)
-      EXPECT_CALL(m, execute(StartsWith(expected_bootstrap_queries[i].query)));
+      m.expect_execute(expected_bootstrap_queries[i].query).then_ok();
     else
-      EXPECT_CALL(m, query_one(StartsWith(expected_bootstrap_queries[i].query)));
+      m.expect_query_one(expected_bootstrap_queries[i].query).then_return(2, {});
   }
-  m.feed_query_row({cluster_name, "myreplicaset", "pm", "somehost:3306"});
 }
 
 
 static void bootstrap_name_test(const std::string &dir,
                            const std::string &name,
                            bool expect_fail) {
-  StrictMock<MockMySQLSession> mysql;
+  StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
-  EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+  common_pass_metadata_checks(mysql);
   config_gen.init(&mysql);
   if (!expect_fail)
     expect_bootstrap_queries(mysql, "mycluster");
@@ -954,11 +971,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
 }
 
 
-ACTION(ThrowMySQLError) {
-  throw mysqlrouter::MySQLSession::Error("boo!", 1234);
-}
-
-
 TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
   const std::string dir = "bug24808634";
   mysqlrouter::delete_recursive(dir);
@@ -968,23 +980,22 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
   ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
   // cleanup on failure when dir didn't exist before
   {
-    StrictMock<MockMySQLSession> mysql;
-    ::testing::InSequence s;
+    MySQLSessionReplayer mysql;
 
     ConfigGenerator config_gen;
-    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mysql);
     config_gen.init(&mysql);
-    mysql.feed_query_row({"mycluter", "myreplicaset", "pm", "somehost:3306"});
-    // force a failure during account creationg
-    EXPECT_CALL(mysql, execute(_)).WillOnce(ThrowMySQLError());
+    mysql.expect_query("SELECT F.cluster_name").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+    mysql.expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
     options["quiet"] = "1";
-    ASSERT_THROW(
+    ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
           options, "delme", "delme.key"),
-      mysqlrouter::MySQLSession::Error);
+      mysqlrouter::MySQLSession::Error,
+      "boo!");
 
     ASSERT_FALSE(mysql_harness::Path(dir).exists());
     ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
@@ -993,11 +1004,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // this should succeed, so that we can test that cleanup doesn't delete existing stuff
   {
-    StrictMock<MockMySQLSession> mysql;
-    ::testing::InSequence s;
+    MySQLSessionReplayer mysql;
 
     ConfigGenerator config_gen;
-    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mysql);
     config_gen.init(&mysql);
     expect_bootstrap_queries(mysql, "mycluster");
 
@@ -1015,15 +1025,14 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // don't cleanup on failure if dir already existed before
   {
-    StrictMock<MockMySQLSession> mysql;
-    ::testing::InSequence s;
+    MySQLSessionReplayer mysql;
 
     ConfigGenerator config_gen;
-    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+      common_pass_metadata_checks(mysql);
     config_gen.init(&mysql);
-    mysql.feed_query_row({"mycluster", "myreplicaset", "pm", "somehost:3306"});
+    mysql.expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
     // force a failure during account creationg
-    EXPECT_CALL(mysql, execute(_)).WillOnce(ThrowMySQLError());
+    mysql.expect_execute("").then_error("boo!", 1234);
 
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
@@ -1041,13 +1050,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // don't cleanup on failure in early validation if dir already existed before
   {
-    StrictMock<MockMySQLSession> mysql;
-    ::testing::InSequence s;
+    MySQLSessionReplayer mysql;
 
     ConfigGenerator config_gen;
-    EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+      common_pass_metadata_checks(mysql);
     config_gen.init(&mysql);
-    mysql.feed_query_row({"mycluter", "myreplicaset", "pm", "somehost:3306"});
+    mysql.expect_query("").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["name"] = "force\nfailure";
@@ -1070,16 +1078,16 @@ static void bootstrap_overwrite_test(const std::string &dir,
                                      bool force,
                                      const char *cluster_name,
                                      bool expect_fail) {
-  StrictMock<MockMySQLSession> mysql;
+  StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
-  EXPECT_CALL(mysql, query_one(_)).WillOnce(Return(new ResultRow({"mysql_innodb_cluster_metadata"})));
+    common_pass_metadata_checks(mysql);
   config_gen.init(&mysql);
   if (!expect_fail)
     expect_bootstrap_queries(mysql, cluster_name);
   else
-    mysql.feed_query_row({cluster_name, "myreplicaset", "pm", "somehost:3306"});
+    mysql.expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -1172,6 +1180,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   mysqlrouter::delete_recursive(dir);
 }
+
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

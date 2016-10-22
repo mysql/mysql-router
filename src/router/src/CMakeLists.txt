@@ -32,6 +32,7 @@ endif()
 
 set(lib_source_files
   config_generator.cc
+  cluster_metadata.cc
   router_app.cc
   utils.cc
   uri.cc

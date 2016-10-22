@@ -23,13 +23,12 @@
 #include <string>
 #include <ostream>
 
-namespace mysqlrouter {
-  class MySQLSession;
-}
-
 namespace mysql_harness {
   class Path;
 }
+
+namespace mysqlrouter {
+class MySQLSession;
 
 class ConfigGenerator {
 public:
@@ -120,7 +119,7 @@ private:
   std::string endpoint_option(const Options &options, const Options::Endpoint &ep);
 
 private:
-  mysqlrouter::MySQLSession *mysql_;
+  MySQLSession *mysql_;
   bool mysql_owned_;
 
 #ifdef FRIEND_TEST
@@ -135,5 +134,5 @@ private:
   FRIEND_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
 #endif
 };
-
+}
 #endif //ROUTER_CONFIG_GENERATOR_INCLUDED

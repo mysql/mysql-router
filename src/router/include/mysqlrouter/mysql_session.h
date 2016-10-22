@@ -96,9 +96,9 @@ public:
   virtual void query(const std::string &query, const RowProcessor &processor);
   virtual ResultRow *query_one(const std::string &query);
 
-  uint64_t last_insert_id();
+  virtual uint64_t last_insert_id();
 
-  virtual std::string quote(const std::string &s);
+  virtual std::string quote(const std::string &s, char qchar = '\'');
 private:
   st_mysql *connection_;
   bool connected_;
