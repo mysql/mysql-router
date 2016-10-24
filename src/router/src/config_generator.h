@@ -118,6 +118,8 @@ private:
 
   std::string endpoint_option(const Options &options, const Options::Endpoint &ep);
 
+  bool backup_config_file_if_different(const mysql_harness::Path &config_path,
+                                       const std::string &new_file_path);
 private:
   MySQLSession *mysql_;
   bool mysql_owned_;

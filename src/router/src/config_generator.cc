@@ -198,6 +198,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     const std::string &keyring_file_path,
     const std::string &keyring_master_key_file) {
   auto options(user_options);
+  bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path _config_file_path(config_file_path);
 
   std::string router_name;
@@ -227,6 +228,11 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
                        false);
   config_file.close();
 
+  if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp")) {
+    if (!quiet)
+      std::cout << "\nExisting configurations backed up to " << config_file_path+".bak" << "\n";
+  }
+
   // rename the .tmp file to the final file
   if (rename((config_file_path + ".tmp").c_str(), config_file_path.c_str()) < 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
@@ -254,6 +260,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     const std::string &default_keyring_file_name,
     const std::string &keyring_master_key_file) {
   bool force = user_options.find("force") != user_options.end();
+  bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
@@ -306,6 +313,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   } else {
     autodel.add_directory(options["rundir"]);
   }
+
   // (re-)bootstrap the instance
   std::ofstream config_file;
   config_file.open(config_file_path.str()+".tmp");
@@ -332,6 +340,11 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
                        keyring_path, tmp_keyring_master_key_file,
                        true);
   config_file.close();
+
+  if (backup_config_file_if_different(config_file_path, config_file_path.str() + ".tmp")) {
+    if (!quiet)
+      std::cout << "\nExisting configurations backed up to " << config_file_path.str()+".bak" << "\n";
+  }
 
   // rename the .tmp file to the final file
   if (rename((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) < 0) {
@@ -835,7 +848,7 @@ void ConfigGenerator::create_account(const std::string &username,
   static
 
   So we create the accoun@%, to make things simple. The account has limited
-  privileges and is specific to the router instance (passwrd not shared), so
+  privileges and is specific to the router instance (password not shared), so
   that shouldn't be a issue.
   {
     // try to find out what's our public IP address
@@ -1001,4 +1014,40 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
 #endif
+}
+
+static bool files_equal(const std::string &f1, const std::string &f2) {
+  std::ifstream if1(f1);
+  std::ifstream if2(f2);
+
+  if1.seekg(0, if1.end);
+  std::streamoff fsize = if1.tellg();
+  if1.seekg(0, if1.beg);
+
+  if2.seekg(0, if2.end);
+  if (fsize != if2.tellg())
+    return false;
+  if2.seekg(0, if2.beg);
+
+  std::string data1, data2;
+  data1.resize(static_cast<size_t>(fsize));
+  data2.resize(static_cast<size_t>(fsize));
+
+  if1.read(&data1[0], fsize);
+  if2.read(&data2[0], fsize);
+
+  return data1 == data2;
+}
+
+bool ConfigGenerator::backup_config_file_if_different(const mysql_harness::Path &config_path,
+                                         const std::string &new_file_path) {
+  if (config_path.exists()) {
+    // if the old and new config files are the same, don't bother with a backup
+    if (!files_equal(config_path.str(), new_file_path)) {
+      copy_file(config_path.str(), config_path.str()+".bak");
+      mysql_harness::make_file_private(config_path.str()+".bak");
+      return true;
+    }
+  }
+  return false;
 }

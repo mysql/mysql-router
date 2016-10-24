@@ -1126,6 +1126,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // same    no          diff           FAIL
@@ -1135,6 +1136,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
+  ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // same    yes         same           OK
@@ -1142,12 +1144,15 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
+  mysqlrouter::delete_recursive(dir);
 
   // same    yes         diff           OK (replacing config)
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // diff    no          same           OK (refreshing config)
@@ -1155,6 +1160,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // diff    no          diff           FAIL
@@ -1164,6 +1170,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
+  ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // diff    yes         same           OK
@@ -1171,6 +1178,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 
   // diff    yes         diff           OK (replacing config)
@@ -1178,6 +1186,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false));
   mysql_harness::reset_keyring();
+  ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   mysqlrouter::delete_recursive(dir);
 }
 
