@@ -445,7 +445,6 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
-  bool created_directory = false;
   AutoDeleter autodel;
 
   if (user_options.find("name") != user_options.end()) {
@@ -463,7 +462,6 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       throw std::runtime_error("Could not create deployment directory");
     }
     autodel.add_directory(directory, true);
-    created_directory = true;
   }
   path = path.real_path();
   config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
