@@ -41,7 +41,6 @@ using namespace mysqlrouter;
 #if defined(NDEBUG)
 #ifdef MOCK_RECORDER
 #undef MOCK_RECORDER
-#warning MOCK_RECORDER shouldn't be enabled on Release builds!
 #endif
 #endif
 
