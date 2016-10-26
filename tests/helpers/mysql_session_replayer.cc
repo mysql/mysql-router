@@ -38,17 +38,17 @@ void MySQLSessionReplayer::disconnect() {
 
 }
 
-void MySQLSessionReplayer::execute(const std::string &query) {
+void MySQLSessionReplayer::execute(const std::string &sql) {
   if (call_info_.empty())
-    throw std::logic_error("Unexpected call to execute("+query+")");
+    throw std::logic_error("Unexpected call to execute("+sql+")");
   const CallInfo &info(call_info_.front());
-  if (query.compare(0, info.query.length(), info.query) != 0
+  if (sql.compare(0, info.sql.length(), info.sql) != 0
       || info.type != CallInfo::Execute) {
-    throw std::logic_error("Unexpected/out-of-order call to execute("+query+")\nExpected: "+info.query);
+    throw std::logic_error("Unexpected/out-of-order call to execute("+sql+")\nExpected: "+info.sql);
   }
   last_insert_id_ = info.last_insert_id;
   if (trace_)
-    std::cout << "execute: " << query << "\n";
+    std::cout << "execute: " << sql << "\n";
   if (info.error_code != 0) {
     call_info_.pop_front();
     throw MySQLSession::Error(info.error.c_str(), info.error_code);
@@ -56,16 +56,16 @@ void MySQLSessionReplayer::execute(const std::string &query) {
   call_info_.pop_front();
 }
 
-void MySQLSessionReplayer::query(const std::string &query, const RowProcessor &processor) {
+void MySQLSessionReplayer::query(const std::string &sql, const RowProcessor &processor) {
   if (call_info_.empty())
-    throw std::logic_error("Unexpected call to query("+query+")");
+    throw std::logic_error("Unexpected call to query("+sql+")");
   const CallInfo &info(call_info_.front());
-  if (query.compare(0, info.query.length(), info.query) != 0
+  if (sql.compare(0, info.sql.length(), info.sql) != 0
       || info.type != CallInfo::Query) {
-    throw std::logic_error("Unexpected/out-of-order call to query("+query+")\nExpected: "+info.query);
+    throw std::logic_error("Unexpected/out-of-order call to query("+sql+")\nExpected: "+info.sql);
   }
   if (trace_)
-    std::cout << "query: " << query << "\n";
+    std::cout << "query: " << sql << "\n";
 
   if (info.error_code != 0) {
     call_info_.pop_front();
@@ -112,16 +112,16 @@ private:
   std::vector<MySQLSessionReplayer::string> real_row_;
 };
 
-MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &query) {
+MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &sql) {
   if (call_info_.empty())
-    throw std::logic_error("Unexpected call to query_one("+query+")");
+    throw std::logic_error("Unexpected call to query_one("+sql+")");
   const CallInfo &info(call_info_.front());
-  if (query.compare(0, info.query.length(), info.query) != 0
+  if (sql.compare(0, info.sql.length(), info.sql) != 0
       || info.type != CallInfo::QueryOne) {
-    throw std::logic_error("Unexpected/out-of-order call to query_one("+query+")\nExpected: "+info.query);
+    throw std::logic_error("Unexpected/out-of-order call to query_one("+sql+")\nExpected: "+info.sql);
   }
   if (trace_)
-    std::cout << "query_one: " << query << "\n";
+    std::cout << "query_one: " << sql << "\n";
 
   if (info.error_code != 0) {
     call_info_.pop_front();
@@ -137,7 +137,7 @@ MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &quer
   return result;
 }
 
-uint64_t MySQLSessionReplayer::last_insert_id() {
+uint64_t MySQLSessionReplayer::get_last_insert_id() {
   return last_insert_id_;
 }
 
@@ -152,7 +152,7 @@ std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) {
 MySQLSessionReplayer &MySQLSessionReplayer::expect_execute(const std::string &q) {
   CallInfo call;
   call.type = CallInfo::Execute;
-  call.query = q;
+  call.sql = q;
   call_info_.push_back(call);
   return *this;
 }
@@ -160,7 +160,7 @@ MySQLSessionReplayer &MySQLSessionReplayer::expect_execute(const std::string &q)
 MySQLSessionReplayer &MySQLSessionReplayer::expect_query(const std::string &q) {
   CallInfo call;
   call.type = CallInfo::Query;
-  call.query = q;
+  call.sql = q;
   call_info_.push_back(call);
   return *this;
 }
@@ -168,13 +168,13 @@ MySQLSessionReplayer &MySQLSessionReplayer::expect_query(const std::string &q) {
 MySQLSessionReplayer &MySQLSessionReplayer::expect_query_one(const std::string &q) {
   CallInfo call;
   call.type = CallInfo::QueryOne;
-  call.query = q;
+  call.sql = q;
   call_info_.push_back(call);
   return *this;
 }
 
-void MySQLSessionReplayer::then_ok(uint64_t last_insert_id) {
-  call_info_.back().last_insert_id = last_insert_id;
+void MySQLSessionReplayer::then_ok(uint64_t the_last_insert_id) {
+  call_info_.back().last_insert_id = the_last_insert_id;
 }
 
 void MySQLSessionReplayer::then_error(const std::string &error, unsigned int code) {
@@ -202,6 +202,6 @@ void MySQLSessionReplayer::print_expected() {
         std::cout << "\tquery_one: ";
         break;
     }
-    std::cout << info.query << "\n";
+    std::cout << info.sql << "\n";
   }
 }

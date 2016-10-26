@@ -32,11 +32,11 @@ public:
                        int connection_timeout = kDefaultConnectionTimeout);
   virtual void disconnect();
 
-  virtual void execute(const std::string &query);
-  virtual void query(const std::string &query, const RowProcessor &processor);
-  virtual ResultRow *query_one(const std::string &query);
+  virtual void execute(const std::string &sql);
+  virtual void query(const std::string &sql, const RowProcessor &processor);
+  virtual ResultRow *query_one(const std::string &sql);
 
-  virtual uint64_t last_insert_id();
+  virtual uint64_t get_last_insert_id();
 
   virtual std::string quote(const std::string &s, char qchar = '\'');
 
@@ -59,7 +59,7 @@ public:
   MySQLSessionReplayer &expect_execute(const std::string &q);
   MySQLSessionReplayer &expect_query(const std::string &q);
   MySQLSessionReplayer &expect_query_one(const std::string &q);
-  void then_ok(uint64_t last_insert_id = 0);
+  void then_ok(uint64_t the_last_insert_id = 0);
   void then_error(const std::string &error, unsigned int code);
   void then_return(unsigned int num_fields,
                    std::vector<std::vector<string>> rows);
@@ -69,7 +69,7 @@ public:
 
 private:
   struct CallInfo {
-    std::string query;
+    std::string sql;
     enum Type {
       Execute,
       Query,
