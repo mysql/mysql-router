@@ -191,6 +191,10 @@ int delete_file(const std::string& path);
  */
 void copy_file(const std::string &from, const std::string &to);
 
+/** @brief Returns whether the scoket name passed a parameter is valid
+ */
+bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
+
 } // namespace mysqlrouter
 
 #endif // MYSQLROUTER_UTILS_INCLUDED

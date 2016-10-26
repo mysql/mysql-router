@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <termios.h>
 #include <unistd.h>
 #else
@@ -469,5 +470,19 @@ bool is_running_as_service() {
   return result;
 }
 #endif
+
+bool is_valid_socket_name(const std::string &socket, std::string &err_msg)
+{
+  bool result = true;
+
+#ifndef _WIN32
+  result = socket.size() <= (sizeof(sockaddr_un().sun_path)-1);
+  err_msg =  "Socket file path can be at most "
+           + to_string(sizeof(sockaddr_un().sun_path)-1)
+           + " characters (was " + to_string(socket.size()) + ")";
+#endif
+
+  return result;
+}
 
 } // namespace mysqlrouter

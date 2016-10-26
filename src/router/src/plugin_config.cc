@@ -120,11 +120,10 @@ mysql_harness::Path BasePluginConfig::get_option_named_socket(const mysql_harnes
                                                               const string &option) {
   std::string value = get_option_string(section, option);
 
-#ifndef _WIN32
-  if (value.size() > (sizeof(sockaddr_un().sun_path)-1)) {
-    throw invalid_argument("Socket file path can be at most " + to_string(sizeof(sockaddr_un().sun_path)-1) + " characters (was " + to_string(value.size()) + ")");
+  std::string error;
+  if (!is_valid_socket_name(value, error)) {
+    throw invalid_argument(error);
   }
-#endif
 
   if (value.empty()) {
     return mysql_harness::Path();

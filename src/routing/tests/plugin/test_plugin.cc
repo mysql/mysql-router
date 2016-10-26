@@ -25,6 +25,7 @@
 #include <thread>
 #ifndef _WIN32
 #include <unistd.h>
+#include <sys/un.h>
 #endif
 
 #include "common.h"
@@ -308,6 +309,54 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
     info.config = &cfg;
     harness_plugin_routing.init(&info);
   });
+}
+
+static std::string make_string(size_t len, char c = 'a') {
+  std::string res(len, c);
+
+  assert(res.length() == len);
+
+  return res;
+}
+
+static void test_socket_length(const std::string& socket_name, size_t max_len) {
+  mysql_harness::Config         cfg;
+  mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
+  section.add("destinations", "localhost:1234");
+  section.add("mode", "read-only");
+  section.add("socket", socket_name);
+
+  if (socket_name.length() <= max_len) {
+    EXPECT_NO_THROW({
+      RoutingPluginConfig config(&section);
+      validate_socket_info_test_proxy("", &section, config);
+    });
+  }
+  else {
+    EXPECT_THROW(
+      RoutingPluginConfig config(&section),
+      std::invalid_argument);
+  }
+}
+
+TEST_F(RoutingPluginTests, ListeningSocketNameLength) {
+#ifndef _WIN32
+  const size_t MAX_SOCKET_NAME_LEN = sizeof(sockaddr_un().sun_path)-1;
+#else
+  // doesn't really matter
+  const size_t MAX_SOCKET_NAME_LEN = 100;
+#endif
+
+  std::string socket_name;
+
+  socket_name = make_string(MAX_SOCKET_NAME_LEN-1);
+  test_socket_length(socket_name, MAX_SOCKET_NAME_LEN);
+
+  socket_name = make_string(MAX_SOCKET_NAME_LEN);
+  test_socket_length(socket_name, MAX_SOCKET_NAME_LEN);
+
+  socket_name = make_string(MAX_SOCKET_NAME_LEN+1);
+  test_socket_length(socket_name, MAX_SOCKET_NAME_LEN);
 }
 
 TEST_F(RoutingPluginTests, TwoNonuniqueUnixSockets) {

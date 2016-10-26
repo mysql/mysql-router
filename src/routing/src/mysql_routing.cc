@@ -74,6 +74,7 @@ using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 using mysqlrouter::TCPAddress;
+using mysqlrouter::is_valid_socket_name;
 
 static int kListenQueueSize = 1024;
 
@@ -491,10 +492,14 @@ void MySQLRouting::setup_named_socket_service() {
   errno = 0;
 
   assert(!socket_file.empty());
-  assert(socket_file.size() < (sizeof(sockaddr_un().sun_path)-1)); // We already did check reading the configuration
+
+  std::string error_msg;
+  if (!is_valid_socket_name(socket_file, error_msg)) {
+    throw std::runtime_error(error_msg);
+  }
 
   if ((service_named_socket_ = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    throw std::runtime_error(get_strerror(errno));
+    throw std::invalid_argument(get_strerror(errno));
   }
 
   sock_unix.sun_family = AF_UNIX;
