@@ -270,7 +270,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
 
   if (!path.exists()) {
     if (mkdir(directory.c_str(), 0700) < 0) {
-      std::cerr << "Cannot create directory " << directory << ": " << mysql_harness::get_strerror(errno) << "\n";
+      std::cerr << "Cannot create directory " << directory << ": " << get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
     autodel.add_directory(directory, true);
@@ -336,7 +336,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   // rename the .tmp file to the final file
   if (rename((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) < 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-    //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
+    //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not move configuration file '" +
               config_file_path.str()+".tmp' to final location");
   }
@@ -345,7 +345,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       rename(tmp_keyring_master_key_file.c_str(),
              keyring_master_key_file.c_str()) < 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-    //  config_file_path.c_str(), mysql_harness::get_strerror(errno));
+    //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not move keyring file '" +
               tmp_keyring_master_key_file+"' to its final location");
   }

@@ -19,7 +19,7 @@
 #include "mysqlrouter/utils_sqlstring.h"
 #include <memory>
 #include <cassert>
-
+#include <string.h>
 #ifdef _WIN32
 #include <Winsock2.h>
 #include <string.h>
@@ -65,7 +65,7 @@ static std::string get_my_hostname() {
   if (getifaddrs(&ifa) != 0 || !ifa) {
     if (ifa)
       freeifaddrs(ifa);
-    throw std::runtime_error("Could not get local host address: " + std::string(strerror(errno)));
+    throw std::runtime_error("Could not get local host address: " + mysql_harness::get_strerror(errno)));
   }
   for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
     if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) || (!(ifap->ifa_flags & IFF_UP)))
