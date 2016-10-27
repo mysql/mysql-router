@@ -51,6 +51,9 @@ static const int kDefaultROXPort = 64470;
 static const char *kRWXSocketName = "mysqlx.sock";
 static const char *kROXSocketName = "mysqlxro.sock";
 
+static const int kMaxTCPPortNumber = 65535;
+static const int kAllocatedTCPPortCount = 4; // 2 for classic, 2 for X
+
 static const std::string kSystemRouterName = "system";
 
 static const int kMetadataServerPasswordLength = 16;
@@ -382,8 +385,11 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     char *end = NULL;
     const char *tmp = user_options.at("base-port").c_str();
     base_port = static_cast<int>(std::strtol(tmp, &end, 10));
-    if (base_port <= 0 || base_port > 65535 || end != tmp + strlen(tmp)) {
-      throw std::runtime_error("Invalid base-port value " + user_options.at("base-port"));
+    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+    if (base_port <= 0 || base_port > max_base_port || end != tmp + strlen(tmp)) {
+      throw std::runtime_error("Invalid base-port number " +
+          user_options.at("base-port") +
+          "; please pick a value lower than "+std::to_string((max_base_port)));
     }
   }
   if (user_options.find("use-sockets") != user_options.end()) {

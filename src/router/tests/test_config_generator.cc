@@ -762,9 +762,6 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     user_options["base-port"] = "3306";
     options = config_gen.fill_options(false, user_options);
     ASSERT_THAT(options.rw_endpoint.port, Eq(3306));
-    user_options["base-port"] = "65535";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.rw_endpoint.port, Eq(65535));
     user_options["base-port"] = "";
     ASSERT_THROW(
       options = config_gen.fill_options(false, user_options),
@@ -789,6 +786,30 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THROW(
       options = config_gen.fill_options(false, user_options),
       std::runtime_error);
+
+    // Bug #24808309
+    user_options["base-port"] = "65533";
+    ASSERT_THROW_LIKE(
+      options = config_gen.fill_options(false, user_options),
+      std::runtime_error,
+      "Invalid base-port number");
+
+    user_options["base-port"] = "65532";
+    ASSERT_NO_THROW(options = config_gen.fill_options(false, user_options));
+
+    ASSERT_THAT(options.rw_endpoint, Eq(true));
+    ASSERT_THAT(options.rw_endpoint.port, Eq(65532));
+    ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
+    ASSERT_THAT(options.ro_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_endpoint.port, Eq(65533));
+    ASSERT_THAT(options.ro_endpoint.socket, Eq(""));
+    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
+    ASSERT_THAT(options.rw_x_endpoint.port, Eq(65534));
+    ASSERT_THAT(options.rw_x_endpoint.socket, Eq(""));
+    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
+    ASSERT_THAT(options.ro_x_endpoint.port, Eq(65535));
+    ASSERT_THAT(options.ro_x_endpoint.socket, Eq(""));
   }
   {
      std::map<std::string, std::string> user_options;
