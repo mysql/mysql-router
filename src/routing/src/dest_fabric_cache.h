@@ -40,7 +40,7 @@ public:
 DestFabricCacheGroup(const std::string fabric_cache, const std::string group, routing::AccessMode mode, URIQuery query,
                      // default sock_ops = "real" (not mock) implementation
                      routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance())
-    : RouteDestination("",sock_ops),
+    : RouteDestination(Protocol::Type::kClassicProtocol, sock_ops), // Fabric does not support x protocol
       cache_name(fabric_cache),
       ha_group(group),
       routing_mode(mode),
@@ -48,7 +48,7 @@ DestFabricCacheGroup(const std::string fabric_cache, const std::string group, ro
       allow_primary_reads_(false),
       current_pos_(0) {
     init();
-  };
+  }
 
   /** @brief Copy constructor */
   DestFabricCacheGroup(const DestFabricCacheGroup &other) = delete;

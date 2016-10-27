@@ -43,10 +43,9 @@ using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
 
 
-DestMetadataCacheGroup::DestMetadataCacheGroup(
-  const std::string &metadata_cache, const std::string &replicaset,
+DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache, const std::string &replicaset,
   const std::string &mode, const mysqlrouter::URIQuery &query,
-  const std::string &protocol) :
+  const Protocol::Type protocol) :
     RouteDestination(protocol),
     cache_name(metadata_cache),
     ha_replicaset(replicaset),
@@ -69,7 +68,7 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::
     if (!(it.role == "HA")) {
       continue;
     }
-    auto port = (protocol_ == "x") ? static_cast<uint16_t>(it.xport) : static_cast<uint16_t>(it.port);
+    auto port = (protocol_ == Protocol::Type::kXProtocol) ? static_cast<uint16_t>(it.xport) : static_cast<uint16_t>(it.port);
     if (routing_mode == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
       // Secondary read-only
       available.push_back(mysqlrouter::TCPAddress(it.host, port));

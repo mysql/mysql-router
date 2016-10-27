@@ -37,7 +37,7 @@ public:
     INVALID = 9,
   };
 
-  TCPAddress(std::string address = "", uint32_t tcp_port = 0)
+  TCPAddress(const std::string &address = "", uint32_t tcp_port = 0)
       : addr(address), port(validate_port(tcp_port)), ip_family_(Family::UNKNOWN) {
     detect_family();
   }
@@ -70,7 +70,7 @@ public:
     Family *my_family = const_cast<Family *>(&this->ip_family_);
     *my_family = other.ip_family_;
     return *this;
-  };
+  }
 
   /** @brief Returns the address as a string
    *

@@ -18,6 +18,7 @@
 #include <gtest/gtest_prod.h>
 
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/fabric_cache.h"
 #include "mysql_routing.h"
 #include "common.h"
 
@@ -339,7 +340,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(routing::AccessMode::kReadWrite, router_port,
-               "x", "0.0.0.0", mysql_harness::Path("/tmp/sock"),
+               Protocol::Type::kXProtocol, "0.0.0.0", mysql_harness::Path("/tmp/sock"),
                "testroute",
                routing::kDefaultMaxConnections,
                routing::kDefaultDestinationConnectionTimeout,
@@ -434,4 +435,108 @@ TEST_F(RoutingTests, bug_24841281) {
   server.stop();
   thd.join();
 }
+
+TEST_F(RoutingTests, set_destinations_from_uri) {
+
+  MySQLRouting routing(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kXProtocol);
+
+  // valid metadata-cache uri
+  {
+    URI uri("metadata-cache://test/default?role=PRIMARY");
+    EXPECT_NO_THROW(routing.set_destinations_from_uri(uri));
+  }
+
+  // metadata-cache uri, role missing
+  {
+    URI uri("metadata-cache://test/default");
+    EXPECT_THROW(routing.set_destinations_from_uri(uri),
+                 std::runtime_error);
+  }
+
+  // valid fabric-cache uri
+  {
+    fabric_cache::g_fabric_cache_config_sections.clear();
+    fabric_cache::g_fabric_cache_config_sections.push_back("");
+    URI uri("fabric+cache:///group/my_group1?allow_primary_reads=YES");
+    EXPECT_NO_THROW(routing.set_destinations_from_uri(uri));
+  }
+
+  // fabric-cache, invalid command
+  {
+    fabric_cache::g_fabric_cache_config_sections.clear();
+    fabric_cache::g_fabric_cache_config_sections.push_back("");
+    URI uri("fabric+cache:///invalid-command/my_group1?allow_primary_reads=YES");
+    EXPECT_THROW(routing.set_destinations_from_uri(uri),
+                 std::runtime_error);
+  }
+
+  // fabric-cache, invalid host
+  {
+    fabric_cache::g_fabric_cache_config_sections.clear();
+    fabric_cache::g_fabric_cache_config_sections.push_back("");
+    URI uri("fabric+cache://10.20.30.40/group/my_group1?allow_primary_reads=YES");
+    EXPECT_THROW(routing.set_destinations_from_uri(uri),
+                 std::runtime_error);
+  }
+
+  // invalid scheme
+  {
+    URI uri("invalid-scheme://test/default?role=SECONDARY");
+    EXPECT_THROW(routing.set_destinations_from_uri(uri),
+                 std::runtime_error);
+  }
+}
+
+TEST_F(RoutingTests, set_destinations_from_cvs) {
+
+  MySQLRouting routing(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kXProtocol);
+
+  // valid address list
+  {
+    std::string cvs = "127.0.0.1:2002,127.0.0.1:2004";
+    EXPECT_NO_THROW(routing.set_destinations_from_csv(cvs));
+  }
+
+  // invalid access mode
+  {
+    MySQLRouting routing_inv(routing::AccessMode::kUndefined, 7001, Protocol::Type::kXProtocol);
+    std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
+    EXPECT_THROW(routing_inv.set_destinations_from_csv(csv),
+                 std::runtime_error);
+  }
+
+  // no address
+  {
+    std::string csv = "";
+    EXPECT_THROW(routing.set_destinations_from_csv(csv),
+                 std::runtime_error);
+  }
+
+  // invalid address
+  {
+    std::string csv = "127.0.0.1.2:2222";
+    EXPECT_THROW(routing.set_destinations_from_csv(csv),
+                 std::runtime_error);
+  }
+
+  // let's check if the correct defualt port gets chosen for
+  // the respective protocol
+  // we use the trick here setting the expected address also as
+  // the binding address for the routing which should make the method throw
+  // an exception if these are the same
+  {
+    const std::string address = "127.0.0.1";
+    MySQLRouting routing_classic(routing::AccessMode::kReadWrite, 3306, Protocol::Type::kClassicProtocol, address);
+    EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1"), std::runtime_error);
+    EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1:3306"), std::runtime_error);
+    EXPECT_NO_THROW(routing_classic.set_destinations_from_csv("127.0.0.1:33060"));
+
+
+    MySQLRouting routing_x(routing::AccessMode::kReadWrite, 33060, Protocol::Type::kXProtocol, address);
+    EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1"), std::runtime_error);
+    EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1:33060"), std::runtime_error);
+    EXPECT_NO_THROW(routing_x.set_destinations_from_csv("127.0.0.1:3306"));
+  }
+}
+
 #endif

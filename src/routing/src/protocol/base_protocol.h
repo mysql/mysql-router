@@ -40,6 +40,13 @@ using routing::SocketOperationsBase;
 
 class BaseProtocol {
 public:
+
+  /** @brief supported protocols */
+  enum class Type {
+    kClassicProtocol,
+    kXProtocol
+  };
+
   BaseProtocol(SocketOperationsBase *socket_operations): socket_operations_(socket_operations) {}
   virtual ~BaseProtocol() {}
 
@@ -92,8 +99,8 @@ public:
                           const std::string &sql_state,
                           const std::string &log_prefix) = 0;
 
-  /** @brief Gets protocol name. */
-  virtual std::string get_name() = 0;
+  /** @brief Gets protocol type. */
+  virtual Type get_type() = 0;
 protected:
   SocketOperationsBase *socket_operations_;
 };

@@ -26,6 +26,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "protocol/protocol.h"
 
 #include "utils.h"
 
@@ -53,7 +54,7 @@ public:
   bool is_required(const std::string &option);
 
   /** @brief `protocol` option read from configuration section */
-  const std::string protocol_name;
+  const Protocol::Type protocol;
   /** @brief `destinations` option read from configuration section */
   const std::string destinations;
   /** @brief `bind_port` option read from configuration section */
@@ -80,8 +81,8 @@ protected:
 private:
   routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const std::string &option);
   std::string get_option_destinations(const mysql_harness::ConfigSection *section, const std::string &option,
-                                      const std::string &protocol);
-  std::string get_protocol_name(const mysql_harness::ConfigSection *section, const std::string &option);
+                                      const Protocol::Type &protocol_type);
+  Protocol::Type get_protocol(const mysql_harness::ConfigSection *section, const std::string &option);
 };
 
 #endif // PLUGIN_CONFIG_ROUTING_INCLUDED

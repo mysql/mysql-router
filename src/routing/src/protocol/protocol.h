@@ -23,48 +23,80 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cassert>
 #include <memory>
-#include <set>
 
 class Protocol final {
 public:
-  /** @brief default protocol name */
-  static constexpr const char* DEFAULT{"classic"};
+  using Type = BaseProtocol::Type;
 
-  /** @brief default protocol name */
-  static const std::set<std::string> get_supported_protocols() {
-    return {"classic", "x"};
+  static inline Type get_default() {
+    return Type::kClassicProtocol;
   }
 
-  /** @brief Returns default port for the selected protocol
-   *
-   * @param name name of the protocol
-   *
-   * @returns default port for the protocol
+  /** @brief Returns type of the protocol by its name
    */
-  static uint16_t get_default_port(const std::string &name) {
+  static Type get_by_name(const std::string &name) {
+    Type result = Type::kClassicProtocol;
+
     if (name == "classic") {
-      return 3306;
+      /* already set */
+    }
+    else if (name == "x") {
+      result = Type::kXProtocol;
+    }
+    else {
+      throw std::invalid_argument("Invalid protocol name: '" + name + "'");
     }
 
-    assert(name=="x");
-    return 33060;
+    return result;
   }
 
-  /** @brief Factory method creating object for handling the routing code that is protocol-specific
+  /** @brief Factory method creating protocol object for handling the routing code that is protocol-specific
    *
-   * @param name name of the protocol for which the handler should be created
+   * @param type type of the protocol for which the handler should be created
    *
    * @returns pointer to the created object
    */
-  static BaseProtocol* create_protocol(const std::string &name,
-                                       SocketOperationsBase *socket_operations) {
-    if (name == "classic") {
-      return new ClassicProtocol(socket_operations);
+  static BaseProtocol* create(Type type,
+                              SocketOperationsBase *socket_operations) {
+    BaseProtocol* result{nullptr};
+
+    switch (type ) {
+    case Type::kClassicProtocol:
+      result =  new ClassicProtocol(socket_operations);
+      break;
+    case Type::kXProtocol:
+      result =  new XProtocol(socket_operations);
+      break;
+    default:
+      throw std::invalid_argument("Invalid protocol: " + std::to_string(static_cast<int>(type)));
     }
 
-    assert(name=="x");
-    return new XProtocol(socket_operations);
+    return result;
   }
+
+  /** @brief Returns default port for the selected protocol
+   */
+  static uint16_t get_default_port(Type type) {
+    uint16_t result{0};
+
+    switch (type ) {
+    case Type::kClassicProtocol:
+      result = kClassicProtocolDefaultPort;
+      break;
+    case Type::kXProtocol:
+      result = kXProtocolDefaultPort;
+      break;
+    default:
+      throw std::invalid_argument("Invalid protocol: " + std::to_string(static_cast<int>(type)));
+    }
+
+    return result;
+  }
+
+private:
+  /** @brief default server ports for supported protocols */
+  static constexpr uint16_t kClassicProtocolDefaultPort{3306};
+  static constexpr uint16_t kXProtocolDefaultPort{33060};
 };
 
 #endif // ROUTING_PROTOCOL_INCLUDED

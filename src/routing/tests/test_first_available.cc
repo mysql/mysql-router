@@ -27,7 +27,7 @@ class FirstAvailableTest : public ::testing::Test {
 
  public:
   FirstAvailableTest() : sock_ops_(new MockSocketOperations()),
-                         dest_("", sock_ops_.get()) {
+                         dest_(Protocol::Type::kClassicProtocol, sock_ops_.get()) {
     dest_.add("41", 1);
     dest_.add("42", 2);
     dest_.add("43", 3);

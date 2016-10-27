@@ -83,9 +83,9 @@ public:
                           const std::string &sql_state,
                           const std::string &log_prefix) override;
 
-  /** @brief Gets protocol name. */
-  virtual std::string get_name() override {
-    return "classic";
+  /** @brief Gets protocol type. */
+  virtual Type get_type() override {
+    return Type::kClassicProtocol;
   }
 };
 

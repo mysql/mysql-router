@@ -539,7 +539,7 @@ TEST_F(RoutingPluginTests, EmptyProtocolName) {
   reset_config();
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,
-              HasSubstr("Configuration error: invalid protocol ''"));
+              HasSubstr("Configuration error: Invalid protocol name: ''"));
 }
 
 TEST_F(RoutingPluginTests, InvalidProtocolName) {
@@ -547,7 +547,7 @@ TEST_F(RoutingPluginTests, InvalidProtocolName) {
   reset_config();
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,
-              HasSubstr("Configuration error: invalid protocol 'invalid'"));
+              HasSubstr("Configuration error: Invalid protocol name: 'invalid'"));
 }
 
 int main(int argc, char *argv[]) {

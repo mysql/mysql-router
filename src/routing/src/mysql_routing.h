@@ -120,7 +120,7 @@ public:
    * @param optional socket_operations object handling the operations on network sockets
    */
   MySQLRouting(routing::AccessMode mode, uint16_t port,
-               const std::string &protocol_name,
+               const Protocol::Type protocol,
                const string &bind_address = string{"0.0.0.0"},
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
                const string &route_name = string{},

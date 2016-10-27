@@ -32,13 +32,15 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
 #include "logger.h"
+#include "protocol/protocol.h"
 
 /** @class RouteDestination
  * @brief Manage destinations for a Connection Routing
  *
  * This class manages destinations which are used in Connection Routing.
  * A destination is usually a MySQL Server and is stored using the IP
- * or hostname together with the TCP port (defaulting to 3306).
+ * or hostname together with the TCP port (defaulting to 3306 for classic
+ * protocol or to 33060 for x protocol).
  *
  * RouteDestination is meant to be a base class and used to inherite and
  * create class which change the behavior. For example, the `get_next()`
@@ -50,10 +52,10 @@ public:
   using AddrVector = std::vector<mysqlrouter::TCPAddress>;
 
   /** @brief Default constructor */
-  RouteDestination(std::string protocol = "",
+  RouteDestination(Protocol::Type protocol = Protocol::get_default(),
                    routing::SocketOperationsBase *sock_ops =
                      routing::SocketOperations::instance()) // default = "real" (not mock) implementation
-      : current_pos_(0), stopping_(false), socket_operations_(sock_ops), protocol_(protocol) {};
+      : current_pos_(0), stopping_(false), socket_operations_(sock_ops), protocol_(protocol) {}
 
   /** @brief Destructor */
   ~RouteDestination();
@@ -258,8 +260,8 @@ protected:
   /** @brief socket operation methods (facilitates dependency injection)*/
   routing::SocketOperationsBase *socket_operations_;
 
-  /** @brief Name of the protocol for the destination */
-  std::string protocol_;
+  /** @brief Protocol for the destination */
+  Protocol::Type protocol_;
 };
 
 

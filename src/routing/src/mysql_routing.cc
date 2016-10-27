@@ -82,7 +82,7 @@ static const char *kDefaultReplicaSetName = "default";
 static const int kAcceptorStopPollInterval_ms = 1000;
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
-                           const string &protocol_name,
+                           const Protocol::Type protocol,
                            const string &bind_address,
                            const mysql_harness::Path& named_socket,
                            const string &route_name,
@@ -107,7 +107,7 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
       info_active_routes_(0),
       info_handled_routes_(0),
       socket_operations_(socket_operations),
-      protocol_(Protocol::create_protocol(protocol_name, socket_operations)) {
+      protocol_(Protocol::create(protocol, socket_operations)) {
 
   assert(socket_operations_ != nullptr);
 
@@ -569,7 +569,7 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
 
     destination_.reset(new DestMetadataCacheGroup(uri.host, replicaset_name,
                                                   get_access_mode_name(mode_),
-                                                  uri.query, protocol_->get_name()));
+                                                  uri.query, protocol_->get_type()));
   } else {
     throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s",
                                       uri.scheme.c_str()));
@@ -580,6 +580,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   std::stringstream ss(csv);
   std::string part;
   std::pair<std::string, uint16_t> info;
+
 
   if (AccessMode::kReadOnly == mode_) {
     destination_.reset(new RouteDestination());
@@ -592,7 +593,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   while (std::getline(ss, part, ',')) {
     info = mysqlrouter::split_addr_port(part);
     if (info.second == 0) {
-      info.second = 3306;
+      info.second = Protocol::get_default_port(protocol_->get_type());
     }
     TCPAddress addr(info.first, info.second);
     if (addr.is_valid()) {

@@ -39,7 +39,7 @@ public:
                           const std::string &replicaset,
                           const std::string &mode,
                           const mysqlrouter::URIQuery &query,
-                          const std::string &protocol);
+                          const Protocol::Type protocol);
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;
