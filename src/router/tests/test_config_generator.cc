@@ -17,8 +17,10 @@
 
 #include "router_test_helpers.h"
 #include "mysqlrouter/utils.h"
+#include "config_parser.h"
 
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <streambuf>
 #include "keyring/keyring_manager.h"
@@ -1257,6 +1259,114 @@ TEST_F(ConfigGeneratorTest, key_too_long) {
   mysql_harness::reset_keyring();
 }
 
+TEST_F(ConfigGeneratorTest, bad_master_key) {
+  // bug #24955928
+  mysqlrouter::delete_recursive("delme");
+  // reconfiguring with an empty master key file throws an error referencing
+  // the temporary file name instead of the actual name
+  {
+    StrictMock<MySQLSessionReplayer> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    common_pass_metadata_checks(mysql);
+    config_gen.init(&mysql);
+    expect_bootstrap_queries(mysql, "mycluster");
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foo";
+    options["quiet"] = "1";
+    config_gen.bootstrap_directory_deployment("delme",
+        options, "delme", "delme/key");
+
+    mysql_harness::reset_keyring();
+  }
+  {
+    mysqlrouter::delete_file("emptyfile");
+    std::ofstream f("emptyfile");
+    StrictMock<MySQLSessionReplayer> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    common_pass_metadata_checks(mysql);
+    config_gen.init(&mysql);
+    expect_bootstrap_queries(mysql, "mycluster");
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foo";
+    options["quiet"] = "1";
+    try {
+      config_gen.bootstrap_directory_deployment("delme",
+          options, "delme", "emptyfile");
+      FAIL() << "Was expecting exception but got none\n";
+    } catch (std::runtime_error &e) {
+      if (strstr(e.what(), ".tmp"))
+        FAIL() << "Exception text is: " << e.what() << "\n";
+      ASSERT_STREQ(e.what(), "Invalid master key file emptyfile");
+    }
+    mysqlrouter::delete_recursive("delme");
+    mysqlrouter::delete_file("emptyfile");
+    mysql_harness::reset_keyring();
+  }
+  // directory name but no filename
+  {
+    StrictMock<MySQLSessionReplayer> mysql;
+    ::testing::InSequence s;
+
+    ConfigGenerator config_gen;
+    common_pass_metadata_checks(mysql);
+    config_gen.init(&mysql);
+    expect_bootstrap_queries(mysql, "mycluster");
+
+    std::map<std::string, std::string> options;
+    options["name"] = "foo";
+    options["quiet"] = "1";
+    ASSERT_THROW_LIKE(
+        config_gen.bootstrap_directory_deployment("delme",
+          options, "delme", "."),
+        std::runtime_error,
+        "Invalid master key file .");
+
+    mysqlrouter::delete_recursive("delme");
+    mysql_harness::reset_keyring();
+  }
+}
+
+
+TEST_F(ConfigGeneratorTest, full_test) {
+  mysqlrouter::delete_recursive("delme");
+
+  StrictMock<MySQLSessionReplayer> mysql;
+  ::testing::InSequence s;
+
+  ConfigGenerator config_gen;
+  common_pass_metadata_checks(mysql);
+  config_gen.init(&mysql);
+  expect_bootstrap_queries(mysql, "mycluster");
+
+  std::map<std::string, std::string> options;
+  options["name"] = "foo";
+  options["quiet"] = "1";
+  ASSERT_NO_THROW(
+      config_gen.bootstrap_directory_deployment("delme",
+        options, "delme", "delme/masterkey"));
+
+  std::string value;
+  mysql_harness::Config config(mysql_harness::Config::allow_keys);
+  config.read("delme/mysqlrouter.conf");
+
+  value = config.get_default("master_key_path");
+  EXPECT_EQ(value, "delme/masterkey");
+
+  value = config.get_default("name");
+  EXPECT_EQ(value, "foo");
+
+  value = config.get_default("keyring_path");
+  EXPECT_EQ(mysql_harness::Path(value).basename(), "delme");
+
+  mysqlrouter::delete_recursive("delme");
+  mysql_harness::reset_keyring();
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

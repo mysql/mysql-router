@@ -19,9 +19,15 @@
 #define MYSQL_HARNESS_KEYRING_MANAGER_INCLUDED
 
 #include <string>
+#include <stdexcept>
 #include "keyring.h"
 
 namespace mysql_harness {
+
+class invalid_master_keyfile : public std::runtime_error {
+public:
+  invalid_master_keyfile(const std::string &what) : std::runtime_error(what) {}
+};
 
 static const int kMaxKeyringKeyLength = 255;
 

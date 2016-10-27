@@ -224,7 +224,6 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   if (config_file.fail()) {
     throw std::runtime_error("Could not open "+config_file_path+".tmp for writing: "+get_strerror(errno));
   }
-  init_keyring_file(keyring_file_path, keyring_master_key_file);
   bootstrap_deployment(config_file, _config_file_path,
                        router_name, options,
                        keyring_file_path, keyring_master_key_file,
@@ -325,22 +324,11 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
   autodel.add_file(config_file_path.str()+".tmp");
 
-  std::string tmp_keyring_master_key_file;
   std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
 
-  // copy existing keyring file to a temporary one
-  if (!keyring_master_key_file.empty()) {
-    tmp_keyring_master_key_file = keyring_master_key_file+".tmp";
-    autodel.add_file(tmp_keyring_master_key_file);
-
-    if (mysql_harness::Path(keyring_master_key_file).exists())
-      copy_file(keyring_master_key_file, tmp_keyring_master_key_file);
-  }
-  init_keyring_file(keyring_path, tmp_keyring_master_key_file);
-
   bootstrap_deployment(config_file, config_file_path, router_name, options,
-                       keyring_path, tmp_keyring_master_key_file,
+                       keyring_path, keyring_master_key_file,
                        true);
   config_file.close();
 
@@ -357,14 +345,6 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
               config_file_path.str()+".tmp' to final location");
   }
 
-  if (!tmp_keyring_master_key_file.empty() &&
-      rename(tmp_keyring_master_key_file.c_str(),
-             keyring_master_key_file.c_str()) < 0) {
-    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-    //  config_file_path.c_str(), get_strerror(errno));
-    throw std::runtime_error("Could not move keyring file '" +
-              tmp_keyring_master_key_file+"' to its final location");
-  }
   mysql_harness::make_file_private(config_file_path.str());
   // create start/stop scripts
   create_start_scripts(path.str(), keyring_master_key_file.empty());
@@ -454,6 +434,13 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
+  AutoDeleter autodel;
+
+  std::string tmp_keyring_master_key_file;
+
+  tmp_keyring_master_key_file = init_keyring_file(keyring_file, keyring_master_key_file);
+  if (!tmp_keyring_master_key_file.empty())
+    autodel.add_file(tmp_keyring_master_key_file);
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
@@ -539,10 +526,21 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 options,
                 !quiet);
 
+  if (tmp_keyring_master_key_file != keyring_master_key_file &&
+      !tmp_keyring_master_key_file.empty() &&
+      rename(tmp_keyring_master_key_file.c_str(),
+             keyring_master_key_file.c_str()) < 0) {
+    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
+    //  config_file_path.c_str(), get_strerror(errno));
+    throw std::runtime_error("Could not move keyring file '" +
+              tmp_keyring_master_key_file+"' to its final location");
+  }
+
   transaction.commit();
+  autodel.clear();
 }
 
-void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
+std::string ConfigGenerator::init_keyring_file(const std::string &keyring_file,
         const std::string &keyring_master_key_file) {
   if (keyring_master_key_file.empty()) {
     std::string master_key;
@@ -572,8 +570,20 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       }
     }
     mysql_harness::init_keyring_with_key(keyring_file, master_key, true);
+    return keyring_master_key_file;
   } else {
-    mysql_harness::init_keyring(keyring_file, keyring_master_key_file, true);
+    std::string tmp_keyring_master_key_file;
+    // copy existing keyring file to a temporary one
+    tmp_keyring_master_key_file = keyring_master_key_file+".tmp";
+
+    if (mysql_harness::Path(keyring_master_key_file).exists())
+      copy_file(keyring_master_key_file, tmp_keyring_master_key_file);
+    try {
+      mysql_harness::init_keyring(keyring_file, tmp_keyring_master_key_file, true);
+    } catch (mysql_harness::invalid_master_keyfile &) {
+      throw mysql_harness::invalid_master_keyfile("Invalid master key file "+keyring_master_key_file);
+    }
+    return tmp_keyring_master_key_file;
   }
 }
 

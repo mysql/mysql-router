@@ -91,8 +91,8 @@ private:
       const std::string &keyring_master_key_file,
       bool directory_deployment);
 
-  void init_keyring_file(const std::string &keyring_file,
-                         const std::string &keyring_master_key_file);
+  std::string init_keyring_file(const std::string &keyring_file,
+                                const std::string &keyring_master_key_file);
 
   void fetch_bootstrap_servers(std::string &bootstrap_servers,
                                std::string &metadata_cluster,
