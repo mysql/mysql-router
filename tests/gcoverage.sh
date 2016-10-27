@@ -104,7 +104,7 @@ if [ ! -s $GCOVINFO ]; then
 fi
 
 # Remove folders for which we do not want to generate coverage statistics
-$LCOV -q --remove $GCOVINFO "/usr*" "*mysql_harness*" "*tests/helpers*" -o $GCOVINFO
+$LCOV -q --remove $GCOVINFO "/usr*" "*mysql_harness*" "*tests/helpers*" "ext/*" "generated/protobuf/*"  -o $GCOVINFO
 if [ $? -ne 0 ]; then
   errecho "Failed executing $LCOV while removing folders from coverage information"
   exit 1
