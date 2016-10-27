@@ -23,6 +23,8 @@
 
 namespace mysql_harness {
 
+static const int kMaxKeyringKeyLength = 255;
+
 /**
  * Initialize an instance of a keyring to be used in the application
  * from the contents of a file, using the given master key file.

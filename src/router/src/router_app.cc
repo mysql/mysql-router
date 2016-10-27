@@ -188,6 +188,8 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
       mysql_harness::init_keyring(keyring_file, master_key_path, false);
     } else {
       std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
+      if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
+        throw std::runtime_error("Encryption key is too long");
       mysql_harness::init_keyring_with_key(keyring_file, master_key, false);
     }
   }

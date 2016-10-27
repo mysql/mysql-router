@@ -1191,6 +1191,52 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 }
 
 
+static void test_key_length(const std::string &key) {
+  using std::placeholders::_1;
+  StrictMock<MySQLSessionReplayer> mysql;
+  ::testing::InSequence s;
+
+  mysqlrouter::set_prompt_password([key](const std::string&) -> std::string {
+    return key;
+  });
+  ConfigGenerator config_gen;
+  common_pass_metadata_checks(mysql);
+  config_gen.init(&mysql);
+  expect_bootstrap_queries(mysql, "mycluster");
+
+  std::map<std::string, std::string> options;
+  options["name"] = "test";
+  options["quiet"] = "1";
+  config_gen.bootstrap_directory_deployment("key_too_long",
+      options, "delme", "");
+}
+
+TEST_F(ConfigGeneratorTest, key_too_long) {
+  ASSERT_FALSE(mysql_harness::Path("key_too_long").exists());
+
+  // bug #24942008, keyring key too long
+  ASSERT_NO_THROW(test_key_length(std::string(250, 'x')));
+  mysqlrouter::delete_recursive("key_too_long");
+  mysql_harness::reset_keyring();
+
+  ASSERT_NO_THROW(test_key_length(std::string(255, 'x')));
+  mysqlrouter::delete_recursive("key_too_long");
+  mysql_harness::reset_keyring();
+
+  ASSERT_THROW_LIKE(test_key_length(std::string(256, 'x')),
+    std::runtime_error,
+    "too long");
+  mysqlrouter::delete_recursive("key_too_long");
+  mysql_harness::reset_keyring();
+
+  ASSERT_THROW_LIKE(test_key_length(std::string(5000, 'x')),
+    std::runtime_error,
+    "too long");
+  mysqlrouter::delete_recursive("key_too_long");
+  mysql_harness::reset_keyring();
+}
+
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ::testing::InitGoogleTest(&argc, argv);

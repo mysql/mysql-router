@@ -542,6 +542,8 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
     std::string master_key;
     if (mysql_harness::Path(keyring_file).exists()) {
       master_key = prompt_password("Please provide the encryption key for key file at "+keyring_file);
+      if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
+        throw std::runtime_error("Encryption key is too long");
     } else {
       std::cout
         << "MySQL Router needs to create a InnoDB cluster metadata client account.\n"
@@ -553,6 +555,8 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       master_key = prompt_password("Please provide an encryption key");
       if (master_key.empty()) {
         throw std::runtime_error("Keyring encryption key must not be blank");
+      } else if (master_key.length() > mysql_harness::kMaxKeyringKeyLength) {
+        throw std::runtime_error("Encryption key is too long");
       } else {
         std::string confirm = prompt_password("Please confirm encryption key");
         if (confirm != master_key) {
