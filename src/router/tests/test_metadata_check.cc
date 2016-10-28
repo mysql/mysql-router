@@ -94,13 +94,13 @@ static MySQLSessionReplayer &q_quorum(MySQLSessionReplayer &m,
 }
 
 static MySQLSessionReplayer &q_single_primary_info(MySQLSessionReplayer &m) {
-  m.expect_query_one("SELECT @@group_replication_single_primary_mode='ON' as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+  m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   return m;
 }
 
 static MySQLSessionReplayer &q_single_primary_info(MySQLSessionReplayer &m,
     bool single_primary_mode, const char *primary_uuid, const char *my_uuid) {
-  m.expect_query_one("SELECT @@group_replication_single_primary_mode='ON' as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+  m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   m.then_return(3, {{m.string_or_null(single_primary_mode ? "1" : "0"), m.string_or_null(primary_uuid), m.string_or_null(my_uuid)}});
   return m;
 }

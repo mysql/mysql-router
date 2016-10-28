@@ -105,7 +105,7 @@ static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
       {m.string_or_null("3"), m.string_or_null("3")}
     });
 
-  m.expect_query_one("SELECT @@group_replication_single_primary_mode='ON' as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+  m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   m.then_return(3, {
       // single_primary_mode, primary_member, my_uuid
       {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}

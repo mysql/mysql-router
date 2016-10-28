@@ -192,7 +192,7 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
 }
 
 static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_primary) {
-  std::string q = "SELECT @@group_replication_single_primary_mode='ON' as single_primary_mode, "
+  std::string q = "SELECT @@group_replication_single_primary_mode=1 as single_primary_mode, "
                   "       (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member, "
                   "        @@server_uuid as my_uuid";
   try {
