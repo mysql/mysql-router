@@ -222,7 +222,7 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
   std::string q = "SELECT "
                   " ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1"
                   "  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset,"
-                  " (SELECT attributes->'group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)"
+                  " (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)"
                   "  = @@group_replication_group_name as replicaset_is_ours";
   try {
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
