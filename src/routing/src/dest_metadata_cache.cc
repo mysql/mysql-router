@@ -47,34 +47,34 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache
   const std::string &mode, const mysqlrouter::URIQuery &query,
   const Protocol::Type protocol) :
     RouteDestination(protocol),
-    cache_name(metadata_cache),
-    ha_replicaset(replicaset),
-    uri_query(query),
+    cache_name_(metadata_cache),
+    ha_replicaset_(replicaset),
+    uri_query_(query),
     allow_primary_reads_(false),
     current_pos_(0) {
   if (mode == "read-only")
-    routing_mode = ReadOnly;
+    routing_mode_ = ReadOnly;
   else if (mode == "read-write")
-    routing_mode = ReadWrite;
+    routing_mode_ = ReadWrite;
   else
     throw std::runtime_error("Invalid routing mode value '"+mode+"'");
   init();
 }
 
 std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::vector<std::string> *server_ids) {
-  auto managed_servers = lookup_replicaset(ha_replicaset).instance_vector;
+  auto managed_servers = lookup_replicaset(ha_replicaset_).instance_vector;
   std::vector<mysqlrouter::TCPAddress> available;
   for (auto &it: managed_servers) {
     if (!(it.role == "HA")) {
       continue;
     }
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? static_cast<uint16_t>(it.xport) : static_cast<uint16_t>(it.port);
-    if (routing_mode == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
+    if (routing_mode_ == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
       // Secondary read-only
       available.push_back(mysqlrouter::TCPAddress(it.host, port));
       if (server_ids)
         server_ids->push_back(it.mysql_server_uuid);
-    } else if ((routing_mode == RoutingMode::ReadWrite &&
+    } else if ((routing_mode_ == RoutingMode::ReadWrite &&
                 it.mode == metadata_cache::ServerMode::ReadWrite) ||
                allow_primary_reads_) {
       // Primary and secondary read-write/write-only
@@ -89,9 +89,9 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::
 
 void DestMetadataCacheGroup::init() {
 
-  auto query_part = uri_query.find("allow_primary_reads");
-  if (query_part != uri_query.end()) {
-    if (routing_mode == RoutingMode::ReadOnly) {
+  auto query_part = uri_query_.find("allow_primary_reads");
+  if (query_part != uri_query_.end()) {
+    if (routing_mode_ == RoutingMode::ReadOnly) {
       auto value = query_part->second;
       std::transform(value.begin(), value.end(), value.begin(), ::tolower);
       if (value == "yes") {
@@ -110,8 +110,8 @@ int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) n
     auto available = get_available(&server_ids);
     if (available.empty()) {
       log_warning("No available %s servers found for '%s'",
-          routing_mode == RoutingMode::ReadWrite ? "RW" : "RO",
-          ha_replicaset.c_str());
+          routing_mode_ == RoutingMode::ReadWrite ? "RW" : "RO",
+          ha_replicaset_.c_str());
       return -1;
     }
 

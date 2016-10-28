@@ -80,21 +80,22 @@ public:
     destinations_ = get_available(nullptr);
   }
 
+private:
   /** @brief The Metadata Cache to use
    *
-   * cache_name is the the section key in the configuration of Metadata Cache.
+   * cache_name_ is the the section key in the configuration of Metadata Cache.
    *
-   * For example, given following Metadata Cache configuration, cache_name will be
+   * For example, given following Metadata Cache configuration, cache_name_ will be
    * set to "ham":
    *
    *     [metadata_cache.ham]
    *     host = metadata.example.com
    *
    */
-  const std::string cache_name;
+  const std::string cache_name_;
 
   /** @brief The HA Group which will be used for looking up managed servers */
-  const std::string ha_replicaset;
+  const std::string ha_replicaset_;
 
   /** @brief Routing mode, usually set to read-only or read-write
    *
@@ -104,9 +105,9 @@ public:
    *     ..
    *     destination = metadata-cache://ham/replicaset/homepage
    *
-   * 'homepage' will be value of `ha_replicaset`.
+   * 'homepage' will be value of `ha_replicaset_`.
    */
-  RoutingMode routing_mode;
+  RoutingMode routing_mode_;
 
   /** @brief Query part of the URI given as destination in the configuration
    *
@@ -116,11 +117,10 @@ public:
    *     ..
    *     destination = metadata_cache:///cluster_name/replicaset_name?allow_primary_reads=yes
    *
-   * The 'allow_primary_reads' is part of uri_query.
+   * The 'allow_primary_reads' is part of uri_query_.
    */
-  const mysqlrouter::URIQuery uri_query;
+  const mysqlrouter::URIQuery uri_query_;
 
-private:
   /** @brief Initializes
    *
    * This method initialized the object. It goes of the URI query information
