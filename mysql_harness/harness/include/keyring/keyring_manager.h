@@ -26,7 +26,7 @@ namespace mysql_harness {
 
 class invalid_master_keyfile : public std::runtime_error {
 public:
-  invalid_master_keyfile(const std::string &what) : std::runtime_error(what) {}
+  invalid_master_keyfile(const std::string &w) : std::runtime_error(w) {}
 };
 
 static const int kMaxKeyringKeyLength = 255;
