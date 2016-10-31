@@ -225,6 +225,15 @@ void MySQLRouter::start() {
     }
   }
 
+  // resolve environment variables & relative paths
+  for (auto it : params) {
+    std::string &param = params.at(it.first);
+    mysqlrouter::substitute_envvar(param);
+    param.assign(substitute_variable(param, "{origin}", origin_.str()));
+    mysql_harness::Path path_param(param);
+    param.assign(path_param.real_path().str());
+  }
+
   try {
     loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("mysqlrouter", params));
     for (auto &&config_file: available_config_files_) {
@@ -260,6 +269,13 @@ void MySQLRouter::start() {
 
   try {
     auto log_file = loader_->get_log_file();
+    std::string log_path(log_file.str());
+    size_t pos;
+    pos = log_path.find_last_of('/');
+    if (pos != std::string::npos)
+      log_path.erase(pos);
+    if (mysqlrouter::mkdir(log_path, 0700) != 0)
+      throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
     std::cout << "Logging to " << log_file << std::endl;
   } catch (...) {
     // We are logging to console
@@ -479,7 +495,6 @@ void MySQLRouter::prepare_command_options() noexcept {
           throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
         }
       });
-
 // These are additional Windows-specific options, added (at the time of writing) in check_service_operations().
 // Grep after '--install-service' and you shall find.
 #ifdef _WIN32
@@ -541,7 +556,6 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
                                                  "{origin}", origin_.str());
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
-
       config_gen.bootstrap_system_deployment(config_file_path,
           bootstrap_options_, default_keyring_file, keyring_master_key_file_path_);
     } else {

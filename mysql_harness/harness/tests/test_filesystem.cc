@@ -71,6 +71,10 @@ TEST(TestFilesystem, TestPath) {
   EXPECT_EQ(g_here.join("data").type(),
             Path::FileType::DIRECTORY_FILE);
 
+#ifdef _WIN32
+  EXPECT_EQ(Path("c:").type(), Path::FileType::DIRECTORY_FILE);
+#endif
+
   EXPECT_EQ(g_here.join("data/logger.cfg").type(),
                Path::FileType::REGULAR_FILE);
   EXPECT_EQ(g_here.join("data/does-not-exist.cfg").type(),

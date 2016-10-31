@@ -62,9 +62,19 @@ Path::FileType Path::type(bool refresh) const {
   if (type_ == FileType::TYPE_UNKNOWN || refresh) {
     struct _stat stat_buf;
     if (_stat(c_str(), &stat_buf) == -1) {
-      if (errno == ENOENT)
+      if (errno == ENOENT) {
+        // Special case, a drive name like "C:"
+        if (path_[path_.size() - 1] == ':')
+        {
+          DWORD flags = GetFileAttributesA(path_.c_str());
+          // API reports it as directory if it exist
+          if (flags & FILE_ATTRIBUTE_DIRECTORY) {
+            type_ = FileType::DIRECTORY_FILE;
+            return type_;
+          }
+        }
         type_ = FileType::FILE_NOT_FOUND;
-      else if (errno == EINVAL)
+      } else if (errno == EINVAL)
         type_ = FileType::STATUS_ERROR;
     } else {
       switch (stat_buf.st_mode & S_IFMT) {
@@ -294,7 +304,7 @@ Path Path::real_path() const {
 
   // check if the path exists, to match posix behaviour
   WIN32_FIND_DATA find_data;
-  HANDLE h = FindFirstFile(native_path, &find_data);
+  HANDLE h = FindFirstFile(path, &find_data);
   if (h == INVALID_HANDLE_VALUE) {
     return Path();
   }
