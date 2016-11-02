@@ -47,12 +47,12 @@ static bool send_message(const std::string &log_prefix,
   buffer[kMessageHeaderSize -1] = static_cast<uint8_t>(type);
 
   if (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize())) {
-    log_debug("[%s] error while serializing error message: %s", log_prefix.c_str());
+    log_error("[%s] error while serializing error message: %s", log_prefix.c_str());
     return false;
   }
 
   if (socket_operations->write_all(destination, &buffer[0], buffer.size()) < 0) {
-    log_debug("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    log_error("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
     return false;
   }
 
@@ -133,48 +133,6 @@ static bool get_next_message(int sender,
   return true;
 }
 
-template <typename T>
-static T any_as_integral_type(const Mysqlx::Datatypes::Any &any) {
-  using namespace Mysqlx::Datatypes;
-
-  assert(any.type() == Mysqlx::Datatypes::Any::SCALAR);
-  const Scalar &scalar = any.scalar();
-
-  T result;
-  switch (scalar.type())
-  {
-  case Scalar::V_BOOL:
-    result = static_cast<T>(scalar.v_bool());
-    break;
-
-  case Scalar::V_SINT:
-    result = static_cast<T>(scalar.v_signed_int());
-    break;
-
-  default:
-    assert(scalar.type() == Scalar::V_UINT);
-    result = static_cast<T>(scalar.v_unsigned_int());
-  }
-
-  return result;
-}
-
-static bool ssl_requested(const Mysqlx::Connection::CapabilitiesSet& capabilites_msg) {
-  for (int i = 0; i < capabilites_msg.capabilities().capabilities_size(); ++i) {
-     auto &capability = capabilites_msg.capabilities().capabilities(i);
-     std::string cap_name = capability.name();
-     std::transform(cap_name.begin(), cap_name.end(), cap_name.begin(), ::tolower);
-     if (cap_name == "tls") {
-       if (any_as_integral_type<bool>(capability.value())) {
-         return true;
-       }
-       break;
-     }
-   }
-
-  return false;
-}
-
 int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
                             RoutingProtocolBuffer &buffer, int * /*curr_pktnr*/,
                             bool &handshake_done, size_t *report_bytes_read,
@@ -203,10 +161,11 @@ int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
 #endif
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
-      // Check packets integrity when handshaking. When message SessionAuthenticateOK
-      // is sent from the server, then we assume handshaking is satisfied. For secure
-      // connections, we stop when client asks to switch to SSL.
-
+      // check packets integrity when handshaking.
+      // we stop inspecting the messages when the client sends
+      // AuthenticateStart or CapabilitesGet as a first message
+      // that should be enough to prevent the MySQL Server from considering
+      // the connection as an error even if it is terminated after that.
       int8_t message_type;
       size_t message_offset = 0;
       uint32_t message_size = 0;
@@ -218,25 +177,28 @@ int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
                               message_size, socket_operations_, msg_read_error)
              && !msg_read_error) {
 
-        // if the client requests SSL during the handshake we will not be able to decode
-        // further communication so we have to assume handshake is done
-        if (!from_server && message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_SET) {
-          Mysqlx::Connection::CapabilitiesSet capabilites_msg;
-          int msg_size = static_cast<int>(bytes_read-(message_offset+ kMessageHeaderSize));
-          if (!capabilites_msg.ParseFromArray(&buffer[message_offset+ kMessageHeaderSize],
-                                              msg_size)) {
-            log_error("Error parsing X Protocol capabilities message");
-            return -1;
-          }
 
-          if (ssl_requested(capabilites_msg)) {
+        if (!from_server) {
+          // the first message from the client. We need to check if it's correct.
+          if (message_type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START
+                  || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_GET) {
             handshake_done = true;
             break;
           }
+          else {
+            // any other message at this point is not allowed by the x protocol and would make
+            // MySQL Server consider this connection an error which we need to prevent
+            log_warning("Received incorrect message type from the client while handshaking (was %d)",
+                        static_cast<int>(message_type));
+            return -1;
+          }
         }
 
-        // if server confirmed client's authentication the handshake is done
-        if (from_server && message_type == Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK) {
+        if (from_server && message_type == Mysqlx::ServerMessages::ERROR) {
+          // if the server sends an error we don't consider it a failed handshake.
+          // this is to have parity with how we behave in case of classic protocol
+          // where error from the server (even ACCESS DENIED) does not increment
+          // error connection counter
           handshake_done = true;
           break;
         }
@@ -270,4 +232,19 @@ bool XProtocol::send_error(int destination,
   error.set_msg(message);
 
   return send_message(log_prefix, destination, Mysqlx::ServerMessages::ERROR, error, socket_operations_);
+}
+
+
+bool XProtocol::on_block_client_host(int server, const std::string &log_prefix) {
+  // currently the MySQL Server (X-Plugin) does not have the feature of blocking
+  // the client after reaching certain threshold of unsuccesfull connection attemps (max_connect_errors)
+  // When this is done, the code here needs to be rewised to check if it prevents the server from
+  // considering the connection as an error abd blaming the router for it.
+
+  // at the moment we send CapabilitiesGet message to the server assuming this will prevent the
+  // MySQL Server from considering the connection as an error and incrementing the counter.
+  Mysqlx::Connection::CapabilitiesGet capabilities_get;
+
+  return send_message(log_prefix, server, Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
+                      capabilities_get, socket_operations_);
 }

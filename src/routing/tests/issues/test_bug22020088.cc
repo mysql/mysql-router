@@ -163,7 +163,7 @@ TEST_F(Bug22020088, BlockClientHost) {
                  1, 1, max_connect_errors, client_connect_timeout);
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
-  ASSERT_THAT(ssout.str(), HasSubstr("1 authentication errors for ::1 (max 2)"));
+  ASSERT_THAT(ssout.str(), HasSubstr("1 connection errors for ::1 (max 2)"));
   reset_ssout();
   ASSERT_TRUE(r.block_client_host(client_ip_array1, string("::1")));
   ASSERT_THAT(ssout.str(), HasSubstr("blocking client host ::1"));

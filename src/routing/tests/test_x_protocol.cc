@@ -63,8 +63,8 @@ protected:
     ASSERT_TRUE(res);
   }
 
-  const int sender_socket_ = 1;
-  const int receiver_socket_ = 2;
+  static constexpr int sender_socket_ = 1;
+  static constexpr int receiver_socket_ = 2;
 
   fd_set readfds_;
   RoutingProtocolBuffer network_buffer_;
@@ -73,35 +73,57 @@ protected:
   bool handshake_done_;
 };
 
-static Mysqlx::Connection::CapabilitiesSet create_capabilities_message(
-                        Mysqlx::Datatypes::Scalar_Type type =
-                          Mysqlx::Datatypes::Scalar_Type_V_BOOL) {
-  Mysqlx::Connection::CapabilitiesSet result;
-
-  Mysqlx::Connection::Capability *capability = result.mutable_capabilities()->add_capabilities();
-  capability->set_name("tls");
-  capability->mutable_value()->set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
-  capability->mutable_value()->mutable_scalar()->set_type(type);
-
-  switch (type) {
-  case Mysqlx::Datatypes::Scalar_Type_V_UINT:
-      capability->mutable_value()->mutable_scalar()->set_v_unsigned_int(1);
-      break;
-  case Mysqlx::Datatypes::Scalar_Type_V_SINT:
-    capability->mutable_value()->mutable_scalar()->set_v_signed_int(1);
-    break;
-  default:
-    capability->mutable_value()->mutable_scalar()->set_v_bool(true);
-  }
+static Mysqlx::Session::AuthenticateStart create_authenticate_start_msg() {
+  Mysqlx::Session::AuthenticateStart result;
+  result.set_mech_name("PLAIN");
 
   return result;
 }
 
+Mysqlx::Error create_error_msg(unsigned short code,
+                               const std::string &message,
+                               const std::string &sql_state) {
+  Mysqlx::Error result;
+  result.set_code(code);
+  result.set_sql_state(sql_state);
+  result.set_msg(message);
 
-TEST_F(XProtocolTest, OnBlockClientHost)
+  return result;
+}
+
+Mysqlx::Notice::Warning create_warning_msg(unsigned int code,
+                                const std::string &message) {
+  Mysqlx::Notice::Warning result;
+  result.set_code(code);
+  result.set_msg(message);
+
+  return result;
+}
+
+TEST_F(XProtocolTest, OnBlockClientHostSuccess)
 {
-  // currently does nothing
-  x_protocol_->on_block_client_host(1, "routing");
+  // we expect the router sending CapabilitiesGet message
+  // to prevent MySQL server from bumping up connection error counter
+  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size)).WillOnce(Return(msg_size));
+
+  const bool result = x_protocol_->on_block_client_host(receiver_socket_, "routing");
+
+  ASSERT_TRUE(result);
+}
+
+TEST_F(XProtocolTest, OnBlockClientHostWriteFail)
+{
+  // we expect the router sending CapabilitiesGet message
+  // to prevent MySQL server from bumping up connection error counter
+  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size)).WillOnce(Return(-1));
+
+  const bool result = x_protocol_->on_block_client_host(receiver_socket_, "routing");
+
+  ASSERT_FALSE(result);
 }
 
 TEST_F(XProtocolTest, CopyPacketsFdNotSet)
@@ -137,7 +159,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneOK)
 {
   handshake_done_ = true;
   size_t report_bytes_read = 0xff;
-  const int MSG_SIZE = 20;
+  constexpr int MSG_SIZE = 20;
 
   FD_SET(sender_socket_, &readfds_);
 
@@ -156,7 +178,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneWriteError)
 {
   handshake_done_ = true;
   size_t report_bytes_read = 0xff;
-  const ssize_t MSG_SIZE = 20;
+  constexpr ssize_t MSG_SIZE = 20;
 
   FD_SET(sender_socket_, &readfds_);
 
@@ -171,94 +193,143 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneWriteError)
   ASSERT_EQ(-1, result);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeSSLEnable)
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsIvalidData)
 {
   size_t report_bytes_read = 0xff;
+  constexpr size_t INVALID_DATA_SIZE = 20;
 
-  Mysqlx::Connection::CapabilitiesSet capabilites_msg = create_capabilities_message();
-
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+  // prepare some invalid data
+  for (size_t i=0; i < INVALID_DATA_SIZE; ++i) {
+    network_buffer_[i] = static_cast<uint8_t>(i+10);
+  }
+  network_buffer_offset_ += INVALID_DATA_SIZE;
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
-                                                                              WillOnce(Return(network_buffer_offset_));
-  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                                               WillOnce(Return(network_buffer_offset_));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
-  // during the handshake the client has requested SSL
-  // so we should have set handshake_done_ flag
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+  ASSERT_FALSE(handshake_done_);
+  ASSERT_EQ(-1, result);
+  ASSERT_EQ(network_buffer_offset_, INVALID_DATA_SIZE);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeAuthenticationOk)
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsWrongMessage)
 {
   size_t report_bytes_read = 0xff;
+  Mysqlx::Session::Close close_msg{};
 
-  Mysqlx::Session::AuthenticateOk authok_msg;
-
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, authok_msg,
-                                   Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK);
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, close_msg,
+                                   Mysqlx::ClientMessages::SESS_CLOSE);
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
-                                                                              WillOnce(Return(network_buffer_offset_));
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_FALSE(handshake_done_);
+  ASSERT_EQ(-1, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsAuthStart)
+{
+  size_t report_bytes_read = 0xff;
+  auto auth_msg = create_authenticate_start_msg();
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, auth_msg,
+                                   Mysqlx::ClientMessages::SESS_AUTHENTICATE_START);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
-                                                                              WillOnce(Return(network_buffer_offset_));
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_TRUE(handshake_done_);
+  ASSERT_EQ(0, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabnilitiesGet)
+{
+  size_t report_bytes_read = 0xff;
+  Mysqlx::Connection::CapabilitiesGet capab_msg{};
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
+                                   Mysqlx::ClientMessages::CON_CAPABILITIES_GET);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_TRUE(handshake_done_);
+  ASSERT_EQ(0, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsError)
+{
+  size_t report_bytes_read = 0xff;
+  auto error_msg = create_error_msg(100, "Error message", "HY007");
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, error_msg,
+                                   Mysqlx::ServerMessages::ERROR);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
+                                                     WillOnce(Return(network_buffer_offset_));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
-  // server is confirming authentication
-  // so we should have set handshake_done_ flag
   ASSERT_TRUE(handshake_done_);
   ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeOtherMessage)
+TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsOtherMessage)
 {
   size_t report_bytes_read = 0xff;
+  auto warn_msg = create_warning_msg(10023, "Warning message");
 
-  Mysqlx::Session::AuthenticateContinue autcont_msg;
-  autcont_msg.set_auth_data("auth_data");
-
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, autcont_msg,
-                                   Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE);
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
+                                   Mysqlx::ServerMessages::NOTICE);
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
-                                                                          WillOnce(Return(network_buffer_offset_));
+                                                     WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
-                                                                          WillOnce(Return(network_buffer_offset_));
+                                                     WillOnce(Return(network_buffer_offset_));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
-  // handshake_done_ should stay untouched
   ASSERT_FALSE(handshake_done_);
   ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeOneReadTwoMessages)
+TEST_F(XProtocolTest, CopyPacketsHandshakeReadTwoMessages)
 {
   size_t report_bytes_read = 0xff;
 
-  Mysqlx::Notice::Frame notice_msg;
-  notice_msg.set_type(0);
-  notice_msg.set_payload("notice payload");
-  Mysqlx::Connection::CapabilitiesSet capabilites_msg = create_capabilities_message();
+  auto warn_msg = create_warning_msg(10023, "Warning message");
+  auto error_msg = create_error_msg(100, "Error message", "HY007");
 
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, notice_msg,
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
                                    Mysqlx::ServerMessages::NOTICE);
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, error_msg,
+                                   Mysqlx::ServerMessages::ERROR);
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
@@ -267,9 +338,35 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeOneReadTwoMessages)
                                                                   WillOnce(Return(network_buffer_offset_));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
-                                         handshake_done_, &report_bytes_read, false);
+                                         handshake_done_, &report_bytes_read, true);
 
   // handshake_done_ should be set after the second message
+  ASSERT_TRUE(handshake_done_);
+  ASSERT_EQ(0, result);
+  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialHeader)
+{
+  size_t report_bytes_read = 0xff;
+
+  Mysqlx::Connection::CapabilitiesGet capab_msg{};
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
+                                   Mysqlx::ClientMessages::CON_CAPABILITIES_GET);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
+                                               Times(2).
+                                               WillOnce(Return(network_buffer_offset_-3)).
+                                               WillOnce(Return(3));
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
+                                                WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  // handshake_done_ should bet set
   ASSERT_TRUE(handshake_done_);
   ASSERT_EQ(0, result);
   ASSERT_EQ(network_buffer_offset_, report_bytes_read);
@@ -279,10 +376,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage)
 {
   size_t report_bytes_read = 0xff;
 
-  Mysqlx::Connection::CapabilitiesSet capabilites_msg = create_capabilities_message();
+  auto warn_msg = create_warning_msg(100, "Warning message");
 
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
+                                   Mysqlx::ServerMessages::NOTICE);
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
@@ -293,63 +390,35 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage)
                                                 WillOnce(Return(network_buffer_offset_));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
-                                         handshake_done_, &report_bytes_read, false);
+                                         handshake_done_, &report_bytes_read, true);
 
-  // handshake_done_ should bet set
-  ASSERT_TRUE(handshake_done_);
+  ASSERT_FALSE(handshake_done_);
   ASSERT_EQ(0, result);
   ASSERT_EQ(network_buffer_offset_, report_bytes_read);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeCapabilityAsSignedInteger)
+TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessageFails)
 {
   size_t report_bytes_read = 0xff;
 
-  Mysqlx::Connection::CapabilitiesSet capabilites_msg =
-      create_capabilities_message(Mysqlx::Datatypes::Scalar_Type_V_SINT);
+  auto warn_msg = create_warning_msg(100, "Warning message");
 
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
-
-  FD_SET(sender_socket_, &readfds_);
-  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
-                                               WillOnce(Return(network_buffer_offset_));
-  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
-                                                WillOnce(Return(network_buffer_offset_));
-
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
-                                         handshake_done_, &report_bytes_read, false);
-
-  // handshake_done_ should bet set
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
-}
-
-TEST_F(XProtocolTest, CopyPacketsHandshakeCapabilityAsUnsignedInteger)
-{
-  size_t report_bytes_read = 0xff;
-
-  Mysqlx::Connection::CapabilitiesSet capabilites_msg =
-      create_capabilities_message(Mysqlx::Datatypes::Scalar_Type_V_UINT);
-
-  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
+                                   Mysqlx::ServerMessages::NOTICE);
 
   FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
-                                               WillOnce(Return(network_buffer_offset_));
-  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
-                                                WillOnce(Return(network_buffer_offset_));
+                                               Times(2).
+                                               WillOnce(Return(network_buffer_offset_-8)).
+                                               WillOnce(Return(-1));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
-                                         handshake_done_, &report_bytes_read, false);
+                                         handshake_done_, &report_bytes_read, true);
 
-  // handshake_done_ should bet set
-  ASSERT_TRUE(handshake_done_);
-  ASSERT_EQ(0, result);
-  ASSERT_EQ(network_buffer_offset_, report_bytes_read);
+  ASSERT_FALSE(handshake_done_);
+  ASSERT_EQ(-1, result);
 }
+
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer)
 {
@@ -357,24 +426,18 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer)
 
   Mysqlx::Connection::CapabilitiesSet capabilites_msg;
   // make the message bigger than the current network buffer size
-  for (size_t i = 0; ; ++i) {
-    Mysqlx::Connection::Capability *capability = capabilites_msg.mutable_capabilities()->add_capabilities();
-    std::string name{"quite_loong_descriptive_name_of_the_capability_number_" + std::to_string(i)};
-    capability->set_name(name);
-    capability->mutable_value()->set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
-    capability->mutable_value()->mutable_scalar()->set_type(Mysqlx::Datatypes::Scalar_Type_V_UINT);
-    capability->mutable_value()->mutable_scalar()->set_v_unsigned_int(i);
-
-    if ((unsigned)capabilites_msg.ByteSize() > 2*routing::kDefaultNetBufferLength) {
-      break;
-    }
+  std::string msg;
+  while (msg.size() <= routing::kDefaultNetBufferLength) {
+    msg += std::string(1000, 'a');
   }
+  auto error_msg = create_error_msg(100, msg, "HY007");
+  assert(error_msg.ByteSize() > static_cast<int>(routing::kDefaultNetBufferLength));
 
-  RoutingProtocolBuffer msg_buffer(capabilites_msg.ByteSize()+5);
+  RoutingProtocolBuffer msg_buffer(error_msg.ByteSize()+5);
   const auto BUFFER_SIZE = network_buffer_.size();
 
-  serialize_protobuf_msg_to_buffer(msg_buffer, network_buffer_offset_, capabilites_msg,
-                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+  serialize_protobuf_msg_to_buffer(msg_buffer, network_buffer_offset_, error_msg,
+                                   Mysqlx::ServerMessages::ERROR);
 
   // copy part of the message to the network buffer
   std::copy(msg_buffer.begin(), msg_buffer.begin()+network_buffer_.size(), network_buffer_.begin());
@@ -384,7 +447,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer)
                                              WillOnce(Return(network_buffer_.size()));
 
   int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
-                                         handshake_done_, &report_bytes_read, false);
+                                         handshake_done_, &report_bytes_read, true);
 
   // the size of buffer passed to copy_packets should be untouched
   ASSERT_EQ(BUFFER_SIZE, network_buffer_.size());

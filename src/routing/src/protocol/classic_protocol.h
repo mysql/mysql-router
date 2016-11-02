@@ -33,8 +33,10 @@ public:
    *
    * @param server Descriptor of the server
    * @param log_prefix prefix to be used by the function as a tag for logging
+   *
+   * @return true on success; false on error
    */
-  virtual void on_block_client_host(int server, const std::string &log_prefix) override;
+  virtual bool on_block_client_host(int server, const std::string &log_prefix) override;
 
   /** @brief Reads from sender and writes it back to receiver using select
    *
@@ -58,6 +60,7 @@ public:
    * @param report_bytes_read Pointer to storage to report bytes read
    * @param from server true if the message sender is the server, false
    *                    if it is a client
+   *
    * @return 0 on success; -1 on error
    */
   virtual int copy_packets(int sender, int receiver, fd_set *readfds,

@@ -32,10 +32,11 @@ public:
    *
    * @param server Descriptor of the server
    * @param log_prefix prefix to be used by the function as a tag for logging
+   *
+   * @return true on success; false on error
+   *
    */
-  virtual void on_block_client_host(int /*server*/, const std::string &/*log_prefix*/) override {
-    // nothing to be done in case of x-protocol
-  }
+  virtual bool on_block_client_host(int server, const std::string &log_prefix) override;
 
   /** @brief Reads from sender and writes it back to receiver using select
    *

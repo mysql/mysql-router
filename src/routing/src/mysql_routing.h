@@ -81,10 +81,11 @@ using mysqlrouter::URI;
  *  TCP port for incoming MySQL Client connection and route these to a MySQL
  *  Server.
  *
- *  Connection routing will not analyze or parse any MySQL package nor will
- *  it do any authentication. It will not handle errors from the MySQL server
- *  and not automatically recover. The client communicate through MySQL Router
- *  just like it would directly connecting.
+ *  Connection routing will not analyze or parse any MySQL package (except from
+ *  those in the handshake phase to be able to discover invalid connection error)
+ *  nor will it do any authentication. It will not handle errors from the MySQL
+ *  server and not automatically recover. The client communicate through
+ *  MySQL Router just like it would directly connecting.
  *
  *  The MySQL Server is chosen from a given list of hosts or IP addresses
  *  (with or without TCP port) based on the the mode. For example, mode
@@ -230,7 +231,7 @@ public:
    * Returns a copy of the list of the blocked client hosts.
    */
   const std::vector<std::array<uint8_t, 16>> get_blocked_client_hosts() {
-    std::lock_guard<std::mutex> lock(mutex_auth_errors_);
+    std::lock_guard<std::mutex> lock(mutex_conn_errors_);
     return std::vector<std::array<uint8_t, 16>>(blocked_client_hosts_);
   }
 
@@ -318,9 +319,9 @@ private:
   /** @brief Number of handled routes */
   std::atomic<uint64_t> info_handled_routes_;
 
-  /** @brief Authentication error counters for IPv4 or IPv6 hosts */
-  std::mutex mutex_auth_errors_;
-  std::map<std::array<uint8_t, 16>, size_t> auth_error_counters_;
+  /** @brief Connection error counters for IPv4 or IPv6 hosts */
+  std::mutex mutex_conn_errors_;
+  std::map<std::array<uint8_t, 16>, size_t> conn_error_counters_;
   std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 
   /** @brief TCP (and UNIX socket) service thread */

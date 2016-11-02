@@ -27,11 +27,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 using mysql_harness::get_strerror;
 
-void ClassicProtocol::on_block_client_host(int server, const std::string &log_prefix) {
+bool ClassicProtocol::on_block_client_host(int server, const std::string &log_prefix) {
   auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
   if (socket_operations_->write_all(server, fake_response.data(), fake_response.size()) < 0) {
     log_debug("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    return false;
   }
+  return true;
 }
 
 int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
@@ -85,7 +87,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
         auto server_error = mysql_protocol::ErrorPacket(buffer);
-        if (socket_operations_->write_all(receiver, server_error.data(), server_error.size()) ) {
+        if (socket_operations_->write_all(receiver, server_error.data(), server_error.size()) < 0) {
           log_debug("Write error: %s", get_message_error(errno).c_str());
         }
         // receiver socket closed by caller
