@@ -21,7 +21,7 @@
 #include <map>
 #include <memory>
 
-std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
+static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 
 namespace metadata_cache {
 

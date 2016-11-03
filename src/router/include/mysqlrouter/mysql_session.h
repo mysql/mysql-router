@@ -28,9 +28,13 @@ struct st_mysql;
 namespace mysqlrouter {
 
 class MySQLSession {
-public:
+ public:
+  static const int kDefaultConnectionTimeout = 15;
+  typedef std::vector<const char*> Row;
+  typedef std::function<bool (const Row&)> RowProcessor;
+
   class Transaction {
-  public:
+   public:
     Transaction(MySQLSession *session) : session_(session) {
       session_->execute("START TRANSACTION");
     }
@@ -55,31 +59,26 @@ public:
       session_ = nullptr;
     }
 
-  private:
+   private:
     MySQLSession *session_;
   };
 
-  static const int kDefaultConnectionTimeout = 15;
-
   class Error : public std::runtime_error {
-  public:
+   public:
     Error(const char *error, unsigned int code__)
     : std::runtime_error(error), code_(code__) {}
 
     unsigned int code() const { return code_; }
-  private:
+   private:
     unsigned int code_;
   };
 
-  typedef std::vector<const char*> Row;
-  typedef std::function<bool (const Row&)> RowProcessor;
-
   class ResultRow {
-  public:
+   public:
     virtual ~ResultRow() {}
     size_t size() const { return row_.size(); }
     const char *operator[] (size_t i) { return row_[i]; }
-  protected:
+   protected:
     Row row_;
   };
 
@@ -104,5 +103,6 @@ private:
   bool connected_;
 };
 
-}
+} // namespace mysqlrouter
+
 #endif

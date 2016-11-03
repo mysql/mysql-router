@@ -187,9 +187,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 }
 
 void MySQLSession::disconnect() {
-  if (connected_) {
-    connected_ = false;
-  }
+  connected_ = false;
 }
 
 void MySQLSession::execute(const std::string &q) {
