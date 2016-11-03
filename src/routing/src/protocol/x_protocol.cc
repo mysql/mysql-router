@@ -29,11 +29,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 using ProtobufMessage = google::protobuf::Message;
 
-const size_t kMessageHeaderSize = 5;
+constexpr size_t kMessageHeaderSize = 5;
 
 static bool send_message(const std::string &log_prefix,
                          int destination,
-                         int8_t type,
+                         const int8_t type,
                          const ProtobufMessage &msg,
                          SocketOperationsBase *socket_operations) {
   using google::protobuf::io::CodedOutputStream;
@@ -53,6 +53,38 @@ static bool send_message(const std::string &log_prefix,
 
   if (socket_operations->write_all(destination, &buffer[0], buffer.size()) < 0) {
     log_error("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    return false;
+  }
+
+  return true;
+}
+
+static bool message_valid(const void* message_buffer, const int8_t message_type, const uint32_t message_size) {
+  std::unique_ptr<google::protobuf::Message> msg;
+
+  assert(message_type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START
+         || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_GET
+         || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_SET
+         || message_type == Mysqlx::ClientMessages::CON_CLOSE);
+
+  switch (message_type) {
+  case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
+    msg.reset(new Mysqlx::Session::AuthenticateStart());
+    break;
+  case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
+    msg.reset(new Mysqlx::Connection::CapabilitiesGet());
+    break;
+  case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
+    msg.reset(new Mysqlx::Connection::CapabilitiesSet());
+    break;
+  default: /* Mysqlx::ClientMessages::CON_CLOSE */
+    msg.reset(new Mysqlx::Connection::Close());
+  }
+
+  assert(msg.get() != nullptr);
+
+  // sanity check deserializing the message
+  if (!msg->ParseFromArray(message_buffer, static_cast<int>(message_size))) {
     return false;
   }
 
@@ -181,15 +213,22 @@ int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
         if (!from_server) {
           // the first message from the client. We need to check if it's correct.
           if (message_type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START
-                  || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_GET) {
+                  || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_GET
+                  || message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_SET
+                  || message_type == Mysqlx::ClientMessages::CON_CLOSE) {
+            // validate the message
+            if (!message_valid(&buffer[message_offset+kMessageHeaderSize], message_type, message_size-1)) {
+              log_warning("Invalid message content: type(%hhu), size(%u)", message_type, message_size-1);
+              return -1;
+            }
             handshake_done = true;
             break;
           }
           else {
             // any other message at this point is not allowed by the x protocol and would make
             // MySQL Server consider this connection an error which we need to prevent
-            log_warning("Received incorrect message type from the client while handshaking (was %d)",
-                        static_cast<int>(message_type));
+            log_warning("Received incorrect message type from the client while handshaking (was %hhu)",
+                        message_type);
             return -1;
           }
         }

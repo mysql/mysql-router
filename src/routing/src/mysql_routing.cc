@@ -240,7 +240,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
     }
 
     // Handle traffic from Server to Client
-    // Note: Server _always_ talks first
+    // Note: In classic protocol Server _always_ talks first
     if (protocol_->copy_packets(server, client,
                                 &readfds, buffer, &pktnr,
                                 handshake_done, &bytes_read, true) == -1) {

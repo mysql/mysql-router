@@ -100,6 +100,19 @@ Mysqlx::Notice::Warning create_warning_msg(unsigned int code,
   return result;
 }
 
+static Mysqlx::Connection::CapabilitiesSet create_capab_set_msg() {
+  Mysqlx::Connection::CapabilitiesSet result;
+
+  Mysqlx::Connection::Capability *capability = result.mutable_capabilities()->add_capabilities();
+  capability->set_name("tls");
+  capability->mutable_value()->set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
+  capability->mutable_value()->mutable_scalar()->set_type(Mysqlx::Datatypes::Scalar_Type_V_UINT);
+  capability->mutable_value()->mutable_scalar()->set_v_unsigned_int(1);
+
+  return result;
+}
+
+
 TEST_F(XProtocolTest, OnBlockClientHostSuccess)
 {
   // we expect the router sending CapabilitiesGet message
@@ -256,7 +269,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsAuthStart)
   ASSERT_EQ(0, result);
 }
 
-TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabnilitiesGet)
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesGet)
 {
   size_t report_bytes_read = 0xff;
   Mysqlx::Connection::CapabilitiesGet capab_msg{};
@@ -275,6 +288,70 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabnilitiesGet)
 
   ASSERT_TRUE(handshake_done_);
   ASSERT_EQ(0, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsConnectionClose)
+{
+  size_t report_bytes_read = 0xff;
+  Mysqlx::Connection::Close close_msg{};
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, close_msg,
+                                   Mysqlx::ClientMessages::CON_CLOSE);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_TRUE(handshake_done_);
+  ASSERT_EQ(0, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesSet)
+{
+  size_t report_bytes_read = 0xff;
+  auto capab_msg = create_capab_set_msg();
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
+                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
+  EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_TRUE(handshake_done_);
+  ASSERT_EQ(0, result);
+}
+
+TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsBrokenMessage)
+{
+  size_t report_bytes_read = 0xff;
+  auto capab_msg = create_capab_set_msg();
+
+  serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
+                                   Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
+
+  // let's brake some part of the message in the buffer to simulate malformed message
+  network_buffer_[6] = 0xff;
+
+  FD_SET(sender_socket_, &readfds_);
+  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
+                                                     WillOnce(Return(network_buffer_offset_));
+
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+                                         handshake_done_, &report_bytes_read, false);
+
+  ASSERT_FALSE(handshake_done_);
+  ASSERT_EQ(-1, result);
 }
 
 TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsError)
