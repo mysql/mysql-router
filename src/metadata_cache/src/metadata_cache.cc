@@ -64,10 +64,7 @@ MetadataCache::MetadataCache(
  * Stop the refresh thread.
  */
 MetadataCache::~MetadataCache() {
-  terminate_ = true;
-  if (refresh_thread_.joinable()) {
-    refresh_thread_.join();
-  }
+  stop();
 }
 
 /**
@@ -80,7 +77,9 @@ void MetadataCache::start() {
     bool valid_connection_ = false;
     while (!terminate_) {
       {
+        #if 0 // not used anywhere else so far
         std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
+        #endif
         valid_connection_ = meta_data_->connect(metadata_servers_);
       }
       if (valid_connection_) {
@@ -183,6 +182,7 @@ void MetadataCache::refresh() {
     std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
       replicaset_data_temp = meta_data_->fetch_instances(cluster_name_);
     bool changed = false;
+
     {
       // Ensure that the refresh does not result in an inconsistency during the
       // lookup.
@@ -192,6 +192,7 @@ void MetadataCache::refresh() {
         changed = true;
       }
     }
+
     if (changed) {
       log_info("Changes detected in cluster '%s' after metadata refresh",
           cluster_name_.c_str());
@@ -246,6 +247,7 @@ void MetadataCache::refresh() {
 }
 
 
+// TODO: the log messages should log host:port, in addition to uuid
 void MetadataCache::mark_instance_reachability(const std::string &instance_id,
                                 metadata_cache::InstanceStatus status) {
   // If the status is that the primary instance is physically unreachable,

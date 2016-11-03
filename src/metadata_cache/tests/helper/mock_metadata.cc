@@ -195,6 +195,7 @@ bool MockNG::connect(const std::vector<metadata_cache::ManagedInstance>
 void MockNG::disconnect() noexcept {
 }
 
+#if 0 // not used so far
 /**
  *
  * Returns a mock refresh interval.
@@ -204,3 +205,4 @@ void MockNG::disconnect() noexcept {
 unsigned int MockNG::fetch_ttl() {
   return 5;
 }
+#endif

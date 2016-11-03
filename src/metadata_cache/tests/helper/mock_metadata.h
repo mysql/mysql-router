@@ -118,6 +118,7 @@ public:
 
 
 
+#if 0 // not used so far
   /**
    *
    * Returns a mock refresh interval.
@@ -125,6 +126,7 @@ public:
    * @return refresh interval of the Metadata cache.
    */
   unsigned int fetch_ttl() override;
+#endif
 };
 
 

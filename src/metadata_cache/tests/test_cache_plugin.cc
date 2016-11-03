@@ -41,7 +41,7 @@ const std::string kDefaultMetadataHost = "127.0.0.1";  // 127.0.0.1
 const std::string kDefaultMetadataUser = "admin";  // admin
 const std::string kDefaultMetadataPassword = "";  //
 const int kDefaultMetadataPort = 32275; // 32275
-const unsigned int kDefaultTTL = 10;
+const unsigned int kDefaultTTL = 1; // reduced from original 10 to speed up test execution, try increasing if tests fail
 const std::string kDefaultMetadataReplicaset = "replicaset-1";
 
 const mysqlrouter::TCPAddress bootstrap_server(kDefaultMetadataHost,

@@ -70,6 +70,7 @@ public:
    */
   InstancesByReplicaSet fetch_instances(const std::string &cluster_name) override;
 
+#if 0 // not used so far
   /** @brief Returns the refresh interval provided by the metadata server.
    *
    * Returns the refresh interval (also known as TTL) provided by metadata server.
@@ -77,6 +78,7 @@ public:
    * @return refresh interval of the Metadata cache.
    */
   unsigned int fetch_ttl() override;
+#endif
 
   /** @brief Connects with the Metadata server
    *
@@ -129,17 +131,21 @@ private:
   std::string password_;
 
   // Metadata node generic information
-  std::string metadata_uuid_;
   unsigned int ttl_;
   std::string cluster_name_;
+  #if 0 // not used so far
+  std::string metadata_uuid_;
   std::string message_;
+  #endif
 
   // The time after which a connection to the metadata server should timeout.
   int connection_timeout_;
 
+  #if 0 // not used so far
   // The number of times we should try connecting to the metadata server if a
   // connection attempt fails.
   int connection_attempts_;
+  #endif
 
   // MySQL client objects
   MYSQL *metadata_connection_;
@@ -150,8 +156,10 @@ private:
   // Boolean variable indicates if a connection to metadata has been established.
   bool connected_ = false;
 
+  #if 0 // not used so far
   // How many times we tried to reconnected (for logging purposes)
   size_t reconnect_tries_;
+  #endif
 };
 
 #endif // METADATA_CACHE_METADATA_INCLUDED

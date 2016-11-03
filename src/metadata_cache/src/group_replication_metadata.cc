@@ -16,12 +16,12 @@
 */
 
 #include "group_replication_metadata.h"
-#include <sstream>
-#include <cstdlib>
-#include <cstring>
 #include "logger.h"
 #include "metadata.h"
 
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
 
 static MYSQL_RES *run_query(MYSQL *mysql, const std::string &query) {
   if (mysql_query(mysql, query.c_str()) != 0) {

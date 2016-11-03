@@ -16,8 +16,10 @@
 */
 
 #include "cluster_metadata.h"
-//#include "metadata_cache.h"
 #include "group_replication_metadata.h"
+#include "logger.h"
+#include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/uri.h"
 
 #include <cassert>
 #include <chrono>
@@ -29,10 +31,7 @@
 #include <string.h>
 
 #include <mysql.h>
-#include <mysqlrouter/datatypes.h>
-#include "mysqlrouter/uri.h"
 #include <errmsg.h>
-#include "logger.h"
 
 
 /**
@@ -56,14 +55,17 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
                                  int connection_attempts,
                                  unsigned int ttl) {
   this->metadata_connection_ = nullptr;
-  this->metadata_uuid_ = "";
   this->ttl_ = ttl;
-  this->message_ = "";
   this->user_ = user;
   this->password_ = password;
   this->connection_timeout_ = connection_timeout;
+  (void) connection_attempts;
+  #if 0 // not used so far
+  this->metadata_uuid_ = "";
+  this->message_ = "";
   this->connection_attempts_ = connection_attempts;
   this->reconnect_tries_ = 0;
+  #endif
 }
 
 /** @brief Destructor
@@ -416,6 +418,8 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
   return instance_map;
 }
 
+#if 0 // not used so far
 unsigned int ClusterMetadata::fetch_ttl() {
   return ttl_;
 }
+#endif

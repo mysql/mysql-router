@@ -121,9 +121,11 @@ private:
   // with the changes in the metadata due to a cache refresh.
   std::mutex cache_refreshing_mutex_;
 
+  #if 0 // not used so far
   // This mutex ensures that a refresh of the servers that contain the metadata
   // is consistent with the use of the server list.
   std::mutex metadata_servers_mutex_;
+  #endif
 
   // Contains a set of replicaset names that have no primary
   std::set<std::string> lost_primary_replicasets_;
