@@ -20,25 +20,27 @@
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/mysql_session.h"
 #include "metadata.h"
 
 #include <vector>
+#include <memory>
 #include <map>
 #include <string>
-
-#include <mysql.h>
 #include <string.h>
 
 struct GroupReplicationMember;
 
+namespace mysqlrouter { class MySQLSession; }
+
 /** @class ClusterMetadata
  *
  * The `ClusterMetadata` class encapsulates a connection to the Metadata server. It
- * uses the MySQL Client C Library to setup, manage and retrieve results.
+ * uses the mysqlrouter::MySQLSession to setup, manage and retrieve results.
  *
  */
 class METADATA_API ClusterMetadata : public MetaData {
-public:
+ public:
   /** @brief Constructor
    *
    * @param user The user name used to authenticate to the metadata server.
@@ -47,12 +49,16 @@ public:
    *                           metadata server should timeout.
    * @param connection_attempts The number of times a connection to metadata
    *                            must be attempted, when a connection attempt
-   *                            fails.
+   *                            fails.  NOTE: not used so far
    * @param ttl The time to live of the data in the cache.
+   * @param mysqlsession_factory Produces MySQLSession objects inside (DI to allow
+   *                             unit testing); defaults to "real" implementation.
    */
   ClusterMetadata(const std::string &user, const std::string &password,
-               int connection_timeout, int connection_attempts,
-               unsigned int ttl);
+                  int connection_timeout, int /*connection_attempts*/,
+                  unsigned int ttl,
+                  std::unique_ptr<mysqlrouter::MySQLSessionFactory> mysqlsession_factory =
+                      std::unique_ptr<mysqlrouter::MySQLSessionFactory>(new mysqlrouter::MySQLSessionFactory));
 
   /** @brief Destructor
    *
@@ -82,8 +88,10 @@ public:
 
   /** @brief Connects with the Metadata server
    *
-   * Checks first whether we are connected. If not, this method will
-   * try indefinitely try to reconnect with the Metadata server.
+   * Connect to first server that succeeds from the list of servers provided.
+   * Connections to servers are attempted in order provided by the list.
+   * If no connection succeeded, returns false, else true.
+   * (handle to the successful connection will be set in metadata_connection_)
    *
    * @param metadata_servers the set of servers from which the metadata
    *                         information is fetched.
@@ -95,36 +103,34 @@ public:
 
   /** @brief Disconnects from the Metadata server
    *
-   * Checks first whether we are connected. If not, this method will
-   * try indefinitely try to reconnect with the Metadata server.
+   * This is a no-op, as MySQLSession object used underneath for
+   * connection handling employs RAII, making this method unnecessary.
    */
-  void disconnect() noexcept override;
+  void disconnect() noexcept override {}
 
-private:
-  /** Connects a MYSQL connection descriptor to the given instance
+ private:
+  /** Connects a MYSQL connection to the given instance
    */
-  bool do_connect(MYSQL *mysql, const metadata_cache::ManagedInstance &mi);
-
-  /** @brief Returns result from a query.
-   *
-   * Returns result from a query executed on the Metadata Server.
-   *
-   * @param query Query to be executed
-   * @return MYSQL_RES object containg result of remote API execution
-   */
-  MYSQL_RES *run_query(const std::string &query);
+  bool do_connect(mysqlrouter::MySQLSession& metadata_connection, const metadata_cache::ManagedInstance &mi);
 
   /** @brief Queries the metadata server for the list of instances and
    * replicasets that belong to the desired cluster.
    */
   InstancesByReplicaSet fetch_instances_from_metadata_server(const std::string &cluster_name);
 
+  // update_replicaset_status() calls check_replicaset_status() for some of its processing.
+  // Together, they:
+  // - check current topology (status) returned from a replicaset node
+  // - update 'instances' with this state
   void update_replicaset_status(const std::string &name,
       std::vector<metadata_cache::ManagedInstance> &instances);
 
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
-      std::map<std::string, GroupReplicationMember> &member_status);
+      const std::map<std::string, GroupReplicationMember> &member_status) const noexcept;
+
+  // creates MySQLSession objects (or mocks of it, facilitates DI for unit tests)
+  std::unique_ptr<mysqlrouter::MySQLSessionFactory> mysqlsession_factory_;
 
   // Metadata node connection information
   std::string user_;
@@ -147,18 +153,28 @@ private:
   int connection_attempts_;
   #endif
 
-  // MySQL client objects
-  MYSQL *metadata_connection_;
-
-  // The address of the instance metadata_connection_ is connected to
-  std::string metadata_connection_address_;
-
-  // Boolean variable indicates if a connection to metadata has been established.
-  bool connected_ = false;
+  // connection to metadata server (it may also be shared with GR status queries for optimisation purposes)
+  std::shared_ptr<mysqlrouter::MySQLSession> metadata_connection_;
 
   #if 0 // not used so far
   // How many times we tried to reconnected (for logging purposes)
   size_t reconnect_tries_;
+  #endif
+
+  #ifdef FRIEND_TEST
+  FRIEND_TEST(MetadataTest, FetchInstancesFromMetadataServer);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariousStatuses);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_EmptyOnNode1);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_EmptyOnAllNodes);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
+  FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
   #endif
 };
 

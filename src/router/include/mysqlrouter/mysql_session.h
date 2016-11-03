@@ -22,8 +22,13 @@
 #include <vector>
 #include <stdexcept>
 #include <functional>
+#include <memory>
 
 struct st_mysql;
+
+#ifdef FRIEND_TEST
+class MockMySQLSession;
+#endif
 
 namespace mysqlrouter {
 
@@ -98,9 +103,48 @@ class MySQLSession {
   virtual uint64_t last_insert_id();
 
   virtual std::string quote(const std::string &s, char qchar = '\'');
+
+  bool is_connected() { return connected_; }
+  const std::string& get_address() { return connection_address_; }
+
+  // TODO hide this and expose the needed operations
+  virtual st_mysql* raw_mysql() { return connection_; }
+
 private:
   st_mysql *connection_;
   bool connected_;
+  std::string connection_address_;
+
+  #ifdef FRIEND_TEST
+  friend class ::MockMySQLSession;
+  #endif
+};
+
+
+
+/** @class MySQLSessionFactory
+ *
+ * This class is meant to ease use of DI (useful for unit testing). It is meant to be derived from
+ * and its create() method to return a mock object, derived from MySQLSession.
+ *
+ * TODO: a better approach would probably be to move create() to a DI container, if/when we
+ *       implement one.
+ */
+class MySQLSessionFactory {
+ public:
+
+  // it would seem to make more sense to use unique_ptr instead of shared_ptr here, but unfortunately
+  // unique_ptr's deleter is part of its type specification.  Therefore all places where unique_ptr 
+  // was used would have to declare it like so: std::unique_ptr<MySQLSession, void(*)(MySQLSession*)>
+  // This is not very convenient. shared_ptr doesn't have this problem.
+  virtual std::shared_ptr<MySQLSession> create() const {
+    // custom deleter guarantees that memory will be freed HERE. Which means, it won't get freed in another DLL
+    return std::shared_ptr<MySQLSession>(new MySQLSession, [](MySQLSession* ptr) {
+      delete ptr;
+    });
+  }
+
+  virtual ~MySQLSessionFactory() {}
 };
 
 } // namespace mysqlrouter

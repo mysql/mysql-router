@@ -56,7 +56,6 @@ MetadataCache::MetadataCache(
   terminate_ = false;
   meta_data_ = get_instance(user, password, connection_timeout,
                             connection_attempts, ttl);
-  meta_data_->connect(metadata_servers_);
   refresh();
 }
 
@@ -74,19 +73,10 @@ MetadataCache::~MetadataCache() {
 void MetadataCache::start() {
   auto refresh_loop = [this] {
     mysql_harness::rename_thread("MDC Refresh");
-    bool valid_connection_ = false;
+
     while (!terminate_) {
-      {
-        #if 0 // not used anywhere else so far
-        std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
-        #endif
-        valid_connection_ = meta_data_->connect(metadata_servers_);
-      }
-      if (valid_connection_) {
-        refresh();
-      } else {
-        meta_data_->disconnect();
-      }
+      refresh();
+
       // wait for up to TTL until next refresh, unless some replicaset
       // loses the primary server.. in that case, we refresh every 1s
       // until we detect a new one was elected
@@ -177,6 +167,18 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
  * Refresh the metadata information in the cache.
  */
 void MetadataCache::refresh() {
+
+  {
+    #if 0 // not used anywhere else so far
+    std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
+    #endif
+    // TODO: connect() could really be called from inside of metadata_->fetch_instances()
+    if (!meta_data_->connect(metadata_servers_)) { // metadata_servers_ come from config file
+      log_error("Failed connecting to metadata servers");
+      return;
+    }
+  }
+
   try {
     // Fetch the metadata and store it in a temporary variable.
     std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
@@ -202,16 +204,11 @@ void MetadataCache::refresh() {
       else {
         log_info("Metadata for cluster '%s' has %i replicasets:",
           cluster_name_.c_str(), (int)replicaset_data_.size());
-        bool emergency_mode = !lost_primary_replicasets_.empty();
         for (auto &rs : replicaset_data_) {
           log_info("'%s' (%i members)", rs.first.c_str(), (int)rs.second.size());
           for (auto &mi : rs.second) {
-            if (emergency_mode)
-              log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
+            log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
                 mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
-            else
-              log_debug("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
-                  mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
 
             if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
               // If we were running without a primary and a new one was elected

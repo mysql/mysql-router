@@ -184,10 +184,12 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     throw Error(ss.str().c_str(), mysql_errno(connection_));
   }
   connected_ = true;
+  connection_address_ = host + ":" + std::to_string(port);
 }
 
 void MySQLSession::disconnect() {
   connected_ = false;
+  connection_address_.clear();
 }
 
 void MySQLSession::execute(const std::string &q) {

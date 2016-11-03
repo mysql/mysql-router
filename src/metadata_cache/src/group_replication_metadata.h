@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <mysql.h>
 
+namespace mysqlrouter { class MySQLSession; }
 
 struct GroupReplicationMember {
   enum class State {
@@ -31,11 +31,11 @@ struct GroupReplicationMember {
     Unreachable,
     Offline,
     Other
+    //docs also define Error, maybe we should add it
   };
   enum class Role {
     Primary,
     Secondary,
-    Other
   };
   std::string member_id;
   std::string host;
@@ -46,7 +46,9 @@ struct GroupReplicationMember {
 
 /** Fetches the list of group replication members known to the instance of the
  * given connection.
+ *
+ * throws metadata_cache::metadata_error
  */
-std::map<std::string, GroupReplicationMember> fetch_group_replication_members(MYSQL *mysql);
+std::map<std::string, GroupReplicationMember> fetch_group_replication_members(mysqlrouter::MySQLSession& connection);
 
 #endif
