@@ -51,16 +51,30 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+#define GNUC_REQ(MAJOR_VER, MINOR_VER)  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((MAJOR_VER) << 16) + (MINOR_VER))
+#else
+#define GNUC_REQ(MAJOR_VER, MINOR_VER) 0
+#endif
+
 static int my_readdir(DIR *dirp,
                       struct dirent *entry,
                       struct dirent **result) {
   // readdir_r is depracated in the latest libc versions
   // but for the older readdir is still not thread safe
   // and we want the compatibility with both
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  return readdir_r(dirp, entry, result);
-#pragma GCC diagnostic pop
+#if defined(__clang__) || GNUC_REQ(4, 6)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+  int res = readdir_r(dirp, entry, result);
+
+#if defined(__clang__) || GNUC_REQ(4, 6)
+#  pragma GCC diagnostic pop
+#endif
+
+  return res;
 }
 
 const char * const Path::directory_separator = "/";
