@@ -51,6 +51,18 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
+static int my_readdir(DIR *dirp,
+                      struct dirent *entry,
+                      struct dirent **result) {
+  // readdir_r is depracated in the latest libc versions
+  // but for the older readdir is still not thread safe
+  // and we want the compatibility with both
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  return readdir_r(dirp, entry, result);
+#pragma GCC diagnostic pop
+}
+
 const char * const Path::directory_separator = "/";
 const char * const Path::root_directory = "/";
 
@@ -159,7 +171,6 @@ Directory::DirectoryIterator::State::~State() {
     closedir(dirp_);
 }
 
-
 void Directory::DirectoryIterator::State::fill_result() {
   // This is similar to scandir(2), but we do not use scandir(2) since
   // we want to be thread-safe.
@@ -169,7 +180,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_r(dirp_, &entry_, &result_)) {
+    if (int error = my_readdir(dirp_, &entry_, &result_)) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
