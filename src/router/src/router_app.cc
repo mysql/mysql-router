@@ -195,23 +195,67 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   }
 }
 
-void MySQLRouter::start() {
-  if (showing_info_ || !bootstrap_uri_.empty()) {
-    // when we are showing info like --help or --version, we do not throw
-    return;
-  }
-  if (!can_start_) {
-    throw std::runtime_error("Can not start");
-  }
-  string err_msg = "Configuration error: %s.";
+/*
+  Router Installation Paths:
+
+  There are basically 2 modes of installation of the router:
+  - standalone installation, is a self-contained installation where the whole
+    install is in the same parent directory
+  - system installation, where files are scattered through system directories
+    like /usr/bin or /usr/local/bin, /usr/lib etc
+
+  In addition to the files that are part of the router installation, some
+  files are created by the router or the user to be used by it at runtime.
+  Most of their locations can be customized by the user via config file
+  or command line option, but the defaults are described below, according to
+  the installation type.
+
+                        Standalone             System                 Sandbox
+  (distributed files)
+  executable            $base/bin             /usr/bin                (depends)
+  plugins               $base/lib             /usr/lib/mysqlrouter    (depends)
+  (install specific)
+  config file           $base                 /etc                    $dir
+  log file              $base/log             /var/log/mysqlrouter    $dir/log
+  keyring file          $base/$router-files   /var/lib/$router-files  $dir/$router-files
+  master key file       <user specified>      <user specified>        <user specified>
+  pid file              $base/run             /var/run                $dir
+  persistent state      $base/$router-files   /var/lib/$router-files  $dir/$router-files
+
+  Notes:
+  $router-files = mysqlrouter-files
+
+  Location of distributed files for a sandbox deployment depends on the type
+  of installation of the router itself.
+ */
+
+static string fixpath(const string &path, const std::string &basedir) {
+  if (path.empty())
+    return basedir;
+#ifdef _WIN32
+  if (path[0] == '\\' || path[0] == '/' || path[1] == ':')
+    return path;
+#else
+  if (path[0] == '/')
+    return path;
+#endif
+  // if the path is not absolute, it must be relative to the origin
+  return basedir+"/"+path;
+}
+
+std::map<std::string, std::string> MySQLRouter::get_default_paths() {
+  std::string basedir = mysql_harness::Path(origin_).dirname().str();
 
   std::map<std::string, std::string> params = {
       {"program", "mysqlrouter"},
       {"origin", origin_.str()},
-      {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
-      {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
-      {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
-      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)}
+
+      {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+
+      {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+      {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+      {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+      {"state_folder", fixpath(MYSQL_ROUTER_SECURE_FILE_PRIVDIR, basedir )}
   };
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
@@ -230,9 +274,23 @@ void MySQLRouter::start() {
     std::string &param = params.at(it.first);
     mysqlrouter::substitute_envvar(param);
     param.assign(substitute_variable(param, "{origin}", origin_.str()));
-    mysql_harness::Path path_param(param);
-    param.assign(path_param.real_path().str());
+    //mysql_harness::Path path_param(param);
+    //param.assign(path_param.real_path().str());
   }
+  return params;
+}
+
+void MySQLRouter::start() {
+  if (showing_info_ || !bootstrap_uri_.empty()) {
+    // when we are showing info like --help or --version, we do not throw
+    return;
+  }
+  if (!can_start_) {
+    throw std::runtime_error("Can not start");
+  }
+  string err_msg = "Configuration error: %s.";
+
+  const auto params = get_default_paths();
 
   try {
     loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("mysqlrouter", params));
@@ -344,6 +402,8 @@ vector<string> MySQLRouter::check_config_files() {
         if (vec != &extra_config_files_) {
           nr_of_none_extra++;
         }
+      } else if (errno != ENOENT) {
+        std::cout << file << ": " << mysql_harness::get_strerror(errno) << "\n";
       }
     }
   }
@@ -547,14 +607,12 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
 
   try {
     if (bootstrap_directory_.empty()) {
+      const auto paths = get_default_paths();
       // bootstrap into a directory
-      std::string config_file_path =
-          substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
-                              "{origin}", origin_.str());
+      std::string config_file_path = paths.at("config_folder")+"/mysqlrouter.conf";
 
       std::string default_keyring_file;
-      default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
-                                                 "{origin}", origin_.str());
+      default_keyring_file = paths.at("state_folder");
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
       config_gen.bootstrap_system_deployment(config_file_path,
           bootstrap_options_, default_keyring_file, keyring_master_key_file_path_);
@@ -579,7 +637,6 @@ void MySQLRouter::show_help() noexcept {
                               0)) {
     std::cout << line << std::endl;
   }
-
   for (auto file : default_config_files_) {
 
     if ((fp = std::fopen(file.c_str(), "r")) == nullptr) {
@@ -589,6 +646,15 @@ void MySQLRouter::show_help() noexcept {
       std::cout << "  " << file << std::endl;
     }
   }
+  const std::map<std::string, std::string> paths = get_default_paths();
+  std::cout << "Plugins Path:" << std::endl <<
+      "  " << paths.at("plugin_folder") << std::endl;
+  std::cout << "Default Log Directory:" << std::endl <<
+      "  " << paths.at("logging_folder") << std::endl;
+  std::cout << "Default Persistent State Directory:" << std::endl <<
+      "  " << paths.at("state_folder") << std::endl;
+  std::cout << "Default Runtime State Directory:" << std::endl <<
+      "  " << paths.at("runtime_folder") << std::endl;
 
   std::cout << std::endl;
 

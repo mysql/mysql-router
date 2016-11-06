@@ -106,7 +106,7 @@ static int init(const AppInfo* info) {
         Path::make_path(info->logging_folder, info->program, "log");
     FILE *fp = fopen(log_file.c_str(), "a");
     if (!fp) {
-      fprintf(stderr, "logger: could not open log file '%s' - %s",
+      fprintf(stderr, "logger: could not open log file '%s' - %s\n",
               log_file.c_str(), strerror(errno));
       fflush(stderr);
       return 1;

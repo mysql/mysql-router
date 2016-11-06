@@ -33,7 +33,7 @@ function(set_target_output_directory target target_output_directory dirname)
 endfunction()
 
 # Prepare staging area
-foreach(dir etc;run;log;bin;lib)
+foreach(dir etc;run;log;bin;lib;mysqlrouter-files)
   if(WIN32)
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       file(MAKE_DIRECTORY ${STAGE_DIR}/${config_}/${dir})
