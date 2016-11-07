@@ -189,6 +189,10 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
           get_message_error(errno).c_str());
         continue;
       }
+      if (so_error) {
+        log_debug("Socket error: %s: %s (%d)", addr.str().c_str(), get_message_error(so_error).c_str(), so_error);
+        continue;
+      }
     } else {
       log_debug("Failed connecting with MySQL server %s", addr.str().c_str());
       continue;
