@@ -51,32 +51,6 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#define GNUC_REQ(MAJOR_VER, MINOR_VER)  ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((MAJOR_VER) << 16) + (MINOR_VER))
-#else
-#define GNUC_REQ(MAJOR_VER, MINOR_VER) 0
-#endif
-
-static int my_readdir(DIR *dirp,
-                      struct dirent *entry,
-                      struct dirent **result) {
-  // readdir_r is depracated in the latest libc versions
-  // but for the older readdir is still not thread safe
-  // and we want the compatibility with both
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-  int res = readdir_r(dirp, entry, result);
-
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic pop
-#endif
-
-  return res;
-}
-
 const char * const Path::directory_separator = "/";
 const char * const Path::root_directory = "/";
 
@@ -185,6 +159,7 @@ Directory::DirectoryIterator::State::~State() {
     closedir(dirp_);
 }
 
+
 void Directory::DirectoryIterator::State::fill_result() {
   // This is similar to scandir(2), but we do not use scandir(2) since
   // we want to be thread-safe.
@@ -194,7 +169,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = my_readdir(dirp_, &entry_, &result_)) {
+    if (int error = readdir_r(dirp_, &entry_, &result_)) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
