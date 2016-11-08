@@ -207,6 +207,44 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   }
 }
 
+
+static string fixpath(const string &path, const std::string &basedir) {
+  if (path.empty())
+    return basedir;
+#ifdef _WIN32
+  if (path[0] == '\\' || path[0] == '/' || path[1] == ':')
+    return path;
+#else
+  if (path[0] == '/')
+    return path;
+#endif
+  // if the path is not absolute, it must be relative to the origin
+  return basedir+"/"+path;
+}
+
+std::map<std::string, std::string> MySQLRouter::get_default_paths() {
+  std::string basedir = mysql_harness::Path(origin_).dirname().str();
+
+  std::map<std::string, std::string> params = {
+      {"program", "mysqlrouter"},
+      {"origin", origin_.str()},
+      {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+      {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+      {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+      {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+      {"state_folder", fixpath(MYSQL_ROUTER_SECURE_FILE_PRIVDIR, basedir)}
+  };
+
+  // resolve environment variables & relative paths
+  for (auto it : params) {
+    std::string &param = params.at(it.first);
+    mysqlrouter::substitute_envvar(param);
+    param.assign(substitute_variable(param, "{origin}", origin_.str()));
+  }
+  return params;
+}
+
+
 void MySQLRouter::start() {
   if (showing_info_ || !bootstrap_uri_.empty()) {
     // when we are showing info like --help or --version, we do not throw
@@ -216,15 +254,6 @@ void MySQLRouter::start() {
     throw std::runtime_error("Can not start");
   }
   string err_msg = "Configuration error: %s.";
-
-  std::map<std::string, std::string> params = {
-      {"program", "mysqlrouter"},
-      {"origin", origin_.str()},
-      {"logging_folder", string(MYSQL_ROUTER_LOGGING_FOLDER)},
-      {"plugin_folder", string(MYSQL_ROUTER_PLUGIN_FOLDER)},
-      {"runtime_folder", string(MYSQL_ROUTER_RUNTIME_FOLDER)},
-      {"config_folder", string(MYSQL_ROUTER_CONFIG_FOLDER)}
-  };
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
   // functionality when Harness introduces the `pid_file` option.
@@ -237,14 +266,7 @@ void MySQLRouter::start() {
     }
   }
 
-  // resolve environment variables & relative paths
-  for (auto it : params) {
-    std::string &param = params.at(it.first);
-    mysqlrouter::substitute_envvar(param);
-    param.assign(substitute_variable(param, "{origin}", origin_.str()));
-    mysql_harness::Path path_param(param);
-    param.assign(path_param.real_path().str());
-  }
+  auto params = get_default_paths();
 
   try {
     loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("mysqlrouter", params));
@@ -601,7 +623,15 @@ void MySQLRouter::show_help() noexcept {
       std::cout << "  " << file << std::endl;
     }
   }
-
+  const std::map<std::string, std::string> paths = get_default_paths();
+  std::cout << "Plugins Path:" << std::endl <<
+      "  " << paths.at("plugin_folder") << std::endl;
+  std::cout << "Default Log Directory:" << std::endl <<
+      "  " << paths.at("logging_folder") << std::endl;
+  std::cout << "Default Persistent State Directory:" << std::endl <<
+      "  " << paths.at("state_folder") << std::endl;
+  std::cout << "Default Runtime State Directory:" << std::endl <<
+      "  " << paths.at("runtime_folder") << std::endl;
   std::cout << std::endl;
 
   show_usage();

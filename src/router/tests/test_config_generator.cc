@@ -1305,7 +1305,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
         config_gen.bootstrap_directory_deployment("delme",
           options, "delme", "."),
         std::runtime_error,
-        "Invalid master key file .");
+        "Unable to save master key to .: Is a directory");
 
     mysqlrouter::delete_recursive("delme");
     mysql_harness::reset_keyring();

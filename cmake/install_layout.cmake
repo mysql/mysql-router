@@ -1,5 +1,5 @@
 # Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # Originally part of MySQL Server and Adapted for MySQL Router.
 
@@ -159,7 +159,7 @@ SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 SET(INSTALL_SCRIPTDIR_STANDALONE        "scripts")
 SET(INSTALL_LOGDIR_STANDALONE           "")
-SET(INSTALL_CONFIGDIR_STANDALONE        ".")
+SET(INSTALL_CONFIGDIR_STANDALONE        "/etc/mysqlrouter")
 SET(INSTALL_RUNTIMEDIR_STANDALONE       "run")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")

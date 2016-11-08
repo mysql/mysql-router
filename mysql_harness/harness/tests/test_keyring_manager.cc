@@ -411,7 +411,7 @@ TEST(KeyringManager, init_with_key_file) {
 
   ASSERT_THROW(
     mysql_harness::init_keyring("/tmp/keyring", "", false),
-    std::runtime_error);
+    std::invalid_argument);
 
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
 

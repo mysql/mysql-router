@@ -104,14 +104,25 @@ static bool is_valid_name(const std::string& name) {
 }
 
 
-class AutoDeleter {
+class AutoCleaner {
 public:
-  void add_file(const std::string &f) {
+  void add_file_delete(const std::string &f) {
     _files[f] = File;
   }
 
-  void add_directory(const std::string &d, bool recursive = false) {
+  void add_directory_delete(const std::string &d, bool recursive = false) {
     _files[d] = recursive ? DirectoryRecursive : Directory;
+  }
+
+  void add_file_revert(const std::string &file) {
+    if (mysql_harness::Path(file).is_regular()) {
+      copy_file(file, file+".bck");
+      _files[file] = FileBackup;
+    } else {
+      if (mysql_harness::Path(file+".bck").exists())
+        delete_file(file+".bck");
+      _files[file] = File;
+    }
   }
 
   void remove(const std::string &p) {
@@ -122,7 +133,7 @@ public:
     _files.clear();
   }
 
-  ~AutoDeleter() {
+  ~AutoCleaner() {
     // remove in reverse order, so that files are deleted before their
     // contained directories
     for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
@@ -130,11 +141,18 @@ public:
         case File:
           delete_file(f->first);
           break;
+
         case Directory:
           rmdir(f->first);
           break;
+
         case DirectoryRecursive:
           delete_recursive(f->first);
+          break;
+
+        case FileBackup:
+          copy_file(f->first+".bck", f->first);
+          delete_file(f->first+".bck");
           break;
       }
     }
@@ -143,7 +161,8 @@ private:
   enum Type {
     Directory,
     DirectoryRecursive,
-    File
+    File,
+    FileBackup
   };
   std::map<std::string, Type> _files;
 };
@@ -253,7 +272,6 @@ static bool is_directory_empty(mysql_harness::Directory dir) {
   return true;
 }
 
-
 /**
  * Create a self-contained deployment of the Router in a directory.
  */
@@ -266,7 +284,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   mysql_harness::Path path(directory);
   mysql_harness::Path config_file_path;
   std::string router_name;
-  AutoDeleter autodel;
+  AutoCleaner auto_clean;
 
   if (user_options.find("name") != user_options.end()) {
     if ((router_name = user_options.at("name")) == kSystemRouterName)
@@ -282,7 +300,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       std::cerr << "Cannot create directory " << directory << ": " << get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
-    autodel.add_directory(directory, true);
+    auto_clean.add_directory_delete(directory, true);
   }
   path = path.real_path();
   config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
@@ -296,6 +314,8 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     options["logdir"] = path.join("log").str();
   if (user_options.find("rundir") == user_options.end())
     options["rundir"] = path.join("run").str();
+  if (user_options.find("statedir") == user_options.end())
+    options["statedir"] = path.join("data").str();
   if (user_options.find("socketsdir") == user_options.end())
     options["socketsdir"] = path.str();
 
@@ -305,7 +325,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       throw std::runtime_error("Could not create deployment directory");
     }
   } else {
-    autodel.add_directory(options["logdir"]);
+    auto_clean.add_directory_delete(options["logdir"]);
   }
   if (mkdir(options["rundir"].c_str(), 0700) < 0) {
     if (errno != EEXIST) {
@@ -313,7 +333,15 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       throw std::runtime_error("Could not create deployment directory");
     }
   } else {
-    autodel.add_directory(options["rundir"]);
+    auto_clean.add_directory_delete(options["rundir"]);
+  }
+  if (mkdir(options["statedir"].c_str(), 0700) < 0) {
+    if (errno != EEXIST) {
+      std::cerr << "Cannot create directory " << options["statedir"] << ": " << get_strerror(errno) << "\n";
+      throw std::runtime_error("Could not create state directory");
+    }
+  } else {
+    auto_clean.add_directory_delete(options["statedir"]);
   }
 
   // (re-)bootstrap the instance
@@ -322,7 +350,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   if (config_file.fail()) {
     throw std::runtime_error("Could not open "+config_file_path.str()+".tmp for writing: "+get_strerror(errno));
   }
-  autodel.add_file(config_file_path.str()+".tmp");
+  auto_clean.add_file_delete(config_file_path.str()+".tmp");
 
   std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
@@ -349,7 +377,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   // create start/stop scripts
   create_start_scripts(path.str(), keyring_master_key_file.empty());
 
-  autodel.clear();
+  auto_clean.clear();
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
@@ -434,13 +462,11 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
-  AutoDeleter autodel;
+  AutoCleaner auto_clean;
 
-  std::string tmp_keyring_master_key_file;
-
-  tmp_keyring_master_key_file = init_keyring_file(keyring_file, keyring_master_key_file);
-  if (!tmp_keyring_master_key_file.empty())
-    autodel.add_file(tmp_keyring_master_key_file);
+  if (!keyring_master_key_file.empty())
+    auto_clean.add_file_revert(keyring_master_key_file);
+  init_keyring_file(keyring_file, keyring_master_key_file);
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
@@ -526,21 +552,11 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 options,
                 !quiet);
 
-  if (tmp_keyring_master_key_file != keyring_master_key_file &&
-      !tmp_keyring_master_key_file.empty() &&
-      rename(tmp_keyring_master_key_file.c_str(),
-             keyring_master_key_file.c_str()) < 0) {
-    //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-    //  config_file_path.c_str(), get_strerror(errno));
-    throw std::runtime_error("Could not move keyring file '" +
-              tmp_keyring_master_key_file+"' to its final location");
-  }
-
   transaction.commit();
-  autodel.clear();
+  auto_clean.clear();
 }
 
-std::string ConfigGenerator::init_keyring_file(const std::string &keyring_file,
+void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
         const std::string &keyring_master_key_file) {
   if (keyring_master_key_file.empty()) {
     std::string master_key;
@@ -570,20 +586,12 @@ std::string ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       }
     }
     mysql_harness::init_keyring_with_key(keyring_file, master_key, true);
-    return keyring_master_key_file;
   } else {
-    std::string tmp_keyring_master_key_file;
-    // copy existing keyring file to a temporary one
-    tmp_keyring_master_key_file = keyring_master_key_file+".tmp";
-
-    if (mysql_harness::Path(keyring_master_key_file).exists())
-      copy_file(keyring_master_key_file, tmp_keyring_master_key_file);
     try {
-      mysql_harness::init_keyring(keyring_file, tmp_keyring_master_key_file, true);
+      mysql_harness::init_keyring(keyring_file, keyring_master_key_file, true);
     } catch (mysql_harness::invalid_master_keyfile &) {
       throw mysql_harness::invalid_master_keyfile("Invalid master key file "+keyring_master_key_file);
     }
-    return tmp_keyring_master_key_file;
   }
 }
 
