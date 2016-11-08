@@ -44,9 +44,9 @@ static bool send_message(const std::string &log_prefix,
   // first 4 bytes is the message size (plus type byte, without size bytes)
   CodedOutputStream::WriteLittleEndian32ToArray(static_cast<uint32_t>(msg_size + 1), &buffer[0]);
   // fifth byte is the message type
-  buffer[kMessageHeaderSize -1] = static_cast<uint8_t>(type);
+  buffer[kMessageHeaderSize-1] = static_cast<uint8_t>(type);
 
-  if (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize())) {
+  if ((msg.ByteSize() > 0) && (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize()))) {
     log_error("[%s] error while serializing error message: %s", log_prefix.c_str());
     return false;
   }
