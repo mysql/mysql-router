@@ -29,6 +29,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+/* checks if GCC version is at least MAJOR.MINOR */
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+#define GNUC_REQ(MAJOR_VER, MINOR_VER)  \
+    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((MAJOR_VER) << 16) + (MINOR_VER))
+#else
+#define GNUC_REQ(MAJOR_VER, MINOR_VER) 0
+#endif
+
 #if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 # error "This file expects POSIX.1-2001 or later"
 #endif
@@ -50,6 +58,26 @@ namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
+
+// readdir_r() is depracated in the latest libc versions instead readdir()
+// is to be used  but in the older versions  readdir() is still not thread
+// safe and we need the compatibility with both
+static int readdir_safe(DIR *dirp,
+                        struct dirent *entry,
+                        struct dirent **result) {
+#if defined(__clang__) || GNUC_REQ(4, 6)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+  int res = readdir_r(dirp, entry, result);
+
+#if defined(__clang__) || GNUC_REQ(4, 6)
+#  pragma GCC diagnostic pop
+#endif
+
+  return res;
+}
 
 const char * const Path::directory_separator = "/";
 const char * const Path::root_directory = "/";
@@ -169,7 +197,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_r(dirp_, &entry_, &result_)) {
+    if (int error = readdir_safe(dirp_, &entry_, &result_)) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
