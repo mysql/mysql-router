@@ -27,6 +27,21 @@ namespace mysql_harness {
   class Path;
 }
 
+// GCC 4.8.4 requires all classes to be forward-declared before used with "friend class <friendee>",
+// if they're in a different namespace than the friender
+#ifdef FRIEND_TEST
+#include "mysqlrouter/utils.h"  // DECLARE_TEST
+DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
+DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
+DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
+DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
+DECLARE_TEST(ConfigGeneratorTest, create_config_single_master);
+DECLARE_TEST(ConfigGeneratorTest, create_config_multi_master);
+DECLARE_TEST(ConfigGeneratorTest, create_acount);
+DECLARE_TEST(ConfigGeneratorTest, fill_options);
+DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
+#endif
+
 namespace mysqlrouter {
 class MySQLSession;
 
@@ -125,15 +140,15 @@ private:
   bool mysql_owned_;
 
 #ifdef FRIEND_TEST
-  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
-  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
-  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
-  FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-  FRIEND_TEST(ConfigGeneratorTest, create_config_single_master);
-  FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
-  FRIEND_TEST(ConfigGeneratorTest, create_acount);
-  FRIEND_TEST(ConfigGeneratorTest, fill_options);
-  FRIEND_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
+  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_one);
+  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_three);
+  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
+  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
+  FRIEND_TEST(::ConfigGeneratorTest, create_config_single_master);
+  FRIEND_TEST(::ConfigGeneratorTest, create_config_multi_master);
+  FRIEND_TEST(::ConfigGeneratorTest, create_acount);
+  FRIEND_TEST(::ConfigGeneratorTest, fill_options);
+  FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
 #endif
 };
 }

@@ -44,26 +44,6 @@
 #pragma clang diagnostic pop
 #endif
 
-// Begin hack to workaround FRIEND_TEST() that doesn't work with namespaces
-#undef FRIEND_TEST
-#define FRIEND_TEST(test_case_name, test_name)\
-  class test_case_name##_##test_name##_Test
-
-FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
-FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
-FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
-FRIEND_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-FRIEND_TEST(ConfigGeneratorTest, create_config_single_master);
-FRIEND_TEST(ConfigGeneratorTest, create_config_multi_master);
-FRIEND_TEST(ConfigGeneratorTest, create_acount);
-FRIEND_TEST(ConfigGeneratorTest, fill_options);
-FRIEND_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
-
-#undef FRIEND_TEST
-#define FRIEND_TEST(test_case_name, test_name)\
-  friend class ::test_case_name##_##test_name##_Test
-// End hack to workaround FRIEND_TEST() that doesn't work with namespaces
-
 #include "config_generator.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysql_session_replayer.h"

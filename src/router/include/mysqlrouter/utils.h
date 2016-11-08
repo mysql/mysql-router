@@ -197,4 +197,15 @@ bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
 
 } // namespace mysqlrouter
 
+/** @brief Declare test (class)
+ *
+ * When using FRIEND_TEST() on classes that are not in the same namespace
+ * as the test, the test (class) needs to be forward-declared. This marco
+ * eases this.
+ *
+ * @note We need this for unit tests, BUT on the TESTED code side (not in unit test code)
+ */
+#define DECLARE_TEST(test_case_name, test_name)\
+  class test_case_name##_##test_name##_Test
+
 #endif // MYSQLROUTER_UTILS_INCLUDED
