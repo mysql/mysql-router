@@ -228,8 +228,8 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
   }
 }
 
-/* Unrealiable test - if the config file exists in the system, it will fail
 TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
+  string duplicate = "config_a.ini";
   vector<string> argv = {
       "--extra-config", stage_dir.join("etc").join("mysqlrouter.ini").str(),
   };
@@ -239,7 +239,7 @@ TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files only work when other "));
   }
-}*/
+}
 
 TEST_F(AppTest, CmdLineVersion) {
   vector<string> argv = {"--version"};

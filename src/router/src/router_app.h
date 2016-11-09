@@ -332,8 +332,6 @@ private:
 
   void init_keyring(mysql_harness::Config &config);
 
-  std::map<std::string, std::string> get_default_paths();
-
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 

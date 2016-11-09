@@ -296,8 +296,6 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     options["logdir"] = path.join("log").str();
   if (user_options.find("rundir") == user_options.end())
     options["rundir"] = path.join("run").str();
-  if (user_options.find("statedir") == user_options.end())
-    options["statedir"] = path.join("mysqlrouter-files").str();
   if (user_options.find("socketsdir") == user_options.end())
     options["socketsdir"] = path.str();
 
@@ -312,18 +310,10 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   if (mkdir(options["rundir"].c_str(), 0700) < 0) {
     if (errno != EEXIST) {
       std::cerr << "Cannot create directory " << options["rundir"] << ": " << get_strerror(errno) << "\n";
-      throw std::runtime_error("Could not create runtime state directory");
+      throw std::runtime_error("Could not create deployment directory");
     }
   } else {
     autodel.add_directory(options["rundir"]);
-  }
-  if (mkdir(options["statedir"].c_str(), 0700) < 0) {
-    if (errno != EEXIST) {
-      std::cerr << "Cannot create directory " << options["statedir"] << ": " << get_strerror(errno) << "\n";
-      throw std::runtime_error("Could not create state directory");
-    }
-  } else {
-    autodel.add_directory(options["statedir"]);
   }
 
   // (re-)bootstrap the instance
@@ -334,7 +324,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
   autodel.add_file(config_file_path.str()+".tmp");
 
-  std::string keyring_path = mysql_harness::Path(options["statedir"]).
+  std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
 
   bootstrap_deployment(config_file, config_file_path, router_name, options,
@@ -426,8 +416,6 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.override_logdir = user_options.at("logdir");
   if (user_options.find("rundir") != user_options.end())
     options.override_rundir = user_options.at("rundir");
-  if (user_options.find("statedir") != user_options.end())
-    options.override_statedir = user_options.at("statedir");
   if (user_options.find("socketsdir") != user_options.end())
     options.socketsdir = user_options.at("socketsdir");
   return options;
@@ -756,8 +744,6 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "logging_folder=" << options.override_logdir << "\n";
   if (!options.override_rundir.empty())
     cfp << "runtime_folder=" << options.override_rundir << "\n";
-  if (!options.override_statedir.empty())
-    cfp << "state_folder=" << options.override_statedir << "\n";
   if (!options.keyring_file_path.empty())
     cfp << "keyring_path=" << options.keyring_file_path << "\n";
   if (!options.keyring_master_key_file_path.empty())

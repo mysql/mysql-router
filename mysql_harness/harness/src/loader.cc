@@ -215,10 +215,12 @@ void Loader::setup_info() {
   logging_folder_ = config_.get_default("logging_folder");
   plugin_folder_ = config_.get_default("plugin_folder");
   runtime_folder_ = config_.get_default("runtime_folder");
+  config_folder_ = config_.get_default("config_folder");
 
   appinfo_.logging_folder = logging_folder_.c_str();
   appinfo_.plugin_folder = plugin_folder_.c_str();
   appinfo_.runtime_folder = runtime_folder_.c_str();
+  appinfo_.config_folder = config_folder_.c_str();
   appinfo_.config = &config_;
   appinfo_.program = program_.c_str();
 }

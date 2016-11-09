@@ -47,7 +47,7 @@ install(FILES ${router_headers}
 
 # Install logging and runtime folder
 if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALONE")
-  foreach(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR SECURE_FILE_PRIVDIR)
+  foreach(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR)
     set(_dir ${INSTALL_${_dirvar}})
     set(_stage_dir ${STAGE_DIR}/${_dirvar})
     file(MAKE_DIRECTORY ${_stage_dir}/${_dir})
