@@ -74,6 +74,12 @@ void HARNESS_EXPORT make_file_private(const std::string& file_name);
  */
 std::string HARNESS_EXPORT get_strerror(int err);
 
+/** @brief Rename a thread (useful for debugging purposes).
+ *
+ * @param thread_name thread name, 15 chars max
+ */
+void HARNESS_EXPORT rename_thread(const char thread_name[16]);
+
 }
 
 #endif /* MYSQL_HARNESS_COMMON_INCLUDED */

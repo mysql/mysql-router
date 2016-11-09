@@ -341,7 +341,7 @@ TEST_F(RoutingTests, bug_24841281) {
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(routing::AccessMode::kReadWrite, router_port,
                Protocol::Type::kXProtocol, "0.0.0.0", mysql_harness::Path("/tmp/sock"),
-               "testroute",
+               "routing:testroute",
                routing::kDefaultMaxConnections,
                routing::kDefaultDestinationConnectionTimeout,
                routing::kDefaultMaxConnectErrors,

@@ -285,7 +285,30 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
 #endif
 }
 
+static std::string make_thread_name(const std::string& config_name, const std::string& prefix) {
+
+  // at the time of writing, config_name = "routing:<config_from_conf_file>"
+  assert(config_name.find("routing:") != config_name.npos);
+  std::string key = config_name.substr(config_name.find(':') + 1);  // skip "routing:" prefix
+
+  // at the time of writing, config_from_conf_file by default are these 4:
+  // test_default_ro, test_default_rw, test_default_x_ro, test_default_x_rw
+  // since we're limited to 15 chars for thread name, we remove common
+  // "test_default_" so that suffixes ("x_ro", etc)  can fit
+  const char kPrefix[] = "test_default_";
+  if (key.find(kPrefix) != key.npos) {
+    key = key.substr(key.find(kPrefix) + sizeof(kPrefix) - 1);  // -1 for string terminator
+  }
+
+  std::string thread_name = prefix + ":" + key;
+  thread_name.resize(15); // max for pthread_setname_np()
+
+  return thread_name;
+}
+
 void MySQLRouting::start() {
+
+  mysql_harness::rename_thread(make_thread_name(name, "RtM").c_str());  // "Rt main" would be too long :(
   if (bind_address_.port > 0) {
     try {
       setup_tcp_service();
@@ -326,6 +349,8 @@ void MySQLRouting::start() {
 }
 
 void MySQLRouting::start_acceptor() {
+  mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
+
   int sock_client;
   struct sockaddr_in6 client_addr;
   socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);

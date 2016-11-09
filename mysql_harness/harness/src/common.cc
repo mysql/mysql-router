@@ -16,15 +16,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "common.h"
-#include <fstream>
 #include <sstream>
 #include <memory>
+#include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <string.h>
 #include <fstream>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <aclapi.h>
 #else
+#include <pthread.h>
 #include <sys/stat.h>
 #endif
 
@@ -310,4 +312,53 @@ std::string get_strerror(int err) {
   return result;
 }
 
+#ifdef _WIN32
+const DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push,8)
+typedef struct tagTHREADNAME_INFO
+{
+  DWORD dwType;
+  LPCSTR szName;
+  DWORD dwThreadID;
+  DWORD dwFlags;
+} THREADNAME_INFO;
+#pragma pack(pop)
+#endif
+
+void rename_thread(const char thread_name[16]) {
+
+// linux
+#ifdef __linux__
+  assert(strnlen(thread_name, 16) < 16);  // max allowed len for thread_name
+  pthread_setname_np(pthread_self(), thread_name);
+
+// windows
+#elif defined(_WIN32)
+#ifdef _DEBUG
+	// In Win32 API there is no API for setting thread name, but according to 
+	// Microsoft documentation, there is a "secret handshake" between debuggee
+	// & debugger using the special values used here.
+  THREADNAME_INFO info;
+  info.dwType = 0x1000;
+  info.szName = thread_name;
+  info.dwThreadID = GetCurrentThreadId();
+  info.dwFlags = 0;
+#pragma warning(push)
+#pragma warning(disable: 6320 6322)
+  __try{
+      RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+  }
+  __except (EXCEPTION_EXECUTE_HANDLER){
+  }
+#pragma warning(pop)
+#endif  // #ifdef _DEBUG
+
+// other
+#else
+  // TODO: on BSD/OSX, this should build but does not: pthread_setname_np(thread_name);
+  (void) thread_name;
+
+#endif
 }
+
+} // namespace mysql_harness

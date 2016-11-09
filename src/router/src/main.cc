@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-
+#include "common.h"
 #include "router_app.h"
 #include "windows/main-windows.h"
 
@@ -56,6 +56,8 @@ int real_main(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+  mysql_harness::rename_thread("main");
+
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);
 #else

@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "common.h"
 #include "destination.h"
 #include "logger.h"
 #include "mysqlrouter/datatypes.h"
@@ -210,6 +211,8 @@ void RouteDestination::cleanup_quarantine() noexcept {
 }
 
 void RouteDestination::quarantine_manager_thread() noexcept {
+  mysql_harness::rename_thread("RtQ:<unknown>");  //TODO change <unknown> to instance name
+
   std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
   while (!stopping_) {
     condvar_quarantine_.wait_for(lock, std::chrono::seconds(kTimeoutQuarantineConditional),

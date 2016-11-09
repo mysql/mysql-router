@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "common.h"
 #include "metadata_cache.h"
 
 #include <vector>
@@ -74,6 +75,7 @@ MetadataCache::~MetadataCache() {
  */
 void MetadataCache::start() {
   auto refresh_loop = [this] {
+    mysql_harness::rename_thread("MDC Refresh");
     bool valid_connection_ = false;
     while (!terminate_) {
       {
