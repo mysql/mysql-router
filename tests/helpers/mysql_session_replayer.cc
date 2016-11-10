@@ -137,7 +137,7 @@ MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &sql)
   return result;
 }
 
-uint64_t MySQLSessionReplayer::get_last_insert_id() {
+uint64_t MySQLSessionReplayer::last_insert_id() {
   return last_insert_id_;
 }
 

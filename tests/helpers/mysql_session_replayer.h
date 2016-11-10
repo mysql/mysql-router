@@ -36,7 +36,7 @@ public:
   virtual void query(const std::string &sql, const RowProcessor &processor) override;
   virtual ResultRow *query_one(const std::string &sql) override;
 
-  virtual uint64_t get_last_insert_id();  // TODO: not in base class. last_insert_id()?
+  virtual uint64_t last_insert_id() override;
 
   virtual std::string quote(const std::string &s, char qchar = '\'') override;
 
