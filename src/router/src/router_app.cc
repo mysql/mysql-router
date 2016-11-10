@@ -43,6 +43,7 @@
 #include <sys/fcntl.h>
 #endif
 #include <unistd.h>
+#include <signal.h>
 const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
@@ -118,6 +119,16 @@ static std::string substitute_variable(const std::string &s,
   return r;
 }
 
+static inline void set_signal_handlers() {
+#ifndef _WIN32
+  // until we have proper signal handling we need at least
+  // mask out broken pipe to prevent terminating the router
+  // if the receiving end closes the socket while the router
+  // writes to it
+  signal(SIGPIPE, SIG_IGN);
+#endif
+}
+
 
 MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
@@ -125,6 +136,7 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>
       showing_info_(false),
       origin_(origin)
 {
+  set_signal_handlers();
   init(arguments);
 }
 
