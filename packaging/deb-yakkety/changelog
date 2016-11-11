@@ -1,0 +1,5 @@
+mysql-router (2.1.1-1ubuntu16.10) yakkety; urgency=low
+
+  * initial version
+
+ -- Andrzej Religa <andrzej.religa@oracle.com>  Thu, 10 Nov 2016 11:00:00 +0200
