@@ -86,7 +86,12 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
       if (buffer[4] == 0xff) {
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
-        auto server_error = mysql_protocol::ErrorPacket(buffer);
+
+        // copy part of the buffer containing serialized error
+        RoutingProtocolBuffer buffer_err(buffer.begin(), buffer.begin() +
+                                         static_cast<RoutingProtocolBuffer::iterator::difference_type>(bytes_read));
+
+        auto server_error = mysql_protocol::ErrorPacket(buffer_err);
         if (socket_operations_->write_all(receiver, server_error.data(), server_error.size()) < 0) {
           log_debug("Write error: %s", get_message_error(errno).c_str());
         }
