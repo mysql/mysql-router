@@ -270,10 +270,10 @@ private:
    * Errors are logged.
    *
    * @param client socket descriptor fo the client connection
-   * @param client_addr IP address as sin6_addr struct
+   * @param client_addr IP address as sockaddr_storage struct
    * @param timeout timeout in seconds
    */
-  void routing_select_thread(int client, const in6_addr client_addr) noexcept;
+  void routing_select_thread(int client, const sockaddr_storage &client_addr) noexcept;
 
   void start_acceptor();
 

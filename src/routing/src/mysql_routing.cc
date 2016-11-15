@@ -144,7 +144,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
   return blocked;
 }
 
-void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr) noexcept {
+void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& client_addr) noexcept {
   int nfds;
   int res;
   int error = 0;
@@ -264,7 +264,7 @@ void MySQLRouting::routing_select_thread(int client, const in6_addr client_addr)
   } // while (true)
 
   if (!handshake_done) {
-    auto ip_array = in6_addr_to_array(client_addr);
+    auto ip_array = in_addr_to_array(client_addr);
     log_debug("[%s] Routing failed for %s: %s", name.c_str(), c_ip.first.c_str(), extra_msg.c_str());
     block_client_host(ip_array, c_ip.first.c_str(), server);
   }
@@ -350,7 +350,7 @@ void MySQLRouting::start_acceptor() {
   mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
 
   int sock_client;
-  struct sockaddr_in6 client_addr;
+  struct sockaddr_storage client_addr;
   socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
   int opt_nodelay = 1;
   int nfds = 0;
@@ -423,7 +423,7 @@ void MySQLRouting::start_acceptor() {
                   sock_client, bind_address_.str().c_str());
       }
 
-      if (conn_error_counters_[in6_addr_to_array(client_addr.sin6_addr)] >= max_connect_errors_) {
+      if (conn_error_counters_[in_addr_to_array(client_addr)] >= max_connect_errors_) {
         std::stringstream os;
         os << "Too many connection errors from " << get_peer_name(sock_client).first;
         protocol_->send_error(sock_client, 1129, os.str(), "HY000", name);
@@ -445,7 +445,7 @@ void MySQLRouting::start_acceptor() {
         continue;
       }
 
-      std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr.sin6_addr).detach();
+      std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
   } // while (!stopping())
   log_info("[%s] stopped", name.c_str());

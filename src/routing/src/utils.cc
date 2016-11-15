@@ -103,11 +103,23 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
   return split_string(data, delimiter, true);
 }
 
-std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr) {
-  std::array<uint8_t, 16> result;
-  for (int i = 0; i < 16; ++i) {
-    std::memcpy(result.data(), addr.s6_addr, 16);
+std::array<uint8_t, 16> in_addr_to_array(const sockaddr_storage &addr) {
+  std::array<uint8_t, 16> result{{0}};
+
+  switch (addr.ss_family) {
+  case AF_INET6:
+    {
+      const sockaddr_in6 *addr_intet6 = reinterpret_cast<const sockaddr_in6*>(&addr);
+      std::memcpy(result.data(), &addr_intet6->sin6_addr, sizeof(addr_intet6->sin6_addr));
+      break;
+    }
+  default:
+    {
+      const sockaddr_in *addr_intet = reinterpret_cast<const sockaddr_in*>(&addr);
+      std::memcpy(result.data(), &addr_intet->sin_addr, sizeof(addr_intet->sin_addr));
+    }
   }
+
   return result;
 }
 

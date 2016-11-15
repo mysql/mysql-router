@@ -67,25 +67,15 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
 /** @overload */
 std::vector<std::string> split_string(const std::string& data, const char delimiter);
 
-/** @brief Converts IPv6 in6_addr to std::array
+/** @brief Converts IP addr to std::array
  *
- * Converts a IPv6 address stored in a in6_addr struct to a
+ * Converts a IP address stored in a sockaddr_storage struct to a
  * std::array of size 16.
  *
- * @param addr a in6_addr struct
+ * @param addr a sockaddr_storage struct
  * @return std::array<uint8_t, 16>
  */
-std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
-
-/** @brief Converts IPv6 in6_addr to std::array
- *
- * Converts a IPv6 address stored in a in6_addr struct to a
- * std::array of size 16.
- *
- * @param addr a in6_addr struct
- * @return std::array<uint8_t, 16>
- */
-std::array<uint8_t, 16> in6_addr_to_array(in6_addr addr);
+std::array<uint8_t, 16> in_addr_to_array(const sockaddr_storage& addr);
 
 std::string get_message_error(int errcode);
 

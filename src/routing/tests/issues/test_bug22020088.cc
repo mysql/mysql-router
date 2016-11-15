@@ -153,11 +153,15 @@ TEST_F(Bug22020088, InvalidDefaultPort) {
 TEST_F(Bug22020088, BlockClientHost) {
   unsigned long long max_connect_errors = 2;
   unsigned int client_connect_timeout = 2;
-  in6_addr client_addr1, client_addr2;
-  client_addr1.s6_addr[15] = 1;
-  client_addr2.s6_addr[15] = 2;
-  auto client_ip_array1 = in6_addr_to_array(client_addr1);
-  auto client_ip_array2 = in6_addr_to_array(client_addr2);
+  sockaddr_in6 client_addr1, client_addr2;
+  client_addr1.sin6_family = client_addr2.sin6_family = AF_INET6;
+  unsigned char* p1 = reinterpret_cast<unsigned char*>(&client_addr1.sin6_addr);
+  p1[15] = 1;
+  unsigned char* p2 = reinterpret_cast<unsigned char*>(&client_addr2.sin6_addr);
+  p2[15] = 2;
+
+  auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
+  auto client_ip_array2 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr2));
 
   MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);
@@ -183,9 +187,11 @@ TEST_F(Bug22020088, BlockClientHost) {
 TEST_F(Bug22020088, BlockClientHostWithFakeResponse) {
   unsigned long long max_connect_errors = 2;
   unsigned int client_connect_timeout = 2;
-  in6_addr client_addr1;
-  client_addr1.s6_addr[15] = 1;
-  auto client_ip_array1 = in6_addr_to_array(client_addr1);
+  sockaddr_in6 client_addr1;
+  client_addr1.sin6_family = AF_INET6;
+  unsigned char* p = reinterpret_cast<unsigned char*>(&client_addr1.sin6_addr);
+  p[15] = 1;
+  auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
 
   MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);

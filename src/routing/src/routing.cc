@@ -170,10 +170,9 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
 
     res = select(sock + 1, &readfds, &writefds, &errfds, &timeout_val);
     if (res <= 0) {
+      this->shutdown(sock);
+      this->close(sock);
       if (res == 0) {
-        this->shutdown(sock);
-        this->close(sock);
-
         if (log) {
           log_warning("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
@@ -187,14 +186,20 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
       if (getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &error_len) == -1) {
         log_debug("Failed executing getsockopt on client socket: %s",
           get_message_error(errno).c_str());
+        this->shutdown(sock);
+        this->close(sock);
         continue;
       }
       if (so_error) {
         log_debug("Socket error: %s: %s (%d)", addr.str().c_str(), get_message_error(so_error).c_str(), so_error);
+        this->shutdown(sock);
+        this->close(sock);
         continue;
       }
     } else {
       log_debug("Failed connecting with MySQL server %s", addr.str().c_str());
+      this->shutdown(sock);
+      this->close(sock);
       continue;
     }
     break;
