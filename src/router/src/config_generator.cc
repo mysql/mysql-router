@@ -570,7 +570,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
         << "To allow secure storage of its password, please provide an encryption key.\n"
         << "To generate a random encryption key to be stored in a local obscured file,\n"
         << "and allow the router to start without interaction, press Return to cancel\n"
-        << "and use the --master-key-path option to specify a file location.\n\n";
+        << "and use the --master-key-file option to specify a file location.\n\n";
     again:
       master_key = prompt_password("Please provide an encryption key");
       if (master_key.empty()) {
