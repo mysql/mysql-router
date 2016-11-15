@@ -44,13 +44,3 @@ install(FILES ${metadata_cache_headers}
 if(ENABLE_TESTS)
     add_subdirectory(tests/)
 endif()
-
-if(BUILD_SAMPLES)
-  add_executable(metadatacache_test metadata_cache_dev.cc)
-  target_link_libraries(metadatacache_test metadata_cache ${MySQL_LIBRARIES})
-  if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
-    target_link_libraries(metadatacache_test -lnsl -lsocket)
-  endif()
-  set_target_properties(metadatacache_test PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${STAGE_DIR}/bin)
-endif(BUILD_SAMPLES)

@@ -19,12 +19,10 @@
 #endif
 
 #include "common.h"
-#include "dest_fabric_cache.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
 #include "logger.h"
 #include "mysql_routing.h"
-#include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
@@ -572,18 +570,7 @@ retry:
 #endif
 
 void MySQLRouting::set_destinations_from_uri(const URI &uri) {
-  if (uri.scheme == "fabric+cache") {
-    auto fabric_cmd = uri.path[0];
-    std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
-    if (fabric_cmd == "group") {
-      if (!fabric_cache::have_cache(uri.host)) {
-        throw runtime_error("Invalid Fabric Cache in URI; was '" + uri.host + "'");
-      }
-      destination_.reset(new DestFabricCacheGroup(uri.host, uri.path[1], mode_, uri.query));
-    } else {
-      throw runtime_error("Invalid Fabric command in URI; was '" + fabric_cmd + "'");
-    }
-  } else if (uri.scheme == "metadata-cache") {
+  if (uri.scheme == "metadata-cache") {
     // Syntax: metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY
     std::string replicaset_name = kDefaultReplicaSetName;
     std::string role;

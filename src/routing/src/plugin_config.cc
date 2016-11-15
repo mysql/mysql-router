@@ -18,7 +18,6 @@
 #include "plugin_config.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/routing.h"
-#include "mysqlrouter/fabric_cache.h"
 #include "mysqlrouter/metadata_cache.h"
 
 #include <algorithm>
@@ -146,14 +145,7 @@ string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigS
 
   try {
     auto uri = URI(value); // raises URIError when URI is invalid
-    if (uri.scheme == "fabric+cache") {
-      string fabric_cmd{uri.path.size() > 0 ? uri.path[0] : ""};
-      std::transform(fabric_cmd.begin(), fabric_cmd.end(), fabric_cmd.begin(), ::tolower);
-      if (fabric_cmd != "group") {
-        throw invalid_argument(
-            get_log_prefix(option) + " has an invalid Fabric command in URI; was '" + fabric_cmd + "'");
-      }
-    } else if (uri.scheme == "metadata-cache") {
+    if (uri.scheme == "metadata-cache") {
     } else {
       throw invalid_argument(
           get_log_prefix(option) + " has an invalid URI scheme '" + uri.scheme + "' for URI " + value);

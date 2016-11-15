@@ -16,7 +16,6 @@
 include_directories(
   ../include
   ../src
-  ${CMAKE_SOURCE_DIR}/src/fabric_cache/include
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
   ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
   ${CMAKE_SOURCE_DIR}/src/x_protocol/include
@@ -70,14 +69,14 @@ endif(MSVC)
 link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 
 add_library(routing_tests STATIC ${ROUTING_SOURCE_FILES})
-target_link_libraries(routing_tests routertest_helpers logger router_lib fabric_cache metadata_cache
+target_link_libraries(routing_tests routertest_helpers logger router_lib metadata_cache
                       mysql_protocol x_protocol ${PB_LIBRARY})
 set_target_properties(routing_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 add_library(routing_plugin_tests STATIC ${ROUTING_PLUGIN_SOURCE_FILES})
-target_link_libraries(routing_plugin_tests routing_tests routertest_helpers logger router_lib fabric_cache metadata_cache)
+target_link_libraries(routing_plugin_tests routing_tests routertest_helpers logger router_lib metadata_cache)
 set_target_properties(routing_plugin_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
 target_include_directories(routing_plugin_tests PRIVATE ${include_dirs})

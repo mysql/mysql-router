@@ -18,7 +18,6 @@
 #include <gtest/gtest_prod.h>
 
 #include "mysqlrouter/routing.h"
-#include "mysqlrouter/fabric_cache.h"
 #include "mysql_routing.h"
 #include "common.h"
 
@@ -449,32 +448,6 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
   // metadata-cache uri, role missing
   {
     URI uri("metadata-cache://test/default");
-    EXPECT_THROW(routing.set_destinations_from_uri(uri),
-                 std::runtime_error);
-  }
-
-  // valid fabric-cache uri
-  {
-    fabric_cache::g_fabric_cache_config_sections.clear();
-    fabric_cache::g_fabric_cache_config_sections.push_back("");
-    URI uri("fabric+cache:///group/my_group1?allow_primary_reads=YES");
-    EXPECT_NO_THROW(routing.set_destinations_from_uri(uri));
-  }
-
-  // fabric-cache, invalid command
-  {
-    fabric_cache::g_fabric_cache_config_sections.clear();
-    fabric_cache::g_fabric_cache_config_sections.push_back("");
-    URI uri("fabric+cache:///invalid-command/my_group1?allow_primary_reads=YES");
-    EXPECT_THROW(routing.set_destinations_from_uri(uri),
-                 std::runtime_error);
-  }
-
-  // fabric-cache, invalid host
-  {
-    fabric_cache::g_fabric_cache_config_sections.clear();
-    fabric_cache::g_fabric_cache_config_sections.push_back("");
-    URI uri("fabric+cache://10.20.30.40/group/my_group1?allow_primary_reads=YES");
     EXPECT_THROW(routing.set_destinations_from_uri(uri),
                  std::runtime_error);
   }

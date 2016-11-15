@@ -73,7 +73,7 @@ Debian-based 64-bit distributions.
         │       ├── libmysqlharness.so.0
         │       ├── libmysqlrouter.so.0
         │       └── mysqlrouter
-        │           ├── fabric_cache.so
+        │           ├── metadata_cache.so
         │           ├── keepalive.so
         │           ├── logger.so
         │           └── routing.so

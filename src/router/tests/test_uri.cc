@@ -69,9 +69,6 @@ TEST_F(URITests, ParseScheme)
   URI u;
   ASSERT_THAT(mysqlrouter::t_parse_scheme("ham:"), StrEq("ham"));
   ASSERT_THAT(mysqlrouter::t_parse_scheme("HAM:"), StrEq("ham"));
-  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL+Fabric:"), StrEq("mysql+fabric"));
-  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL.Fabric:"), StrEq("mysql.fabric"));
-  ASSERT_THAT(mysqlrouter::t_parse_scheme("MySQL-Fabric:"), StrEq("mysql-fabric"));
 }
 
 TEST_F(URITests, ParseSchemeFail)

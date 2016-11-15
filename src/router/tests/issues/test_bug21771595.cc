@@ -85,21 +85,6 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
   }
 }
 
-TEST_F(Bug21771595, ExceptionFabricCacheInvalidBindAddress) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[fabric_cache]\naddress=127.0.0.1:99999\n\n";
-  c.close();
-
-  MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-      "option address in [fabric_cache] is incorrect (invalid TCP port: impossible port number)"));
-  }
-}
-
 TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
@@ -127,19 +112,6 @@ TEST_F(Bug21771595, AppExecRoutingInvalidTimeout) {
   ASSERT_EQ(1, cmd_result.exit_code);
   ASSERT_THAT(cmd_result.output, HasSubstr(
     "Configuration error: option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
-}
-
-TEST_F(Bug21771595, AppExecFabricCacheInvalidBindAddress) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[fabric_cache]\naddress=127.0.0.1:99999\n\n";
-  c.close();
-  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
-  auto cmd_result = cmd_exec(cmd, true, "");
-
-  ASSERT_EQ(cmd_result.exit_code, 1);
-  ASSERT_THAT(cmd_result.output, HasSubstr(
-  "Configuration error: option address in [fabric_cache] is incorrect (invalid TCP port: impossible port number)"));
 }
 
 TEST_F(Bug21771595, AppExecMetadataCacheInvalidBindAddress) {

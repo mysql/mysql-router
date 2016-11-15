@@ -101,8 +101,6 @@ void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_
 
 static int init(const mysql_harness::AppInfo *info) {
   if (info->config != nullptr) {
-    bool have_fabric_cache = false;
-    bool need_fabric_cache = false;
     bool have_metadata_cache = false;
     bool need_metadata_cache = false;
     std::vector<TCPAddress> bind_addresses;
@@ -142,26 +140,18 @@ static int init(const mysql_harness::AppInfo *info) {
         // We check if we need special plugins based on URI
         try {
           auto uri = URI(config.destinations);
-          if (uri.scheme == "fabric+cache") {
-            need_fabric_cache = true;
-          } else if (uri.scheme == "metadata-cache") {
+          if (uri.scheme == "metadata-cache") {
             need_metadata_cache = true;
           }
         } catch (URIError) {
           // No URI, no extra plugin needed
         }
-      } else if (section->name == "fabric_cache") {
-        // We have fabric_cache
-        have_fabric_cache = true;
       } else if (section->name == "metadata_cache") {
         have_metadata_cache = true;
       }
     }
 
-    // Make sure we have at least one configuration for Fabric Cache when needed
-    if (need_fabric_cache && !have_fabric_cache) {
-      throw std::invalid_argument("Routing needs Fabric Cache, but no none was found in configuration.");
-    } else if (need_metadata_cache && !have_metadata_cache) {
+    if (need_metadata_cache && !have_metadata_cache) {
       throw std::invalid_argument("Routing needs Metadata Cache, but no none "
                                   "was found in configuration.");
     }
