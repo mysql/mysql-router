@@ -15,6 +15,13 @@
 
 include(GNUInstallDirs)
 
+# installed executable location (used in config.h)
+if(IS_ABSOLUTE "${INSTALL_BINDIR}")
+  set(ROUTER_BINDIR ${INSTALL_BINDIR})
+else()
+  set(ROUTER_BINDIR ${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR})
+endif()
+
 # Configuration folder (config_folder configuration option)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(_configdir "ENV{APPDATA}")

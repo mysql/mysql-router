@@ -214,12 +214,14 @@ static string fixpath(const string &path, const std::string &basedir) {
 #ifdef _WIN32
   if (path[0] == '\\' || path[0] == '/' || path[1] == ':')
     return path;
+  // if the path is not absolute, it must be relative to the origin
+  return basedir+"\\"+path;
 #else
   if (path[0] == '/')
     return path;
-#endif
   // if the path is not absolute, it must be relative to the origin
   return basedir+"/"+path;
+#endif
 }
 
 std::map<std::string, std::string> MySQLRouter::get_default_paths() {
@@ -234,6 +236,16 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
       {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
       {"state_folder", fixpath(MYSQL_ROUTER_SECURE_FILE_PRIVDIR, basedir)}
   };
+#ifndef _WIN32
+  // check if the executable is being ran from the install location and if not
+  // set the plugin dir to a path relative to it
+  {
+    mysql_harness::Path install_origin(fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
+    if (!(install_origin.real_path() == origin_)) {
+      params["plugin_folder"] = origin_.dirname().join("lib/mysqlrouter").str();
+    }
+  }
+#endif
 
   // resolve environment variables & relative paths
   for (auto it : params) {
