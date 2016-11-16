@@ -17,6 +17,7 @@
 
 #include "cluster_metadata.h"
 #include "common.h"
+#include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
 #include <memory>
 #include <cassert>
@@ -44,6 +45,7 @@ static const int kClusterRequiredMetadataMajorVersion = 1;
 static const int kClusterRequiredMetadataMinorVersion = 0;
 static const int kClusterRequiredMetadataPatchVersion = 0;
 
+using mysqlrouter::strtoi_checked;
 using mysqlrouter::sqlstring;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::MySQLInnoDBClusterMetadata;
@@ -126,9 +128,9 @@ static bool check_version(MySQLSession *mysql, std::tuple<int,int,int> &version)
     minor = 0;
     patch = 0;
   } else {
-    major = std::atoi((*result)[0]);
-    minor = std::atoi((*result)[1]);
-    patch = std::atoi((*result)[2]);
+    major = strtoi_checked((*result)[0]);
+    minor = strtoi_checked((*result)[1]);
+    patch = strtoi_checked((*result)[2]);
   }
   version = std::make_tuple(major, minor, patch);
 
@@ -177,8 +179,8 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
       assert(result->size() == 2);
-      int online = std::atoi((*result)[0]);
-      int all = std::atoi((*result)[1]);
+      int online = strtoi_checked((*result)[0]);
+      int all = strtoi_checked((*result)[1]);
       //log_info("%d members online out of %d", online, all);
       if (online >= all/2+1)
         return true;
@@ -199,7 +201,7 @@ static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
       assert(result->size() == 3);
-      int single_primary_mode = std::atoi((*result)[0]);
+      int single_primary_mode = strtoi_checked((*result)[0]);
       if (!single_primary_mode || strcmp((*result)[1], (*result)[2]) == 0)
         return true;
       // log_info("Single Primary Mode = %s, Current member is %sprimary",
@@ -228,13 +230,14 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
       assert(result->size() == 2);
-      int has_only_one_replicaset = std::atoi((*result)[0]) == 1;
-      int replicaset_is_ours = 1;
+      bool has_only_one_replicaset = strtoi_checked((*result)[0]) == 1;
+      bool replicaset_is_ours = true;
       if (version_matches(std::make_tuple(1, 0, 1), version))
-        replicaset_is_ours = std::atoi((*result)[1]) == 1;
+        replicaset_is_ours = strtoi_checked((*result)[1]) == 1;
+
       // log_info("Replicaset/Cluster is unique = %i, Replicaset is our own = %i",
       //           has_only_one_replicaset, replicaset_is_ours);
-      return has_only_one_replicaset > 0 && replicaset_is_ours > 0;
+      return has_only_one_replicaset && replicaset_is_ours;
     }
   } catch (std::exception &e) {
     // log_error("Error querying for group_replication state: %s", e.what());

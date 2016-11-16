@@ -28,6 +28,7 @@
 #include <iostream>
 #include <fstream>
 #include <cctype>
+#include <climits>
 #include <stdexcept>
 #include <functional>
 #include <string.h>
@@ -471,8 +472,7 @@ bool is_running_as_service() {
 }
 #endif
 
-bool is_valid_socket_name(const std::string &socket, std::string &err_msg)
-{
+bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   bool result = true;
 
 #ifndef _WIN32
@@ -484,5 +484,39 @@ bool is_valid_socket_name(const std::string &socket, std::string &err_msg)
 
   return result;
 }
+
+int strtoi_checked(const char* value, const int default_value) {
+  if (value == nullptr)
+    return default_value;
+
+  char* tmp {nullptr};
+  // NOTE: we need to play with errno here as it is not enough to check
+  // for LONG_MIN, LONG_MAX as these are still valid values and ERANGE
+  // can be the result of some previous operation
+  auto old_errno = errno;
+  errno = 0;
+
+  auto result = std::strtol(value, &tmp, 10);
+
+  // if our operation did not set the errno let's be kind enough
+  // to restore it's old value
+  auto our_errno = errno;
+  if (errno == 0) {
+    errno = old_errno;
+  }
+
+  // check if the conversion was valid
+  if (value == tmp || *tmp != '\0' || our_errno == ERANGE) {
+    return default_value;
+  }
+
+  // check if the value fits int
+  if (result < static_cast<long>(INT_MIN) || result > static_cast<long>(INT_MAX)) {
+    return default_value;
+  }
+
+  return static_cast<int>(result);
+}
+
 
 } // namespace mysqlrouter

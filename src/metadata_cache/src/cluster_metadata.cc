@@ -21,6 +21,7 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 
 #include <algorithm>
 #include <cassert>
@@ -36,6 +37,7 @@
 #include <errmsg.h>
 
 using mysqlrouter::MySQLSession;
+using mysqlrouter::strtoi_checked;
 
 /**
  * Return a string representation of the input character string.
@@ -377,14 +379,14 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
     s.mysql_server_uuid = get_string(row[1]);
     s.role = get_string(row[2]);
     s.weight = row[3] ? std::strtof(row[3], nullptr) : 0;
-    s.version_token = row[4] ? static_cast<unsigned int>(std::atoi(row[4])) : 0;
+    s.version_token = row[4] ? static_cast<unsigned int>(strtoi_checked(row[4])) : 0;
     s.location = get_string(row[5]);
     try {
       std::string uri = get_string(row[6]);
       std::string::size_type p;
       if ((p = uri.find(':')) != std::string::npos) {
         s.host = uri.substr(0, p);
-        s.port = static_cast<unsigned int>(std::atoi(uri.substr(p+1).c_str()));
+        s.port = static_cast<unsigned int>(strtoi_checked(uri.substr(p+1).c_str()));
       } else {
         s.host = uri;
         s.port = 3306;
@@ -401,7 +403,7 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
         std::string::size_type p;
         if ((p = uri.find(':')) != std::string::npos) {
           s.host = uri.substr(0, p);
-          s.xport = static_cast<unsigned int>(std::atoi(uri.substr(p+1).c_str()));
+          s.xport = static_cast<unsigned int>(strtoi_checked(uri.substr(p+1).c_str()));
         } else {
           s.host = uri;
           s.xport = 33060;

@@ -195,6 +195,14 @@ void copy_file(const std::string &from, const std::string &to);
  */
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
 
+/** @brief Converts char array to integer using std::atol()
+ *         adding check for null parameter.
+ *
+ * @param value           char array to get converted
+ * @param default_result  value to return in case of nullptr being passed
+ */
+int strtoi_checked(const char* value, const int default_result = 0);
+
 } // namespace mysqlrouter
 
 /** @brief Declare test (class)

@@ -48,7 +48,9 @@ public:
 
     operator const std::string&() const { return s_; }
     operator bool() const { return !is_null_; }
-    const char *c_str() const { return s_.c_str(); }
+    const char *c_str() const {
+        return !is_null_ ? s_.c_str() : nullptr;
+    }
   private:
     std::string s_;
     bool is_null_;
