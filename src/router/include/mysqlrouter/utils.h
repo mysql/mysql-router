@@ -124,8 +124,8 @@ std::string hexdump(const unsigned char *buffer, size_t count, long start = 0, b
 
 /** @brief Returns the platform specific error code of last operation
  * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
- * If myerrnum arg is not zero will use GetLastError in Windows (if myerrnum is zero in Unix will read *current* the errno).
- * @return the error code
+ * If myerrnum arg is not zero will use GetLastError in Windows (if myerrnum is zero in Unix will read the *current* errno).
+ * @return the error code description
  */
 std::string get_last_error(int myerrnum = 0);
 
@@ -196,7 +196,13 @@ int delete_file(const std::string& path);
  */
 void copy_file(const std::string &from, const std::string &to);
 
-/** @brief Returns whether the scoket name passed a parameter is valid
+/** @brief renames file, returns 0 if succeed, or positive error code if fails.
+ * 
+ * The function will overwrite the 'to' file if already exists.
+ */
+int rename_file(const std::string &from, const std::string &to);
+
+/** @brief Returns whether the socket name passed as parameter is valid
  */
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
 

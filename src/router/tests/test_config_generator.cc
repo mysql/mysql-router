@@ -18,6 +18,7 @@
 #include "router_test_helpers.h"
 #include "mysqlrouter/utils.h"
 #include "config_parser.h"
+#include "gtest_consoleoutput.h"
 
 #include <cstring>
 #include <fstream>
@@ -49,10 +50,19 @@
 #include "mysql_session_replayer.h"
 #include "cluster_metadata.h"
 
-class ConfigGeneratorTest : public ::testing::Test {
+std::string g_cwd;
+mysql_harness::Path g_origin;
+
+class ConfigGeneratorTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    set_origin(g_origin);
+    ConsoleOutputTest::SetUp();
+    config_path.reset(new Path(g_cwd));
+    config_path->append("Bug24570426.ini");
   }
+
+  std::unique_ptr<Path> config_path;
 };
 
 using ::testing::Return;
@@ -929,7 +939,7 @@ static void bootstrap_name_test(const std::string &dir,
 
 
 TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
-  const std::string dir = "bug24807941";
+  const std::string dir = "./bug24807941";
   mysqlrouter::delete_recursive(dir);
 
   // Bug#24807941
@@ -975,12 +985,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
 
 
 TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
-  const std::string dir = "bug24808634";
+  const std::string dir = "./bug24808634";
   mysqlrouter::delete_recursive(dir);
-  mysqlrouter::delete_file("delme.key");
+  mysqlrouter::delete_file("./bug24808634/delme.key");
 
   ASSERT_FALSE(mysql_harness::Path(dir).exists());
-  ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
+  ASSERT_FALSE(mysql_harness::Path("./bug24808634/delme.key").exists());
   // cleanup on failure when dir didn't exist before
   {
     MySQLSessionReplayer mysql;
@@ -996,12 +1006,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "delme.key"),
+          options, "delme", "./bug24808634/delme.key"),
       mysqlrouter::MySQLSession::Error,
       "boo!");
 
     ASSERT_FALSE(mysql_harness::Path(dir).exists());
-    ASSERT_FALSE(mysql_harness::Path("delme.key").exists());
+    ASSERT_FALSE(mysql_harness::Path("./bug24808634/delme.key").exists());
   }
   mysql_harness::reset_keyring();
 
@@ -1019,10 +1029,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "delme.key"));
+          options, "delme", "./bug24808634/delme.key"));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+    ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
   }
   mysql_harness::reset_keyring();
 
@@ -1042,12 +1052,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "delme.key"),
+            options, "delme", "./bug24808634/delme.key"),
       std::runtime_error,
       "boo!");
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+    ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
   }
   mysql_harness::reset_keyring();
 
@@ -1065,14 +1075,14 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "delme.key"),
+            options, "delme", "./bug24808634/delme.key"),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path("delme.key").exists());
+    ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
   }
   mysql_harness::reset_keyring();
   mysqlrouter::delete_recursive(dir);
-  mysqlrouter::delete_file("delme.key");
+  mysqlrouter::delete_file("./bug24808634/delme.key");
 }
 
 
@@ -1098,12 +1108,12 @@ static void bootstrap_overwrite_test(const std::string &dir,
   if (force)
     options["force"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
-      options, "delme", dir+"/delme.key");
+    options, "delme", dir + "/delme.key");
 }
 
 
 TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
-  const std::string dir = "configtest";
+  std::string dir = "./configtest";
 
   // pre-cleanup just in case
   mysqlrouter::delete_recursive(dir);
@@ -1124,14 +1134,17 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   //
   // diff name is just a rename, so no issue
 
+  SCOPED_TRACE("bootstrap_overwrite1");
   // same    no          same           OK (refreshing config)
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  SCOPED_TRACE("bootstrap_overwrite2");
+  dir = "./configtest2";
   // same    no          diff           FAIL
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
@@ -1140,32 +1153,40 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest3";
+  SCOPED_TRACE("bootstrap_overwrite3");
   // same    yes         same           OK
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest4";
+  SCOPED_TRACE("bootstrap_overwrite4");
   // same    yes         diff           OK (replacing config)
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest5";
+  SCOPED_TRACE("bootstrap_overwrite5");
   // diff    no          same           OK (refreshing config)
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest6";
+  SCOPED_TRACE("bootstrap_overwrite6");
   // diff    no          diff           FAIL
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
@@ -1174,23 +1195,27 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest7";
+  SCOPED_TRACE("bootstrap_overwrite7");
   // diff    yes         same           OK
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 
+  dir = "./configtest8";
+  SCOPED_TRACE("bootstrap_overwrite8");
   // diff    yes         diff           OK (replacing config)
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
   mysql_harness::reset_keyring();
   ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  mysqlrouter::delete_recursive(dir);
+  ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 }
 
 
@@ -1241,7 +1266,7 @@ TEST_F(ConfigGeneratorTest, key_too_long) {
 
 TEST_F(ConfigGeneratorTest, bad_master_key) {
   // bug #24955928
-  mysqlrouter::delete_recursive("delme");
+  mysqlrouter::delete_recursive("./delme");
   // reconfiguring with an empty master key file throws an error referencing
   // the temporary file name instead of the actual name
   {
@@ -1256,7 +1281,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
-    config_gen.bootstrap_directory_deployment("delme",
+    config_gen.bootstrap_directory_deployment("./delme",
         options, "delme", "delme/key");
 
     mysql_harness::reset_keyring();
@@ -1276,7 +1301,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     options["name"] = "foo";
     options["quiet"] = "1";
     try {
-      config_gen.bootstrap_directory_deployment("delme",
+      config_gen.bootstrap_directory_deployment("./delme",
           options, "delme", "emptyfile");
       FAIL() << "Was expecting exception but got none\n";
     } catch (std::runtime_error &e) {
@@ -1284,7 +1309,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
         FAIL() << "Exception text is: " << e.what() << "\n";
       ASSERT_STREQ(e.what(), "Invalid master key file emptyfile");
     }
-    mysqlrouter::delete_recursive("delme");
+    mysqlrouter::delete_recursive("./delme");
     mysqlrouter::delete_file("emptyfile");
     mysql_harness::reset_keyring();
   }
@@ -1301,20 +1326,29 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
+#ifndef _WIN32
     ASSERT_THROW_LIKE(
-        config_gen.bootstrap_directory_deployment("delme",
+        config_gen.bootstrap_directory_deployment("./delme",
           options, "delme", "."),
         std::runtime_error,
         "Unable to save master key to .: Is a directory");
+#else
+    ASSERT_THROW_LIKE(
+      config_gen.bootstrap_directory_deployment("./delme",
+        options, "delme", "."),
+      std::runtime_error,
+      "Permission denied");
+#endif
 
-    mysqlrouter::delete_recursive("delme");
+
+    mysqlrouter::delete_recursive("./delme");
     mysql_harness::reset_keyring();
   }
 }
 
 
 TEST_F(ConfigGeneratorTest, full_test) {
-  mysqlrouter::delete_recursive("delme");
+  mysqlrouter::delete_recursive("./delme");
 
   StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
@@ -1328,7 +1362,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   options["name"] = "foo";
   options["quiet"] = "1";
   ASSERT_NO_THROW(
-      config_gen.bootstrap_directory_deployment("delme",
+      config_gen.bootstrap_directory_deployment("./delme",
         options, "delme", "delme/masterkey"));
 
   std::string value;
@@ -1350,6 +1384,8 @@ TEST_F(ConfigGeneratorTest, full_test) {
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
+  g_origin = mysql_harness::Path(argv[0]).dirname();
+  g_cwd = mysql_harness::Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

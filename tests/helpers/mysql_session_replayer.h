@@ -71,6 +71,8 @@ public:
 
 private:
   struct CallInfo {
+    CallInfo() {}
+    CallInfo(const CallInfo& ci);
     std::string sql;
     enum Type {
       Execute,

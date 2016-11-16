@@ -44,6 +44,7 @@
 #include <windows.h>
 #include <direct.h>
 #include <io.h>
+#include <stdio.h>
 #endif
 
 using std::string;
@@ -121,6 +122,26 @@ void copy_file(const std::string &from, const std::string &to) {
   ifile.close();
 }
 
+int rename_file(const std::string &from, const std::string &to)
+{
+#ifndef _WIN32
+  if (rename(from.c_str(), to.c_str()))
+    return 0;
+  else
+    return errno;
+#else
+  // In Windows, rename fails if the file destination alreayd exists, so ...
+  if (MoveFileExA(from.c_str(), to.c_str(), 
+    MOVEFILE_REPLACE_EXISTING |  // override existing file
+    MOVEFILE_COPY_ALLOWED |      // allow copy of file to different drive
+    MOVEFILE_WRITE_THROUGH       // don't return until the operation is physically finished
+  ))
+    return 0;
+  else
+    return GetLastError();
+#endif
+}
+
 int mkdir(const std::string& dir, int mode) {
 #ifndef _WIN32
   return ::mkdir(dir.c_str(), static_cast<mode_t>(mode));
@@ -141,7 +162,22 @@ int delete_file(const std::string& path) {
 #ifndef _WIN32
   return ::unlink(path.c_str());
 #else
-  return DeleteFile(path.c_str()) ? 0 : -1;
+  // In Windows a file recently closed may fail to be deleted because its 
+  // still be locked (or have a 3rd party reading it, like an Indexer service 
+  // or AntiVirus). So the recommended is to retry the delete operation.
+  BOOL flag = TRUE;
+  int max_attempts = 10;
+  while (max_attempts--)
+  {
+    flag = DeleteFile(path.c_str());
+    DWORD err = GetLastError();
+    if (flag) break;
+    else if (err == ERROR_FILE_NOT_FOUND) { flag = 1; break; }
+    else if (err == ERROR_ACCESS_DENIED) { Sleep(100); continue; }
+    else { return -1; }
+  }
+  
+  return flag ? 0 : -1;
 #endif
 }
 

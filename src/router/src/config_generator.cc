@@ -106,7 +106,7 @@ static bool is_valid_name(const std::string& name) {
 
 class AutoCleaner {
 public:
-  void add_file_delete(const std::string &f) {
+    void add_file_delete(const std::string &f) {
     _files[f] = File;
   }
 
@@ -365,12 +365,18 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       std::cout << "\nExisting configurations backed up to " << config_file_path.str()+".bak" << "\n";
   }
 
-  // rename the .tmp file to the final file
-  if (rename((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) < 0) {
+  // rename the .tmp file to the final file  
+  int err;
+  if ((err = mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str())) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not move configuration file '" +
-              config_file_path.str()+".tmp' to final location");
+      config_file_path.str() + ".tmp' to final location: "
+#ifndef _WIN32
+      + get_strerror(err));
+#else
+      + mysqlrouter::get_last_error(err));
+#endif
   }
 
   mysql_harness::make_file_private(config_file_path.str());
@@ -463,6 +469,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
   AutoCleaner auto_clean;
+
 
   if (!keyring_master_key_file.empty())
     auto_clean.add_file_revert(keyring_master_key_file);
