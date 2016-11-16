@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <memory>
+#include <cmath>  // fabs()
 
 /**
  * Initialize a connection to the MySQL Metadata server.
@@ -132,18 +133,17 @@ std::vector<metadata_cache::ManagedInstance> MetadataCache::replicaset_lookup(
   return replicaset_data_[replicaset_name];
 }
 
-inline bool operator == (const metadata_cache::ManagedInstance &a,
-    const metadata_cache::ManagedInstance &b) {
-  return (a.replicaset_name == b.replicaset_name &&
-      a.mysql_server_uuid == b.mysql_server_uuid &&
-      a.role == b.role &&
-      a.mode == b.mode &&
-      a.weight == b.weight &&
-      a.version_token == b.version_token &&
-      a.location == b.location &&
-      a.host == b.host &&
-      a.port == b.port &&
-      a.xport == b.xport);
+bool metadata_cache::ManagedInstance::operator==(const ManagedInstance& other) const {
+  return mysql_server_uuid == other.mysql_server_uuid &&
+         replicaset_name == other.replicaset_name &&
+         role == other.role &&
+         mode == other.mode &&
+         std::fabs(weight - other.weight) < 0.001 &&  // 0.001 = reasonable guess, change if needed
+         host == other.host &&
+         location == other.location &&
+         port == other.port &&
+         version_token == other.version_token &&
+         xport == other.xport;
 }
 
 inline bool compare_instance_lists(const MetaData::InstancesByReplicaSet &map_a,

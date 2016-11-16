@@ -37,13 +37,6 @@
 #  define METADATA_TESTS_API
 #endif
 
-namespace metadata_cache {
- /**
-  * Compare two server objects, found in the metadata cache.
-  */
-  bool METADATA_TESTS_API operator == (const metadata_cache::ManagedInstance & s1, const metadata_cache::ManagedInstance & s2);
- }
-
 /** @class MockNG
  *
  * Used for simulating NG metadata for testing purposes.

@@ -76,6 +76,8 @@ enum class METADATA_API InstanceStatus {
  */
 class METADATA_API ManagedInstance {
 public:
+  bool operator==(const ManagedInstance& other) const;
+
   /** @brief The name of the replicaset to which the server belongs */
   std::string replicaset_name;
   /** @brief The uuid of the MySQL server */

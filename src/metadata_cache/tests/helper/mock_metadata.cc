@@ -26,24 +26,6 @@
 
 using namespace std;
 
-namespace metadata_cache {
-  /**
-   * Compare two server objects found in the metadata server.
-   */
-  bool operator == (const metadata_cache::ManagedInstance & s1, const metadata_cache::ManagedInstance & s2) {
-    return (s1.replicaset_name == s2.replicaset_name &&
-            s1.mysql_server_uuid == s2.mysql_server_uuid &&
-            s1.host == s2.host &&
-            s1.port == s2.port &&
-            s1.xport == s2.xport &&
-            s1.mode == s2.mode &&
-            s1.role == s2.role &&
-            s1.weight == s2.weight &&
-            s1.location == s2.location &&
-            s1.version_token == s2.version_token);
-  }
-}
-
 /** @brief Constructor
  * @param bootstrap_servers The servers that store the metadata.
  * @param user The user name used to authenticate to the metadata server.
