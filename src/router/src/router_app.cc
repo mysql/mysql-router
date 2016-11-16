@@ -199,6 +199,16 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
     if (!master_key_path.empty()) {
       mysql_harness::init_keyring(keyring_file, master_key_path, false);
     } else {
+#ifdef _WIN32
+      // When no master key file is provided, console interaction is required to provide a master password. Since console interaction is not available when
+      // run as service, throw an error to abort.
+      if (mysqlrouter::is_running_as_service())
+      {
+        std::string msg = "Cannot run router in Windows a service without a master key file. Please use the --master-key-file option during boostrap or run MySQL Router from the command line (instead of as a service).";
+        mysqlrouter::write_windows_event_log(msg);
+        throw std::runtime_error(msg);
+      }
+#endif
       std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
       if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
         throw std::runtime_error("Encryption key is too long");
@@ -592,6 +602,16 @@ void MySQLRouter::prepare_command_options() noexcept {
 void MySQLRouter::bootstrap(const std::string &server_url) {
   mysqlrouter::ConfigGenerator config_gen;
   config_gen.init(server_url);
+
+#ifdef _WIN32
+  // Cannot run boostrap mode as windows service since it requires console interaction.
+  if (mysqlrouter::is_running_as_service())
+  {
+    std::string msg = "Cannot run router in boostrap mode as Windows service.";
+    mysqlrouter::write_windows_event_log(msg);
+    throw std::runtime_error(msg);
+  }
+#endif
 
   try {
     if (bootstrap_directory_.empty()) {

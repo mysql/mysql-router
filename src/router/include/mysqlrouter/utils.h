@@ -141,6 +141,11 @@ void set_prompt_password(const std::function<std::string (const std::string &)> 
 /** @brief Returns whether if the router process is running as a Windows Service
  */
 bool is_running_as_service();
+
+/** @brief Writes to the Windows event log.
+ */
+void write_windows_event_log(const std::string& msg);
+
 #endif
 
 /** @brief Substitutes placeholders of environment variables in a string

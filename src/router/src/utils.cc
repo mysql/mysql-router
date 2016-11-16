@@ -470,6 +470,21 @@ bool is_running_as_service() {
   }
   return result;
 }
+
+void write_windows_event_log(const std::string& msg) {
+  static const std::string event_source_name = "MySQL Router";
+  HANDLE event_src = NULL;
+  LPCSTR strings[2] = { NULL, NULL };
+  event_src = RegisterEventSourceA(NULL, event_source_name.c_str());
+  if (event_src) {
+    strings[0] = event_source_name.c_str();
+    strings[1] = msg.c_str();
+    ReportEventA(event_src, EVENTLOG_ERROR_TYPE, 0, 0, NULL, 2, 0, strings, NULL);
+    DeregisterEventSource(event_src);
+  } else {
+    throw std::runtime_error("Cannot create event log source, error: " + std::to_string(GetLastError()));
+  }
+}
 #endif
 
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {

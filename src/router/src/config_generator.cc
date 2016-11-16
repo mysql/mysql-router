@@ -560,6 +560,15 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
         const std::string &keyring_master_key_file) {
   if (keyring_master_key_file.empty()) {
     std::string master_key;
+#ifdef _WIN32
+    // When no master key file is provided, console interaction is required to provide a master password. Since console interaction is not available when
+    // run as service, throw an error to abort.
+    if (mysqlrouter::is_running_as_service()) {
+      std::string msg = "Cannot run router in Windows a service without a master key file. Please use the --master-key-file option during boostrap or run MySQL Router from the command line (instead of as a service).";
+      mysqlrouter::write_windows_event_log(msg);
+      throw std::runtime_error(msg);
+    }
+#endif
     if (mysql_harness::Path(keyring_file).exists()) {
       master_key = prompt_password("Please provide the encryption key for key file at "+keyring_file);
       if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
