@@ -25,12 +25,15 @@
 
 #include <memory>
 #include <map>
+#include <cmath>
 #include <algorithm>
 #include <set>
 
-// GMock throws sign-conversions warnings on Clang
 #ifdef __clang__
+// GMock doesn't know about override keyword which Clang complains about
+#pragma clang diagnostic ignored "-Winconsistent-missing-override"
 #pragma clang diagnostic push
+// GMock throws sign-conversions warnings on Clang
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 #include "gmock/gmock.h"
@@ -265,38 +268,38 @@ class MetadataTest : public ::testing::Test {
     EXPECT_TRUE(metadata.connect(metadata_servers));
   }
 
-  void enable_connection(int session, int port) {
+  void enable_connection(unsigned session, unsigned port) {
     session_factory.get(session).set_good_conns({std::string("127.0.0.1:") + std::to_string(port)});  // \_ new connection
     EXPECT_CALL(session_factory.get(session), flag_succeed(_, port)).Times(1);                        // /  should succeed
   }
 
   //----- mock SQL queries -------------------------------------------------------
 
-  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_ok(int session) {
+  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_ok(unsigned session) {
     return [this, session](const std::string&, const MySQLSession::RowProcessor& processor) {
       session_factory.get(session).query_impl(processor, {{"group_replication_primary_member", "instance-1"}}); // typical response
     };
   }
 
-  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_empty(int session) {
+  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_empty(unsigned session) {
     return [this, session](const std::string&, const MySQLSession::RowProcessor& processor) {
       session_factory.get(session).query_impl(processor, {{"group_replication_primary_member", ""}}); // empty response
     };
   }
 
-  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_fail(int session) {
+  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_primary_member_fail(unsigned session) {
     return [this, session](const std::string&, const MySQLSession::RowProcessor& processor) {
       session_factory.get(session).query_impl(processor, {}, false); // false = induce fail query
     };
   }
 
-  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_status_fail(int session) {
+  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_status_fail(unsigned session) {
     return [this, session](const std::string&, const MySQLSession::RowProcessor& processor) {
       session_factory.get(session).query_impl(processor, {}, false); // false = induce fail query
     };
   }
 
-  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_status_ok(int session) {
+  std::function<void(const std::string&, const MySQLSession::RowProcessor& processor)> query_status_ok(unsigned session) {
     return [this, session](const std::string&, const MySQLSession::RowProcessor& processor) {
       session_factory.get(session).query_impl(processor, {
         {"instance-1", "ubuntu", "3310", "ONLINE", "1"},  // \.
@@ -934,7 +937,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
   //   iteration 3 (instance-3): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member should go to existing connection (shared with metadata server) -> make the query fail
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -985,7 +988,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes)
   //   iteration 3 (instance-3): CAN'T CONNECT
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member should go to existing connection (shared with metadata server) -> make the query fail
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1028,7 +1031,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
   //   iteration 2 (instance-2): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member should go to existing connection (shared with metadata server) -> make the query fail
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1069,7 +1072,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
   //   iteration 3 (instance-3): query_primary_member FAILS
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member should go to existing connection (shared with metadata server) -> make the query fail
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1123,7 +1126,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
   //   iteration 2 (instance-2): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member: let's return "instance-1"
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1168,7 +1171,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
   //   iteration 2 (instance-2): query_primary_member OK, query_status FAILS
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member: let's return "instance-1"
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1232,7 +1235,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
   //   iteration 1 (instance-1): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: all requests go to existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   // 1st query_primary_member: let's return "instance-1"
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_primary_member), _)).Times(1)
@@ -1272,7 +1275,7 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
   connect_to_first_metadata_server();
 
   // update_replicaset_status() first iteration: all requests go to existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   auto resultset_metadata = [this](const std::string&, const MySQLSession::RowProcessor& processor) {
     session_factory.get(0).query_impl(processor, {
@@ -1302,7 +1305,7 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
   connect_to_first_metadata_server();
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
-  int session = 0;
+  unsigned session = 0;
 
   auto resultset_metadata = [this](const std::string&, const MySQLSession::RowProcessor& processor) {
     session_factory.get(0).query_impl(processor, {
@@ -1330,4 +1333,3 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
     FAIL() << "Expected metadata_cache::metadata_error to be thrown";
   }
 }
-
