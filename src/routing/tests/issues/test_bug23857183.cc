@@ -65,15 +65,17 @@ TEST_F(Bug23857183, ConnectToServerWrongPort) {
   connect_to(addr);
 }
 
+#ifndef __APPLE__
+// in darwin, attempting connection to 127.0.0.11 will fail by timeout
 TEST_F(Bug23857183, ConnectToServerWrongIpAndPort) {
   mysqlrouter::TCPAddress addr("127.0.0.11", 10888);
 
   connect_to(addr);
 }
+#endif
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-
