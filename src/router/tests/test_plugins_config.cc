@@ -15,11 +15,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-/**
- * BUG22195343 SHOW DESCRIPTIVE ERROR WHEN NO PLUGINS ARE LOADED
- *
- */
-
 #include "gtest_consoleoutput.h"
 #include "cmd_exec.h"
 #include "router_app.h"
@@ -36,13 +31,13 @@ using std::string;
 string g_cwd;
 Path g_origin;
 
-class Bug22195343 : public ConsoleOutputTest {
+class PluginsConfigTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
-    config_path->append("Bug22195343.ini");
+    config_path->append("PluginsConfigTest.ini");
   }
 
   void reset_config() {
@@ -60,7 +55,7 @@ protected:
   std::unique_ptr<Path> config_path;
 };
 
-TEST_F(Bug22195343, NoPluginLoaded) {
+TEST_F(PluginsConfigTest, NoPluginLoaded) {
   reset_config();
 
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
@@ -69,7 +64,7 @@ TEST_F(Bug22195343, NoPluginLoaded) {
   ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
 }
 
-TEST_F(Bug22195343, OnlyLoggerLoaded) {
+TEST_F(PluginsConfigTest, OnlyLoggerLoaded) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
   c << "[logger]\n";
@@ -80,6 +75,34 @@ TEST_F(Bug22195343, OnlyLoggerLoaded) {
   auto cmd_result = cmd_exec(cmd, true);
 
   ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
+}
+
+TEST_F(PluginsConfigTest, TwoMetadadaCacheSections) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[logger]\n\n";
+  c << "[metadata_cache:one]\n\n";
+  c << "[metadata_cache:two]\n\n";
+  c.close();
+
+  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
+  auto cmd_result = cmd_exec(cmd, true);
+
+  ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router currently supports only one metadata_cache instance."));
+}
+
+TEST_F(PluginsConfigTest, SingleMetadataChacheSection) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[logger]\n\n";
+  c << "[metadata_cache:one]\n\n";
+  c.close();
+
+  string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
+  auto cmd_result = cmd_exec(cmd, true);
+
+  // shoule be ok but complain about missing user option
+  ASSERT_THAT(cmd_result.output, HasSubstr("option user in [metadata_cache:one] is required"));
 }
 
 int main(int argc, char *argv[]) {

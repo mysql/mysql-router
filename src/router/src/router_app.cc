@@ -323,7 +323,16 @@ void MySQLRouter::start() {
     return;
   }
 
-  init_keyring(loader_->get_config());
+  // there can be at most one metadata_cache section because
+  // currently the router supports only one metadata_cache instance
+  auto config = loader_->get_config();
+  if (config.has_any("metadata_cache") && config.get("metadata_cache").size() > 1) {
+    std::cout << "MySQL Router currently supports only one metadata_cache instance." << std::endl
+              << "There is more than one metadata_cache section in the router configuration. Exiting." << std::endl;
+    return;
+  }
+
+  init_keyring(config);
 
   try {
     auto log_file = loader_->get_log_file();
