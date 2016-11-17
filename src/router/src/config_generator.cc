@@ -1076,8 +1076,8 @@ static bool files_equal(const std::string &f1, const std::string &f2) {
   data1.resize(static_cast<size_t>(fsize));
   data2.resize(static_cast<size_t>(fsize));
 
-  if1.read(&data1[0], fsize);
-  if2.read(&data2[0], fsize);
+  if1.read(&data1[0], static_cast<std::streamsize>(fsize));
+  if2.read(&data2[0], static_cast<std::streamsize>(fsize));
 
   return data1 == data2;
 }
