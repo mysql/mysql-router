@@ -366,17 +366,12 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
 
   // rename the .tmp file to the final file  
-  int err;
-  if ((err = mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str())) != 0) {
+if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not move configuration file '" +
       config_file_path.str() + ".tmp' to final location: "
-#ifndef _WIN32
-      + get_strerror(err));
-#else
-      + mysqlrouter::get_last_error(err));
-#endif
+       + mysqlrouter::get_last_error());
   }
 
   mysql_harness::make_file_private(config_file_path.str());

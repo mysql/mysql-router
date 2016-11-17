@@ -125,20 +125,17 @@ void copy_file(const std::string &from, const std::string &to) {
 int rename_file(const std::string &from, const std::string &to)
 {
 #ifndef _WIN32
-  if (rename(from.c_str(), to.c_str()))
-    return 0;
-  else
-    return errno;
+  return rename(from.c_str(), to.c_str());
 #else
   // In Windows, rename fails if the file destination alreayd exists, so ...
-  if (MoveFileExA(from.c_str(), to.c_str(), 
+  if (MoveFileExA(from.c_str(), to.c_str(),
     MOVEFILE_REPLACE_EXISTING |  // override existing file
     MOVEFILE_COPY_ALLOWED |      // allow copy of file to different drive
     MOVEFILE_WRITE_THROUGH       // don't return until the operation is physically finished
   ))
     return 0;
   else
-    return GetLastError();
+    return -1;
 #endif
 }
 
@@ -162,8 +159,8 @@ int delete_file(const std::string& path) {
 #ifndef _WIN32
   return ::unlink(path.c_str());
 #else
-  // In Windows a file recently closed may fail to be deleted because its 
-  // still be locked (or have a 3rd party reading it, like an Indexer service 
+  // In Windows a file recently closed may fail to be deleted because its
+  // still be locked (or have a 3rd party reading it, like an Indexer service
   // or AntiVirus). So the recommended is to retry the delete operation.
   BOOL flag = TRUE;
   int max_attempts = 10;
@@ -176,7 +173,7 @@ int delete_file(const std::string& path) {
     else if (err == ERROR_ACCESS_DENIED) { Sleep(100); continue; }
     else { return -1; }
   }
-  
+
   return flag ? 0 : -1;
 #endif
 }
