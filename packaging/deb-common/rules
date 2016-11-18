@@ -33,7 +33,8 @@ override_dh_auto_configure:
 		-DROUTER_CONFIGDIR=/etc/mysqlrouter \
 		-DPROJECT_EDITION="GPL community edition" \
 		-DINSTALL_LAYOUT="DEB" \
-		-DWITH_STATIC=yes
+		-DWITH_STATIC=yes \
+		-DENABLE_TESTS=yes -DENABLE_GCOV=yes
 	touch $@
 
 override_dh_auto_build:
@@ -43,7 +44,7 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	@echo "RULES.$@"
-	echo "No tests run"
+	$(MAKE) test || true
 	touch $@
 
 override_dh_auto_install:

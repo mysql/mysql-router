@@ -107,8 +107,10 @@ mkdir release && pushd release
 %{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
 %{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 cmake .. -DINSTALL_LAYOUT=RPM \
-  -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition}
+  -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition} \
+  -DENABLE_TESTS=yes -DENABLE_GCOV=yes
 make %{?_smp_mflags} VERBOSE=1
+make test || true
 popd
 
 %install
