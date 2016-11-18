@@ -29,17 +29,23 @@
 #include <algorithm>
 #include <set>
 
+//ignore GMock warnings
 #ifdef __clang__
-// GMock doesn't know about override keyword which Clang complains about
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#pragma clang diagnostic push
-// GMock throws sign-conversions warnings on Clang
-#pragma clang diagnostic ignored "-Wsign-conversion"
+#  ifndef __has_warning
+#    define __has_warning(x) 0
+#  endif
+#  pragma clang diagnostic push
+#  if __has_warning("-Winconsistent-missing-override")
+#    pragma clang diagnostic ignored "-Winconsistent-missing-override"
+#  endif
+#  if __has_warning("-Wsign-conversion")
+#    pragma clang diagnostic ignored "-Wsign-conversion"
+#  endif
+#  include "gmock/gmock.h"
+#else
+#  include "gmock/gmock.h"
 #endif
-#include "gmock/gmock.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+
 
 using ::testing::_;
 using ::testing::Assign;
