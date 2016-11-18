@@ -70,7 +70,7 @@ public:
   /**
    * The information about the HA topology being managed.
    */
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> replicaset_map;
+  ReplicaSetsByName replicaset_map;
 
   /** @brief Constructor
    * @param user The user name used to authenticate to the metadata server.
@@ -114,7 +114,7 @@ public:
    *
    * @return Map of replicaset ID, server list pairs.
    */
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>> fetch_instances(const std::string &farm_name) override;
+  ReplicaSetsByName fetch_instances(const std::string &farm_name) override;
 
 
 

@@ -49,6 +49,7 @@ struct GroupReplicationMember {
  *
  * throws metadata_cache::metadata_error
  */
-std::map<std::string, GroupReplicationMember> fetch_group_replication_members(mysqlrouter::MySQLSession& connection);
+std::map<std::string, GroupReplicationMember>
+fetch_group_replication_members(mysqlrouter::MySQLSession& connection, bool &single_master);
 
 #endif

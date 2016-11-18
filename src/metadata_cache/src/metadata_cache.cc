@@ -18,6 +18,7 @@
 #include "common.h"
 #include "metadata_cache.h"
 
+#include <cassert>
 #include <vector>
 #include <memory>
 #include <cmath>  // fabs()
@@ -37,25 +38,21 @@
  */
 MetadataCache::MetadataCache(
   const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
-  const std::string &user,
-  const std::string &password,
-  int connection_timeout,
-  int connection_attempts,
+  std::shared_ptr<MetaData> cluster_metadata,
   unsigned int ttl,
   const std::string &cluster) {
-  std::string host_;
+  std::string host;
   for (auto s : bootstrap_servers) {
     metadata_cache::ManagedInstance bootstrap_server_instance;
-    host_ = (s.addr == "localhost" ? "127.0.0.1" : s.addr);
-    bootstrap_server_instance.host = host_;
+    host = (s.addr == "localhost" ? "127.0.0.1" : s.addr);
+    bootstrap_server_instance.host = host;
     bootstrap_server_instance.port = s.port;
     metadata_servers_.push_back(bootstrap_server_instance);
   }
   ttl_ = ttl;
   cluster_name_ = cluster;
   terminate_ = false;
-  meta_data_ = get_instance(user, password, connection_timeout,
-                            connection_attempts, ttl);
+  meta_data_ = cluster_metadata;
   refresh();
 }
 
@@ -119,7 +116,7 @@ std::vector<metadata_cache::ManagedInstance> MetadataCache::replicaset_lookup(
     log_warning("Replicaset '%s' not available", replicaset_name.c_str());
     return {};
   }
-  return replicaset_data_[replicaset_name];
+  return replicaset_data_[replicaset_name].members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(const ManagedInstance& other) const {
@@ -135,18 +132,18 @@ bool metadata_cache::ManagedInstance::operator==(const ManagedInstance& other) c
          xport == other.xport;
 }
 
-inline bool compare_instance_lists(const MetaData::InstancesByReplicaSet &map_a,
-                           const MetaData::InstancesByReplicaSet &map_b) {
+inline bool compare_instance_lists(const MetaData::ReplicaSetsByName &map_a,
+                                   const MetaData::ReplicaSetsByName &map_b) {
   if (map_a.size() != map_b.size())
     return false;
   auto ai = map_a.begin();
   auto bi = map_b.begin();
   for (; ai != map_a.end(); ++ai, ++bi) {
-    if ((ai->first != bi->first) || (ai->second.size() != bi->second.size()))
+    if ((ai->first != bi->first) || (ai->second.members.size() != bi->second.members.size()))
       return false;
-    auto a = ai->second.begin();
-    auto b = bi->second.begin();
-    for (; a != ai->second.end(); ++a, ++b) {
+    auto a = ai->second.members.begin();
+    auto b = bi->second.members.begin();
+    for (; a != ai->second.members.end(); ++a, ++b) {
       if (!(*a == *b))
         return false;
     }
@@ -181,7 +178,7 @@ void MetadataCache::refresh() {
 
   try {
     // Fetch the metadata and store it in a temporary variable.
-    std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
+    std::map<std::string, metadata_cache::ManagedReplicaSet>
       replicaset_data_temp = meta_data_->fetch_instances(cluster_name_);
     bool changed = false;
 
@@ -205,8 +202,10 @@ void MetadataCache::refresh() {
         log_info("Metadata for cluster '%s' has %i replicasets:",
           cluster_name_.c_str(), (int)replicaset_data_.size());
         for (auto &rs : replicaset_data_) {
-          log_info("'%s' (%i members)", rs.first.c_str(), (int)rs.second.size());
-          for (auto &mi : rs.second) {
+          log_info("'%s' (%i members, %s)", rs.first.c_str(),
+                    (int)rs.second.members.size(),
+                    rs.second.single_primary_mode ? "single-master" : "multi-master");
+          for (auto &mi : rs.second.members) {
             log_info("    %s:%i / %i - role=%s mode=%s", mi.host.c_str(),
                 mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
 
@@ -216,8 +215,10 @@ void MetadataCache::refresh() {
               std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
               auto lost_primary = lost_primary_replicasets_.find(rs.first);
               if (lost_primary != lost_primary_replicasets_.end()) {
-                log_info("Replicaset '%s' has a new Primary.",
-                         rs.first.c_str());
+                log_info("Replicaset '%s' has a new Primary %s:%i [%s].",
+                         rs.first.c_str(),
+                         mi.host.c_str(), mi.port,
+                         mi.mysql_server_uuid.c_str());
                 lost_primary_replicasets_.erase(lost_primary);
               }
             }
@@ -243,42 +244,65 @@ void MetadataCache::refresh() {
   }
 }
 
-
-// TODO: the log messages should log host:port, in addition to uuid
 void MetadataCache::mark_instance_reachability(const std::string &instance_id,
                                 metadata_cache::InstanceStatus status) {
   // If the status is that the primary instance is physically unreachable,
   // we temporarily increase the refresh rate to 1/s until the replicaset
   // is back to having a primary instance.
-  std::string is_primary_of;
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+  // the replicaset that the given instance belongs to
+  metadata_cache::ManagedInstance *instance = nullptr;
+  metadata_cache::ManagedReplicaSet *replicaset = nullptr;
   for (auto rs : replicaset_data_) {
-    for (auto instance : rs.second) {
-      if (instance.mysql_server_uuid == instance_id) {
-        is_primary_of = rs.first;
+    for (auto inst : rs.second.members) {
+      if (inst.mysql_server_uuid == instance_id) {
+        instance = &inst;
+        replicaset = &rs.second;
         break;
       }
     }
-    if (!is_primary_of.empty())
+    if (replicaset)
       break;
   }
-  if (!is_primary_of.empty()) {
+
+  // We only care about loss of primary for the purpose of triggering
+  // faster refreshes if we're in single primary mode
+  if (replicaset && replicaset->single_primary_mode) {
     std::lock_guard<std::mutex> lplock(lost_primary_replicasets_mutex_);
     switch (status) {
       case metadata_cache::InstanceStatus::Reachable:
         break;
       case metadata_cache::InstanceStatus::InvalidHost:
-        log_warning("Primary instance '%s' of replicaset '%s' is invalid. Increasing metadata cache refresh frequency.",
-                    instance_id.c_str(), is_primary_of.c_str());
-        lost_primary_replicasets_.insert(is_primary_of);
+        log_warning("Primary instance '%s:%i' [%s] of replicaset '%s' is invalid. Increasing metadata cache refresh frequency.",
+                    instance->host.c_str(), instance->port, instance_id.c_str(),
+                    replicaset->name.c_str());
+        lost_primary_replicasets_.insert(replicaset->name);
         break;
       case metadata_cache::InstanceStatus::Unreachable:
-        log_warning("Primary instance '%s' of replicaset '%s' is unreachable. Increasing metadata cache refresh frequency.",
-                  instance_id.c_str(), is_primary_of.c_str());
-        lost_primary_replicasets_.insert(is_primary_of);
+        log_warning("Primary instance '%s:%i' [%s] of replicaset '%s' is unreachable. Increasing metadata cache refresh frequency.",
+                    instance->host.c_str(), instance->port, instance_id.c_str(),
+                    replicaset->name.c_str());
+        lost_primary_replicasets_.insert(replicaset->name);
         break;
       case metadata_cache::InstanceStatus::Unusable:
         break;
     }
   }
+}
+
+bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
+                                          int timeout) {
+  log_debug("Waiting for failover to happen in '%s' for %is",
+            replicaset_name.c_str(), timeout);
+  time_t stime = std::time(NULL);
+  while (std::time(NULL) - stime <= timeout) {
+    {
+      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+      if (lost_primary_replicasets_.find(replicaset_name) == lost_primary_replicasets_.end()) {
+        return true;
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  return false;
 }

@@ -104,16 +104,18 @@ class MySQLSession {
 
   virtual std::string quote(const std::string &s, char qchar = '\'');
 
-  bool is_connected() { return connected_; }
+  virtual bool is_connected() { return connection_ && connected_; }
   const std::string& get_address() { return connection_address_; }
 
-  // TODO hide this and expose the needed operations
-  virtual st_mysql* raw_mysql() { return connection_; }
+  virtual const char *last_error();
+  virtual unsigned int last_errno();
 
 private:
   st_mysql *connection_;
   bool connected_;
   std::string connection_address_;
+
+  virtual st_mysql* raw_mysql() { return connection_; }
 
   #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;
@@ -134,7 +136,7 @@ class MySQLSessionFactory {
  public:
 
   // it would seem to make more sense to use unique_ptr instead of shared_ptr here, but unfortunately
-  // unique_ptr's deleter is part of its type specification.  Therefore all places where unique_ptr 
+  // unique_ptr's deleter is part of its type specification.  Therefore all places where unique_ptr
   // was used would have to declare it like so: std::unique_ptr<MySQLSession, void(*)(MySQLSession*)>
   // This is not very convenient. shared_ptr doesn't have this problem.
   virtual std::shared_ptr<MySQLSession> create() const {

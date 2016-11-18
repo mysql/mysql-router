@@ -42,6 +42,11 @@ using std::chrono::seconds;
 using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
 
+// if client wants a primary and there's none, we can wait up to this amount of
+// seconds until giving up and disconnecting the client
+// TODO: possibly this should be made into a configurable option
+static const int kPrimaryFailoverTimeout = 10;
+
 
 DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache, const std::string &replicaset,
   const std::string &mode, const mysqlrouter::URIQuery &query,
@@ -104,7 +109,7 @@ void DestMetadataCacheGroup::init() {
 }
 
 int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
-
+retry:
   try {
     std::vector<std::string> server_ids;
     auto available = get_available(&server_ids);
@@ -129,8 +134,16 @@ int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) n
     int fd = get_mysql_socket(available.at(next_up), connect_timeout);
     if (fd < 0) {
       // Signal that we can't connect to the instance
-      mark_instance_reachability(server_ids.at(next_up),
-                                 metadata_cache::InstanceStatus::Unreachable);
+      metadata_cache::mark_instance_reachability(server_ids.at(next_up),
+          metadata_cache::InstanceStatus::Unreachable);
+      // if we're looking for a primary member, wait for there to be at least one
+      if (routing_mode_ == RoutingMode::ReadWrite &&
+          metadata_cache::wait_primary_failover(ha_replicaset_,
+              kPrimaryFailoverTimeout)) {
+        log_info("Retrying connection for '%s' after possible failover",
+                 ha_replicaset_.c_str());
+        goto retry;
+      }
     }
     return fd;
   } catch (std::runtime_error & re) {

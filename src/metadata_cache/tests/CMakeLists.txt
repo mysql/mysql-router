@@ -34,6 +34,7 @@ set(include_dirs
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
+  ${CMAKE_SOURCE_DIR}/tests/helpers
   )
 
 # We do not link to the metadata cache libraries since the sources are
@@ -63,6 +64,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
+             ${CMAKE_SOURCE_DIR}/tests/helpers
 )
 
 target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
@@ -71,3 +73,5 @@ target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_c
 target_compile_definitions(test_metadata_cache_metadata_cache PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 target_compile_definitions(test_metadata_cache_metadata PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
 target_compile_definitions(test_metadata_cache_metadata PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_failover PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_failover PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)

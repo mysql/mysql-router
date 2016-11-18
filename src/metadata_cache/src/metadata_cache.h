@@ -19,7 +19,7 @@
 #define METADATA_CACHE_METADATA_CACHE_INCLUDED
 
 #include "mysqlrouter/metadata_cache.h"
-#include "metadata_factory.h"
+#include "metadata.h"
 
 #include <algorithm>
 #include <chrono>
@@ -32,6 +32,7 @@
 
 #include "logger.h"
 
+class ClusterMetadata;
 
 /** @class MetadataCache
  *
@@ -44,8 +45,7 @@ class METADATA_API MetadataCache {
 public:
   /** @brief Constructor */
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
-                const std::string &user, const std::string &password,
-                int connection_timeout, int connection_attempts,
+                std::shared_ptr<MetaData> cluster_metadata,
                 unsigned int ttl, const std::string &cluster_name);
 
   /** @brief Destructor */
@@ -82,9 +82,18 @@ public:
    * @param instance_id - the mysql_server_uuid that identifies the server instance
    * @param status - the status of the instance
    */
-   void mark_instance_reachability(const std::string &instance_id,
-                                   metadata_cache::InstanceStatus status);
+  void mark_instance_reachability(const std::string &instance_id,
+                                  metadata_cache::InstanceStatus status);
 
+  /** @brief Wait until there's a primary member in the replicaset
+   *
+   * To be called when the master of a single-master replicaset is down and
+   * we want to wait until one becomes elected.
+   *
+   * @param timeout - amount of time to wait for a failover, in seconds
+   * @return true if a primary member exists
+   */
+  bool wait_primary_failover(const std::string &replicaset_name, int timeout);
 private:
 
   /** @brief Refreshes the cache
@@ -93,11 +102,9 @@ private:
    */
   void refresh();
 
-  // Stores the list of server instances in each replicaset. Given a
-  // replicaset name, the map returns a list of ManagedInstances each of
-  // which represent a list of servers in the replicaset.
-  std::map<std::string, std::vector<metadata_cache::ManagedInstance>>
-    replicaset_data_;
+  // Stores the list replicasets and their server instances.
+  // Keyed by replicaset name
+  std::map<std::string, metadata_cache::ManagedReplicaSet> replicaset_data_;
 
   // The name of the cluster in the topology.
   std::string cluster_name_;
@@ -134,6 +141,11 @@ private:
 
   // Flag used to terminate the refresh thread.
   bool terminate_;
+
+#ifdef FRIEND_TEST
+  FRIEND_TEST(FailoverTest, basics);
+  FRIEND_TEST(FailoverTest, primary_failover);
+#endif
 };
 
 #endif // METADATA_CACHE_METADATA_CACHE_INCLUDED

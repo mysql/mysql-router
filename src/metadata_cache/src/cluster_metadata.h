@@ -67,14 +67,15 @@ class METADATA_API ClusterMetadata : public MetaData {
   virtual ~ClusterMetadata();
 
 
-  /** @brief Returns relation between replicaset ID and list of servers
+  /** @brief Returns replicasets defined in the metadata server
    *
-   * Returns relation as a std::map between replicaset ID and list of managed servers.
+   * Returns relation as a std::map between replicaset name and object
+   * of the replicasets defined in the metadata and GR status tables.
    *
    * @param cluster_name the name of the cluster to query
    * @return Map of replicaset ID, server list pairs.
    */
-  InstancesByReplicaSet fetch_instances(const std::string &cluster_name) override;
+  ReplicaSetsByName fetch_instances(const std::string &cluster_name) override;
 
 #if 0 // not used so far
   /** @brief Returns the refresh interval provided by the metadata server.
@@ -116,14 +117,20 @@ class METADATA_API ClusterMetadata : public MetaData {
   /** @brief Queries the metadata server for the list of instances and
    * replicasets that belong to the desired cluster.
    */
-  InstancesByReplicaSet fetch_instances_from_metadata_server(const std::string &cluster_name);
+  ReplicaSetsByName fetch_instances_from_metadata_server(const std::string &cluster_name);
 
-  // update_replicaset_status() calls check_replicaset_status() for some of its processing.
-  // Together, they:
-  // - check current topology (status) returned from a replicaset node
-  // - update 'instances' with this state
+  /** Query the GR performance_schema tables for live information about a replicaset.
+   *
+   * update_replicaset_status() calls check_replicaset_status() for some of its processing.
+   * Together, they:
+   * - check current topology (status) returned from a replicaset node
+   * - update 'instances' with this state
+   * - get other metadata about the replicaset
+   *
+   * The information is pulled from GR maintained performance_schema tables.
+   */
   void update_replicaset_status(const std::string &name,
-      std::vector<metadata_cache::ManagedInstance> &instances);
+      metadata_cache::ManagedReplicaSet &replicaset);
 
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
@@ -139,29 +146,29 @@ class METADATA_API ClusterMetadata : public MetaData {
   // Metadata node generic information
   unsigned int ttl_;
   std::string cluster_name_;
-  #if 0 // not used so far
+#if 0 // not used so far
   std::string metadata_uuid_;
   std::string message_;
-  #endif
+#endif
 
   // The time after which a connection to the metadata server should timeout.
   int connection_timeout_;
 
-  #if 0 // not used so far
+#if 0 // not used so far
   // The number of times we should try connecting to the metadata server if a
   // connection attempt fails.
   int connection_attempts_;
-  #endif
+#endif
 
   // connection to metadata server (it may also be shared with GR status queries for optimisation purposes)
   std::shared_ptr<mysqlrouter::MySQLSession> metadata_connection_;
 
-  #if 0 // not used so far
+#if 0 // not used so far
   // How many times we tried to reconnected (for logging purposes)
   size_t reconnect_tries_;
-  #endif
+#endif
 
-  #ifdef FRIEND_TEST
+#ifdef FRIEND_TEST
   FRIEND_TEST(MetadataTest, FetchInstancesFromMetadataServer);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);
@@ -175,7 +182,7 @@ class METADATA_API ClusterMetadata : public MetaData {
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
-  #endif
+#endif
 };
 
 #endif // METADATA_CACHE_METADATA_INCLUDED

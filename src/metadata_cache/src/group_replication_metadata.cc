@@ -29,9 +29,9 @@
 using mysqlrouter::MySQLSession;
 
 // throws metadata_cache::metadata_error
-static std::string find_group_replication_primary_member(MySQLSession& connection) { 
+static std::string find_group_replication_primary_member(MySQLSession& connection) {
 
-  // NOTE: In single-master mode, this function will return primary node ID as 
+  // NOTE: In single-master mode, this function will return primary node ID as
   //       seen by this node (provided this node is currently part of GR),
   //       but in multi-master node, it will always return <empty>.
   //       Such is behavior of group_replication_primary_member variable.
@@ -77,7 +77,7 @@ static std::string find_group_replication_primary_member(MySQLSession& connectio
 
 // throws metadata_cache::metadata_error
 std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
-    MySQLSession& connection) {
+    MySQLSession& connection, bool &single_master) {
 
   std::map<std::string, GroupReplicationMember> members;
 
@@ -85,7 +85,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
   std::string primary_member = find_group_replication_primary_member(connection);
 
 
-  auto result_processor = [&members, &primary_member](const MySQLSession::Row& row) -> bool {
+  auto result_processor = [&members, &primary_member, &single_master](const MySQLSession::Row& row) -> bool {
 
     // example response from node that left GR (sees only itself):
     // +--------------------------------------+-------------+-------------+--------------+-----------------------------------------+
@@ -112,8 +112,13 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     const char *member_host = row[1];
     const char *member_port = row[2];
     const char *member_state = row[3];
-    const bool single_master = row[4] && (strcmp(row[4], "1") == 0 || strcmp(row[4], "ON") == 0);
+    single_master = row[4] && (strcmp(row[4], "1") == 0 || strcmp(row[4], "ON") == 0);
     if (!member_id || !member_host || !member_port || !member_state) {
+      log_warning("Query %s returned %s, %s, %s, %s, %s",
+                "SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode"
+                " FROM performance_schema.replication_group_members"
+                " WHERE channel_name = 'group_replication_applier'",
+               row[0], row[1], row[2], row[3], row[4]);
       throw metadata_cache::metadata_error("Unexpected value in group_replication_metadata query results");
     }
 

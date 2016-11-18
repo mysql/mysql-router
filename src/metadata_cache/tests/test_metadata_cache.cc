@@ -20,7 +20,9 @@
  */
 
 #include "metadata_cache.h"
+#include "metadata_factory.h"
 #include "mock_metadata.h"
+#include "cluster_metadata.h"
 
 #include "gmock/gmock.h"
 
@@ -35,7 +37,8 @@ public:
 
   MetadataCacheTest() : mf("admin", "admin", 1, 1, 10),
                       cache({mysqlrouter::TCPAddress("localhost", 32275)},
-                              "admin", "admin", 1, 1, 10, "replicaset-1") {}
+                              get_instance("admin", "admin", 1, 1, 10),
+                              10, "replicaset-1") {}
 };
 
 /**
@@ -45,7 +48,7 @@ TEST_F(MetadataCacheTest, ValidReplicasetTest_1) {
   std::vector<ManagedInstance> instance_vector_1;
 
   instance_vector_1 = cache.replicaset_lookup("replicaset-1");
-
+  ASSERT_EQ(3U, instance_vector_1.size());
   EXPECT_EQ(instance_vector_1[0], mf.ms1);
   EXPECT_EQ(instance_vector_1[1], mf.ms2);
   EXPECT_EQ(instance_vector_1[2], mf.ms3);

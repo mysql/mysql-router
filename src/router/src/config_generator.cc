@@ -913,7 +913,8 @@ void ConfigGenerator::create_account(const std::string &username,
     "DROP USER IF EXISTS " + account,
     "CREATE USER " + account + " IDENTIFIED BY " + mysql_->quote(password),
     "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + account,
-    "GRANT SELECT ON performance_schema.replication_group_members TO " + account
+    "GRANT SELECT ON performance_schema.replication_group_members TO " + account,
+    "GRANT SELECT ON performance_schema.replication_group_member_stats TO " + account
   };
 
   for (auto &q : queries) {

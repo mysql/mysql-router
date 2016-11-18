@@ -57,7 +57,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms2.host = "host-2";
   ms2.port = 3306;
   ms2.xport = 33060;
-  ms2.mode = metadata_cache::ServerMode::ReadWrite;
+  ms2.mode = metadata_cache::ServerMode::ReadOnly;
   ms2.role = "master";
   ms2.weight = 1;
   ms2.version_token = 0;
@@ -68,7 +68,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms3.host = "host-3";
   ms3.port = 3306;
   ms3.xport = 33060;
-  ms3.mode = metadata_cache::ServerMode::ReadOnly;;
+  ms3.mode = metadata_cache::ServerMode::ReadOnly;
   ms3.role = "scale-out";
   ms3.weight = 1;
   ms3.version_token = 0;
@@ -90,7 +90,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms5.host = "host-5";
   ms5.port = 3306;
   ms5.xport = 33060;
-  ms5.mode = metadata_cache::ServerMode::ReadWrite;
+  ms5.mode = metadata_cache::ServerMode::ReadOnly;
   ms5.role = "master";
   ms5.weight = 1;
   ms5.version_token = 0;
@@ -101,7 +101,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms6.host = "host-6";
   ms6.port = 3306;
   ms6.xport = 33060;
-  ms6.mode = metadata_cache::ServerMode::ReadOnly;;
+  ms6.mode = metadata_cache::ServerMode::ReadOnly;
   ms6.role = "scale-out";
   ms6.weight = 1;
   ms6.version_token = 0;
@@ -134,7 +134,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms9.host = "host-9";
   ms9.port = 3306;
   ms9.xport = 33060;
-  ms9.mode = metadata_cache::ServerMode::ReadOnly;;
+  ms9.mode = metadata_cache::ServerMode::ReadWrite;
   ms9.role = "scale-out";
   ms9.weight = 1;
   ms9.version_token = 0;
@@ -152,9 +152,17 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   replicaset_3_vector.push_back(ms9);
 
 
-  replicaset_map["replicaset-1"] = replicaset_1_vector;
-  replicaset_map["replicaset-2"] = replicaset_2_vector;
-  replicaset_map["replicaset-3"] = replicaset_3_vector;
+  replicaset_map["replicaset-1"].name = "replicaset-1";
+  replicaset_map["replicaset-1"].single_primary_mode = true;
+  replicaset_map["replicaset-1"].members = replicaset_1_vector;
+
+  replicaset_map["replicaset-2"].name = "replicaset-2";
+  replicaset_map["replicaset-2"].single_primary_mode = true;
+  replicaset_map["replicaset-2"].members = replicaset_2_vector;
+
+  replicaset_map["replicaset-3"].name = "replicaset-3";
+  replicaset_map["replicaset-3"].single_primary_mode = false;
+  replicaset_map["replicaset-3"].members = replicaset_3_vector;
 }
 
 /** @brief Destructor
@@ -169,7 +177,7 @@ MockNG::~MockNG() {}
  *
  * @return Map of replicaset ID, server list pairs.
  */
-std::map<std::string, std::vector<metadata_cache::ManagedInstance>> MockNG::fetch_instances(const std::string &cluster_name) {
+ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(const std::string &cluster_name) {
   (void)cluster_name;
   return replicaset_map;
 }

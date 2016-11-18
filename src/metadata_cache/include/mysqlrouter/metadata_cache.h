@@ -99,6 +99,26 @@ public:
   unsigned int xport;
 };
 
+/** @class ManagedReplicaSet
+ * Represents a replicaset (a GR group)
+ */
+class METADATA_API ManagedReplicaSet {
+public:
+  /** @brief The name of the replica set */
+  std::string name;
+#ifdef not_used_yet
+  /** @brief The group_name as known to the GR subsystem */
+  std::string group_id;
+  /** @brief The id of the group view from GR. Changes with topology changes */
+  std::string group_view_id;
+#endif
+  /** @brief List of the members that belong to the group */
+  std::vector<metadata_cache::ManagedInstance> members;
+
+  /** @brief Whether replicaset is in single_primary_mode (from PFS) */
+  bool single_primary_mode;
+};
+
 /** @class connection_error
  *
  * Class that represents all the exceptions thrown while trying to
@@ -185,7 +205,18 @@ LookupResult METADATA_API lookup_replicaset(const std::string &replicaset_name);
  * @param status - the status of the instance
  */
 void METADATA_API mark_instance_reachability(const std::string &instance_id,
-                                InstanceStatus status);
+                                             InstanceStatus status);
+
+/** @brief Wait until there's a primary member in the replicaset
+ *
+ * To be called when the master of a single-master replicaset is down and
+ * we want to wait until one becomes elected.
+ *
+ * @param timeout - amount of time to wait for a failover, in seconds
+ * @return true if a primary member exists
+ */
+bool METADATA_API wait_primary_failover(const std::string &replicaset_name,
+                                        int timeout);
 
 } // namespace metadata_cache
 

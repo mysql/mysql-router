@@ -33,6 +33,15 @@
       }\
     }
 
+#define EXPECT_THROW_LIKE(expr, exc, msg) try { \
+      expr;\
+      ADD_FAILURE() << "Expected exception of type " #exc << " but got none\n";\
+    } catch (exc &e) {\
+      if (std::string(e.what()).find(msg) == std::string::npos) {\
+          ADD_FAILURE() << "Expected exception with message: " << msg << "\nbut got: " << e.what() << "\n";\
+      }\
+    }
+
 #include "filesystem.h"
 
 /** @brief Returns the CMake source root folder

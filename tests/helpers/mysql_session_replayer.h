@@ -31,6 +31,7 @@ public:
                        const std::string &password,
                        int connection_timeout = kDefaultConnectionTimeout) override;
   virtual void disconnect() override;
+  virtual bool is_connected() override { return connected_; }
 
   virtual void execute(const std::string &sql) override;
   virtual void query(const std::string &sql, const RowProcessor &processor) override;
@@ -39,6 +40,9 @@ public:
   virtual uint64_t last_insert_id() override;
 
   virtual std::string quote(const std::string &s, char qchar = '\'') override;
+
+  virtual const char *last_error() override;
+  virtual unsigned int last_errno() override;
 
 public:
   class string {
@@ -65,7 +69,7 @@ public:
   void then_error(const std::string &error, unsigned int code);
   void then_return(unsigned int num_fields,
                    std::vector<std::vector<string>> rows);
-  void print_expected();
+  bool print_expected();
 
   bool empty() { return call_info_.empty(); }
 
@@ -89,6 +93,7 @@ private:
   std::deque<CallInfo> call_info_;
   uint64_t last_insert_id_;
   bool trace_ = false;
+  bool connected_ = false;
 };
 
 

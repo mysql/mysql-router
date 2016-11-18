@@ -17,6 +17,9 @@
 
 #include "mysqlrouter/metadata_cache.h"
 #include "metadata_cache.h"
+#include "metadata_factory.h"
+
+#include "cluster_metadata.h"
 
 #include <map>
 #include <memory>
@@ -48,8 +51,8 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &password,
                   unsigned int ttl,
                   const std::string &cluster_name) {
-  g_metadata_cache.reset(new MetadataCache(bootstrap_servers, user, password, 1,
-                                           1, ttl, cluster_name));
+  g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
+    get_instance(user, password, 1, 1, ttl), ttl, cluster_name));
   g_metadata_cache->start();
 }
 
@@ -79,5 +82,13 @@ void mark_instance_reachability(const std::string &instance_id,
   }
 
   g_metadata_cache->mark_instance_reachability(instance_id, status);
+}
+
+bool wait_primary_failover(const std::string &replicaset_name, int timeout) {
+  if (g_metadata_cache == nullptr) {
+    throw std::runtime_error("Metadata Cache not initialized");
+  }
+
+  return g_metadata_cache->wait_primary_failover(replicaset_name, timeout);
 }
 } // namespace metadata_cache

@@ -65,12 +65,12 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
   this->user_ = user;
   this->password_ = password;
   this->connection_timeout_ = connection_timeout;
-  #if 0 // not used so far
+#if 0 // not used so far
   this->metadata_uuid_ = "";
   this->message_ = "";
   this->connection_attempts_ = connection_attempts;
   this->reconnect_tries_ = 0;
-  #endif
+#endif
 }
 
 /** @brief Destructor
@@ -99,10 +99,6 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
   metadata_connection_ = mysqlsession_factory_->create();
-  if (!metadata_connection_->raw_mysql()) {
-    log_error("Failed initializing MySQL client connection");
-    return false;
-  }
 
   // Iterate through the list of servers in the metadata replicaset
   // to fetch a valid connection from which the metadata can be
@@ -112,8 +108,10 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
       log_info("Connected with metadata server running on %s:%i", mi.host.c_str(), mi.port);
       break;
     } else {
-      log_error("Failed connecting with Metadata Server %s:%d: %s",
-                mi.host.c_str(), mi.port, mysql_error(metadata_connection_->raw_mysql()));
+      log_error("Failed connecting with Metadata Server %s:%d: %s (%i)",
+                mi.host.c_str(), mi.port,
+                metadata_connection_->last_error(),
+                metadata_connection_->last_errno());
     }
   }
 
@@ -127,13 +125,13 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
 }
 
 void ClusterMetadata::update_replicaset_status(const std::string &name,
-    std::vector<metadata_cache::ManagedInstance> &instances) {
-
+    metadata_cache::ManagedReplicaSet &replicaset) {
+  log_debug("Updating replicaset status from GR for '%s'", name.c_str());
   // iterate over all cadidate nodes until we find the node that is part of quorum
   bool found_quorum = false;
-  std::shared_ptr<MySQLSession> gr_member_connection;
-  for (const metadata_cache::ManagedInstance& mi : instances) {
 
+  std::shared_ptr<MySQLSession> gr_member_connection;
+  for (const metadata_cache::ManagedInstance& mi : replicaset.members) {
     std::string mi_addr = (mi.host == "localhost" ? "127.0.0.1" : mi.host) + ":" + std::to_string(mi.port);
 
     // this function could test these in an if() instead of assert(),
@@ -145,11 +143,10 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
       gr_member_connection = metadata_connection_;        //               share the established connection
     } else {
       gr_member_connection = mysqlsession_factory_->create();
-      if (!gr_member_connection->raw_mysql())
-        throw metadata_cache::metadata_error("Error initializing MySQL connection");
 
       if (!do_connect(*gr_member_connection, mi)) {
-        log_error("Could not establish a connection to replicaset '%s'", name.c_str());
+        log_error("While updating metadata, could not establish a connection to replicaset '%s' through %s",
+                  name.c_str(), mi_addr.c_str());
         continue; // server down, next!
       }
     }
@@ -157,27 +154,36 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
     assert(gr_member_connection->is_connected());
 
     try {
+      bool single_primary_mode = true;
+
       // this node's perspective: give status of all nodes you see
       std::map<std::string, GroupReplicationMember> member_status =
-          fetch_group_replication_members(*gr_member_connection); // throws metadata_cache::metadata_error
+          fetch_group_replication_members(*gr_member_connection,
+                                          single_primary_mode); // throws metadata_cache::metadata_error
       log_debug("Replicaset '%s' has %i members in metadata, %i in status table",
-                name.c_str(), instances.size(), member_status.size());
+                name.c_str(), replicaset.members.size(), member_status.size());
 
       // check status of all nodes; updates instances ------------------vvvvvvvvv
-      metadata_cache::ReplicasetStatus status = check_replicaset_status(instances, member_status);
+      metadata_cache::ReplicasetStatus status =
+          check_replicaset_status(replicaset.members, member_status);
       switch (status) {
         case metadata_cache::ReplicasetStatus::AvailableWritable: // we have quorum, good!
           found_quorum = true;
-          goto break_loop;
+          break;
         case metadata_cache::ReplicasetStatus::AvailableReadOnly: // have quorum, but only RO
           found_quorum = true;
-          goto break_loop;
+          break;
         default:
           assert(0);  // unrecognised status
         case metadata_cache::ReplicasetStatus::Unavailable:       // we have nothing
           log_warning("%s is not part of quorum for replicaset '%s'", mi_addr.c_str(), name.c_str());
           continue;   // this server is no good, next!
           break;
+      }
+
+      if (found_quorum) {
+        replicaset.single_primary_mode = single_primary_mode;
+        break; // break out of the member iteration loop
       }
 
     } catch (const metadata_cache::metadata_error& e) {
@@ -191,7 +197,7 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
     }
 
   } // for (const metadata_cache::ManagedInstance& mi : instances)
-  break_loop:
+  log_debug("End updating replicaset for '%s'", name.c_str());
 
   if (!found_quorum) {
     std::string msg("Unable to fetch live group_replication member data from any server in replicaset '");
@@ -298,7 +304,7 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
 }
 
 // throws metadata_cache::metadata_error
-ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances(
+ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
     const std::string &cluster_name) {
   log_debug("Updating metadata information for cluster '%s'", cluster_name.c_str());
 
@@ -306,21 +312,21 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances(
 
   // fetch existing replicasets in the cluster from the metadata server (this is the topology that was configured,
   // it will be compared later against current topology reported by (a server in) replicaset)
-  InstancesByReplicaSet rs_instances(fetch_instances_from_metadata_server(cluster_name)); // throws metadata_cache::metadata_error
-  if (rs_instances.empty())
+  ReplicaSetsByName replicasets(fetch_instances_from_metadata_server(cluster_name)); // throws metadata_cache::metadata_error
+  if (replicasets.empty())
     log_warning("No replicasets defined for cluster '%s'", cluster_name.c_str());
 
   // now connect to each replicaset and query it for the list and status of its members.
   // (more precisely, foreach replicaset: search and connect to a member which is part of quorum to retrieve this data)
-  for (auto &&rs : rs_instances) {
+  for (auto &&rs : replicasets) {
     update_replicaset_status(rs.first, rs.second);  // throws metadata_cache::metadata_error
   }
 
-  return rs_instances;
+  return replicasets;
 }
 
 // throws metadata_cache::metadata_error
-ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_metadata_server(
+ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances_from_metadata_server(
     const std::string &cluster_name) {
 
   // Get expected topology (what was configured) from metadata server. This will later be compared against
@@ -363,11 +369,11 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
   //   ...
   //   {replicaset_n:[hostj:portj, hostk:portk, hostl:portl]}
   // }
-  InstancesByReplicaSet instance_map;
+  ReplicaSetsByName replicaset_map;
 
   // Deserialize the resultset into a map that stores a list of server
   // instance objects mapped to each replicaset.
-  auto result_processor = [&instance_map](const MySQLSession::Row& row) -> bool {
+  auto result_processor = [&replicaset_map](const MySQLSession::Row& row) -> bool {
 
     if (row.size() != 8) {  // TODO write a testcase for this
       throw metadata_cache::metadata_error("Unexpected number of fields in the resultset. "
@@ -417,7 +423,11 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
       s.xport = s.port * 10;
     }
 
-    instance_map[s.replicaset_name].push_back(s);
+    auto &rset(replicaset_map[s.replicaset_name]);
+    rset.members.push_back(s);
+    rset.name = s.replicaset_name;
+    rset.single_primary_mode = true; // actual value set elsewhere from GR metadata
+
     return true;  // false = I don't want more rows
   };
 
@@ -434,7 +444,7 @@ ClusterMetadata::InstancesByReplicaSet ClusterMetadata::fetch_instances_from_met
     throw;      // in production, rethrow anyway just in case
   }
 
-  return instance_map;
+  return replicaset_map;
 }
 
 #if 0 // not used so far

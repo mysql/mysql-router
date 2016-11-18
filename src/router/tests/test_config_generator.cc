@@ -271,6 +271,7 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     mock_mysql.expect_execute("CREATE USER cluster_user@'%'").then_ok();
     mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
     mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(&mock_mysql);
@@ -287,6 +288,7 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     mock_mysql.expect_execute("CREATE USER cluster_user@'%'").then_ok();
     mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
     mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
+    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(&mock_mysql);
@@ -902,6 +904,7 @@ static struct {
   {"CREATE USER mysql_innodb_cluster_router0@'%'", true},
   {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'", true},
   {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'", true},
+  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_innodb_cluster_router0@'%'", true},
   {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true},
   {"COMMIT", true},
   {NULL, true}

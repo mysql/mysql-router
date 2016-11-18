@@ -69,8 +69,8 @@ static const std::map<std::string, Level> map_level_str = {
     {level_str[4], LVL_DEBUG},
 };
 
-static std::atomic<FILE*> g_log_file;
-static std::atomic<int> g_log_level;
+static std::atomic<FILE*> g_log_file(stdout);
+static std::atomic<int> g_log_level(LVL_DEBUG);
 
 static int init(const AppInfo* info) {
   g_log_level = LVL_INFO;  // Default log level is INFO

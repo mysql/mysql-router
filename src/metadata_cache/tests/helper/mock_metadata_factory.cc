@@ -17,7 +17,6 @@
 
 #include <memory>
 
-#include "metadata_factory.h"
 #include "mock_metadata.h"
 
 std::shared_ptr<MetaData> meta_data;

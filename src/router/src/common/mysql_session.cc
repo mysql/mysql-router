@@ -145,7 +145,10 @@ static MockRecorder g_mock_recorder;
 MySQLSession::MySQLSession() {
   connection_ = new MYSQL();
   connected_ = false;
-  mysql_init(connection_);
+  if (!mysql_init(connection_)) {
+    // not supposed to happen
+    throw std::logic_error("Error initializing MySQL connection structure");
+  }
 }
 
 MySQLSession::~MySQLSession() {
@@ -328,4 +331,12 @@ std::string MySQLSession::quote(const std::string &s, char qchar) {
   r.resize(len+2);
   r[len+1] = qchar;
   return r;
+}
+
+const char *MySQLSession::last_error() {
+  return connection_ ? mysql_error(connection_) : nullptr;
+}
+
+unsigned int MySQLSession::last_errno() {
+  return connection_ ? mysql_errno(connection_) : 0;
 }

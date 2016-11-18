@@ -30,12 +30,12 @@
  */
 class METADATA_API MetaData {
 public:
-  typedef std::map<std::string, std::vector<metadata_cache::ManagedInstance>> InstancesByReplicaSet;
+  using ReplicaSetsByName = std::map<std::string, metadata_cache::ManagedReplicaSet>;
 
 #if 0 // not used so far
   virtual unsigned int fetch_ttl() = 0;
 #endif
-  virtual InstancesByReplicaSet fetch_instances(const std::string &cluster_name) = 0;
+  virtual ReplicaSetsByName fetch_instances(const std::string &cluster_name) = 0;
 
   virtual bool connect(const std::vector<metadata_cache::ManagedInstance>
                        & metadata_servers) = 0;
