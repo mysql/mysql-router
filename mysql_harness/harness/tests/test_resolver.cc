@@ -68,8 +68,8 @@ TEST(TestNameResolver, HostnameFail) {
 
 TEST(TestResolver, TCPServiceName) {
   Resolver resolver;
-  EXPECT_EQ(80, resolver.tcp_service_name("http"));
-#ifndef _WIN32
+  EXPECT_EQ(21, resolver.tcp_service_name("ftp"));
+#if !defined(_WIN32) && !defined(__sun)
   EXPECT_EQ(3306, resolver.tcp_service_name("mysql"));
 #endif
 }
@@ -82,11 +82,11 @@ TEST(TestResolver, TCPServiceNameFail) {
 TEST(TestResolver, TCPServicePort) {
   Resolver resolver;
 
-  EXPECT_EQ(std::string("http"), resolver.tcp_service_port(80));
-#ifndef _WIN32
+  EXPECT_EQ(std::string("ftp"), resolver.tcp_service_port(21));
+#if !defined(_WIN32) && !defined(__sun)
   EXPECT_EQ(std::string("mysql"), resolver.tcp_service_port(3306));
 #endif
-  EXPECT_EQ(std::string("https"), resolver.tcp_service_port(443));
+  EXPECT_EQ(std::string("ssh"), resolver.tcp_service_port(22));
   // port numbers without service name
   EXPECT_EQ(std::string("49151"),
             resolver.tcp_service_port(49151)); // IANA reserved port number
@@ -96,15 +96,15 @@ TEST(TestResolver, TCPServiceCache) {
   MockResolver resolver;
 
   // query, so cache is updated
-  EXPECT_EQ(80, resolver.tcp_service_name("http"));
-#ifndef _WIN32
+  EXPECT_EQ(21, resolver.tcp_service_name("ftp"));
+#if !defined(_WIN32) && !defined(__sun)
   EXPECT_EQ(std::string("mysql"), resolver.tcp_service_port(3306));
 #endif
   // check if in cache
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__sun)
   EXPECT_EQ(3306, resolver.cached_tcp_service_by_name("mysql"));
 #endif
-  EXPECT_EQ(std::string("http"), resolver.cached_tcp_service_by_port(80));
+  EXPECT_EQ(std::string("ftp"), resolver.cached_tcp_service_by_port(21));
 }
 
 int main(int argc, char *argv[]) {

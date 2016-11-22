@@ -154,18 +154,23 @@ class Directory::DirectoryIterator::State {
   }
 
   DIR *dirp_;
-  struct dirent entry_;
+  struct dirent *entry_;
   const string pattern_;
   struct dirent *result_;
 };
 
 Directory::DirectoryIterator::State::State()
-  : dirp_(nullptr), pattern_(""), result_(nullptr) {}
+  : dirp_(nullptr), entry_(nullptr), pattern_(""), result_(nullptr) {}
 
 
 Directory::DirectoryIterator::State::State(const Path& path,
                                            const string& pattern)
-    : dirp_(opendir(path.c_str())), pattern_(pattern), result_(&entry_) {
+    : dirp_(opendir(path.c_str())), pattern_(pattern) {
+  // in Solaris, dirent is NOT large enough to hold a directory name, so we need to
+  // ensure there's extra space for it
+  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
+  result_ = entry_;
+
   if (dirp_ == nullptr) {
     ostringstream buffer;
     char buf[256];
@@ -185,6 +190,8 @@ Directory::DirectoryIterator::State::~State() {
   // work. For example, BSD systems do not always support this.
   if (dirp_ != nullptr)
     closedir(dirp_);
+  if (entry_)
+    free(entry_);
 }
 
 
@@ -197,7 +204,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_safe(dirp_, &entry_, &result_)) {
+    if (int error = readdir_safe(dirp_, entry_, &result_)) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))

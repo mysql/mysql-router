@@ -1329,7 +1329,13 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
-#ifndef _WIN32
+#ifdef __sun
+    ASSERT_THROW_LIKE(
+        config_gen.bootstrap_directory_deployment("./delme",
+          options, "delme", "."),
+        std::runtime_error,
+        "Unable to save master key to .: Invalid argument");
+#elif !defined(_WIN32)
     ASSERT_THROW_LIKE(
         config_gen.bootstrap_directory_deployment("./delme",
           options, "delme", "."),
