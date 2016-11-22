@@ -22,6 +22,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fnmatch.h>
