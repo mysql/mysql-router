@@ -65,8 +65,8 @@ TEST_F(Bug23857183, ConnectToServerWrongPort) {
   connect_to(addr);
 }
 
-#ifndef __APPLE__
-// in darwin, attempting connection to 127.0.0.11 will fail by timeout
+#if !defined(__APPLE__) && !defined(__sun)
+// in darwin and solaris, attempting connection to 127.0.0.11 will fail by timeout
 TEST_F(Bug23857183, ConnectToServerWrongIpAndPort) {
   mysqlrouter::TCPAddress addr("127.0.0.11", 10888);
 

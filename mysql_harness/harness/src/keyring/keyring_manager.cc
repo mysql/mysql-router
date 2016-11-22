@@ -92,7 +92,7 @@ public:
     std::ifstream f;
     if (Path(path_).is_directory())
       throw invalid_master_keyfile(path_+" is a directory");
-    f.open(path_);
+    f.open(path_, std::ios_base::binary|std::ios_base::in);
     if (f.fail()) {
       throw std::system_error(std::error_code(errno, std::system_category()), "Can't open file "+path_);
     }

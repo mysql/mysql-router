@@ -268,19 +268,27 @@ static bool file_exists(const std::string &file) {
   return mysql_harness::Path(file).exists();
 }
 
+static std::string tmpfile(const std::string &fname) {
+#ifdef _WIN32
+  const char *tmpdir = getenv("TMPDIR");
+  return std::string(tmpdir ? tmpdir : ".").append("/").append(fname);
+#else
+  return "/tmp/"+fname;
+#endif
+}
 
 TEST(KeyringManager, init_with_key) {
   TemporaryFileCleaner cleaner;
 
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
-  mysql_harness::init_keyring_with_key(cleaner.add("/tmp/keyring"), "secret", true);
+  mysql_harness::init_keyring_with_key(cleaner.add(tmpfile("keyring")), "secret", true);
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
     EXPECT_NE(kr, nullptr);
 
     kr->store("foo", "bar", "baz");
     mysql_harness::flush_keyring();
-    EXPECT_TRUE(check_file_private("/tmp/keyring"));
+    EXPECT_TRUE(check_file_private(tmpfile("keyring")));
 
     // this key will not be saved to disk b/c of missing flush
     kr->store("account", "password", "");
@@ -291,12 +299,13 @@ TEST(KeyringManager, init_with_key) {
   mysql_harness::reset_keyring();
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
 
-  EXPECT_FALSE(file_exists("/tmp/badkeyring"));
+  EXPECT_FALSE(file_exists(tmpfile("badkeyring")));
   ASSERT_THROW(
-    mysql_harness::init_keyring_with_key("/tmp/badkeyring", "secret", false),
+    mysql_harness::init_keyring_with_key(tmpfile("badkeyring"), "secret", false),
     std::runtime_error);
-  EXPECT_FALSE(file_exists("/tmp/badkeyring"));
+  EXPECT_FALSE(file_exists(tmpfile("badkeyring")));
 
+#ifndef _WIN32
   ASSERT_THROW(
     mysql_harness::init_keyring_with_key("/badkeyring", "secret", false),
     std::runtime_error);
@@ -306,18 +315,19 @@ TEST(KeyringManager, init_with_key) {
     mysql_harness::init_keyring_with_key("/badkeyring", "secret", true),
     std::runtime_error);
   EXPECT_FALSE(file_exists("/badkeyring"));
+#endif
 
   ASSERT_THROW(
-    mysql_harness::init_keyring_with_key("/tmp/keyring", "badkey", false),
+    mysql_harness::init_keyring_with_key(tmpfile("keyring"), "badkey", false),
     mysql_harness::decryption_error);
 
   ASSERT_THROW(
-    mysql_harness::init_keyring_with_key("/tmp/keyring", "", false),
+    mysql_harness::init_keyring_with_key(tmpfile("keyring"), "", false),
     mysql_harness::decryption_error);
 
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
 
-  mysql_harness::init_keyring_with_key("/tmp/keyring", "secret", false);
+  mysql_harness::init_keyring_with_key(tmpfile("keyring"), "secret", false);
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
 
@@ -331,19 +341,19 @@ TEST(KeyringManager, init_with_key) {
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
   // no key no service
   ASSERT_THROW(
-    mysql_harness::init_keyring_with_key(cleaner.add("/tmp/xkeyring"), "", true),
+    mysql_harness::init_keyring_with_key(cleaner.add(tmpfile("xkeyring")), "", true),
     std::runtime_error);
-  EXPECT_FALSE(file_exists("/tmp/xkeyring"));
+  EXPECT_FALSE(file_exists(tmpfile("xkeyring")));
 
   // try to open non-existing keyring
   ASSERT_THROW(
-    mysql_harness::init_keyring_with_key(cleaner.add("/tmp/invalidkeyring"), "secret", false),
+    mysql_harness::init_keyring_with_key(cleaner.add(tmpfile("invalidkeyring")), "secret", false),
     std::runtime_error);
-  EXPECT_FALSE(file_exists("/tmp/invalidkeyring"));
+  EXPECT_FALSE(file_exists(tmpfile("invalidkeyring")));
 
   // check if keyring is created even if empty
-  mysql_harness::init_keyring_with_key(cleaner.add("/tmp/emptykeyring"), "secret2", true);
-  EXPECT_TRUE(file_exists("/tmp/emptykeyring"));
+  mysql_harness::init_keyring_with_key(cleaner.add(tmpfile("emptykeyring")), "secret2", true);
+  EXPECT_TRUE(file_exists(tmpfile("emptykeyring")));
   mysql_harness::reset_keyring();
 }
 
@@ -351,22 +361,22 @@ TEST(KeyringManager, init_with_key) {
 TEST(KeyringManager, init_with_key_file) {
   TemporaryFileCleaner cleaner;
 
-  EXPECT_FALSE(file_exists("/tmp/keyring"));
-  EXPECT_FALSE(file_exists("/tmp/keyfile"));
+  EXPECT_FALSE(file_exists(tmpfile("keyring")));
+  EXPECT_FALSE(file_exists(tmpfile("keyfile")));
 
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring"),
-                              cleaner.add("/tmp/keyfile"), true);
-  EXPECT_TRUE(file_exists("/tmp/keyring"));
-  EXPECT_TRUE(file_exists("/tmp/keyfile"));
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring")),
+                              cleaner.add(tmpfile("keyfile")), true);
+  EXPECT_TRUE(file_exists(tmpfile("keyring")));
+  EXPECT_TRUE(file_exists(tmpfile("keyfile")));
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
     EXPECT_NE(kr, nullptr);
 
     kr->store("foo", "bar", "baz");
     mysql_harness::flush_keyring();
-    EXPECT_TRUE(check_file_private("/tmp/keyring"));
-    EXPECT_TRUE(check_file_private("/tmp/keyfile"));
+    EXPECT_TRUE(check_file_private(tmpfile("keyring")));
+    EXPECT_TRUE(check_file_private(tmpfile("keyfile")));
 
     // this key will not be saved to disk b/c of missing flush
     kr->store("account", "password", "");
@@ -377,29 +387,30 @@ TEST(KeyringManager, init_with_key_file) {
   mysql_harness::reset_keyring();
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
 
-  FileChangeChecker check_kf("/tmp/keyfile");
-  FileChangeChecker check_kr("/tmp/keyring");
+  FileChangeChecker check_kf(tmpfile("keyfile"));
+  FileChangeChecker check_kr(tmpfile("keyring"));
 
-  EXPECT_FALSE(file_exists("/tmp/badkeyring"));
-  EXPECT_TRUE(file_exists("/tmp/keyfile"));
+  EXPECT_FALSE(file_exists(tmpfile("badkeyring")));
+  EXPECT_TRUE(file_exists(tmpfile("keyfile")));
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/badkeyring", "/tmp/keyfile", false),
+    mysql_harness::init_keyring(tmpfile("badkeyring"), tmpfile("keyfile"), false),
     std::runtime_error);
-  EXPECT_FALSE(file_exists("/tmp/badkeyring"));
+  EXPECT_FALSE(file_exists(tmpfile("badkeyring")));
 
+#ifndef _WIN32
   ASSERT_THROW(
-    mysql_harness::init_keyring("/badkeyring", "/tmp/keyfile", false),
+    mysql_harness::init_keyring("/badkeyring", tmpfile("keyfile"), false),
     std::runtime_error);
   EXPECT_FALSE(file_exists("/badkeyring"));
 
   ASSERT_THROW(
-    mysql_harness::init_keyring("/badkeyring", "/tmp/keyfile", true),
+    mysql_harness::init_keyring("/badkeyring", tmpfile("keyfile"), true),
     std::runtime_error);
   EXPECT_FALSE(file_exists("/badkeyring"));
   EXPECT_TRUE(check_kf.check_unchanged());
 
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/keyring", "/keyfile", false),
+    mysql_harness::init_keyring(tmpfile("keyring"), "/keyfile", false),
     std::runtime_error);
   EXPECT_FALSE(file_exists("/keyfile"));
 
@@ -408,9 +419,9 @@ TEST(KeyringManager, init_with_key_file) {
     std::runtime_error);
   EXPECT_FALSE(file_exists("/keyring"));
   EXPECT_FALSE(file_exists("/keyfile"));
-
+#endif
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/keyring", "", false),
+    mysql_harness::init_keyring(tmpfile("keyring"), "", false),
     std::invalid_argument);
 
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
@@ -419,10 +430,10 @@ TEST(KeyringManager, init_with_key_file) {
   EXPECT_TRUE(check_kf.check_unchanged());
   EXPECT_TRUE(check_kr.check_unchanged());
 
-  EXPECT_TRUE(file_exists("/tmp/keyring"));
-  EXPECT_TRUE(file_exists("/tmp/keyfile"));
+  EXPECT_TRUE(file_exists(tmpfile("keyring")));
+  EXPECT_TRUE(file_exists(tmpfile("keyfile")));
   // reopen it
-  mysql_harness::init_keyring("/tmp/keyring", "/tmp/keyfile", false);
+  mysql_harness::init_keyring(tmpfile("keyring"), tmpfile("keyfile"), false);
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
 
@@ -436,16 +447,16 @@ TEST(KeyringManager, init_with_key_file) {
 
   // try to reopen keyring with bad key file
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/keyring", "/tmp/badkeyfile", false),
+    mysql_harness::init_keyring(tmpfile("keyring"), tmpfile("badkeyfile"), false),
     std::runtime_error);
 
   // try to reopen bad keyring with right keyfile
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/badkeyring", "/tmp/keyfile", false),
+    mysql_harness::init_keyring(tmpfile("badkeyring"), tmpfile("keyfile"), false),
     std::runtime_error);
 
   ASSERT_THROW(
-    mysql_harness::init_keyring("/tmp/badkeyring", "/tmp/badkeyfile", false),
+    mysql_harness::init_keyring(tmpfile("badkeyring"), tmpfile("badkeyfile"), false),
     std::runtime_error);
   EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
 
@@ -455,20 +466,20 @@ TEST(KeyringManager, init_with_key_file) {
 
   // create a new keyring reusing the same keyfile, which should result in
   // 2 master keys stored in the same keyfile
-  EXPECT_FALSE(file_exists("/tmp/keyring2"));
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring2"),
-                              cleaner.add("/tmp/keyfile"), true);
-  EXPECT_TRUE(file_exists("/tmp/keyring2"));
+  EXPECT_FALSE(file_exists(tmpfile("keyring2")));
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring2")),
+                              cleaner.add(tmpfile("keyfile")), true);
+  EXPECT_TRUE(file_exists(tmpfile("keyring2")));
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
     EXPECT_NE(kr, nullptr);
 
     kr->store("user", "pass", "hooray");
     mysql_harness::flush_keyring();
-    EXPECT_TRUE(check_file_private("/tmp/keyring2"));
+    EXPECT_TRUE(check_file_private(tmpfile("keyring2")));
 
     mysql_harness::flush_keyring();
-    EXPECT_TRUE(file_exists("/tmp/keyring2"));
+    EXPECT_TRUE(file_exists(tmpfile("keyring2")));
   }
   mysql_harness::reset_keyring();
 
@@ -477,16 +488,16 @@ TEST(KeyringManager, init_with_key_file) {
   EXPECT_TRUE(check_kr.check_unchanged());
 
   // now try to reopen both keyrings
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring2"),
-                              cleaner.add("/tmp/keyfile"), false);
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring2")),
+                              cleaner.add(tmpfile("keyfile")), false);
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
     EXPECT_EQ(kr->fetch("user", "pass"), "hooray");
   }
   mysql_harness::reset_keyring();
 
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring"),
-                              cleaner.add("/tmp/keyfile"), false);
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring")),
+                              cleaner.add(tmpfile("keyfile")), false);
   {
     mysql_harness::Keyring *kr = mysql_harness::get_keyring();
     EXPECT_EQ(kr->fetch("foo", "bar"), "baz");
@@ -495,8 +506,8 @@ TEST(KeyringManager, init_with_key_file) {
 
   // now try to open with bogus key file
   ASSERT_THROW(
-    mysql_harness::init_keyring(cleaner.add("/tmp/keyring"),
-                                cleaner.add("/tmp/keyring2"), false),
+    mysql_harness::init_keyring(cleaner.add(tmpfile("keyring")),
+                                cleaner.add(tmpfile("keyring2")), false),
     std::runtime_error);
 }
 
@@ -504,31 +515,31 @@ TEST(KeyringManager, regression) {
   TemporaryFileCleaner cleaner;
 
   // init keyring with no create flag was writing to existing file on open
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring"),
-                              cleaner.add("/tmp/keyfile"), true);
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring")),
+                              cleaner.add(tmpfile("keyfile")), true);
   mysql_harness::Keyring *kr = mysql_harness::get_keyring();
   kr->store("1","2", "3");
   mysql_harness::flush_keyring();
   mysql_harness::reset_keyring();
 
-  FileChangeChecker check_kf("/tmp/keyfile");
-  FileChangeChecker check_kr("/tmp/keyring");
+  FileChangeChecker check_kf(tmpfile("keyfile"));
+  FileChangeChecker check_kr(tmpfile("keyring"));
 
-  mysql_harness::init_keyring(cleaner.add("/tmp/keyring"),
-                              cleaner.add("/tmp/keyfile"), false);
+  mysql_harness::init_keyring(cleaner.add(tmpfile("keyring")),
+                              cleaner.add(tmpfile("keyfile")), false);
   EXPECT_TRUE(check_kf.check_unchanged());
   EXPECT_TRUE(check_kr.check_unchanged());
 
   ASSERT_THROW(
-    mysql_harness::init_keyring(cleaner.add("/tmp/bogus1"),
-                                cleaner.add("/tmp/bogus2"), false),
+    mysql_harness::init_keyring(cleaner.add(tmpfile("bogus1")),
+                                cleaner.add(tmpfile("bogus2")), false),
     std::runtime_error);
   ASSERT_THROW(
-    mysql_harness::init_keyring(cleaner.add("/tmp/bogus1"),
-                                cleaner.add("/tmp/keyfile"), false),
+    mysql_harness::init_keyring(cleaner.add(tmpfile("bogus1")),
+                                cleaner.add(tmpfile("keyfile")), false),
     std::runtime_error);
-  EXPECT_FALSE(file_exists("/tmp/bogus1"));
-  EXPECT_FALSE(file_exists("/tmp/bogus2"));
+  EXPECT_FALSE(file_exists(tmpfile("bogus1")));
+  EXPECT_FALSE(file_exists(tmpfile("bogus2")));
 
   EXPECT_TRUE(check_kf.check_unchanged());
   EXPECT_TRUE(check_kr.check_unchanged());

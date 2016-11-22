@@ -35,8 +35,17 @@
 #include "gmock/gmock.h"
 
 #ifdef _WIN32
-static std::string kTestKRFile = "\\temp\\tkeyfile";
-static std::string kTestKRFile2 = "\\temp\\tkeyfile2";
+static std::string kTestKRFile = "tkeyfile";
+static std::string kTestKRFile2 = "tkeyfile2";
+static struct Initter {
+  Initter() {
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir)
+      tmpdir = ".";
+    kTestKRFile = std::string(tmpdir).append("/").append(kTestKRFile);
+    kTestKRFile2 = std::string(tmpdir).append("/").append(kTestKRFile2);
+  }
+} init;
 #else
 static std::string kTestKRFile = "/tmp/tkeyfile";
 static std::string kTestKRFile2 = "/tmp/tkeyfile2";

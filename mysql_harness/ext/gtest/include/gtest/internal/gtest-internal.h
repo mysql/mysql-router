@@ -1075,6 +1075,10 @@ class NativeArray {
     try { \
       GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
     } \
+    catch (std::exception &e) {\
+      FAIL() << "EXCEPTION CAUGHT: " << e.what() << "\n";\
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__); \
+    }\
     catch (...) { \
       goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__); \
     } \

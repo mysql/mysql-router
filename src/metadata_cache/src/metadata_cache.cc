@@ -253,8 +253,8 @@ void MetadataCache::mark_instance_reachability(const std::string &instance_id,
   // the replicaset that the given instance belongs to
   metadata_cache::ManagedInstance *instance = nullptr;
   metadata_cache::ManagedReplicaSet *replicaset = nullptr;
-  for (auto rs : replicaset_data_) {
-    for (auto inst : rs.second.members) {
+  for (auto &rs : replicaset_data_) {
+    for (auto &inst : rs.second.members) {
       if (inst.mysql_server_uuid == instance_id) {
         instance = &inst;
         replicaset = &rs.second;
