@@ -141,10 +141,20 @@ else()
 
   get_property(harness_library_location TARGET harness-library PROPERTY LOCATION)
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+    # lib is the location of harness-library for unit tests (since they have no knowledge
+    # of bin folder
     add_custom_command(TARGET harness-library
           COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${STAGE_DIR}/${conf}/lib/
           COMMENT "Copying harness library from: ${harness_library_location}"
     )
+    if(WIN32)
+      # bin is the location of harness-library to be deployed to MSI (and also for normal
+      # scenarios when router is launched from command line. Only for Windows.
+      add_custom_command(TARGET harness-library
+          COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${STAGE_DIR}/${conf}/bin/
+          COMMENT "Copying harness library from: ${harness_library_location}"
+      )
+    endif()
     file(MAKE_DIRECTORY "${STAGE_DIR}/${conf}/lib/")
   endforeach()
 endif()

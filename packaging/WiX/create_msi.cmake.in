@@ -266,15 +266,8 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
 	      MAKE_WIX_IDENTIFIER("${rel}" id)
         FILE(TO_NATIVE_PATH ${f} f_native)
         IF("${rel}" MATCHES "lib/harness-library.dll")
-          # Copy this file to 'bin' folder instead of 'lib' folder.
-          FILE(APPEND ${file} "</DirectoryRef>\n")          
-          FILE(APPEND ${file} "<DirectoryRef Id='D.bin'>\n")
-          FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
-      	  FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
-      	  FILE(APPEND ${file} "  </Component>\n")
-      	  FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
-          FILE(APPEND ${file} "</DirectoryRef>\n")
-          FILE(APPEND ${file} "<DirectoryRef Id='${DirectoryRefId}'>\n")
+          # ignore /lib version of harness-library (it is on bin folder already)
+          # so is not installed twice.
         ELSE()
 	        GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
       	  # According to MSDN each DLL or EXE should be in the own component

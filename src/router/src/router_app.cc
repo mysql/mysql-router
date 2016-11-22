@@ -248,13 +248,20 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
       {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
       {"state_folder", fixpath(MYSQL_ROUTER_SECURE_FILE_PRIVDIR, basedir)}
   };
-#ifndef _WIN32
   // check if the executable is being ran from the install location and if not
   // set the plugin dir to a path relative to it
+#ifndef _WIN32
   {
     mysql_harness::Path install_origin(fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
     if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
       params["plugin_folder"] = origin_.dirname().join("lib/mysqlrouter").str();
+    }
+  }
+#else
+  {
+    mysql_harness::Path install_origin(fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
+    if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
+      params["plugin_folder"] = origin_.dirname().join("lib").str();
     }
   }
 #endif
