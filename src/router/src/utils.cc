@@ -45,6 +45,9 @@
 #include <direct.h>
 #include <io.h>
 #include <stdio.h>
+namespace {
+  extern "C" bool g_windows_service;
+}
 #endif
 
 using std::string;
@@ -490,18 +493,9 @@ string prompt_password(const std::string &prompt) {
 
 
 #ifdef _WIN32
-bool is_running_as_service() {
-  bool result = false;
 
-  HWINSTA h = GetProcessWindowStation();
-  if (h != NULL) {
-    USEROBJECTFLAGS uof = { 0 };
-    if (GetUserObjectInformation(h, UOI_FLAGS, &uof, sizeof(USEROBJECTFLAGS), NULL)
-      && !(uof.dwFlags & WSF_VISIBLE)) {
-      result = true;
-    }
-  }
-  return result;
+bool is_running_as_service() {
+  return ::g_windows_service;
 }
 
 void write_windows_event_log(const std::string& msg) {

@@ -30,7 +30,7 @@ namespace {
   const char *kAccount = "NT AUTHORITY\\LocalService";
   
   NTService g_service;
-  bool      g_windows_service = false;
+  extern "C" bool      g_windows_service = false;
   int     (*g_real_main)(int,char**);
   
   std::string &add_quoted_string(std::string &to, const char *from) {
