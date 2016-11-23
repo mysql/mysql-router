@@ -169,7 +169,7 @@ Directory::DirectoryIterator::State::State(const Path& path,
     : dirp_(opendir(path.c_str())), pattern_(pattern) {
   // in Solaris, dirent is NOT large enough to hold a directory name, so we need to
   // ensure there's extra space for it
-  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
+  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
   result_ = entry_;
 
   if (dirp_ == nullptr) {
