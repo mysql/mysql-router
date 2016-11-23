@@ -948,7 +948,12 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
   if (path.exists()) {
     mysql_harness::Config config(mysql_harness::Config::allow_keys);
     config.read(path);
-    auto sections(config.get("metadata_cache"));
+    mysql_harness::Config::SectionList sections;
+    if (config.has_any("metadata_cache")) {
+      sections = config.get("metadata_cache");
+    } else {
+      return 0;
+    }
     if (sections.size() > 1) {
       throw std::runtime_error("Bootstrapping of Router with multiple metadata_cache sections not supported");
     }

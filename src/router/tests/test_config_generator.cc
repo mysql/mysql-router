@@ -1391,6 +1391,28 @@ TEST_F(ConfigGeneratorTest, full_test) {
   mysql_harness::reset_keyring();
 }
 
+TEST_F(ConfigGeneratorTest, empty_config_file) {
+  ConfigGenerator config;
+  uint32_t router_id;
+  const std::string test_dir("./delme");
+  const std::string conf_path(test_dir + "/mysqlrouter.conf");
+
+  mysqlrouter::delete_recursive(test_dir);
+  mysqlrouter::mkdir(test_dir, 0700);
+
+  std::ofstream file(conf_path, std::ofstream::out | std::ofstream::trunc);
+  file.close();
+
+  EXPECT_NO_THROW(
+    router_id = config.get_router_id_from_config_file(conf_path, "dummy",
+                                                      false)
+  );
+  EXPECT_EQ(router_id, uint32_t(0));
+
+  mysqlrouter::delete_recursive(test_dir);
+  mysql_harness::reset_keyring();
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();

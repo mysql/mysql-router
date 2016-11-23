@@ -40,6 +40,7 @@ DECLARE_TEST(ConfigGeneratorTest, create_config_multi_master);
 DECLARE_TEST(ConfigGeneratorTest, create_acount);
 DECLARE_TEST(ConfigGeneratorTest, fill_options);
 DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
+DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
 #endif
 
 namespace mysqlrouter {
@@ -149,6 +150,7 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, create_acount);
   FRIEND_TEST(::ConfigGeneratorTest, fill_options);
   FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
+  FRIEND_TEST(::ConfigGeneratorTest, empty_config_file);
 #endif
 };
 }
