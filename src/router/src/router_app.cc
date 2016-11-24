@@ -116,7 +116,12 @@ static std::string substitute_variable(const std::string &s,
     tmp.append(r.substr(p+name.size()));
     r = tmp;
   }
-  return r;
+  mysqlrouter::substitute_envvar(r);
+  mysql_harness::Path path(r);
+  if (path.exists())
+    return path.real_path().str();
+  else
+    return r;
 }
 
 static inline void set_signal_handlers() {
@@ -269,7 +274,6 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
   // resolve environment variables & relative paths
   for (auto it : params) {
     std::string &param = params.at(it.first);
-    mysqlrouter::substitute_envvar(param);
     param.assign(substitute_variable(param, "{origin}", origin_.str()));
   }
   return params;

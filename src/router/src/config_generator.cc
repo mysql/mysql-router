@@ -227,35 +227,35 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   if (user_options.find("name") != user_options.end()) {
     router_name = user_options.at("name");
     if (!is_valid_name(router_name))
-      throw std::runtime_error("Router name '"+router_name+"' contains invalid characters.");
+      throw std::runtime_error("Router name '" + router_name + "' contains invalid characters.");
     if (router_name.length() > kMaxRouterNameLength)
-      throw std::runtime_error("Router name '"+router_name+"' too long (max "+std::to_string(kMaxRouterNameLength)+").");
+      throw std::runtime_error("Router name '" + router_name + "' too long (max " + std::to_string(kMaxRouterNameLength) + ").");
   }
   if (router_name.empty())
-     router_name = kSystemRouterName;
+    router_name = kSystemRouterName;
 
   if (user_options.find("socketsdir") == user_options.end())
     options["socketsdir"] = "/tmp";
 
   // (re-)bootstrap the instance
   std::ofstream config_file;
-  config_file.open(config_file_path+".tmp");
+  config_file.open(config_file_path + ".tmp");
   if (config_file.fail()) {
-    throw std::runtime_error("Could not open "+config_file_path+".tmp for writing: "+get_strerror(errno));
+    throw std::runtime_error("Could not open " + config_file_path + ".tmp for writing: " + get_strerror(errno));
   }
   bootstrap_deployment(config_file, _config_file_path,
-                       router_name, options,
-                       keyring_file_path, keyring_master_key_file,
-                       false);
+    router_name, options,
+    keyring_file_path, keyring_master_key_file,
+    false);
   config_file.close();
 
   if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp")) {
     if (!quiet)
-      std::cout << "\nExisting configurations backed up to " << config_file_path+".bak" << "\n";
+      std::cout << "\nExisting configurations backed up to " << config_file_path + ".bak" << "\n";
   }
 
   // rename the .tmp file to the final file
-  if (rename((config_file_path + ".tmp").c_str(), config_file_path.c_str()) < 0) {
+  if (mysqlrouter::rename_file((config_file_path + ".tmp").c_str(), config_file_path.c_str()) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
