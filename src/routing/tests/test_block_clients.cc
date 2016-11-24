@@ -15,11 +15,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-/**
- * BUG22020088
- *
- */
-
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
@@ -27,13 +22,13 @@
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
-#include "../../../router/src/router_app.h"
+#include "../../router/src/router_app.h"
 #include "config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
-#include "../../../routing/src/mysql_routing.h"
-#include "../../../routing/src/utils.h"
+#include "../../routing/src/mysql_routing.h"
+#include "../../routing/src/utils.h"
 
 #include <cstdio>
 #include <fstream>
@@ -58,103 +53,21 @@ using mysql_harness::Path;
 string g_cwd;
 Path g_origin;
 
-// Used in tests; does not change for each test.
-const string kDefaultRoutingConfig = "\ndestinations=127.0.0.1:3306\nmode=read-only\n";
-
-class Bug22020088 : public ConsoleOutputTest {
+class TestBlockClients : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
-    config_path.reset(new Path(g_cwd));
-    config_path->append("Bug22020088.ini");
-
   }
-
-  void reset_config() {
-    std::ofstream ofs_config(config_path->str());
-    if (ofs_config.good()) {
-      ofs_config << "[DEFAULT]\n";
-      ofs_config << "logging_folder =\n";
-      ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
-      ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
-      ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
-      ofs_config.close();
-    }
-  }
-
-  std::unique_ptr<Path> config_path;
 };
 
-TEST_F(Bug22020088, NoDestination) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\n";
-  c << kDefaultRoutingConfig;
-  c.close();
-
-  MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-      "either bind_address or socket option needs to be supplied, or both"));
-  }
-}
-
-TEST_F(Bug22020088, MissingPortInBindAddress) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\nbind_address=127.0.0.1\n";
-  c << kDefaultRoutingConfig;
-  c.close();
-
-  MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "either bind_address or socket option needs to be supplied, or both"));
-  }
-}
-
-TEST_F(Bug22020088, InvalidPortInBindAddress) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\nbind_address=127.0.0.1:999292\n";
-  c << kDefaultRoutingConfig;
-  c.close();
-
-  MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "option bind_address in [routing] is incorrect (invalid TCP port: invalid characters or too long)"));
-  }
-}
-
-TEST_F(Bug22020088, InvalidDefaultPort) {
-  reset_config();
-  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[routing]\nbind_port=23123124123123\n";
-  c << kDefaultRoutingConfig;
-  c.close();
-
-  MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'"));
-  }
-}
-
-TEST_F(Bug22020088, BlockClientHost) {
+TEST_F(TestBlockClients, BlockClientHost) {
   unsigned long long max_connect_errors = 2;
   unsigned int client_connect_timeout = 2;
   sockaddr_in6 client_addr1, client_addr2;
   client_addr1.sin6_family = client_addr2.sin6_family = AF_INET6;
+  memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
+  memset(&client_addr2.sin6_addr, 0x0, sizeof(client_addr2.sin6_addr));
   unsigned char* p1 = reinterpret_cast<unsigned char*>(&client_addr1.sin6_addr);
   p1[15] = 1;
   unsigned char* p2 = reinterpret_cast<unsigned char*>(&client_addr2.sin6_addr);
@@ -163,7 +76,8 @@ TEST_F(Bug22020088, BlockClientHost) {
   auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
   auto client_ip_array2 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr2));
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
+  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+                 "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
@@ -172,8 +86,8 @@ TEST_F(Bug22020088, BlockClientHost) {
   ASSERT_TRUE(r.block_client_host(client_ip_array1, string("::1")));
   ASSERT_THAT(ssout.str(), HasSubstr("blocking client host ::1"));
 
-  return;
   auto blocked_hosts = r.get_blocked_client_hosts();
+  ASSERT_GE(blocked_hosts.size(), 1u);
   ASSERT_THAT(blocked_hosts[0], ContainerEq(client_ip_array1));
 
   ASSERT_FALSE(r.block_client_host(client_ip_array2, string("::2")));
@@ -184,16 +98,18 @@ TEST_F(Bug22020088, BlockClientHost) {
   ASSERT_THAT(blocked_hosts[1], ContainerEq(client_ip_array2));
 }
 
-TEST_F(Bug22020088, BlockClientHostWithFakeResponse) {
+TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   unsigned long long max_connect_errors = 2;
   unsigned int client_connect_timeout = 2;
   sockaddr_in6 client_addr1;
   client_addr1.sin6_family = AF_INET6;
+  memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
   unsigned char* p = reinterpret_cast<unsigned char*>(&client_addr1.sin6_addr);
   p[15] = 1;
   auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
+  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+                 "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, 1, max_connect_errors, client_connect_timeout);
 
   std::FILE* fd_response = std::fopen("fake_response.data", "w");

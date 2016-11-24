@@ -226,14 +226,11 @@ public:
   bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                          const std::string &client_ip_str, int server = -1);
 
-  /** @brief Returns a copy of the list of blocked client hosts
+  /** @brief Returns list of blocked client hosts
    *
-   * Returns a copy of the list of the blocked client hosts.
+   * Returns list of the blocked client hosts.
    */
-  const std::vector<std::array<uint8_t, 16>> get_blocked_client_hosts() {
-    std::lock_guard<std::mutex> lock(mutex_conn_errors_);
-    return std::vector<std::array<uint8_t, 16>>(blocked_client_hosts_);
-  }
+  const std::vector<std::array<uint8_t, 16>> get_blocked_client_hosts() const;
 
   /** @brief Returns maximum active connections
    *
@@ -320,9 +317,8 @@ private:
   std::atomic<uint64_t> info_handled_routes_;
 
   /** @brief Connection error counters for IPv4 or IPv6 hosts */
-  std::mutex mutex_conn_errors_;
+  mutable std::mutex mutex_conn_errors_;
   std::map<std::array<uint8_t, 16>, size_t> conn_error_counters_;
-  std::vector<std::array<uint8_t, 16>> blocked_client_hosts_;
 
   /** @brief TCP (and UNIX socket) service thread */
   std::thread thread_acceptor_;

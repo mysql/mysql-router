@@ -144,6 +144,19 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
   return blocked;
 }
 
+const std::vector<std::array<uint8_t, 16>> MySQLRouting::get_blocked_client_hosts() const {
+  std::lock_guard<std::mutex> lock(mutex_conn_errors_);
+
+  std::vector<std::array<uint8_t, 16>> result;
+  for(const auto& client_ip: conn_error_counters_) {
+    if (client_ip.second >= max_connect_errors_) {
+      result.push_back(client_ip.first);
+    }
+  }
+
+  return result;
+}
+
 void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& client_addr) noexcept {
   int nfds;
   int res;
@@ -584,8 +597,7 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
                                                   get_access_mode_name(mode_),
                                                   uri.query, protocol_->get_type()));
   } else {
-    throw runtime_error(string_format("Invalid URI scheme '%s' for URI %s",
-                                      uri.scheme.c_str()));
+    throw runtime_error(string_format("Invalid URI scheme '%s'", uri.scheme.c_str()));
   }
 }
 

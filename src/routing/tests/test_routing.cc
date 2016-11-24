@@ -448,15 +448,31 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
   // metadata-cache uri, role missing
   {
     URI uri("metadata-cache://test/default");
-    EXPECT_THROW(routing.set_destinations_from_uri(uri),
-                 std::runtime_error);
+    try {
+      routing.set_destinations_from_uri(uri);
+      FAIL() << "Expected std::runtime_error exception";
+    }
+    catch (const std::runtime_error &err) {
+      EXPECT_EQ(err.what(), std::string("Missing 'role' in routing destination specification"));
+    }
+    catch (...) {
+      FAIL() << "Expected std::runtime_error exception";
+    }
   }
 
   // invalid scheme
   {
     URI uri("invalid-scheme://test/default?role=SECONDARY");
-    EXPECT_THROW(routing.set_destinations_from_uri(uri),
-                 std::runtime_error);
+    try {
+      routing.set_destinations_from_uri(uri);
+      FAIL() << "Expected std::runtime_error exception";
+    }
+    catch (const std::runtime_error &err) {
+      EXPECT_EQ(err.what(), std::string("Invalid URI scheme 'invalid-scheme'"));
+    }
+    catch (...) {
+      FAIL() << "Expected std::runtime_error exception";
+    }
   }
 }
 
