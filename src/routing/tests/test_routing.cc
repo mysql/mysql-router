@@ -468,7 +468,7 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
       FAIL() << "Expected std::runtime_error exception";
     }
     catch (const std::runtime_error &err) {
-      EXPECT_EQ(err.what(), std::string("Invalid URI scheme 'invalid-scheme'"));
+      EXPECT_EQ(err.what(), std::string("Invalid URI scheme; excpecting: 'metadata-cache' is: 'invalid-scheme'"));
     }
     catch (...) {
       FAIL() << "Expected std::runtime_error exception";

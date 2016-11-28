@@ -70,3 +70,6 @@
 #cmakedefine WORDS_BIGENDIAN 1
 
 #cmakedefine ENABLE_TESTS
+
+/* Compiler specific features */
+#cmakedefine HAVE_ATTRIBUTE_FORMAT 1
