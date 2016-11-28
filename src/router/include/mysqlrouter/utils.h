@@ -28,6 +28,8 @@
 #  include <netdb.h>
 #endif
 
+#include "config.h"
+
 namespace mysqlrouter {
 
 // Some (older) compiler have no std::to_string available
@@ -47,7 +49,11 @@ std::string to_string(const T &data) {
 * @param ... variable argument list containing the data
 * @returns formatted text as string
 */
-std::string string_format(const char *format, ...);
+std::string string_format(const char *format, ...)
+#ifdef HAVE_ATTRIBUTE_FORMAT
+                       __attribute__((format(printf, 1, 2)))
+#endif
+;
 
 /**
  * Split host and port

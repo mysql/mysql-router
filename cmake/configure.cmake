@@ -130,15 +130,13 @@ CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
 INCLUDE(TestBigEndian)
 TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 
-INCLUDE(CheckTypeSize)
-CHECK_TYPE_SIZE("void *"    SIZEOF_VOIDP)
-CHECK_TYPE_SIZE("char *"    SIZEOF_CHARP)
-CHECK_TYPE_SIZE("long"      SIZEOF_LONG)
-CHECK_TYPE_SIZE("short"     SIZEOF_SHORT)
-CHECK_TYPE_SIZE("int"       SIZEOF_INT)
-CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
-CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
-CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
+# Compiler specific features
+INCLUDE(CheckCSourceCompiles)
+CHECK_C_SOURCE_COMPILES("
+void test(const char *format, ...) __attribute__((format(printf, 1, 2)));
+int main() {
+  return 0;
+}" HAVE_ATTRIBUTE_FORMAT)
 
 configure_file(config.h.in config.h @ONLY)
 include_directories(${PROJECT_BINARY_DIR})
