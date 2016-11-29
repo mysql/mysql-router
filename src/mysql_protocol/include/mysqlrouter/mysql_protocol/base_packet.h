@@ -225,14 +225,18 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param size Size of the integral (default: size of integral)
    *
    */
-  template<class Type, typename = std::enable_if<std::is_integral<Type>::value>>
-  void add_int(Type value, size_t length = sizeof(Type)) {
-    assert(std::numeric_limits<Type>::min() <= value && value <= std::numeric_limits<Type>::max());
-
-    auto val = value;
-    while (length-- > 0) {
-      push_back(static_cast<uint8_t>(val));
-      val = static_cast<Type>(val >> CHAR_BIT);
+  template<class T, typename = std::enable_if<std::is_integral<T>::value>>
+  void add_int(T value, size_t length = sizeof(T)) {
+    reserve(size() + length);
+    while(length-- > 0) {
+      // Assignment to temporary variable `b` prevents too aggressive inlining
+      // optimization in some compilers (e.g. GCC 4.9.2 on Solaris, with -O2).
+      // Without it, `value` wasn't getting updated before push_back() under
+      // certain conditions, and resulted in filling packet's buffer with
+      // invalid data.
+      uint8_t b = static_cast<uint8_t>(value);
+      push_back(b);
+      value = static_cast<T>(value >> CHAR_BIT);
     }
   }
 
