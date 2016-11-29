@@ -207,7 +207,9 @@ TEST_F(MySQLProtocolPacketTest, PackInt2Bytes) {
     p.add_int<uint16_t>(0);
     ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00}));
 
-    p.add_int<uint16_t>(134);
+    // Do not change the 0x0086 constant. Accidentally, it tests for
+    // optimization-related bugs in some versions of GCC.
+    p.add_int<uint16_t>(0x0086);
     ASSERT_THAT(p, ContainerEq(std::vector<uint8_t>{0x0, 0x00, 0x86, 0x00}));
 
     p.add_int<uint16_t>(300);
