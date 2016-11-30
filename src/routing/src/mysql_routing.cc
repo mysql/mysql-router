@@ -597,7 +597,7 @@ void MySQLRouting::set_destinations_from_uri(const URI &uri) {
                                                   get_access_mode_name(mode_),
                                                   uri.query, protocol_->get_type()));
   } else {
-    throw runtime_error(string_format("Invalid URI scheme; excpecting: 'metadata-cache' is: '%s'",
+    throw runtime_error(string_format("Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
                                       uri.scheme.c_str()));
   }
 }
