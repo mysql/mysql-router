@@ -1,4 +1,4 @@
-mysql-router (2.1.1-1ubuntu16.04) xenial; urgency=low
+mysql-router (2.1.1-labs-1ubuntu16.04) xenial; urgency=low
 
   * initial version
 

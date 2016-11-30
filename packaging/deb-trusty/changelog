@@ -1,4 +1,4 @@
-mysql-router (2.1.1-1ubuntu14.04) trusty; urgency=low
+mysql-router (2.1.1-labs-1ubuntu14.04) trusty; urgency=low
 
   * initial version
 

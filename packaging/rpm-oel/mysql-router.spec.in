@@ -208,6 +208,9 @@ fi
 %dir %attr(755, mysql, mysql) %{_localstatedir}/run/mysqlrouter
 
 %changelog
+* Tue Nov 29 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.1.1-0.1
+- Updated for 2.1.1 labs release
+
 * Sat Sep 10 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.1.0-0.1
 - Updated for 2.1.0 labs release
 
