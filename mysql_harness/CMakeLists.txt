@@ -62,6 +62,17 @@ message(STATUS "Harness will install plugins in ${HARNESS_INSTALL_LIBRARY_DIR}/$
 #    in the source root.
 if(ENABLE_TESTS)
   if(WITH_GMOCK)
+
+    # There is a known gtest/gmock bug that surfaces with the gcc-6.x causing tests crashes:
+    # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=833450
+    # We have a patch for it in the gmock we bundle but if the user wants to use
+    # it's own gtest/gmock we need to prevent it if the gcc-6.x is used
+    if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      AND (CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "6.0" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "6.0"))
+      message(FATAL_ERROR "Parameter WITH_GMOCK is not supported for gcc-6 or greater."
+        "You need to either disable the tests or use the bundled gmock (removing WITH_GMOCK parameter).")
+    endif()
+
     set(_gmock_root ${WITH_GMOCK})
     set(_gtest_root ${WITH_GMOCK}/gtest)
   elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/gmock/CMakeLists.txt")
