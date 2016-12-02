@@ -130,8 +130,19 @@ class METADATA_API ClusterMetadata : public MetaData {
    * The information is pulled from GR maintained performance_schema tables.
    */
   void update_replicaset_status(const std::string &name,
-      metadata_cache::ManagedReplicaSet &replicaset);
+      metadata_cache::ManagedReplicaSet &replicaset) noexcept;
 
+  /** @brief Hard to summarise, please read the full description
+   *
+   * Does two things based on `member_status` provided:
+   * - updates `instances` with status info from `member_status`
+   * - performs quorum calculations and returns replicaset's overall health
+   *   based on the result, one of: read-only, read-write or not-available
+   *
+   * @param member_status node statuses obtained from status SQL query
+   * @param instances list of nodes to be updated with status info
+   * @return replicaset availability state (RW, RO or NA)
+   */
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
       const std::map<std::string, GroupReplicationMember> &member_status) const noexcept;

@@ -125,7 +125,7 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
 }
 
 void ClusterMetadata::update_replicaset_status(const std::string &name,
-    metadata_cache::ManagedReplicaSet &replicaset) {
+    metadata_cache::ManagedReplicaSet &replicaset) noexcept {
   log_debug("Updating replicaset status from GR for '%s'", name.c_str());
   // iterate over all cadidate nodes until we find the node that is part of quorum
   bool found_quorum = false;
@@ -163,9 +163,8 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
       log_debug("Replicaset '%s' has %i members in metadata, %i in status table",
                 name.c_str(), replicaset.members.size(), member_status.size());
 
-      // check status of all nodes; updates instances ------------------vvvvvvvvv
-      metadata_cache::ReplicasetStatus status =
-          check_replicaset_status(replicaset.members, member_status);
+      // check status of all nodes; updates instances ------------------vvvvvvvvvvvvvvvvvv
+      metadata_cache::ReplicasetStatus status = check_replicaset_status(replicaset.members, member_status);
       switch (status) {
         case metadata_cache::ReplicasetStatus::AvailableWritable: // we have quorum, good!
           found_quorum = true;
@@ -173,12 +172,9 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
         case metadata_cache::ReplicasetStatus::AvailableReadOnly: // have quorum, but only RO
           found_quorum = true;
           break;
-        default:
-          assert(0);  // unrecognised status
         case metadata_cache::ReplicasetStatus::Unavailable:       // we have nothing
           log_warning("%s is not part of quorum for replicaset '%s'", mi_addr.c_str(), name.c_str());
           continue;   // this server is no good, next!
-          break;
       }
 
       if (found_quorum) {
@@ -203,7 +199,10 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
     std::string msg("Unable to fetch live group_replication member data from any server in replicaset '");
     msg += name + "'";
     log_error("%s", msg.c_str());
-    throw metadata_cache::metadata_error(msg);
+
+    // if we don't have a quorum, we want to give "nothing" to the Routing plugin, so it doesn't
+    // route anything. Routing plugin is dumb, it has no idea what a quorum is, etc.
+    replicaset.members.clear();
   }
 }
 
@@ -319,7 +318,7 @@ ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
   // now connect to each replicaset and query it for the list and status of its members.
   // (more precisely, foreach replicaset: search and connect to a member which is part of quorum to retrieve this data)
   for (auto &&rs : replicasets) {
-    update_replicaset_status(rs.first, rs.second);  // throws metadata_cache::metadata_error
+    update_replicaset_status(rs.first, rs.second);
   }
 
   return replicasets;
