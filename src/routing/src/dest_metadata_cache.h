@@ -80,6 +80,13 @@ public:
     destinations_ = get_available(nullptr);
   }
 
+  /** @brief empty implementation
+   *
+   * This method actually does something - it disables the RouteDestination::start(),
+   * which launches Quarantine. For Metadata Cache routing, we don't need it.
+   */
+  void start() override {}
+
 private:
   /** @brief The Metadata Cache to use
    *
