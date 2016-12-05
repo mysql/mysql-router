@@ -305,8 +305,6 @@ private:
   int service_tcp_;
   /** @brief Socket descriptor of the named socket service */
   int service_named_socket_;
-///** @brief Socket descriptor of the service */
-//int sock_server_;
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
   /** @brief Whether we were asked to stop */
@@ -329,6 +327,7 @@ private:
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
+  FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
 #endif
 };
 
