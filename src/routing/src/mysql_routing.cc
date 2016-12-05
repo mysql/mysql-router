@@ -174,6 +174,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
     std::stringstream os;
     os << "Can't connect to remote MySQL server for client '"
       << bind_address_.addr << ":" << bind_address_.port << "'";
+
     log_warning("[%s] %s", name.c_str(), os.str().c_str());
 
     // at this point, it does not matter whether client gets the error
@@ -609,9 +610,9 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
 
   if (AccessMode::kReadOnly == mode_) {
-    destination_.reset(new RouteDestination());
+    destination_.reset(new RouteDestination(protocol_->get_type(), socket_operations_));
   } else if (AccessMode::kReadWrite == mode_) {
-    destination_.reset(new DestFirstAvailable());
+    destination_.reset(new DestFirstAvailable(protocol_->get_type(), socket_operations_));
   } else {
     throw std::runtime_error("Unknown mode");
   }
