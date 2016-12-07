@@ -232,30 +232,24 @@ class FileChangeChecker {
 public:
   FileChangeChecker(const std::string &file) : path_(file) {
     std::ifstream f;
+    std::stringstream ss;
     f.open(file, std::ifstream::binary);
     if (f.fail())
       throw std::runtime_error(file+" "+mysql_harness::get_strerror(errno));
-    f.seekg(0, std::ios::end);
-    if(f.tellg().seekpos() != -1)
-      contents_.resize(static_cast<size_t>(f.tellg()));
-    f.seekg(0, std::ios::beg);
-    f.read(&contents_[0], contents_.size());
+    ss << f.rdbuf();
+    contents_ = ss.str();
     f.close();
   }
 
   bool check_unchanged() {
     std::ifstream f;
+    std::stringstream ss;
     f.open(path_, std::ifstream::binary);
     if (f.fail())
       throw std::runtime_error(path_+" "+mysql_harness::get_strerror(errno));
-    std::string data;
-    f.seekg(0, std::ios::end);
-    if (f.tellg().seekpos() != -1)
-      data.resize(static_cast<size_t>(f.tellg()));
-    f.seekg(0, std::ios::beg);
-    f.read(&data[0], data.size());
+    ss << f.rdbuf();
     f.close();
-    return data == contents_;
+    return ss.str() == contents_;
   }
 
 private:
