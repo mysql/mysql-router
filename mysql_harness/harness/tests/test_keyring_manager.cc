@@ -232,28 +232,28 @@ class FileChangeChecker {
 public:
   FileChangeChecker(const std::string &file) : path_(file) {
     std::ifstream f;
-    f.open(file);
+    f.open(file, std::ifstream::binary);
     if (f.fail())
       throw std::runtime_error(file+" "+mysql_harness::get_strerror(errno));
-    while (!f.eof()) {
-      char buffer[1024];
-      f.read(buffer, sizeof(buffer));
-      contents_.append(buffer, (size_t)f.gcount());
-    }
+    f.seekg(0, std::ios::end);
+    if(f.tellg().seekpos() != -1)
+      contents_.resize(static_cast<size_t>(f.tellg()));
+    f.seekg(0, std::ios::beg);
+    f.read(&contents_[0], contents_.size());
     f.close();
   }
 
   bool check_unchanged() {
     std::ifstream f;
-    f.open(path_);
+    f.open(path_, std::ifstream::binary);
     if (f.fail())
       throw std::runtime_error(path_+" "+mysql_harness::get_strerror(errno));
     std::string data;
-    while (!f.eof()) {
-      char buffer[1024];
-      f.read(buffer, sizeof(buffer));
-      data.append(buffer, (size_t)f.gcount());
-    }
+    f.seekg(0, std::ios::end);
+    if (f.tellg().seekpos() != -1)
+      data.resize(static_cast<size_t>(f.tellg()));
+    f.seekg(0, std::ios::beg);
+    f.read(&data[0], data.size());
     f.close();
     return data == contents_;
   }
@@ -484,8 +484,10 @@ TEST(KeyringManager, init_with_key_file) {
   mysql_harness::reset_keyring();
 
   // the orignal keyring should still be unchanged, but not the keyfile
-  EXPECT_FALSE(check_kf.check_unchanged());
-  EXPECT_TRUE(check_kr.check_unchanged());
+  bool b1 = check_kf.check_unchanged();
+  bool b2 = check_kr.check_unchanged();
+  EXPECT_FALSE(b1);
+  EXPECT_TRUE(b2);
 
   // now try to reopen both keyrings
   mysql_harness::init_keyring(cleaner.add(tmpfile("keyring2")),

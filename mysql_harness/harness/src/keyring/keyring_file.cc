@@ -232,14 +232,40 @@ void KeyringFile::save(const std::string& file_name,
   std::ofstream file;
 
   file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-  
+
+
+#ifndef _WIN32
   try {
     file.open(file_name,
-              std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
-  } catch (std::exception& e) {
-    throw std::runtime_error(std::string("Failed to open keyring file for writing: ") +
-                            file_name + ": " + get_strerror(errno));
+      std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
   }
+  catch (std::exception& e) {
+    throw std::runtime_error(std::string("Failed to open keyring file for writing: ") +
+      file_name + ": " + get_strerror(errno));
+  }
+#else
+  // For Microsoft Windows, on repeated saving of files (like our unit tests) the file opening sometimes fails with 
+  // "Access Denied", since it works fine when disabling indexing of file contents for the whole folder
+  // we assume the indexer is not releasing the file fast enough.
+  // So here we simply retry the opening of the file.
+  int retries = 5;
+  do {
+    try {
+      file.open(file_name,
+        std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
+      break;
+    }
+    catch (std::exception& e) {
+      if (retries-- > 0) {
+        Sleep(100);
+        continue;
+      }
+      throw std::runtime_error(std::string("Failed to open keyring file for writing: ") +
+        file_name + ": " + get_strerror(errno));
+    }
+  } while (true);
+#endif
+
   try {
     make_file_private(file_name);
     // write signature
