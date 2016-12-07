@@ -355,8 +355,10 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
 
+  std::string keyring_master_key_path = path.real_path().join(keyring_master_key_file).str();
+
   bootstrap_deployment(config_file, config_file_path, router_name, options,
-                       keyring_path, keyring_master_key_file,
+                       keyring_path, keyring_master_key_path,
                        true);
   config_file.close();
 
@@ -365,7 +367,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       std::cout << "\nExisting configurations backed up to " << config_file_path.str()+".bak" << "\n";
   }
 
-  // rename the .tmp file to the final file  
+  // rename the .tmp file to the final file
 if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
