@@ -209,7 +209,7 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
       // run as service, throw an error to abort.
       if (mysqlrouter::is_running_as_service())
       {
-        std::string msg = "Cannot run router in Windows a service without a master key file. Please use the --master-key-file option during boostrap or run MySQL Router from the command line (instead of as a service).";
+        std::string msg = "Cannot run router in Windows a service without a master key file.";
         mysqlrouter::write_windows_event_log(msg);
         throw std::runtime_error(msg);
       }
@@ -526,13 +526,6 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
-  arg_handler_.add_option(OptionNames({"--master-key-file"}),
-                          "Path to a file where keyring master keys are stored.",
-                          CmdOptionValueReq::required, "path",
-                          [this](const string &name) {
-        keyring_master_key_file_path_ = name;
-      });
-
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
@@ -634,22 +627,24 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
 #endif
 
   try {
+    std::string master_key_path =
+        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
+                            "{origin}", origin_.str());
+
     if (bootstrap_directory_.empty()) {
       // bootstrap into a directory
       std::string config_file_path =
           substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
                               "{origin}", origin_.str());
-
       std::string default_keyring_file;
       default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
                                                  "{origin}", origin_.str());
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
       config_gen.bootstrap_system_deployment(config_file_path,
-          bootstrap_options_, default_keyring_file, keyring_master_key_file_path_);
+          bootstrap_options_, default_keyring_file, master_key_path);
     } else {
       config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-          bootstrap_options_, kDefaultKeyringFileName,
-          keyring_master_key_file_path_);
+          bootstrap_options_, kDefaultKeyringFileName, master_key_path);
     }
   } catch (std::exception &e) {
     throw;
@@ -704,6 +699,16 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
   for (auto line: arg_handler_.option_descriptions(kHelpScreenWidth, kHelpScreenIndent)) {
     std::cout << line << std::endl;
   }
+
+  std::cout << "\nExamples:\n"
+            << "  Bootstrap for use with InnoDB cluster into system-wide installation\n"
+            << "    sudo mysqlrouter --bootstrap root@clusterinstance01\n"
+            << "\n"
+            << "  Bootstrap for use with InnoDb cluster in a self-contained directory\n"
+            << "    mysqlrouter --bootstrap root@clusterinstance01 -d router\n"
+            << "\n"
+            << "  Start router\n"
+            << "    mysqlrouter &\n";
 
   std::cout << "\n";
 }
