@@ -13,13 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-usr/sbin/mysqlrouter
+usr/bin/mysqlrouter
 usr/lib/*/libmysql*.so.*
 usr/lib/*/mysqlrouter/*
 usr/share/mysql-router/*
 
 debian/extra/mysqlrouter.ini etc/mysqlrouter
-etc/apparmor.d/usr.sbin.mysqlrouter
+etc/apparmor.d/usr.bin.mysqlrouter
 
 usr/share/mysql-router/docs/License.txt usr/share/doc/mysql-router
 usr/share/mysql-router/docs/README.txt usr/share/doc/mysql-router

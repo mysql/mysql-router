@@ -77,7 +77,7 @@ Debian-based 64-bit distributions.
         │           ├── keepalive.so
         │           ├── logger.so
         │           └── routing.so
-        ├── sbin
+        ├── bin
         │   └── mysqlrouter
         └── share
             ├── doc

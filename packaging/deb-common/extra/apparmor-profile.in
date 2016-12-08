@@ -25,7 +25,7 @@
   /tmp/* rw,
 
 # Allow execution of MySQL Router binary
-  /usr/sbin/mysqlrouter mr,
+  /usr/bin/mysqlrouter mr,
 
 # Allow plugin access
   /usr/lib/@DEB_HOST_MULTIARCH@/mysqlrouter/*.so mr,

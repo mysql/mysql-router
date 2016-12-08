@@ -192,7 +192,7 @@ fi
 %doc License.txt README.txt
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.ini
-%{_sbindir}/mysqlrouter
+%{_bindir}/mysqlrouter
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf

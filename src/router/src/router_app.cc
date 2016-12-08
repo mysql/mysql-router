@@ -259,7 +259,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
   {
     mysql_harness::Path install_origin(fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
     if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
-      params["plugin_folder"] = origin_.dirname().join("lib/mysqlrouter").str();
+      params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
     }
   }
 #else

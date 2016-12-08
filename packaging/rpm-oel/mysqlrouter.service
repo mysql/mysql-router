@@ -10,7 +10,7 @@ Group=mysql
 
 PIDFile=/var/run/mysqlrouter/mysqlrouter.pid
 
-ExecStart=/usr/sbin/mysqlrouter 
+ExecStart=/usr/bin/mysqlrouter
 
 PrivateTmp=true
 

@@ -51,12 +51,12 @@ override_dh_auto_install:
 	@echo "RULES.$@"
 	dh_auto_install --destdir=debian/tmp
 	install -g root -o root -m 0644 -D debian/extra/apparmor-profile \
-		debian/tmp/etc/apparmor.d/usr.sbin.mysqlrouter
+		debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
 	touch $@
 
 override_dh_installinit:
 	@echo "RULES.$@"
-	dh_apparmor -pmysql-community-router --profile-name=usr.sbin.mysqlrouter
+	dh_apparmor -pmysql-community-router --profile-name=usr.bin.mysqlrouter
 	dh_installinit --name=mysqlrouter -u"defaults 19 21"
 	touch $@
 

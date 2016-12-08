@@ -130,6 +130,10 @@ public:
   }
 
   void clear() {
+    for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
+      if (f->second == FileBackup)
+        delete_file(f->first+".bck");
+    }
     _files.clear();
   }
 
@@ -355,7 +359,8 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
 
-  std::string keyring_master_key_path = path.real_path().join(keyring_master_key_file).str();
+  std::string keyring_master_key_path = keyring_master_key_file.empty() ?
+      "" : path.real_path().join(keyring_master_key_file).str();
 
   bootstrap_deployment(config_file, config_file_path, router_name, options,
                        keyring_path, keyring_master_key_path,

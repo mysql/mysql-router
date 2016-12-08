@@ -26,4 +26,4 @@ mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter
 mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/routing.so lib/x86_64-linux-gnu/mysqlrouter
 
 # Documentation is online
-mysql-router: binary-without-manpage usr/sbin/mysqlrouter
+mysql-router: binary-without-manpage usr/bin/mysqlrouter
