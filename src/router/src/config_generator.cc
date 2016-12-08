@@ -726,7 +726,7 @@ static std::string find_executable_path() {
         p[strlen(p)-1] = 0;
       std::string tmp(std::string(p)+"/"+g_program_name);
       if (access(tmp.c_str(), R_OK|X_OK) == 0) {
-        return path;
+        return tmp;
       }
       p = strtok_r(NULL, ":", &last);
     }
