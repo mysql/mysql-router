@@ -254,6 +254,11 @@ class HARNESS_EXPORT Loader {
   LoaderConfig &get_config() { return config_; }
 
  private:
+  enum class Status {
+    UNVISITED,
+    ONGOING,
+    VISITED
+  };
   void setup_info();
   void init_all();
   void start_all();
@@ -267,7 +272,7 @@ class HARNESS_EXPORT Loader {
    * to "bottom".
    */
   bool topsort();
-  bool visit(const std::string& name, std::map<std::string, int>* seen,
+  bool visit(const std::string& name, std::map<std::string, Status>* seen,
              std::list<std::string>* order);
 
   /**
