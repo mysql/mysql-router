@@ -637,6 +637,15 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       std::string default_keyring_file;
       default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
                                                  "{origin}", origin_.str());
+      mysql_harness::Path keyring_dir(default_keyring_file);
+      if (!keyring_dir.exists()) {
+        if (mysqlrouter::mkdir(default_keyring_file, 0x700) < 0) {
+          std::cerr << "Cannot create directory " << default_keyring_file << ": " << get_strerror(errno) << "\n";
+          throw std::runtime_error("Could not create keyring directory");
+        } else {
+          default_keyring_file = keyring_dir.real_path().str();
+        }
+      }
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
       config_gen.bootstrap_system_deployment(config_file_path,
           bootstrap_options_, default_keyring_file, master_key_path);
