@@ -34,7 +34,7 @@
 # Source networking configuration
 . /etc/sysconfig/network
 
-exec=/usr/sbin/mysqlrouter
+exec=/usr/bin/mysqlrouter
 prog=mysqlrouter
 piddir=/var/run/mysqlrouter
 pidfile=/var/run/mysqlrouter/mysqlrouter.pid

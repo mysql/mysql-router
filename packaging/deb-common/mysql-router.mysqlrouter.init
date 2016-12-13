@@ -33,7 +33,7 @@
 . /lib/lsb/init-functions
 
 DESC="Start / Stop MySQL Router"
-DAEMON=/usr/sbin/mysqlrouter
+DAEMON=/usr/bin/mysqlrouter
 DAEMON_OPTIONS=""
 PROCNAME=mysqlrouter
 NAME="MySQL Router"
@@ -75,7 +75,7 @@ do_start() {
   chown mysql:adm ${LOGFILE}
   chmod 640 ${LOGFILE}
 
-  /lib/init/apparmor-profile-load usr.sbin.mysqlrouter
+  /lib/init/apparmor-profile-load usr.bin.mysqlrouter
 
   $start -m -b --chuid mysql -- $DAEMON_OPTIONS 2>/dev/null || retval=2
 

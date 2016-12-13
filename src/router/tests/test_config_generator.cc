@@ -102,7 +102,6 @@ static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
     });
 }
 
-
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
   MySQLSessionReplayer mock_mysql;
 
@@ -937,7 +936,7 @@ static void bootstrap_name_test(const std::string &dir,
   options["name"] = name;
   options["quiet"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
-      options, "delme", dir+"/delme.key");
+      options, "delme", "delme.key");
 }
 
 
@@ -1009,7 +1008,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "./bug24808634/delme.key"),
+          options, "delme", "delme.key"),
       mysqlrouter::MySQLSession::Error,
       "boo!");
 
@@ -1032,7 +1031,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "./bug24808634/delme.key"));
+          options, "delme", "delme.key"));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
@@ -1055,12 +1054,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "./bug24808634/delme.key"),
+            options, "delme", "delme.key"),
       std::runtime_error,
       "boo!");
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
+    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
   }
   mysql_harness::reset_keyring();
 
@@ -1078,10 +1077,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "./bug24808634/delme.key"),
+            options, "delme", "delme.key"),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
+    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
   }
   mysql_harness::reset_keyring();
   mysqlrouter::delete_recursive(dir);
@@ -1111,7 +1110,7 @@ static void bootstrap_overwrite_test(const std::string &dir,
   if (force)
     options["force"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
-    options, "delme", dir + "/delme.key");
+    options, "delme", "delme.key");
 }
 
 
@@ -1285,13 +1284,13 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     options["name"] = "foo";
     options["quiet"] = "1";
     config_gen.bootstrap_directory_deployment("./delme",
-        options, "delme", "delme/key");
+        options, "delme", "key");
 
     mysql_harness::reset_keyring();
   }
   {
-    mysqlrouter::delete_file("emptyfile");
-    std::ofstream f("emptyfile");
+    mysqlrouter::delete_file("delme/emptyfile");
+    std::ofstream f("delme/emptyfile");
     StrictMock<MySQLSessionReplayer> mysql;
     ::testing::InSequence s;
 
@@ -1310,7 +1309,8 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     } catch (std::runtime_error &e) {
       if (strstr(e.what(), ".tmp"))
         FAIL() << "Exception text is: " << e.what() << "\n";
-      ASSERT_STREQ(e.what(), "Invalid master key file emptyfile");
+      std::string expected = std::string("Invalid master key file ");
+      ASSERT_EQ(expected, std::string(e.what()).substr(0, expected.size()));
     }
     mysqlrouter::delete_recursive("./delme");
     mysqlrouter::delete_file("emptyfile");
@@ -1334,13 +1334,13 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
         config_gen.bootstrap_directory_deployment("./delme",
           options, "delme", "."),
         std::runtime_error,
-        "Unable to save master key to .: Invalid argument");
+        ": Invalid argument");
 #elif !defined(_WIN32)
     ASSERT_THROW_LIKE(
         config_gen.bootstrap_directory_deployment("./delme",
           options, "delme", "."),
         std::runtime_error,
-        "Unable to save master key to .: Is a directory");
+        ": Is a directory");
 #else
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment("./delme",
@@ -1354,7 +1354,6 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     mysql_harness::reset_keyring();
   }
 }
-
 
 TEST_F(ConfigGeneratorTest, full_test) {
   mysqlrouter::delete_recursive("./delme");
@@ -1372,14 +1371,14 @@ TEST_F(ConfigGeneratorTest, full_test) {
   options["quiet"] = "1";
   ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, "delme", "delme/masterkey"));
+        options, "delme", "masterkey"));
 
   std::string value;
   mysql_harness::Config config(mysql_harness::Config::allow_keys);
   config.read("delme/mysqlrouter.conf");
 
   value = config.get_default("master_key_path");
-  EXPECT_EQ(value, "delme/masterkey");
+  EXPECT_TRUE(ends_with(value, "delme/masterkey"));
 
   value = config.get_default("name");
   EXPECT_EQ(value, "foo");

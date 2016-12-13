@@ -305,15 +305,8 @@ void Loader::deinit_all() {
   }
 }
 
-
-enum {
-  UNVISITED,
-  ONGOING,
-  VISITED
-};
-
 bool Loader::topsort() {
-  std::map<std::string, int> status;
+  std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
   for (std::pair<const std::string, PluginInfo>& plugin : plugins_) {
     bool succeeded = visit(plugin.first, &status, &order);
@@ -325,21 +318,21 @@ bool Loader::topsort() {
 }
 
 bool Loader::visit(const std::string& designator,
-                   std::map<std::string, int>* status,
+                   std::map<std::string, Loader::Status>* status,
                    std::list<std::string>* order) {
   Designator info(designator);
   switch ((*status)[info.plugin]) {
-  case VISITED:
+  case Status::VISITED:
     return true;
 
-  case ONGOING:
+  case Status::ONGOING:
     // If we see a node we are processing, it's not a DAG and cannot
     // be topologically sorted.
     return false;
 
-  case UNVISITED:
+  case Status::UNVISITED:
     {
-      (*status)[info.plugin] = ONGOING;
+      (*status)[info.plugin] = Status::ONGOING;
       if (Plugin *plugin = plugins_.at(info.plugin).plugin) {
         for (auto required : make_range(plugin->requires,
                                         plugin->requires_length)) {
@@ -349,7 +342,7 @@ bool Loader::visit(const std::string& designator,
             return false;
         }
       }
-      (*status)[info.plugin] = VISITED;
+      (*status)[info.plugin] = Status::VISITED;
       order->push_front(info.plugin);
       return true;
     }

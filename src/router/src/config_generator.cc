@@ -130,6 +130,10 @@ public:
   }
 
   void clear() {
+    for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
+      if (f->second == FileBackup)
+        delete_file(f->first+".bck");
+    }
     _files.clear();
   }
 
@@ -355,8 +359,11 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   std::string keyring_path = mysql_harness::Path(options["rundir"]).
       real_path().join(default_keyring_file_name).str();
 
+  std::string keyring_master_key_path = keyring_master_key_file.empty() ?
+      "" : path.real_path().join(keyring_master_key_file).str();
+
   bootstrap_deployment(config_file, config_file_path, router_name, options,
-                       keyring_path, keyring_master_key_file,
+                       keyring_path, keyring_master_key_path,
                        true);
   config_file.close();
 
@@ -365,7 +372,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       std::cout << "\nExisting configurations backed up to " << config_file_path.str()+".bak" << "\n";
   }
 
-  // rename the .tmp file to the final file  
+  // rename the .tmp file to the final file
 if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
@@ -719,7 +726,7 @@ static std::string find_executable_path() {
         p[strlen(p)-1] = 0;
       std::string tmp(std::string(p)+"/"+g_program_name);
       if (access(tmp.c_str(), R_OK|X_OK) == 0) {
-        return path;
+        return tmp;
       }
       p = strtok_r(NULL, ":", &last);
     }

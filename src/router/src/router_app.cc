@@ -259,7 +259,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
   {
     mysql_harness::Path install_origin(fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
     if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
-      params["plugin_folder"] = origin_.dirname().join("lib/mysqlrouter").str();
+      params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
     }
   }
 #else
@@ -627,24 +627,31 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
 #endif
 
   try {
-    std::string master_key_path =
-        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
-                            "{origin}", origin_.str());
-
     if (bootstrap_directory_.empty()) {
-      // bootstrap into a directory
       std::string config_file_path =
           substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
+                              "{origin}", origin_.str());
+      std::string master_key_path =
+          substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
                               "{origin}", origin_.str());
       std::string default_keyring_file;
       default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
                                                  "{origin}", origin_.str());
+      mysql_harness::Path keyring_dir(default_keyring_file);
+      if (!keyring_dir.exists()) {
+        if (mysqlrouter::mkdir(default_keyring_file, 0x700) < 0) {
+          std::cerr << "Cannot create directory " << default_keyring_file << ": " << get_strerror(errno) << "\n";
+          throw std::runtime_error("Could not create keyring directory");
+        } else {
+          default_keyring_file = keyring_dir.real_path().str();
+        }
+      }
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
       config_gen.bootstrap_system_deployment(config_file_path,
           bootstrap_options_, default_keyring_file, master_key_path);
     } else {
       config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-          bootstrap_options_, kDefaultKeyringFileName, master_key_path);
+          bootstrap_options_, kDefaultKeyringFileName, "mysqlrouter.key");
     }
   } catch (std::exception &e) {
     throw;
@@ -700,16 +707,29 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
     std::cout << line << std::endl;
   }
 
+#ifdef _WIN32
+  std::cout << "\nExamples:\n"
+            << "  Bootstrap for use with InnoDB cluster into system-wide installation\n"
+            << "    mysqlrouter --bootstrap root@clusterinstance01\n"
+            << "  Start router\n"
+            << "    mysqlrouter\n"
+            << "\n"
+            << "  Bootstrap for use with InnoDb cluster in a self-contained directory\n"
+            << "    mysqlrouter --bootstrap root@clusterinstance01 -d myrouter\n"
+            << "  Start router\n"
+            << "    myrouter\\start.ps1\n";
+#else
   std::cout << "\nExamples:\n"
             << "  Bootstrap for use with InnoDB cluster into system-wide installation\n"
             << "    sudo mysqlrouter --bootstrap root@clusterinstance01\n"
+            << "  Start router\n"
+            << "    sudo mysqlrouter &\n"
             << "\n"
             << "  Bootstrap for use with InnoDb cluster in a self-contained directory\n"
-            << "    mysqlrouter --bootstrap root@clusterinstance01 -d router\n"
-            << "\n"
+            << "    mysqlrouter --bootstrap root@clusterinstance01 -d myrouter\n"
             << "  Start router\n"
-            << "    mysqlrouter &\n";
-
+            << "    myrouter/start.sh\n";
+#endif
   std::cout << "\n";
 }
 
