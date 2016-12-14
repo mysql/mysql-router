@@ -34,11 +34,10 @@
  *
  * One or more passwords can be stored in the keyring, which is persisted on
  * disk in the keyring file.
- * The encryption key of the keyring can be fed to the keyring in 2 ways:
- * - interactively by the user
- * - auto-generated and persisted on a master key file
+ * The encryption key of the keyring can be fed to the keyring through an
+ * auto-generated and persisted on a master key file
  *
- * If the keyring's encryption key is stored in a file, it will be itself
+ * The keyring's encryption key will be itself
  * encrypted by a second key, which is generated automatically and stored
  * in the keyring file. The location of the master key file is selected by the
  * user and the same key file can be shared by multiple keyrings.
@@ -213,7 +212,7 @@ static std::pair<std::string,std::string>
   try {
     master_scramble = kf.read_header(keyring_file_path);
     if (master_scramble.empty()) {
-      throw std::runtime_error("Keyring file requires interactive key input");
+      throw std::runtime_error("Keyring file '"+keyring_file_path+"' was created in an old version and needs to be recreated. Please delete and bootstrap again.");
     }
   } catch (std::exception&) {
     if (errno != ENOENT || !create_if_needed)
