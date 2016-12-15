@@ -40,7 +40,7 @@ unset(_configdir)
 
 # Logging folder (logging_folder configuration option)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(_logdir "ENV{APPDATA}\\log")
+  set(_logdir "ENV{APPDATA}\\\\log")
 else()
   # logging folder can be set to empty to log to console
   if(IS_ABSOLUTE "${INSTALL_LOGDIR}" OR NOT INSTALL_LOGDIR)

@@ -20,7 +20,12 @@
 #   MySQL_LIBRARIES       - libraries provided by the MySQL installation
 #   MySQL_VERSION         - version of the MySQL Client Libraries
 
-set(MySQL_CLIENT_LIBRARY mysqlclient)
+# In Windows we are linking against the .dll
+if(WIN32)
+  set(MySQL_CLIENT_LIBRARY libmysql)
+else()
+  set(MySQL_CLIENT_LIBRARY mysqlclient)
+endif()
 
 if(WIN32)
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -31,17 +36,10 @@ if(WIN32)
   set(WITH_MYSQL "$ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/" CACHE PATH "Installation path of MySQL Client Libraries")
   if(MYSQL_BUILD)
     STRING(TOLOWER ${MYSQL_BUILD} MYSQL_BUILD)
-    if(${MYSQL_BUILD} MATCHES "debug")
-      set(MySQL_LIBRARY_PATHS
-        ${WITH_MYSQL}/lib/debug
-        $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
-      )
-    else()
-      set(MySQL_LIBRARY_PATHS
-        ${WITH_MYSQL}/lib
-        $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
-      )
-    endif()
+    set(MySQL_LIBRARY_PATHS
+      ${WITH_MYSQL}/lib
+      $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+    )
   else()
     set(MySQL_LIBRARY_PATHS
       ${WITH_MYSQL}/lib
