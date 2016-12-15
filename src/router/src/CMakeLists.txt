@@ -97,6 +97,19 @@ endif()
 
 set_target_output_directory(${MYSQL_ROUTER_TARGET} RUNTIME_OUTPUT_DIRECTORY bin)
 
+if(WIN32)
+  set(MYSQL_DLL ${MySQL_LIBRARIES})
+  string(REPLACE ".lib" ".dll" MYSQL_DLL ${MYSQL_DLL})
+  get_filename_component(MYSQL_FILE ${MYSQL_DLL} NAME)
+  get_filename_component(MYSQL_DLL ${MYSQL_DLL} DIRECTORY)
+
+  # Copies the dll to the binary location to enable debugging
+  add_custom_command(TARGET ${MYSQL_ROUTER_TARGET} PRE_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy
+                        "${MYSQL_DLL}/${MYSQL_FILE}" $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>/${MYSQL_FILE})
+  install(FILES "${MYSQL_DLL}/${MYSQL_FILE}" DESTINATION bin)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")

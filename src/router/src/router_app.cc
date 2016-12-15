@@ -228,6 +228,8 @@ static string fixpath(const string &path, const std::string &basedir) {
     return basedir;
   if (path.compare(0, strlen("{origin}"), "{origin}") == 0)
     return path;
+  if (path.find("ENV{") != std::string::npos)
+    return path;
 #ifdef _WIN32
   if (path[0] == '\\' || path[0] == '/' || path[1] == ':')
     return path;
