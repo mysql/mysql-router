@@ -53,9 +53,9 @@ public:
   /** @brief Move assignment */
   DestMetadataCacheGroup &operator=(DestMetadataCacheGroup &&) = delete;
 
-  int get_server_socket(int connect_timeout, int *error) noexcept;
+  int get_server_socket(int connect_timeout, int *error) noexcept override;
 
-  void add(const std::string &, uint16_t) { }
+  void add(const std::string &, uint16_t) override { }
 
 
   /** @brief Returns whether there are destination servers
@@ -67,7 +67,7 @@ public:
    *
    * @return Always returns False for Metadata Cache destination.
    */
-  bool empty() const noexcept {
+  bool empty() const noexcept override {
     return false;
   }
 
