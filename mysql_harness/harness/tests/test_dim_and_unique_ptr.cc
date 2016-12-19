@@ -217,8 +217,13 @@ TEST_F(UniquePtrTest, moving_stuff) {
   EXPECT_TRUE(!!p4);
   EXPECT_FALSE(p3);
 
+#ifndef __clang__
+  // This is caught by compiler... and it will also throw an exception at runtime
+  // With so much effort by clang to prevent this bad use case, it seems pointless
+  // to try to make this work.
   p4 = std::move(p4);
   EXPECT_TRUE(!!p4);
+#endif
 }
 
 TEST_F(UniquePtrTest, shared_ptr_conversion) {
