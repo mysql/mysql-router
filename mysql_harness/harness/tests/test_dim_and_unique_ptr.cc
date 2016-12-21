@@ -44,10 +44,10 @@ using mysql_harness::UniquePtr;
 
 class Notifier {
  public:
-  MOCK_METHOD1(called_ctor,void(const char*));
-  MOCK_METHOD1(called_dtor,void(const char*));
-  MOCK_METHOD1(called_deleter,void(const char*));
-  MOCK_METHOD1(called_do_something,void(const char*));
+  MOCK_METHOD1(called_ctor,void(const std::string&));
+  MOCK_METHOD1(called_dtor,void(const std::string&));
+  MOCK_METHOD1(called_deleter,void(const std::string&));
+  MOCK_METHOD1(called_do_something,void(const std::string&));
 };
 
 // GMock objects cannot be global, because EXPECT_CALL()s are evaluated in their
@@ -505,66 +505,9 @@ void deleterX(A*) {
 TEST_F(DIMTest, factory_simple) {
   Notifier notifier;
   set_notifier(notifier);
-#if 1
-  EXPECT_CALL(notifier, called_ctor(_)).Times(3);
-#else // TODO make these 3 lines work, instead of the one above. Right now they give weird errors:
-  //[ RUN      ] DIMTest.factory_simple
-  //unknown file: Failure
-  //
-  //Unexpected mock function call - returning directly.
-  //    Function call: called_ctor(0x5c82a38 pointing to "B(arg1)")
-  //Google Mock tried the following 3 expectations, but none matched:
-  //
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:528: tried expectation #0: EXPECT_CALL(notifier, called_ctor("B"))...
-  //  Expected arg #0: is equal to 0x4ce77f pointing to "B"
-  //           Actual: 0x5c82a38 pointing to "B(arg1)"
-  //         Expected: to be called once
-  //           Actual: called once - saturated and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:529: tried expectation #1: EXPECT_CALL(notifier, called_ctor("B(arg1)"))...
-  //  Expected arg #0: is equal to 0x4ce87c pointing to "B(arg1)"
-  //           Actual: 0x5c82a38 pointing to "B(arg1)"
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:530: tried expectation #2: EXPECT_CALL(notifier, called_ctor("B(arg1,2)"))...
-  //  Expected arg #0: is equal to 0x4ce89b pointing to "B(arg1,2)"
-  //           Actual: 0x5c82a38 pointing to "B(arg1)"
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  //unknown file: Failure
-  //
-  //Unexpected mock function call - returning directly.
-  //    Function call: called_ctor(0x5c8c488 pointing to "B(arg1,2)")
-  //Google Mock tried the following 3 expectations, but none matched:
-  //
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:528: tried expectation #0: EXPECT_CALL(notifier, called_ctor("B"))...
-  //  Expected arg #0: is equal to 0x4ce77f pointing to "B"
-  //           Actual: 0x5c8c488 pointing to "B(arg1,2)"
-  //         Expected: to be called once
-  //           Actual: called once - saturated and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:529: tried expectation #1: EXPECT_CALL(notifier, called_ctor("B(arg1)"))...
-  //  Expected arg #0: is equal to 0x4ce87c pointing to "B(arg1)"
-  //           Actual: 0x5c8c488 pointing to "B(arg1,2)"
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:530: tried expectation #2: EXPECT_CALL(notifier, called_ctor("B(arg1,2)"))...
-  //  Expected arg #0: is equal to 0x4ce89b pointing to "B(arg1,2)"
-  //           Actual: 0x5c8c488 pointing to "B(arg1,2)"
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:529: Failure
-  //Actual function call count doesn't match EXPECT_CALL(notifier, called_ctor("B(arg1)"))...
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  ///home/benny/HA/router/ssl/mysql_harness/harness/tests/test_dim.cc:530: Failure
-  //Actual function call count doesn't match EXPECT_CALL(notifier, called_ctor("B(arg1,2)"))...
-  //         Expected: to be called once
-  //           Actual: never called - unsatisfied and active
-  //[  FAILED  ] DIMTest.factory_simple (89 ms)
-
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1,2)")).Times(1);
-#endif
   EXPECT_CALL(notifier, called_dtor("B")).Times(3);
   EXPECT_CALL(notifier, called_deleter("-")).Times(3);  // last deleter matters
   EXPECT_CALL(notifier, called_do_something("B")).Times(3);
@@ -584,13 +527,9 @@ TEST_F(DIMTest, factory_simple) {
 TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
   Notifier notifier;
   set_notifier(notifier);
-#if 1 // TODO make the 3 lines work, they give weird errors
-  EXPECT_CALL(notifier, called_ctor(_)).Times(3);
-#else
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1,2)")).Times(1);
-#endif
   EXPECT_CALL(notifier, called_dtor("B")).Times(3);
   EXPECT_CALL(notifier, called_deleter("B0")).Times(1);
   EXPECT_CALL(notifier, called_deleter("B1")).Times(1);
@@ -619,13 +558,9 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter) {
 TEST_F(DIMTest, factory_object_should_remember_its_deleter2) {
   Notifier notifier;
   set_notifier(notifier);
-#if 1 // TODO make the 3 lines work, they give weird errors
-  EXPECT_CALL(notifier, called_ctor(_)).Times(3);
-#else
   EXPECT_CALL(notifier, called_ctor("B")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1)")).Times(1);
   EXPECT_CALL(notifier, called_ctor("B(arg1,2)")).Times(1);
-#endif
   EXPECT_CALL(notifier, called_dtor("B")).Times(3);
   EXPECT_CALL(notifier, called_deleter("B0")).Times(1);
   EXPECT_CALL(notifier, called_deleter("B1")).Times(1);
