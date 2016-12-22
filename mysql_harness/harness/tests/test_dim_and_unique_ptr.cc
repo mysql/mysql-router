@@ -242,6 +242,7 @@ TEST_F(UniquePtrTest, shared_ptr_conversion) {
   EXPECT_FALSE(p1);
 }
 
+#if !defined(__FreeBSD__) // EXPECT_DEBUG_DEATH() doesn't build on BSD
 TEST_F(UniquePtrTest, release_assertion) {
   EXPECT_CALL(get_notifier(), called_ctor("A")).Times(1);
   EXPECT_CALL(get_notifier(), called_dtor("A")).Times(1);    // \_ the process would die
@@ -257,6 +258,7 @@ TEST_F(UniquePtrTest, release_assertion) {
   EXPECT_DEBUG_DEATH(p1.release(), "");
   #endif
 }
+#endif
 
 TEST_F(UniquePtrTest, release_and_get_deleter) {
   UniquePtr<A>::deleter_type del;
