@@ -118,8 +118,10 @@ TEST(TestDesignator, TestBadDesignators) {
     "foo<<1.2.55",
   };
 
-  for (auto input : make_range(strings, sizeof(strings)/sizeof(*strings)))
-    EXPECT_THROW({ Designator desig(input); }, std::runtime_error);
+  for (auto input : make_range(strings, sizeof(strings) / sizeof(*strings))) {
+    auto make_designator = [&]() { Designator desig{ input }; };
+    EXPECT_THROW(make_designator(), std::runtime_error);
+  }
 }
 
 TEST(TestDesignator, TestVersion) {
