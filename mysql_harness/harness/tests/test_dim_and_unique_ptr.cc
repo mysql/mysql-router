@@ -245,8 +245,13 @@ TEST_F(UniquePtrTest, shared_ptr_conversion) {
 #if !defined(__FreeBSD__) // EXPECT_DEBUG_DEATH() doesn't build on BSD
 TEST_F(UniquePtrTest, release_assertion) {
   EXPECT_CALL(get_notifier(), called_ctor("A")).Times(1);
+#ifdef _WIN32
+  EXPECT_CALL(get_notifier(), called_dtor("A")).Times(0);
+  EXPECT_CALL(get_notifier(), called_deleter("-")).Times(0);
+#else
   EXPECT_CALL(get_notifier(), called_dtor("A")).Times(1);    // \_ the process would die
   EXPECT_CALL(get_notifier(), called_deleter("-")).Times(1); // /  in real life
+#endif
   UniquePtr<A> p1(new A, deleter);
 
   // switch the death test to thread-safe mode. More info:
@@ -254,9 +259,9 @@ TEST_F(UniquePtrTest, release_assertion) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   // NOTE: this line triggers plenty of valgrind warnings, disable when testing with valgrind
-  #if 1
+#if 1
   EXPECT_DEBUG_DEATH(p1.release(), "");
-  #endif
+#endif
 }
 #endif
 
