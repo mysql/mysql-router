@@ -343,6 +343,7 @@ class HARNESS_EXPORT Loader {
   std::string plugin_folder_;
   std::string runtime_folder_;
   std::string config_folder_;
+  std::string data_folder_;
   std::string program_;
   AppInfo appinfo_;
 };

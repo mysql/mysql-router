@@ -3,6 +3,7 @@ logging_folder = {prefix}/var/log/{program}
 plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
 runtime_folder = {prefix}/var/run/{program}
 config_folder = {prefix}/var/run/{program}
+data_folder = {prefix}/var/lib/{program}
 
 [logger]
 library = logger

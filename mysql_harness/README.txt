@@ -115,6 +115,7 @@ example in `data/main.ini`:
     config_folder = /etc/mysql/router
     plugin_folder = /var/lib/router
     runtime_folder = /var/run/router
+    data_folder = /var/lib/router
 
     [example]
     library = example

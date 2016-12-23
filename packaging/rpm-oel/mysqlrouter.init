@@ -41,6 +41,7 @@ pidfile=/var/run/mysqlrouter/mysqlrouter.pid
 logdir=/var/log/mysqlrouter
 logfile=$logdir/mysqlrouter.log
 lockfile=/var/lock/subsys/$prog
+datadir=/var/lib/mysqlrouter
 
 start () {
     [ -d $piddir ] || mkdir -p $piddir
@@ -50,6 +51,8 @@ start () {
     [ -e $logfile ] || touch $logfile
     chown mysqlrouter:mysqlrouter $logfile
     export ROUTER_PID=$pidfile
+    [ -d $datadir ] || mkdir -p $datadir
+    chown mysqlrouter:mysqlrouter $datadir
     daemon mysqlrouter $exec --user=mysqlrouter >/dev/null 2>&1 &
     ret=$?
     if [ $ret -eq "0" ]; then

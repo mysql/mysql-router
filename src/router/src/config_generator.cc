@@ -324,8 +324,8 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     //              option name   dir_name      mkdir
     std::make_tuple("logdir",     "log",        true),
     std::make_tuple("rundir",     "run",        true),
-    std::make_tuple("statedir",   "data",       true),
-    std::make_tuple("socketsdir", "",           false),
+    std::make_tuple("datadir",    "data",       true),
+    std::make_tuple("socketsdir", "", false),
   };
 
   for (const auto &dir: directories) {
@@ -363,7 +363,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
   auto_clean.add_file_delete(config_file_path.str()+".tmp");
 
-  std::string keyring_path = mysql_harness::Path(options["rundir"]).
+  std::string keyring_path = mysql_harness::Path(options["datadir"]).
       real_path().join(default_keyring_file_name).str();
 
   std::string keyring_master_key_path = keyring_master_key_file.empty() ?
@@ -487,6 +487,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.override_logdir = user_options.at("logdir");
   if (user_options.find("rundir") != user_options.end())
     options.override_rundir = user_options.at("rundir");
+  if (user_options.find("datadir") != user_options.end())
+    options.override_datadir = user_options.at("datadir");
   if (user_options.find("socketsdir") != user_options.end())
     options.socketsdir = user_options.at("socketsdir");
   return options;
@@ -829,6 +831,8 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "logging_folder=" << options.override_logdir << "\n";
   if (!options.override_rundir.empty())
     cfp << "runtime_folder=" << options.override_rundir << "\n";
+  if (!options.override_datadir.empty())
+    cfp << "data_folder=" << options.override_datadir << "\n";
   if (!options.keyring_file_path.empty())
     cfp << "keyring_path=" << options.keyring_file_path << "\n";
   if (!options.keyring_master_key_file_path.empty())
