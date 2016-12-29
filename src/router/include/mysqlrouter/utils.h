@@ -212,13 +212,36 @@ int rename_file(const std::string &from, const std::string &to);
  */
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
 
-/** @brief Converts char array to integer using std::atol()
- *         adding check for null parameter.
+/** @brief Converts char array to signed integer, intuitively.
+ *
+ * Using strtol() can be daunting. This function wraps its with logic to ease
+ * its use. Features:
+ * - errno value is unaltered
+ * - on error, default value is returned
+ * - unlike strtol(), this function will fail (return default_result) if anything
+ *   other than digits and sign are present in the char array. Inputs such as
+ *   " 12" or "abc12.3" will fail, while strtol() would return 12.
  *
  * @param value           char array to get converted
  * @param default_result  value to return in case of nullptr being passed
  */
-int strtoi_checked(const char* value, const int default_result = 0);
+int strtoi_checked(const char* value, int default_result = 0);
+
+/** @brief Converts char array to unsigned integer, intuitively.
+ *         adding check for null parameter and some conversion restrictions.
+ *
+ * Using strtoul() can be daunting. This function wraps its with logic to ease
+ * its use. Features:
+ * - errno value is unaltered
+ * - on error, default value is returned
+ * - unlike strtoul(), this function will fail (return default_result) if anything
+ *   other than digits and sign are present in the char array. Inputs such as
+ *   " 12" or "abc12.3" will fail, while strtoul() would return 12.
+ *
+ * @param value           char array to get converted
+ * @param default_result  value to return in case of nullptr being passed
+ */
+unsigned strtoui_checked(const char* value, unsigned default_result = 0);
 
 } // namespace mysqlrouter
 

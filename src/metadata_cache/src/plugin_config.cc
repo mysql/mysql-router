@@ -91,8 +91,7 @@ MetadataCachePluginConfig::get_bootstrap_servers(
 unsigned int MetadataCachePluginConfig::get_option_ttl(
   const mysql_harness::ConfigSection *section, const std::string &option,
   unsigned int defaultTTL) {
-  long ttl_temp;
-  char * p;
+
   // Read option string
   std::string ttl_option = get_option_string(section, option);
 
@@ -100,14 +99,6 @@ unsigned int MetadataCachePluginConfig::get_option_ttl(
   ttl_option.erase(0, ttl_option.find_first_not_of(' '));
   ttl_option.erase(ttl_option.find_last_not_of(' ') + 1, std::string::npos);
 
-  // convert to an integer.
-  ttl_temp = std::strtol(ttl_option.c_str(), &p, 10);
-
-  // verify that the parsing was successful.
-  if (errno == ERANGE || ttl_temp > static_cast<long>(UINT_MAX) ||
-      *p != '\0' || ttl_temp <= 0) {
-    // use a default
-    ttl_temp = defaultTTL;
-  }
-  return (unsigned int)ttl_temp;
+  // Convert to an integer and return
+  return mysqlrouter::strtoui_checked(ttl_option.c_str(), defaultTTL);
 }

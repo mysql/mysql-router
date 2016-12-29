@@ -527,18 +527,52 @@ bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   return result;
 }
 
-int strtoi_checked(const char* value, const int default_value) {
+template <typename RET, typename CONV_FUNC>
+RET strtoX_checked_common(CONV_FUNC conv_func, const char* value, RET default_value) {
+
+  static_assert(std::is_integral<RET>::value, "This tempate function is meant for integers.");
+
   if (value == nullptr)
     return default_value;
 
-  char* tmp {nullptr};
+  // Verify that input string consists of only valid_chars.  The idea is to
+  // impose extra restrictions on top of those implemented in conv_func,
+  // particularly to disallow:
+  // - whitespace characters
+  // - decimal numbers
+  // Futher validation is responsibility of conv_func.
+  {
+    // Compute (roughly) the max number of base10 digits RET can have.
+    //   max(1 byte)  = 255 -> 3 digits,
+    //   max(2 bytes) = 65,535 -> 5 digits,
+    //   max(4 bytes) = 4,294,967,295 -> 10 digits,
+    // etc
+    constexpr int kMaxDigits = static_cast<int>((float)sizeof(RET) * 2.41 + 1.0); // log10(2^8) = 2.408, +1 to round up
+
+    bool found_terminator = false;
+    for (int i = 0; i < kMaxDigits + 2; i++ ) { // +2 for sign and string-terminator
+      const char c = value[i];
+      if (c == 0)
+      {
+        found_terminator = true;
+        break;
+      }
+      if (!(('0' <= c && c <= '9') || (c == '-' && std::is_signed<RET>::value) || c == '+'))
+        return default_value;
+    }
+
+    if (!found_terminator)
+      return default_value;
+  }
+
   // NOTE: we need to play with errno here as it is not enough to check
   // for LONG_MIN, LONG_MAX as these are still valid values and ERANGE
   // can be the result of some previous operation
   auto old_errno = errno;
   errno = 0;
 
-  auto result = std::strtol(value, &tmp, 10);
+  char* tmp {nullptr};
+  auto result = conv_func(value, &tmp, 10);
 
   // if our operation did not set the errno let's be kind enough
   // to restore it's old value
@@ -552,12 +586,20 @@ int strtoi_checked(const char* value, const int default_value) {
     return default_value;
   }
 
-  // check if the value fits int
-  if (result < static_cast<long>(INT_MIN) || result > static_cast<long>(INT_MAX)) {
+  // check if the value fits after reducing bit width
+  RET r = static_cast<RET>(result);
+  if (r == result)  // false if high-order bytes were truncated
+    return r;
+  else
     return default_value;
-  }
+}
 
-  return static_cast<int>(result);
+int strtoi_checked(const char* value, int default_value) {
+  return strtoX_checked_common(std::strtol, value, default_value);
+}
+
+unsigned strtoui_checked(const char* value, unsigned default_value) {
+  return strtoX_checked_common(std::strtoul, value, default_value);
 }
 
 
