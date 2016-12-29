@@ -547,7 +547,6 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#if 0 // TODO fix this
 TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
 
   std::vector<ManagedInstance> expected_servers {
@@ -677,7 +676,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status {
       { "instance-1", {"", "", 0, State::Online, Role::Primary  } },
     };
-    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
@@ -690,7 +689,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     std::map<std::string, GroupReplicationMember> server_status {
       { "instance-3", {"", "", 0, State::Online, Role::Secondary} },
     };
-    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(expected_servers, server_status));
     EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
@@ -722,7 +721,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata not found in actual replicaset"
-    // instance-4 will be silently ignored
+    // should log error "Member <host>:<port> (instance-4) found in replicaset, yet is not defined in metadata!"
   }
 
   // 2 unknown ids
@@ -738,7 +737,8 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
     // should log warning "Member <host>:<port> (instance-1) defined in metadata not found in actual replicaset"
     // should log warning "Member <host>:<port> (instance-3) defined in metadata not found in actual replicaset"
-    // instance-4 and -5 will be silently ignored
+    // should log error "Member <host>:<port> (instance-4) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-5) found in replicaset, yet is not defined in metadata!"
   }
 
   // more nodes than expected
@@ -754,7 +754,8 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
-    // instance-4 and -5 will be silently ignored
+    // should log error "Member <host>:<port> (instance-4) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-5) found in replicaset, yet is not defined in metadata!"
   }
 }
 
@@ -766,6 +767,12 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
     { "instance-3", {"", "", 0, State::Online, Role::Secondary} },
   };
 
+  // Next 2 scenarios test situation in which the status report (view) contains
+  // only a subset of servers provided by metadata server. At the time of writing,
+  // this longer list of servers is essentially irrelevant, and the "view" is
+  // king. See notes in ClusterMetadata::check_replicaset_status() for more info.
+
+  // 7-node setup according to metadata
   {
     std::vector<ManagedInstance> expected_servers {
       // ServerMode doesn't matter ------vvvvvvvvvvv
@@ -777,7 +784,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
       {"", "instance-6", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
       {"", "instance-7", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
     };
-    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
@@ -785,41 +792,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
     // for instanes 4-7
   }
 
-  {
-    std::vector<ManagedInstance> expected_servers {
-      // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-4", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-5", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-6", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-    };
-    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
-    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
-    // should log warning "Member <host>:<port> (instance-*) defined in metadata not found in actual replicaset"
-    // for instanes 4-6
-  }
-
-  {
-    std::vector<ManagedInstance> expected_servers {
-      // ServerMode doesn't matter ------vvvvvvvvvvv
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-4", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-5", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-    };
-    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
-    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
-    // should log warning "Member <host>:<port> (instance-*) defined in metadata not found in actual replicaset"
-    // for instanes 4-5
-  }
-
+  // 4-node setup according to metadata
   {
     std::vector<ManagedInstance> expected_servers {
       {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
@@ -834,19 +807,17 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
     // should log warning "Member <host>:<port> (instance-4) defined in metadata not found in actual replicaset"
   }
 
-  {
-    std::vector<ManagedInstance> expected_servers {
-      {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-      {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-    };
-    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
-    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
-    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(2).mode);
-  }
+  // This time, the status report (view) contains some servers not defined by
+  // metadata server. Here the situation is a little different: the "view" is
+  // still what matters, but subject to one restriction: nodes not defined in
+  // metadata don't count, they're ignored.
+  // NOTE that these scenarios should never happen, and if they do, the DBA
+  // is at fault (the setup is messed up). Here we only test how our system will
+  // handle such bad setup, and it should handle it defensively, err on the safe
+  // side. Indeed, in case of undefined nodes, they will be not be counted
+  // towards reaching quorum, making attaining quorum more difficult.
 
-  // 2-node setup - TODO: do we like this behaviour?
+  // 2-node setup according to metadata -> quorum requires 3 nodes, 2 nodes count
   {
     std::vector<ManagedInstance> expected_servers {
       {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
@@ -855,27 +826,30 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
     EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
-    // instance-3 will be silently ignored
+    // should log error "Member <host>:<port> (instance-3) found in replicaset, yet is not defined in metadata!"
   }
 
-  // 1-node setup - TODO: do we like this behaviour?
+  // 1-node setup according to metadata -> quorum requires 3 nodes, 1 node counts
   {
     std::vector<ManagedInstance> expected_servers {
       {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
     };
-    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
     EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-    // instance-2 and -3 will be silently ignored
+    // should log error "Member <host>:<port> (instance-2) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-3) found in replicaset, yet is not defined in metadata!"
   }
 
+  // 0-node setup according to metadata -> quorum requires 3 nodes, 0 node count
   {
     std::vector<ManagedInstance> expected_servers {};
     EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
-    // instance-1, -2 and -3 will be silently ignored
+    // should log error "Member <host>:<port> (instance-1) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-2) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (instance-3) found in replicaset, yet is not defined in metadata!"
   }
 
 }
-#endif
 
 TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
 
@@ -885,33 +859,6 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
     {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
     {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
   };
-
-//TODO fix, Role::Other has been removed
-//// should keep quorum
-//{
-//  std::map<std::string, GroupReplicationMember> server_status {
-//    { "instance-1", {"", "", 0, State::Online, Role::Primary  } },
-//    { "instance-2", {"", "", 0, State::Online, Role::Secondary} },
-//    { "instance-3", {"", "", 0, State::Online, Role::Other    } },
-//  };
-//  EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
-//  EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-//  EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
-//  EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
-//}
-
-//// should lose quorum
-//{
-//  std::map<std::string, GroupReplicationMember> server_status {
-//    { "instance-1", {"", "", 0, State::Online, Role::Primary  } },
-//    { "instance-2", {"", "", 0, State::Online, Role::Other    } },
-//    { "instance-3", {"", "", 0, State::Online, Role::Other    } },
-//  };
-//  EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
-//  EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
-//  EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
-//  EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
-//}
 
   for (State state : {State::Offline, State::Recovering, State::Unreachable, State::Other}) {
 

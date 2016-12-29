@@ -214,7 +214,7 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
   // nodes in `instances` and operate on information from `member_status` only. However,
   // there is one problem: the host:port information contained there may not be accurate
   // (localhost vs external addressing issues), and we are forced to use the host:port
-  // from `member_status` instead. This leads to nasty corner-cases if inconsistencies
+  // from `instances` instead. This leads to nasty corner-cases if inconsistencies
   // exist between the two sets, however.
 
   // Therefore, this code will work well only under one assumption:
