@@ -260,6 +260,19 @@ class MetadataTest : public ::testing::Test {
 
  public:
 
+  void SetUp() override {
+    // redirect cout > nothing (following tests print to cout)
+    original_cout = std::cout.rdbuf();
+    std::cout.rdbuf(nullptr);
+  }
+
+  void TearDown() override {
+    // undo cout redirect
+    std::cout.rdbuf(original_cout);
+  }
+
+  std::streambuf* original_cout;
+
   //---- helper functions --------------------------------------------------------
 
   void connect_to_first_metadata_server() {
@@ -973,19 +986,17 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
 
   // 3rd query_status: let's return good data
   EXPECT_CALL(session_factory.get(session), query(StartsWith(query_status), _)).Times(1)
-    .WillOnce(Invoke(query_status_fail(session)));
+    .WillOnce(Invoke(query_status_ok(session)));
 
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
-  try {
-    ManagedReplicaSet replicaset = typical_replicaset;
-    metadata.update_replicaset_status("replicaset-1", replicaset);
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  } catch (const metadata_cache::metadata_error& e) {
-    EXPECT_STREQ("Unable to fetch live group_replication member data from any server in replicaset 'replicaset-1'", e.what());
-  } catch (...) {
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  }
+  ManagedReplicaSet replicaset = typical_replicaset;
+  metadata.update_replicaset_status("replicaset-1", replicaset);
+
+  EXPECT_EQ(3u, replicaset.members.size());
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100}, replicaset.members.at(0)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3320, 33200}, replicaset.members.at(1)));
+  EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300}, replicaset.members.at(2)));
 
   EXPECT_EQ(3, session_factory.create_cnt());          // +2 from new connections to localhost:3320 and :3330
 }
@@ -1013,15 +1024,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes)
 
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
-  try {
-    ManagedReplicaSet replicaset = typical_replicaset;
-    metadata.update_replicaset_status("replicaset-1", replicaset);
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  } catch (const metadata_cache::metadata_error& e) {
-    EXPECT_STREQ("Unable to fetch live group_replication member data from any server in replicaset 'replicaset-1'", e.what());
-  } catch (...) {
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  }
+  // if update_replicaset_status() can't connect to a quorum, it should clear replicaset.members
+  ManagedReplicaSet replicaset = typical_replicaset;
+  metadata.update_replicaset_status("replicaset-1", replicaset);
+  EXPECT_TRUE(replicaset.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());          // +2 from new connections to localhost:3320 and :3330
 }
@@ -1065,7 +1071,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
   ManagedReplicaSet replicaset = typical_replicaset;
-  EXPECT_NO_THROW(metadata.update_replicaset_status("replicaset-1", replicaset));
+  metadata.update_replicaset_status("replicaset-1", replicaset);
 
   EXPECT_EQ(2, session_factory.create_cnt());          // +1 from new connection to localhost:3320 (instance-2)
 
@@ -1110,15 +1116,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
 
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
-  try {
-    ManagedReplicaSet replicaset = typical_replicaset;
-    metadata.update_replicaset_status("replicaset-1", replicaset);
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  } catch (const metadata_cache::metadata_error& e) {
-    EXPECT_STREQ("Unable to fetch live group_replication member data from any server in replicaset 'replicaset-1'", e.what());
-  } catch (...) {
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  }
+  // if update_replicaset_status() can't connect to a quorum, it should clear replicaset.members
+  ManagedReplicaSet replicaset = typical_replicaset;
+  metadata.update_replicaset_status("replicaset-1", replicaset);
+  EXPECT_TRUE(replicaset.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());          // +2 from new connections to localhost:3320 and :3330
 }
@@ -1166,7 +1167,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
   ManagedReplicaSet replicaset = typical_replicaset;
-  EXPECT_NO_THROW(metadata.update_replicaset_status("replicaset-1", replicaset));
+  metadata.update_replicaset_status("replicaset-1", replicaset);
 
   EXPECT_EQ(2, session_factory.create_cnt());          // +1 from new connection to localhost:3320 (instance-2)
 
@@ -1223,15 +1224,10 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
 
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
-  try {
-    ManagedReplicaSet replicaset = typical_replicaset;
-    metadata.update_replicaset_status("replicaset-1", replicaset);
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  } catch (const metadata_cache::metadata_error& e) {
-    EXPECT_STREQ("Unable to fetch live group_replication member data from any server in replicaset 'replicaset-1'", e.what());
-  } catch (...) {
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  }
+  // if update_replicaset_status() can't connect to a quorum, it should clear replicaset.members
+  ManagedReplicaSet replicaset = typical_replicaset;
+  metadata.update_replicaset_status("replicaset-1", replicaset);
+  EXPECT_TRUE(replicaset.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());          // +2 from new connections to localhost:3320 and :3330
 }
@@ -1265,7 +1261,7 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
   EXPECT_EQ(1, session_factory.create_cnt());          // caused by connect_to_first_metadata_server()
 
   ManagedReplicaSet replicaset = typical_replicaset;
-  EXPECT_NO_THROW(metadata.update_replicaset_status("replicaset-1", replicaset));
+  metadata.update_replicaset_status("replicaset-1", replicaset);
 
   EXPECT_EQ(1, session_factory.create_cnt());          // should resuse localhost:3310 connection,
 
@@ -1341,13 +1337,8 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3320)).Times(1);
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3330)).Times(1);
 
-  // should throw
-  try {
-    metadata.fetch_instances("replicaset-1");
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  } catch (const metadata_cache::metadata_error& e) {
-    EXPECT_STREQ("Unable to fetch live group_replication member data from any server in replicaset 'replicaset-1'", e.what());
-  } catch (...) {
-    FAIL() << "Expected metadata_cache::metadata_error to be thrown";
-  }
+  // if fetch_instances() can't connect to a quorum for a particular replicaset, it should clear its replicaset.members
+  ClusterMetadata::ReplicaSetsByName rs = metadata.fetch_instances("replicaset-1");
+  EXPECT_EQ(1u, rs.size());
+  EXPECT_EQ(0u, rs.at("replicaset-1").members.size());
 }
