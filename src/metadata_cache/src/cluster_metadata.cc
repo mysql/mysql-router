@@ -260,10 +260,6 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
               member.mode = ServerMode::ReadOnly;
               online_count++;
               break;
-            default:
-              assert(0);  // unrecognised enum
-              member.mode = ServerMode::Unavailable;
-              break;
           }
           break;
         case GR_State::Recovering:
@@ -273,9 +269,6 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
           member.mode = ServerMode::Unavailable;
           break;
         // maybe we should also add State::Error, docs define such value
-        default:
-          assert(0);  // unrecognised enum. Should we throw in production?
-          break;
       }
     } else {
       member.mode = ServerMode::Unavailable;
