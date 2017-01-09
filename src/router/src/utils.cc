@@ -18,7 +18,6 @@
 #include "utils.h"
 #include "filesystem.h"
 #include "common.h"
-#include "mysqlrouter/utils.h"
 
 #include <algorithm>
 #include <cassert>
@@ -35,6 +34,7 @@
 
 #ifndef _WIN32
 #include <fcntl.h>
+#include <grp.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -601,6 +601,128 @@ int strtoi_checked(const char* value, int default_value) {
 unsigned strtoui_checked(const char* value, unsigned default_value) {
   return strtoX_checked_common(std::strtoul, value, default_value);
 }
+
+#ifndef _WIN32
+
+// class SysUserOperations
+
+SysUserOperations* SysUserOperations::instance() {
+  static SysUserOperations instance_;
+  return &instance_;
+}
+
+int SysUserOperations::initgroups(const char *user, gid_type gid) {
+  return ::initgroups(user, gid);
+}
+
+int SysUserOperations::setgid(gid_t gid) {
+  return ::setgid(gid);
+}
+
+int SysUserOperations::setuid(uid_t uid) {
+  return ::setuid(uid);
+}
+
+uid_t SysUserOperations::geteuid() {
+  return ::geteuid();
+}
+
+struct passwd* SysUserOperations::getpwnam(const char *name) {
+  return ::getpwnam(name);
+}
+
+struct passwd* SysUserOperations::getpwuid(uid_t uid) {
+  return ::getpwuid(uid);
+}
+
+int SysUserOperations::chown(const char *file, uid_t owner, gid_t group) {
+  return ::chown(file, owner, group);
+}
+
+void set_owner_if_file_exists(const std::string &filepath,
+                              const std::string &username, struct passwd *user_info_arg,
+                              SysUserOperationsBase* sys_user_operations) {
+  assert(user_info_arg != nullptr);
+  assert(sys_user_operations != nullptr);
+
+  if (sys_user_operations->chown(filepath.c_str(), user_info_arg->pw_uid, user_info_arg->pw_gid) == -1) {
+    if (errno != ENOENT) { // Not such file or directory is not an error
+      throw std::runtime_error(string_format("Can't set ownership of file '%s' to the user '%s'. "
+                                             "error: %s ", filepath.c_str(), username.c_str(), strerror(errno)));
+    }
+  }
+}
+
+void set_user(const std::string &username, struct passwd *user_info_arg,
+              SysUserOperationsBase* sys_user_operations)
+{
+  assert(user_info_arg != nullptr);
+  assert(sys_user_operations != nullptr);
+
+  sys_user_operations->initgroups((char*)username.c_str(), (SysUserOperationsBase::gid_type)user_info_arg->pw_gid);
+
+  if (sys_user_operations->setgid(user_info_arg->pw_gid) == -1) {
+    throw std::runtime_error(string_format("Error trying to set the user. "
+                                           "setgid failed: %s ", strerror(errno)));
+  }
+
+  if (sys_user_operations->setuid(user_info_arg->pw_uid) == -1) {
+    throw std::runtime_error(string_format("Error trying to set the user. "
+                                           "setuid failed: %s ", strerror(errno)));
+  }
+}
+
+struct passwd* check_user(const std::string& username,
+                          SysUserOperationsBase* sys_user_operations)
+{
+  struct passwd *tmp_user_info;
+
+  assert(sys_user_operations != nullptr);
+  assert(!username.empty());
+
+  auto user_id = sys_user_operations->geteuid();
+  // Don't bother if we aren't superuser
+  if (user_id) {
+    /* If real user is same as given with --user don't treat it as an error */
+    tmp_user_info = sys_user_operations->getpwnam(username.c_str());
+    if ((!tmp_user_info || user_id != tmp_user_info->pw_uid)) {
+      throw std::runtime_error(string_format("One can only use the --user switch if running as root"));
+    }
+    return nullptr;
+  }
+
+  // we are running as a root and requested to switch to root so there is nothing to be done
+  if (username == "root")
+    return nullptr;
+
+  bool failed = false;
+  if (!(tmp_user_info = sys_user_operations->getpwnam(username.c_str()))) {
+    // Allow a numeric uid to be used
+    const char *pos;
+    for (pos = username.c_str(); std::isdigit(*pos); pos++);
+
+    if (*pos)  // Not numeric id
+      failed = true;
+    else if (!(tmp_user_info = sys_user_operations->getpwuid((uid_t)atoi(username.c_str()))))
+      failed = true;
+  }
+
+  if (failed) {
+    throw std::runtime_error(string_format("Can't use user '%s'. "
+                                           "Please check that the user exists!", username.c_str()));
+  }
+
+  return tmp_user_info;
+}
+
+void set_user(const std::string &username, SysUserOperationsBase* sys_user_operations) {
+  auto user_info = check_user(username, sys_user_operations);
+  if (user_info != nullptr) {
+    set_user(username, user_info, sys_user_operations);
+  }
+}
+
+#endif
 
 
 } // namespace mysqlrouter

@@ -38,6 +38,7 @@
 #include <streambuf>
 #ifndef _WIN32
 #  include <unistd.h>
+#  include <pwd.h>
 #endif
 
 #ifdef __clang__
@@ -53,14 +54,32 @@
 using std::string;
 using std::vector;
 
+using ::testing::_;
 using ::testing::EndsWith;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Ge;
 using ::testing::NotNull;
+using ::testing::Return;
 using ::testing::SizeIs;
 using ::testing::StartsWith;
 using ::testing::StrEq;
+
+#ifndef _WIN32
+using mysqlrouter::SysUserOperationsBase;
+
+class MockSysUserOperations: public SysUserOperationsBase {
+ public:
+  MOCK_METHOD2(initgroups, int(const char *, gid_type));
+  MOCK_METHOD1(setgid, int(gid_t));
+  MOCK_METHOD1(setuid, int(uid_t));
+  MOCK_METHOD0(geteuid, uid_t());
+  MOCK_METHOD1(getpwnam, struct passwd*(const char *));
+  MOCK_METHOD1(getpwuid, struct passwd*(uid_t));
+  MOCK_METHOD3(chown, int(const char*, uid_t, gid_t));
+};
+
+#endif
 
 using mysql_harness::Path;
 
@@ -76,11 +95,15 @@ Path g_origin;
 Path g_stage_dir;
 
 class AppTest : public ::testing::Test {
+
 protected:
   virtual void SetUp() {
     stage_dir = g_stage_dir;
     orig_cout_ = std::cout.rdbuf();
     std::cout.rdbuf(ssout.rdbuf());
+#ifndef _WIN32
+    mock_sys_user_operations.reset(new MockSysUserOperations());
+#endif
   }
 
   virtual void TearDown() {
@@ -97,6 +120,10 @@ protected:
   Path stage_dir;
   std::stringstream ssout;
   std::streambuf *orig_cout_;
+
+#ifndef _WIN32
+  std::unique_ptr<MockSysUserOperations> mock_sys_user_operations;
+#endif
 };
 
 TEST_F(AppTest, DefaultConstructor) {
@@ -337,6 +364,125 @@ TEST_F(AppTest, ShowingInfoFalse) {
     ASSERT_NO_THROW({MySQLRouter r(g_origin, argv); r.start();});
   }
 }
+
+TEST_F(AppTest, UserSetByName) {
+  const char* USER = "mysqluser";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
+
+  ASSERT_NO_THROW({set_user(USER, mock_sys_user_operations.get());});
+}
+
+TEST_F(AppTest, UserSetById) {
+  const char* USER = "1234";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+  EXPECT_CALL(*mock_sys_user_operations, getpwuid((uid_t)atoi(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
+
+
+  ASSERT_NO_THROW({set_user(USER, mock_sys_user_operations.get());});
+}
+
+TEST_F(AppTest, UserSetByNotExistingId) {
+  const char* USER = "124";
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+  EXPECT_CALL(*mock_sys_user_operations, getpwuid((uid_t)atoi(USER))).Times(1).WillOnce(Return(nullptr));
+
+  try {
+    set_user(USER, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StrEq("Can't use user '124'. "
+                                  "Please check that the user exists!"));
+  }
+}
+
+TEST_F(AppTest, UserSetByNotExistingName) {
+  const char* USER = "124name";
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+
+  try {
+    set_user(USER, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StrEq("Can't use user '124name'. "
+                                  "Please check that the user exists!"));
+  }
+}
+
+TEST_F(AppTest, UserSetByNonRootUser) {
+  const char* USER = "mysqlrouter";
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(1));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+
+  try {
+    set_user(USER, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StrEq("One can only use the --user switch if running as root"));
+  }
+}
+
+TEST_F(AppTest, UserSetSetGidFails) {
+  const char* USER = "mysqlrouter";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(-1));
+
+  try {
+    set_user(USER, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. setgid failed:"));
+  }
+}
+
+
+TEST_F(AppTest, UserSetSetUidFails) {
+  const char* USER = "mysqlrouter";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(-1));
+
+  try {
+    set_user(USER, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. setuid failed:"));
+  }
+}
+
+
 #endif
 
 int main(int argc, char *argv[]) {

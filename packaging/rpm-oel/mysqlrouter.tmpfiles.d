@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -13,4 +13,4 @@
 # this program; if not, write to the Free Software Foundation, Inc., 51
 # Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-d /var/run/mysqlrouter 0755 mysql mysql  -
+d /var/run/mysqlrouter 0755 mysqlrouter mysqlrouter  -
