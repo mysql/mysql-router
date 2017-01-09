@@ -263,7 +263,7 @@ MATCHER_P(BufferEq, buf1,
 TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
 
   MySQLRouting routing(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol,
-                       "127.0.0.1", mysql_harness::Path(), "test",
+                       "127.0.0.1", mysql_harness::Path(), "routing:test",
                        routing::kDefaultMaxConnections,
                        routing::kDefaultDestinationConnectionTimeout,
                        routing::kDefaultMaxConnectErrors,
