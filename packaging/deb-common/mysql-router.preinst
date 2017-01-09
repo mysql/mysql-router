@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,9 +17,8 @@
 
 . /usr/share/debconf/confmodule
 
-# Use home directory of MySQL Server
 LOGDIR=/var/log/mysqlrouter
-MYSQLHOME=/var/lib/mysql
+MYSQLROUTERHOME=/var/lib/mysqlrouter
 LOGFILE=${MYSQLLOGDIR}/mysqlrouter.log
 
 case "$1" in
@@ -31,17 +30,17 @@ case "$1" in
       invoke-rc.d mysqlrouter stop || exit $?
     fi
 
-    addgroup --quiet --system mysql
-    adduser --quiet --system --ingroup mysql --disabled-login --home ${MYSQLHOME} --shell /bin/false \
-      --gecos "MySQL Server" mysql
+    addgroup --quiet --system mysqlrouter
+    adduser --quiet --system --ingroup mysqlrouter --disabled-login --home ${MYSQLROUTERHOME} --shell /bin/false \
+      --gecos "MySQL Router" mysqlrouter
 
     if [ ! -d $LOGDIR ] && [ ! -L $LOGDIR ]; then
       mkdir $LOGDIR
-      chown mysql:adm $LOGDIR
+      chown mysqlrouter:adm $LOGDIR
       chmod 750 $LOGDIR
     fi
     touch $LOGFILE
-    chown mysql:adm $LOGFILE
+    chown mysqlrouter:adm $LOGFILE
     chmod 640 $LOGFILE
 
     set +e

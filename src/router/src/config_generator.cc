@@ -221,6 +221,7 @@ ConfigGenerator::~ConfigGenerator() {
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
     const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::string> &default_paths,
     const std::string &keyring_file_path,
     const std::string &keyring_master_key_file) {
   auto options(user_options);
@@ -248,7 +249,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     throw std::runtime_error("Could not open " + config_file_path + ".tmp for writing: " + get_strerror(errno));
   }
   bootstrap_deployment(config_file, _config_file_path,
-    router_name, options,
+    router_name, options, default_paths,
     keyring_file_path, keyring_master_key_file,
     false);
   config_file.close();
@@ -265,6 +266,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     throw std::runtime_error("Could not save configuration file to final location");
   }
   mysql_harness::make_file_private(config_file_path);
+  set_file_owner(options, config_file_path);
 }
 
 static bool is_directory_empty(mysql_harness::Directory dir) {
@@ -281,6 +283,7 @@ static bool is_directory_empty(mysql_harness::Directory dir) {
  */
 void ConfigGenerator::bootstrap_directory_deployment(const std::string &directory,
     const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::string> &default_paths,
     const std::string &default_keyring_file_name,
     const std::string &keyring_master_key_file) {
   bool force = user_options.find("force") != user_options.end();
@@ -306,6 +309,8 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     }
     auto_clean.add_directory_delete(directory, true);
   }
+  set_file_owner(user_options, directory);
+
   path = path.real_path();
   config_file_path = path.join(mysql_harness::Path("mysqlrouter.conf"));
   if (!config_file_path.exists() && !force && !is_directory_empty(path)) {
@@ -314,38 +319,36 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
 
   std::map<std::string, std::string> options(user_options);
-  if (user_options.find("logdir") == user_options.end())
-    options["logdir"] = path.join("log").str();
-  if (user_options.find("rundir") == user_options.end())
-    options["rundir"] = path.join("run").str();
-  if (user_options.find("statedir") == user_options.end())
-    options["statedir"] = path.join("data").str();
-  if (user_options.find("socketsdir") == user_options.end())
-    options["socketsdir"] = path.str();
 
-  if (mkdir(options["logdir"].c_str(), 0700) < 0) {
-    if (errno != EEXIST) {
-      std::cerr << "Cannot create directory " << options["logdir"] << ": " << get_strerror(errno) << "\n";
-      throw std::runtime_error("Could not create deployment directory");
+  const std::vector<std::tuple<std::string, std::string, bool>> directories {
+    //              option name   dir_name      mkdir
+    std::make_tuple("logdir",     "log",        true),
+    std::make_tuple("rundir",     "run",        true),
+    std::make_tuple("statedir",   "data",       true),
+    std::make_tuple("socketsdir", "socketsdir", false),
+  };
+
+  for (const auto &dir: directories) {
+    const auto& option_name = std::get<0>(dir);
+    const auto& dir_name = std::get<1>(dir);
+    const auto& do_mkdir = std::get<2>(dir);
+
+    if (user_options.find(option_name) == user_options.end())
+      options[option_name] = path.join(dir_name).str();
+
+    if (do_mkdir) {
+      if (mkdir(options[option_name].c_str(), 0700) < 0) {
+        if (errno != EEXIST) {
+          std::cerr << "Cannot create directory " << options[option_name] << ": " << get_strerror(errno) << "\n";
+          throw std::runtime_error("Could not create " + option_name + "directory");
+        }
+      } else {
+        auto_clean.add_directory_delete(options[option_name]);
+      }
     }
-  } else {
-    auto_clean.add_directory_delete(options["logdir"]);
-  }
-  if (mkdir(options["rundir"].c_str(), 0700) < 0) {
-    if (errno != EEXIST) {
-      std::cerr << "Cannot create directory " << options["rundir"] << ": " << get_strerror(errno) << "\n";
-      throw std::runtime_error("Could not create deployment directory");
-    }
-  } else {
-    auto_clean.add_directory_delete(options["rundir"]);
-  }
-  if (mkdir(options["statedir"].c_str(), 0700) < 0) {
-    if (errno != EEXIST) {
-      std::cerr << "Cannot create directory " << options["statedir"] << ": " << get_strerror(errno) << "\n";
-      throw std::runtime_error("Could not create state directory");
-    }
-  } else {
-    auto_clean.add_directory_delete(options["statedir"]);
+
+    // sets the directory owner if the directory exists and --user provided
+    set_file_owner(options, options[option_name]);
   }
 
   // (re-)bootstrap the instance
@@ -362,7 +365,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   std::string keyring_master_key_path = keyring_master_key_file.empty() ?
       "" : path.real_path().join(keyring_master_key_file).str();
 
-  bootstrap_deployment(config_file, config_file_path, router_name, options,
+  bootstrap_deployment(config_file, config_file_path, router_name, options, default_paths,
                        keyring_path, keyring_master_key_path,
                        true);
   config_file.close();
@@ -373,7 +376,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
 
   // rename the .tmp file to the final file
-if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) != 0) {
+  if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_file_path.c_str()) != 0) {
     //log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not move configuration file '" +
@@ -382,8 +385,9 @@ if (mysqlrouter::rename_file((config_file_path.str() + ".tmp").c_str(), config_f
   }
 
   mysql_harness::make_file_private(config_file_path.str());
+  set_file_owner(options, config_file_path.str());
   // create start/stop scripts
-  create_start_scripts(path.str(), keyring_master_key_file.empty());
+  create_start_scripts(path.str(), keyring_master_key_file.empty(), options);
 
   auto_clean.clear();
 }
@@ -460,6 +464,7 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     const mysql_harness::Path &config_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
+    const std::map<std::string, std::string> &default_paths,
     const std::string &keyring_file,
     const std::string &keyring_master_key_file,
     bool directory_deployment) {
@@ -476,6 +481,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   if (!keyring_master_key_file.empty())
     auto_clean.add_file_revert(keyring_master_key_file);
   init_keyring_file(keyring_file, keyring_master_key_file);
+  set_file_owner(user_options, keyring_file);
+  set_file_owner(user_options, keyring_master_key_file);
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
@@ -552,8 +559,26 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   metadata.update_router_info(router_id, options);
 
+  /* Currently at this point the logger is not yet initialized but while bootstraping
+   * with the --user=<user> option we need to create a log file and chown it to the <user>.
+   * Otherwise when the router gets run later (not bootstrap) with the same --user=<user>
+   * option, the user could not have right to the logging directory.
+   */
+  assert(default_paths.find("logging_folder") != default_paths.end());
+  std::string logdir = (!options.override_logdir.empty()) ? options.override_logdir :
+                                                            default_paths.at("logging_folder");
+  if (!logdir.empty()) {
+    auto log_path = mysql_harness::Path::make_path(logdir, "mysqlrouter", "log");
+    auto log_file = log_path.str();
+    std::fstream f;
+    f.open(log_file, std::ios::out);
+    set_file_owner(user_options, log_file);
+  }
+
+  auto system_username = (user_options.find("user") != user_options.end()) ?  user_options.at("user") : "";
+
   // generate the new config file
-  create_config(config_file, router_id, router_name,
+  create_config(config_file, router_id, router_name, system_username,
                 primary_replicaset_servers,
                 primary_cluster_name,
                 primary_replicaset_name,
@@ -755,6 +780,7 @@ std::string ConfigGenerator::endpoint_option(const Options &options,
 void ConfigGenerator::create_config(std::ostream &cfp,
                                     uint32_t router_id,
                                     const std::string &router_name,
+                                    const std::string &system_username,
                                     const std::string &bootstrap_server_addresses,
                                     const std::string &metadata_cluster,
                                     const std::string &metadata_replicaset,
@@ -766,6 +792,8 @@ void ConfigGenerator::create_config(std::ostream &cfp,
   cfp << "[DEFAULT]\n";
   if (!router_name.empty())
     cfp << "name=" << router_name << "\n";
+  if (!system_username.empty())
+    cfp << "user=" << system_username << "\n";
   if (!options.override_logdir.empty())
     cfp << "logging_folder=" << options.override_logdir << "\n";
   if (!options.override_rundir.empty())
@@ -996,7 +1024,8 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
 }
 
 void ConfigGenerator::create_start_scripts(const std::string &directory,
-                                           bool interactive_master_key) {
+                                           bool interactive_master_key,
+                                           const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
   std::ofstream script;
   std::string script_path = directory + "/start.ps1";
@@ -1029,6 +1058,12 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   std::ofstream script;
   std::string script_path = directory+"/start.sh";
 
+  std::string owner_name;
+  bool change_owner = options.find("user") != options.end();
+  if (change_owner) {
+    owner_name = options.at("user");
+  }
+
   script.open(script_path);
   if (script.fail()) {
     throw std::runtime_error("Could not open "+script_path+" for writing: "+get_strerror(errno));
@@ -1044,12 +1079,17 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
     script << "stty $old_stty\n";
     script << "echo $password | ";
   }
-  script << "ROUTER_PID=$basedir/mysqlrouter.pid " << find_executable_path() << " -c " << "$basedir/mysqlrouter.conf &\n";
+  script << (change_owner ? "sudo " : "")
+         <<"ROUTER_PID=$basedir/mysqlrouter.pid "
+         << find_executable_path() << " -c " << "$basedir/mysqlrouter.conf "
+         << (change_owner ? std::string("--user=" + owner_name) : "")
+         << "&\n";
   script << "disown %-\n";
   script.close();
   if (::chmod(script_path.c_str(), 0700) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
+  set_file_owner(options, script_path);
 
   script_path = directory+"/stop.sh";
   script.open(script_path);
@@ -1064,6 +1104,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   if (::chmod(script_path.c_str(), 0700) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
+  set_file_owner(options, script_path);
 #endif
 }
 
@@ -1101,4 +1142,19 @@ bool ConfigGenerator::backup_config_file_if_different(const mysql_harness::Path 
     }
   }
   return false;
+}
+
+void ConfigGenerator::set_file_owner(const std::map<std::string, std::string> &options,
+                                     const std::string &file_path)
+{
+#ifndef _WIN32
+  bool change_owner = options.find("user") != options.end();
+  if (change_owner) {
+    auto username = options.at("user");
+    auto user_info = check_user(username, sys_user_operations_);
+    if (user_info != nullptr) {
+      mysqlrouter::set_owner_if_file_exists(file_path, username, user_info, sys_user_operations_);
+    }
+  }
+#endif
 }

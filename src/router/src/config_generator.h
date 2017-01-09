@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <ostream>
+#include "mysqlrouter/utils.h"
 
 namespace mysql_harness {
   class Path;
@@ -45,21 +46,33 @@ DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
 
 namespace mysqlrouter {
 class MySQLSession;
+class SysUserOperationsBase;
+class SysUserOperations;
 
 class ConfigGenerator {
 public:
-  ConfigGenerator()
-    : mysql_(nullptr), mysql_owned_(false) {}
+  ConfigGenerator(
+#ifndef _WIN32
+          SysUserOperationsBase* sys_user_operations = SysUserOperations::instance()
+#endif
+          )
+    : mysql_(nullptr), mysql_owned_(false)
+  #ifndef _WIN32
+    , sys_user_operations_(sys_user_operations)
+  #endif
+  {}
   void init(const std::string &server_url);
   void init(mysqlrouter::MySQLSession *session);
   ~ConfigGenerator();
 
   void bootstrap_system_deployment(const std::string &config_file_path,
       const std::map<std::string, std::string> &options,
+      const std::map<std::string, std::string> &default_paths,
       const std::string &default_keyring_path,
       const std::string &keyring_master_key_file);
   void bootstrap_directory_deployment(const std::string &directory,
       const std::map<std::string, std::string> &options,
+      const std::map<std::string, std::string> &default_paths,
       const std::string &default_keyring_file_name,
       const std::string &keyring_master_key_file);
 
@@ -98,11 +111,13 @@ private:
       const std::map<std::string, std::string> &user_options);
 
   void create_start_scripts(const std::string &directory,
-                            bool interactive_master_key);
+                            bool interactive_master_key,
+                            const std::map<std::string, std::string> &options);
 
   void bootstrap_deployment(std::ostream &config_file,
       const mysql_harness::Path &config_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
+      const std::map<std::string, std::string> &default_paths,
       const std::string &keyring_file,
       const std::string &keyring_master_key_file,
       bool directory_deployment);
@@ -117,6 +132,7 @@ private:
   void create_config(std::ostream &config_file,
                      uint32_t router_id,
                      const std::string &router_name,
+                     const std::string &system_username,
                      const std::string &bootstrap_server_addresses,
                      const std::string &metadata_cluster,
                      const std::string &metadata_replicaset,
@@ -136,9 +152,16 @@ private:
 
   bool backup_config_file_if_different(const mysql_harness::Path &config_path,
                                        const std::string &new_file_path);
+
+
+  void set_file_owner(const std::map<std::string, std::string> &options,
+                      const std::string &owner); // throws std::runtime_error
 private:
   MySQLSession *mysql_;
   bool mysql_owned_;
+#ifndef _WIN32
+  SysUserOperationsBase* sys_user_operations_;
+#endif
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_one);

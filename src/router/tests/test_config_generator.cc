@@ -60,9 +60,12 @@ protected:
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
     config_path->append("Bug24570426.ini");
+
+    default_paths["logging_folder"] = "";
   }
 
   std::unique_ptr<Path> config_path;
+  std::map<std::string, std::string> default_paths;
 };
 
 using ::testing::Return;
@@ -309,7 +312,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
   {
     std::stringstream output;
     config_gen.create_config(output,
-                        123, "myrouter",
+                        123, "myrouter", "mysqlrouter",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -319,6 +322,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
         "name=myrouter\n"
+        "user=mysqlrouter\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
@@ -363,7 +367,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     std::stringstream output;
     // system instance (no key)
     config_gen.create_config(output,
-                        123, "",
+                        123, "", "",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -419,7 +423,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     options = config_gen.fill_options(false, opts);
 
     config_gen.create_config(output,
-                        123, "",
+                        123, "", "",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -478,7 +482,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     options = config_gen.fill_options(false, opts);
 
     config_gen.create_config(output,
-                        123, "",
+                        123, "", "",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -531,7 +535,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     options = config_gen.fill_options(false, opts);
 
     config_gen.create_config(output,
-                        123, "",
+                        123, "", "",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -591,7 +595,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     options = config_gen.fill_options(false, opts);
 
     config_gen.create_config(output,
-                        123, "myrouter",
+                        123, "myrouter", "mysqlrouter",
                         "server1,server2,server3",
                         "mycluster",
                         "myreplicaset",
@@ -601,6 +605,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
         "name=myrouter\n"
+        "user=mysqlrouter\n"
         "\n"
         "[logger]\n"
         "level = INFO\n"
@@ -656,7 +661,7 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   config_gen.init(&mock_mysql);
   ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
   config_gen.create_config(output,
-                      123, "myrouter",
+                      123, "myrouter", "",
                       "server1,server2,server3",
                       "mycluster",
                       "myreplicaset",
@@ -922,7 +927,8 @@ static void expect_bootstrap_queries(MySQLSessionReplayer &m, const char *cluste
 
 static void bootstrap_name_test(const std::string &dir,
                            const std::string &name,
-                           bool expect_fail) {
+                           bool expect_fail,
+                           const std::map<std::string, std::string> &default_paths) {
   StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
@@ -936,7 +942,7 @@ static void bootstrap_name_test(const std::string &dir,
   options["name"] = name;
   options["quiet"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
-      options, "delme", "delme.key");
+      options, default_paths, "delme", "delme.key");
 }
 
 
@@ -945,20 +951,20 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   mysqlrouter::delete_recursive(dir);
 
   // Bug#24807941
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false));
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false));
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "", false));
+  ASSERT_NO_THROW(bootstrap_name_test(dir, "", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
   ASSERT_THROW_LIKE(
-    bootstrap_name_test(dir, "system", true),
+    bootstrap_name_test(dir, "system", true, default_paths),
     std::runtime_error,
     "Router name 'system' is reserved");
   mysqlrouter::delete_recursive(dir);
@@ -970,7 +976,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   };
   for (std::string &name : bad_names) {
     ASSERT_THROW_LIKE(
-      bootstrap_name_test(dir, name, true),
+      bootstrap_name_test(dir, name, true, default_paths),
       std::runtime_error,
       "Router name '"+name+"' contains invalid characters.");
     mysqlrouter::delete_recursive(dir);
@@ -978,7 +984,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   }
 
   ASSERT_THROW_LIKE(
-    bootstrap_name_test(dir, "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname", true),
+    bootstrap_name_test(dir, "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname", true, default_paths),
     std::runtime_error,
     "too long (max 255).");
   mysqlrouter::delete_recursive(dir);
@@ -1008,7 +1014,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "delme.key"),
+          options, default_paths, "delme", "delme.key"),
       mysqlrouter::MySQLSession::Error,
       "boo!");
 
@@ -1031,7 +1037,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-          options, "delme", "delme.key"));
+          options, default_paths, "delme", "delme.key"));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
@@ -1054,7 +1060,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "delme.key"),
+            options, default_paths, "delme", "delme.key"),
       std::runtime_error,
       "boo!");
 
@@ -1077,7 +1083,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     options["quiet"] = "1";
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, "delme", "delme.key"),
+            options, default_paths, "delme", "delme.key"),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -1092,7 +1098,8 @@ static void bootstrap_overwrite_test(const std::string &dir,
                                      const std::string &name,
                                      bool force,
                                      const char *cluster_name,
-                                     bool expect_fail) {
+                                     bool expect_fail,
+                                     const std::map<std::string, std::string> &default_paths) {
   StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
@@ -1110,7 +1117,7 @@ static void bootstrap_overwrite_test(const std::string &dir,
   if (force)
     options["force"] = "1";
   config_gen.bootstrap_directory_deployment(dir,
-    options, "delme", "delme.key");
+    options, default_paths, "delme", "delme.key");
 }
 
 
@@ -1138,9 +1145,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 
   SCOPED_TRACE("bootstrap_overwrite1");
   // same    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1148,9 +1155,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   SCOPED_TRACE("bootstrap_overwrite2");
   dir = "./configtest2";
   // same    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "myname", false, "kluster", true),
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "myname", false, "kluster", true, default_paths),
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -1160,9 +1167,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest3";
   SCOPED_TRACE("bootstrap_overwrite3");
   // same    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1170,9 +1177,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest4";
   SCOPED_TRACE("bootstrap_overwrite4");
   // same    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1180,9 +1187,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest5";
   SCOPED_TRACE("bootstrap_overwrite5");
   // diff    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1190,9 +1197,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest6";
   SCOPED_TRACE("bootstrap_overwrite6");
   // diff    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "xmyname", false, "kluster", true),
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "xmyname", false, "kluster", true, default_paths),
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -1202,9 +1209,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest7";
   SCOPED_TRACE("bootstrap_overwrite7");
   // diff    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1212,16 +1219,17 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest8";
   SCOPED_TRACE("bootstrap_overwrite8");
   // diff    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 }
 
 
-static void test_key_length(const std::string &key) {
+static void test_key_length(const std::string &key,
+                            const std::map<std::string, std::string> &default_paths) {
   using std::placeholders::_1;
   StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
@@ -1238,28 +1246,28 @@ static void test_key_length(const std::string &key) {
   options["name"] = "test";
   options["quiet"] = "1";
   config_gen.bootstrap_directory_deployment("key_too_long",
-      options, "delme", "");
+      options, default_paths, "delme", "");
 }
 
 TEST_F(ConfigGeneratorTest, key_too_long) {
   ASSERT_FALSE(mysql_harness::Path("key_too_long").exists());
 
   // bug #24942008, keyring key too long
-  ASSERT_NO_THROW(test_key_length(std::string(250, 'x')));
+  ASSERT_NO_THROW(test_key_length(std::string(250, 'x'), default_paths));
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(test_key_length(std::string(255, 'x')));
+  ASSERT_NO_THROW(test_key_length(std::string(255, 'x'), default_paths));
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(std::string(256, 'x')),
+  ASSERT_THROW_LIKE(test_key_length(std::string(256, 'x'), default_paths),
     std::runtime_error,
     "too long");
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(std::string(5000, 'x')),
+  ASSERT_THROW_LIKE(test_key_length(std::string(5000, 'x'), default_paths),
     std::runtime_error,
     "too long");
   mysqlrouter::delete_recursive("key_too_long");
@@ -1284,7 +1292,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     options["name"] = "foo";
     options["quiet"] = "1";
     config_gen.bootstrap_directory_deployment("./delme",
-        options, "delme", "key");
+        options, default_paths, "delme", "key");
 
     mysql_harness::reset_keyring();
   }
@@ -1304,7 +1312,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     options["quiet"] = "1";
     try {
       config_gen.bootstrap_directory_deployment("./delme",
-          options, "delme", "emptyfile");
+          options, default_paths, "delme", "emptyfile");
       FAIL() << "Was expecting exception but got none\n";
     } catch (std::runtime_error &e) {
       if (strstr(e.what(), ".tmp"))
@@ -1332,19 +1340,19 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
 #ifdef __sun
     ASSERT_THROW_LIKE(
         config_gen.bootstrap_directory_deployment("./delme",
-          options, "delme", "."),
+          options, default_paths, "delme", "."),
         std::runtime_error,
         ": Invalid argument");
 #elif !defined(_WIN32)
     ASSERT_THROW_LIKE(
         config_gen.bootstrap_directory_deployment("./delme",
-          options, "delme", "."),
+          options, default_paths, "delme", "."),
         std::runtime_error,
         ": Is a directory");
 #else
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, "delme", "."),
+        options, default_paths, "delme", "."),
       std::runtime_error,
       "Permission denied");
 #endif
@@ -1371,7 +1379,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   options["quiet"] = "1";
   ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, "delme", "masterkey"));
+        options, default_paths, "delme", "masterkey"));
 
   std::string value;
   mysql_harness::Config config(mysql_harness::Config::allow_keys);

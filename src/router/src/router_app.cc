@@ -18,9 +18,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "keyring/keyring_manager.h"
-#include "mysqlrouter/utils.h"
 #include "router_app.h"
-#include "utils.h"
 #include "config_generator.h"
 
 #include <algorithm>
@@ -66,6 +64,8 @@ using mysql_harness::get_strerror;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
+using mysqlrouter::SysUserOperationsBase;
+using mysqlrouter::SysUserOperations;
 
 static const char *kDefaultKeyringFileName = "keyring";
 
@@ -134,20 +134,34 @@ static inline void set_signal_handlers() {
 #endif
 }
 
-
-MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments)
+MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments
+#ifndef _WIN32
+                         , SysUserOperationsBase *sys_user_operations
+#endif
+                         )
     : version_(MYSQL_ROUTER_VERSION_MAJOR, MYSQL_ROUTER_VERSION_MINOR, MYSQL_ROUTER_VERSION_PATCH),
       arg_handler_(), loader_(), can_start_(false),
       showing_info_(false),
       origin_(origin)
+#ifndef _WIN32
+    , sys_user_operations_(sys_user_operations)
+#endif
 {
   set_signal_handlers();
   init(arguments);
 }
 
-MySQLRouter::MySQLRouter(const int argc, char **argv)
+MySQLRouter::MySQLRouter(const int argc, char **argv
+#ifndef _WIN32
+  , SysUserOperationsBase *sys_user_operations
+#endif
+)
     : MySQLRouter(mysql_harness::Path(find_full_path(argv[0])).dirname(),
-                  vector<string>({argv + 1, argv + argc}))
+                  vector<string>({argv + 1, argv + argc})
+#ifndef _WIN32
+                 ,sys_user_operations
+#endif
+    )
 {
 }
 
@@ -221,6 +235,24 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
     }
   }
 }
+
+#ifndef _WIN32
+void MySQLRouter::set_effective_user(mysql_harness::Config &config) {
+  std::string system_user_name;
+  // the user option from the config file overwrites the --user
+  // from the command line so we check it first here
+  if (config.has_default("user")) {
+    system_user_name = config.get_default("user");
+  }
+  else {
+    system_user_name = user_;
+  }
+
+  if (!system_user_name.empty()) {
+    set_user(system_user_name, this->sys_user_operations_);
+  }
+}
+#endif
 
 
 static string fixpath(const string &path, const std::string &basedir) {
@@ -345,6 +377,9 @@ void MySQLRouter::start() {
     return;
   }
 
+#ifndef _WIN32
+  set_effective_user(config);
+#endif
   init_keyring(config);
 
   try {
@@ -518,6 +553,21 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+#ifndef _WIN32
+  arg_handler_.add_option(OptionNames({"--user"}),
+                          "Run the mysqlrouter as the user having the name user_name.",
+                          CmdOptionValueReq::required, "username",
+                          [this](const string &username) {
+        if (this->bootstrap_uri_.empty()) {
+          this->user_ = username;
+        }
+        else {
+          check_user(username, this->sys_user_operations_);
+          this->bootstrap_options_["user"] =  username;
+        }
+      });
+#endif
+
   arg_handler_.add_option(OptionNames({"--name"}),
                           "Gives a symbolic name for the router instance. (bootstrap)",
                           CmdOptionValueReq::optional, "name",
@@ -615,7 +665,11 @@ void MySQLRouter::prepare_command_options() noexcept {
 }
 
 void MySQLRouter::bootstrap(const std::string &server_url) {
-  mysqlrouter::ConfigGenerator config_gen;
+  mysqlrouter::ConfigGenerator config_gen{
+#ifndef _WIN32
+      sys_user_operations_
+#endif
+  };
   config_gen.init(server_url);
 
 #ifdef _WIN32
@@ -628,6 +682,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   }
 #endif
 
+  auto defualt_paths = get_default_paths();
   try {
     if (bootstrap_directory_.empty()) {
       std::string config_file_path =
@@ -650,10 +705,10 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       }
       default_keyring_file.append("/").append(kDefaultKeyringFileName);
       config_gen.bootstrap_system_deployment(config_file_path,
-          bootstrap_options_, default_keyring_file, master_key_path);
+          bootstrap_options_, defualt_paths, default_keyring_file, master_key_path);
     } else {
       config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-          bootstrap_options_, kDefaultKeyringFileName, "mysqlrouter.key");
+          bootstrap_options_, defualt_paths, kDefaultKeyringFileName, "mysqlrouter.key");
     }
   } catch (std::exception &e) {
     throw;

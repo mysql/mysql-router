@@ -28,6 +28,7 @@
 #include "config.h"
 #include "loader.h"
 #include "mysql/harness/arg_handler.h"
+#include "mysqlrouter/utils.h"
 
 #include <cstdint>
 #include <vector>
@@ -74,6 +75,9 @@ public:
    *
    */
   MySQLRouter() : can_start_(false), showing_info_(false)
+#ifndef _WIN32
+        ,sys_user_operations_(mysqlrouter::SysUserOperations::instance())
+#endif
     {}
 
 
@@ -91,7 +95,11 @@ public:
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
    */
-  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments);
+  MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments
+#ifndef _WIN32
+             , mysqlrouter:: SysUserOperationsBase* sys_user_operations = mysqlrouter::SysUserOperations::instance()
+#endif
+          );
 
   /** @brief Constructor with command line arguments
    *
@@ -109,7 +117,12 @@ public:
    * @param argc number of arguments
    * @param argv pointer to first command line argument
    */
-  MySQLRouter(const int argc, char** argv);
+  MySQLRouter(const int argc, char** argv
+#ifndef _WIN32
+              , mysqlrouter::SysUserOperationsBase *sys_user_operations = mysqlrouter::SysUserOperations::instance()
+#endif
+  );
+
 
   // Information member function
   std::string get_package_name() noexcept;
@@ -383,6 +396,14 @@ private:
    * running from.
    */
   mysql_harness::Path origin_;
+
+#ifndef _WIN32
+  void set_effective_user(mysql_harness::Config &config);
+  /** @brief Value of the --user parameter given on the command line **/
+  std::string user_;
+  /** @brief Pointer to the object to be used to perform system specific user-related operations **/
+  mysqlrouter::SysUserOperationsBase* sys_user_operations_;
+#endif
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(Bug24909259, PasswordPrompt_plain);

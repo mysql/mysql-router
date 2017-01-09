@@ -139,9 +139,9 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlharness.a
 rm -rf %{buildroot}
 
 %pre
-/usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
-/usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
-    -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
+/usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
+/usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
+    -c "MySQL Router" mysqlrouter >/dev/null 2>&1 || :
 %if 0%{?suse_version}
 %service_add_pre mysqlrouter.service
 %endif

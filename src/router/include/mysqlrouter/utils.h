@@ -26,6 +26,7 @@
 #include <functional>
 #ifndef _WIN32
 #  include <netdb.h>
+#  include <pwd.h>
 #endif
 
 #include "config.h"
@@ -242,6 +243,111 @@ int strtoi_checked(const char* value, int default_result = 0);
  * @param default_result  value to return in case of nullptr being passed
  */
 unsigned strtoui_checked(const char* value, unsigned default_result = 0);
+
+#ifndef _WIN32
+
+/** @class SysUserOperationsBase
+ * @brief Base class to allow multiple SysUserOperations implementations
+ */
+class SysUserOperationsBase {
+ public:
+#ifdef __APPLE__
+  using gid_type = int;
+#else
+  using gid_type = gid_t;
+#endif
+  virtual ~SysUserOperationsBase() = default;
+
+  virtual int initgroups (const char *user, gid_type gid) = 0;
+  virtual int setgid(gid_t gid) = 0;
+  virtual int setuid(uid_t uid) = 0;
+  virtual uid_t geteuid (void) = 0;
+  virtual struct passwd *getpwnam(const char *name) = 0;
+  virtual struct passwd *getpwuid(uid_t uid) = 0;
+  virtual int chown(const char *file, uid_t owner, gid_t group) = 0;
+};
+
+/** @class SysUserOperations
+ * @brief This class provides implementations of SysUserOperationsBase methods
+ */
+class SysUserOperations : public SysUserOperationsBase {
+ public:
+
+  static SysUserOperations* instance();
+
+  /** @brief Thin wrapper around system initgroups() */
+  int initgroups (const char *user, gid_type gid) override;
+
+  /** @brief Thin wrapper around system setgid() */
+  virtual int setgid(gid_t gid) override;
+
+  /** @brief Thin wrapper around system setuid() */
+  virtual int setuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system geteuid() */
+  virtual uid_t geteuid() override;
+
+  /** @brief Thin wrapper around system getpwnam() */
+  virtual struct passwd *getpwnam(const char *name) override;
+
+  /** @brief Thin wrapper around system getpwuid() */
+  virtual struct passwd *getpwuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system chown() */
+  virtual int chown(const char *file, uid_t owner, gid_t group) override;
+ private:
+  SysUserOperations(const SysUserOperations&) = delete;
+  SysUserOperations operator=(const SysUserOperations&) = delete;
+  SysUserOperations() = default;
+};
+
+/** @brief Sets the owner of selected file/directory if it exists.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param filepath              path to the file/directory this operation applies to
+ * @param username              name of the system user that should be new owner of the file
+ * @param user_info_arg         passwd structure for the system user that should be new owner of the file
+ * @param sys_user_operations   object for the system specific operation that should be used by the function
+ */
+void set_owner_if_file_exists(const std::string &filepath,
+                              const std::string &username, struct passwd *user_info_arg,
+                              mysqlrouter::SysUserOperationsBase* sys_user_operations);
+
+/** @brief Sets effective user of the calling process.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param username            name of the system user that the process should switch to
+ * @param user_info_arg       passwd structure for the user
+ * @param sys_user_operations object for the system specific operation that should be used by the function
+ */
+void set_user(const std::string &username, struct passwd *user_info_arg,
+              mysqlrouter::SysUserOperationsBase* sys_user_operations);
+
+/** @brief Sets effective user of the calling process.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param username            name of the system user that the process should switch to
+ * @param sys_user_operations object for the system specific operation that should be used by the function
+ */
+void set_user(const std::string &username, mysqlrouter::SysUserOperationsBase* sys_user_operations);
+
+/** @brief Checks if the given user can be switched to or made an owner of a selected file.
+ *
+ * @throws std::runtime_error in case of an error
+ *
+ * @param username            name of the system user to check
+ * @param sys_user_operations object for the system specific operation that should be used by the function
+ * @return pointer to the user's passwd structure if the user can be switched to or nullptr otherwise
+ *
+ */
+struct passwd* check_user(const std::string& username,
+                          mysqlrouter::SysUserOperationsBase* sys_user_operations);
+
+#endif // ! _WIN32
+
 
 } // namespace mysqlrouter
 
