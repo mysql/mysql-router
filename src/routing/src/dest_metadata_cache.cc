@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -120,17 +120,18 @@ retry:
       return -1;
     }
 
+    // round-robin between available nodes
     auto next_up = current_pos_;
     if (next_up >= available.size()) {
       next_up = 0;
       current_pos_ = 0;
     }
-
     std::lock_guard<std::mutex> lock(mutex_update_);
     ++current_pos_;
     if (current_pos_ >= available.size()) {
       current_pos_ = 0;
     }
+
     int fd = get_mysql_socket(available.at(next_up), connect_timeout);
     if (fd < 0) {
       // Signal that we can't connect to the instance

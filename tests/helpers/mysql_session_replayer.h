@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ public:
   virtual ~MySQLSessionReplayer();
 
   virtual void connect(const std::string &host, unsigned int port,
-                       const std::string &username,
+                       const std::string &user,
                        const std::string &password,
                        int connection_timeout = kDefaultConnectionTimeout) override;
   virtual void disconnect() override;
@@ -77,15 +77,20 @@ private:
   struct CallInfo {
     CallInfo() {}
     CallInfo(const CallInfo& ci);
-    std::string sql;
+
     enum Type {
       Execute,
       Query,
       QueryOne
     };
+
+    // common fields
     Type type;
     std::string error;
     unsigned int error_code = 0;
+
+    // SQL fields
+    std::string sql;
     uint64_t last_insert_id = 0;
     unsigned int num_fields = 0;
     std::vector<std::vector<string>> rows;

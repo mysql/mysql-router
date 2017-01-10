@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -235,7 +235,7 @@ bool MySQLSessionReplayer::print_expected() {
   return !call_info_.empty();
 }
 
-MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo& ci) : sql(ci.sql), type(ci.type), error(ci.error), error_code(ci.error_code),
+MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo& ci) : type(ci.type), error(ci.error), error_code(ci.error_code), sql(ci.sql),
 last_insert_id(ci.last_insert_id), num_fields(ci.num_fields), rows(ci.rows)
 {
 }
