@@ -44,13 +44,13 @@ lockfile=/var/lock/subsys/$prog
 
 start () {
     [ -d $piddir ] || mkdir -p $piddir
-    chown mysql:mysql $piddir
+    chown mysqlrouter:mysqlrouter $piddir
     [ -d $logdir ] || mkdir -p $logdir
-    chown mysql:mysql $logdir
+    chown mysqlrouter:mysqlrouter $logdir
     [ -e $logfile ] || touch $logfile
-    chown mysql:mysql $logfile
+    chown mysqlrouter:mysqlrouter $logfile
     export ROUTER_PID=$pidfile
-    daemon --user mysql $exec >/dev/null 2>&1 &
+    daemon mysqlrouter $exec --user=mysqlrouter >/dev/null 2>&1 &
     ret=$?
     if [ $ret -eq "0" ]; then
 	action $"Starting $prog: " /bin/true

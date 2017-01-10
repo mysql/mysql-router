@@ -5,8 +5,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=mysql
-Group=mysql
+User=mysqlrouter
+Group=mysqlrouter
 
 PIDFile=/var/run/mysqlrouter/mysqlrouter.pid
 
