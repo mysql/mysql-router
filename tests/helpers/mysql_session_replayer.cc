@@ -29,12 +29,33 @@ MySQLSessionReplayer::~MySQLSessionReplayer() {
 }
 
 void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
-                                   const std::string &,
-                                   const std::string &,
+                                   const std::string &user,
+                                   const std::string &password,
                                    int) {
   if (trace_) {
-    std::cout << "connect: " << host << ":" << port << "\n";
+    std::cout << "connect: " << user << ":" << password << "@" << host << ":" << port << "\n";
   }
+
+  // check if connect() is not expected to fail. Note that since we mostly just
+  // connect() without errors and go on about our business, connect() is allowed
+  // to be called without a prior call to expect_connect(). This is in contrast to
+  // execute(), query() and friends, which must be preceded by their respective
+  // expect_*() call.
+  if (call_info_.size()
+      && call_info_.front().type == CallInfo::Connect
+      && call_info_.front().host == host
+      && call_info_.front().port == port
+      && call_info_.front().user == user
+      && call_info_.front().password == password) {
+    CallInfo info = call_info_.front();
+    call_info_.pop_front();
+
+    if (info.error_code != 0) {
+      connected_ = false;
+      throw MySQLSession::Error(info.error.c_str(), info.error_code);
+    }
+  }
+
   connected_ = true;
 }
 
@@ -177,6 +198,19 @@ std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) {
   return quoted;
 }
 
+MySQLSessionReplayer &MySQLSessionReplayer::expect_connect(const std::string &host, unsigned port,
+                                                           const std::string &user,
+                                                           const std::string &password) {
+  CallInfo call;
+  call.type = CallInfo::Connect;
+  call.host = host;
+  call.port = port;
+  call.user = user;
+  call.password = password;
+  call_info_.push_back(call);
+  return *this;
+}
+
 MySQLSessionReplayer &MySQLSessionReplayer::expect_execute(const std::string &q) {
   CallInfo call;
   call.type = CallInfo::Execute;
@@ -222,20 +256,26 @@ bool MySQLSessionReplayer::print_expected() {
     switch (info.type) {
       case CallInfo::Execute:
         std::cout << "\texecute: ";
+        std::cout << info.sql << "\n";
         break;
       case CallInfo::Query:
         std::cout << "\tquery: ";
+        std::cout << info.sql << "\n";
         break;
       case CallInfo::QueryOne:
         std::cout << "\tquery_one: ";
+        std::cout << info.sql << "\n";
+        break;
+      case CallInfo::Connect:
+        std::cout << "\tconnect: ";
+        std::cout << info.user << ":" << info.password << "@" << info.host << ":" << info.port << "\n";
         break;
     }
-    std::cout << info.sql << "\n";
   }
   return !call_info_.empty();
 }
 
 MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo& ci) : type(ci.type), error(ci.error), error_code(ci.error_code), sql(ci.sql),
-last_insert_id(ci.last_insert_id), num_fields(ci.num_fields), rows(ci.rows)
+last_insert_id(ci.last_insert_id), num_fields(ci.num_fields), rows(ci.rows), host(ci.host), port(ci.port), user(ci.user), password(ci.password)
 {
 }

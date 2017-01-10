@@ -62,6 +62,7 @@ public:
   string string_or_null(const char *s) { return string(s); }
   string string_or_null() { return string(); }
 
+  MySQLSessionReplayer &expect_connect(const std::string &host, unsigned port, const std::string &user, const std::string &password);
   MySQLSessionReplayer &expect_execute(const std::string &q);
   MySQLSessionReplayer &expect_query(const std::string &q);
   MySQLSessionReplayer &expect_query_one(const std::string &q);
@@ -79,6 +80,7 @@ private:
     CallInfo(const CallInfo& ci);
 
     enum Type {
+      Connect,
       Execute,
       Query,
       QueryOne
@@ -94,6 +96,12 @@ private:
     uint64_t last_insert_id = 0;
     unsigned int num_fields = 0;
     std::vector<std::vector<string>> rows;
+
+    // connect fields
+    std::string host;
+    unsigned int port;
+    std::string user;
+    std::string password;
   };
   std::deque<CallInfo> call_info_;
   uint64_t last_insert_id_;
