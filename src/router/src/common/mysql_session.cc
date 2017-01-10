@@ -51,6 +51,8 @@ using namespace mysqlrouter;
 /*static*/ constexpr char MySQLSession::kSslModeDisabled[];
 /*static*/ constexpr char MySQLSession::kSslModePreferred[];
 /*static*/ constexpr char MySQLSession::kSslModeRequired[];
+/*static*/ constexpr char MySQLSession::kSslModeVerifyCa[];
+/*static*/ constexpr char MySQLSession::kSslModeVerifyIdentity[];
 
 #ifdef MOCK_RECORDER
 class MockRecorder {
@@ -174,16 +176,24 @@ mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
     return SSL_MODE_PREFERRED;
   else if (ssl_mode == kSslModeRequired)
     return SSL_MODE_REQUIRED;
+  else if (ssl_mode == kSslModeVerifyCa)
+    return SSL_MODE_VERIFY_CA;
+  else if (ssl_mode == kSslModeVerifyIdentity)
+    return SSL_MODE_VERIFY_IDENTITY;
   else
-    throw std::logic_error(std::string("Unrecognised SSL mode '") + kSslModeRequired + "'");
+    throw std::logic_error(std::string("Unrecognised SSL mode '") + ssl_mode + "'");
 }
 
-void MySQLSession::set_ssl_mode(mysql_ssl_mode ssl_mode) {
- 
-  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode)) {
+void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
+                                   const std::string &tls_version,
+                                   const std::string &ssl_cipher,
+                                   const std::string &ca, const std::string &capath,
+                                   const std::string &crl, const std::string &crlpath) {
+
+  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
 
     // find mode's textual representation
-    const char* text;
+    const char* text = NULL;
     switch (ssl_mode) {
       case SSL_MODE_DISABLED:
         text = kSslModeDisabled;
@@ -195,8 +205,10 @@ void MySQLSession::set_ssl_mode(mysql_ssl_mode ssl_mode) {
         text = kSslModeRequired;
         break;
       case SSL_MODE_VERIFY_CA:
+        text = kSslModeVerifyCa;
+        break;
       case SSL_MODE_VERIFY_IDENTITY:
-        text = "<unsupported mode>";  // we don't support these atm
+        text = kSslModeVerifyIdentity;
         break;
     };
 
@@ -204,6 +216,56 @@ void MySQLSession::set_ssl_mode(mysql_ssl_mode ssl_mode) {
     std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
                     + mysql_error(connection_);
     throw Error(msg.c_str(), mysql_errno(connection_));
+  }
+
+  if (!ssl_cipher.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CIPHER, ssl_cipher.c_str()) != 0) {
+    throw Error(("Error setting SSL_CIPHER option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!tls_version.empty() &&
+      mysql_options(connection_, MYSQL_OPT_TLS_VERSION, tls_version.c_str()) != 0) {
+    throw Error("Error setting TLS_VERSION option for MySQL connection",
+                mysql_errno(connection_));
+  }
+
+  if (!ca.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CA, ca.c_str()) != 0) {
+    throw Error(("Error setting SSL_CA option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!capath.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CAPATH, capath.c_str()) != 0) {
+    throw Error(("Error setting SSL_CAPATH option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!crl.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CRL, crl.c_str()) != 0) {
+    throw Error(("Error setting SSL_CRL option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!crlpath.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str()) != 0) {
+    throw Error(("Error setting SSL_CRLPATH option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+}
+
+void MySQLSession::set_ssl_cert(const std::string &cert, const std::string &key) {
+  if (mysql_options(connection_, MYSQL_OPT_SSL_CERT, cert.c_str()) != 0 ||
+      mysql_options(connection_, MYSQL_OPT_SSL_KEY, key.c_str()) != 0) {
+    throw Error(("Error setting client SSL certificate for connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
   }
 }
 

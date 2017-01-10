@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -218,9 +218,9 @@ TEST_F(UniquePtrTest, moving_stuff) {
   EXPECT_FALSE(p3);
 
 #ifndef __clang__
-  // This is caught by compiler... and it will also throw an exception at runtime
-  // With so much effort by clang to prevent this bad use case, it seems pointless
-  // to try to make this work.
+  // Clang genereates -Wself-move warning, because self-move is undefined per C++11 standard.
+  // However, a lot of people feel it should be a no-op. Our UniquePtr adheres to that tighter
+  // specification.
   p4 = std::move(p4);
   EXPECT_TRUE(!!p4);
 #endif

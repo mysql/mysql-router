@@ -110,7 +110,7 @@ public:
     bool multi_master;
     std::string bind_address;
 
-    std::string mdc_ssl_mode;
+    mysqlrouter::SSLOptions ssl_options;
   };
 private:
   friend class MySQLInnoDBClusterMetadata;

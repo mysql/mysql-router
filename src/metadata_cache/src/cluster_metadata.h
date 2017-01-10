@@ -51,11 +51,12 @@ class METADATA_API ClusterMetadata : public MetaData {
    *                            must be attempted, when a connection attempt
    *                            fails.  NOTE: not used so far
    * @param ttl The time to live of the data in the cache.
-   * @param ssl_mode MYSQL_OPT_SSL_MODE used for MySQL connections
+   * @param ssl_options SSL related options to use for MySQL connections
    */
   ClusterMetadata(const std::string &user, const std::string &password,
                   int connection_timeout, int /*connection_attempts*/,
-                  unsigned int ttl, const std::string &ssl_mode);
+                  unsigned int ttl,
+                  const mysqlrouter::SSLOptions &ssl_options);
 
   /** @brief Destructor
    *
@@ -71,8 +72,9 @@ class METADATA_API ClusterMetadata : public MetaData {
    *
    * @param cluster_name the name of the cluster to query
    * @return Map of replicaset ID, server list pairs.
+   * @throws metadata_cache::metadata_error
    */
-  ReplicaSetsByName fetch_instances(const std::string &cluster_name) override;
+  ReplicaSetsByName fetch_instances(const std::string &cluster_name) override; // throws metadata_cache::metadata_error
 
 #if 0 // not used so far
   /** @brief Returns the refresh interval provided by the metadata server.
@@ -127,7 +129,7 @@ class METADATA_API ClusterMetadata : public MetaData {
    * The information is pulled from GR maintained performance_schema tables.
    */
   void update_replicaset_status(const std::string &name,
-      metadata_cache::ManagedReplicaSet &replicaset) noexcept;
+      metadata_cache::ManagedReplicaSet &replicaset); // throws metadata_cache::metadata_error
 
   /** @brief Hard to summarise, please read the full description
    *
@@ -151,6 +153,8 @@ class METADATA_API ClusterMetadata : public MetaData {
   // Metadata node generic information
   unsigned int ttl_;
   mysql_ssl_mode ssl_mode_;
+  mysqlrouter::SSLOptions ssl_options_;
+
   std::string cluster_name_;
 #if 0 // not used so far
   std::string metadata_uuid_;

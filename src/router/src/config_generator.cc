@@ -64,6 +64,8 @@ static const int kMaxRouterNameLength = 255; // must match metadata router.name 
 
 static const char *kKeyringAttributePassword = "password";
 
+static const int kDefaultTTL = 300; // default configured TTL in seconds
+
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::UniquePtr;
@@ -184,45 +186,38 @@ void ConfigGenerator::init(MySQLSession *session) {
   check_innodb_metadata_cluster_session(session, false);
 }
 
+inline std::string get_opt(const std::map<std::string, std::string> &map,
+                       const std::string &key, const std::string &default_value) {
+  auto iter = map.find(key);
+  if (iter == map.end())
+    return default_value;
+  return iter->second;
+}
+
 /*static*/
-void ConfigGenerator::set_ssl_mode(MySQLSession* sess,
-                                   const std::map<std::string, std::string>& bootstrap_options,
-                                   const std::string& host,
-                                   int port) {
-  
-  std::string ssl_mode = bootstrap_options.count("ssl_mode")
-      ? bootstrap_options.at("ssl_mode")
-      : MySQLSession::kSslModePreferred;
+void ConfigGenerator::set_ssl_options(MySQLSession* sess,
+                                   const std::map<std::string, std::string>& options) {
 
-  // parse ssl_mode option
-  mysql_ssl_mode ssl_enum;
-  try {
-    ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
-  } catch (const std::logic_error& e) {
-    assert(0);  // if we get here, we have a bug (this should have been caught before we got here)
-    std::cerr << "[PANIC] Unhandled exception in " << __FILE__ << ":" << __LINE__ << ", please contact MySQL Router team." << std::endl;
-    exit(-1);
-  }
+  std::string ssl_mode = get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred);
+  std::string ssl_cipher = get_opt(options, "ssl_cipher", "");
+  std::string tls_version = get_opt(options, "tls_version", "");
+  std::string ssl_ca = get_opt(options, "ssl_ca", "");
+  std::string ssl_capath = get_opt(options, "ssl_capath", "");
+  std::string ssl_crl = get_opt(options, "ssl_crl", "");
+  std::string ssl_crlpath = get_opt(options, "ssl_crlpath", "");
 
-  // set ssl_mode (one of SSL_MODE_DISABLED, SSL_MODE_REQUIRED, SSL_MODE_PREFERRED)
-  try {
-    sess->set_ssl_mode(ssl_enum);
-  } catch (const MySQLSession::Error& e) {
-    std::cerr << "[WARNING] Connection to '" << host << ":" << port << "': " << e.what() << std::endl;
+  std::string ssl_cert = get_opt(options, "ssl_cert", "");
+  std::string ssl_key = get_opt(options, "ssl_key", "");
 
-    std::string mode = ssl_mode;  // leave the original intact
-    std::transform(mode.begin(), mode.end(), mode.begin(), toupper);
+  // parse ssl_mode option (already validated in cmdline option handling)
+  mysql_ssl_mode ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
 
-    // on failure, user's security preference decides reasonable action
-    if (!strcmp(mode.c_str(), MySQLSession::kSslModePreferred)) {
-      // do nothing, user doesn't care if (s)he's using SSL, so no biggie
-    } else if (!strcmp(mode.c_str(), MySQLSession::kSslModeRequired)
-           ||  !strcmp(mode.c_str(), MySQLSession::kSslModeDisabled)) {
-      throw;
-    } else {
-      assert(0);  // unrecognised mode
-      throw;
-    }
+  // set ssl_mode
+  sess->set_ssl_options(ssl_enum, tls_version, ssl_cipher,
+                        ssl_ca, ssl_capath, ssl_crl, ssl_crlpath);
+
+  if (!ssl_cert.empty() || !ssl_key.empty()) {
+    sess->set_ssl_cert(ssl_cert, ssl_key);
   }
 }
 
@@ -251,7 +246,7 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
   UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
   try
   {
-    set_ssl_mode(s.get(), bootstrap_options, u.host, u.port);
+    set_ssl_options(s.get(), bootstrap_options);
     s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
@@ -546,10 +541,13 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   if (user_options.find("socketsdir") != user_options.end())
     options.socketsdir = user_options.at("socketsdir");
 
-  if (user_options.count("ssl_mode"))
-    options.mdc_ssl_mode = user_options.at("ssl_mode");
-  else
-    options.mdc_ssl_mode = MySQLSession::kSslModePreferred;
+  options.ssl_options.mode = get_opt(user_options, "ssl_mode", "");
+  options.ssl_options.cipher = get_opt(user_options, "ssl_cipher", "");
+  options.ssl_options.tls_version = get_opt(user_options, "tls_version", "");
+  options.ssl_options.ca = get_opt(user_options, "ssl_ca", "");
+  options.ssl_options.capath = get_opt(user_options, "ssl_capath", "");
+  options.ssl_options.crl = get_opt(user_options, "ssl_crl", "");
+  options.ssl_options.crlpath = get_opt(user_options, "ssl_crlpath", "");
 
   return options;
 }
@@ -870,6 +868,13 @@ std::string ConfigGenerator::endpoint_option(const Options &options,
 }
 
 
+static std::string option_line(const std::string &key, const std::string &value) {
+  if (!value.empty()) {
+    return key + "=" + value + "\n";
+  }
+  return "";
+}
+
 void ConfigGenerator::create_config(std::ostream &cfp,
                                     uint32_t router_id,
                                     const std::string &router_name,
@@ -908,9 +913,21 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
-      << "ttl=300" << "\n"
-      << "ssl_mode=" << options.mdc_ssl_mode << "\n"
-      << "\n";
+      << "ttl=" << kDefaultTTL << "\n";
+
+  // SSL options
+  cfp << option_line("ssl_mode", options.ssl_options.mode);
+  cfp << option_line("ssl_cipher", options.ssl_options.cipher);
+  cfp << option_line("tls_version", options.ssl_options.tls_version);
+  cfp << option_line("ssl_ca", options.ssl_options.ca);
+  cfp << option_line("ssl_capath", options.ssl_options.capath);
+  cfp << option_line("ssl_crl", options.ssl_options.crl);
+  cfp << option_line("ssl_crlpath", options.ssl_options.crlpath);
+  // Note: we don't write cert and key because
+  // creating router accounts with REQUIRE X509 is not yet supported.
+  // The cert and key options passed to bootstrap if for the bootstrap
+  // connection itself.
+  cfp << "\n";
 
   const std::string fast_router_key = metadata_key+"_"+metadata_replicaset;
   if (options.rw_endpoint) {

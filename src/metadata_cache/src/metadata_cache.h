@@ -46,7 +46,7 @@ public:
   /** @brief Constructor */
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 std::shared_ptr<MetaData> cluster_metadata,
-                unsigned int ttl, const std::string &ssl_mode,
+                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
                 const std::string &cluster_name);
 
   /** @brief Destructor */
@@ -116,6 +116,9 @@ private:
 
   // The time to live of the metadata cache.
   unsigned int ttl_;
+
+  // SSL options for MySQL connections
+  mysqlrouter::SSLOptions ssl_options_;
 
   // Stores the pointer to the transport layer implementation. The transport
   // layer communicates with the servers storing the metadata and fetches the

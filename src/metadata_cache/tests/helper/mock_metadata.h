@@ -83,7 +83,8 @@ public:
    * @param ttl The time to live of the data in the cache.
    */
   MockNG(const std::string &user, const std::string &password,
-         int connection_timeout, int connection_attempts, unsigned int ttl);
+         int connection_timeout, int connection_attempts, unsigned int ttl,
+         const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions());
 
   /** @brief Destructor
    *

@@ -133,6 +133,18 @@ private:
   Family ip_family_;
 };
 
+/** @brief SSL connection related options */
+struct SSLOptions {
+  std::string mode;
+
+  std::string cipher;
+  std::string tls_version;
+  std::string ca;
+  std::string capath;
+  std::string crl;
+  std::string crlpath;
+};
+
 } // namespace mysqlrouter
 
 #endif // MYSQLROUTER_UTILS_INCLUDED

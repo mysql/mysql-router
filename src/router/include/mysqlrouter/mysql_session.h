@@ -44,6 +44,8 @@ class MySQLSession {
   static constexpr char kSslModeDisabled[]  = "DISABLED";
   static constexpr char kSslModePreferred[] = "PREFERRED";
   static constexpr char kSslModeRequired[]  = "REQUIRED";
+  static constexpr char kSslModeVerifyCa[]  = "VERIFY_CA";
+  static constexpr char kSslModeVerifyIdentity[]  = "VERIFY_IDENTITY";
 
   class Transaction {
    public:
@@ -98,7 +100,12 @@ class MySQLSession {
   virtual ~MySQLSession();
 
   static mysql_ssl_mode parse_ssl_mode(std::string ssl_mode); // throws std::logic_error
-  virtual void set_ssl_mode(mysql_ssl_mode ssl_mode);         // throws Error
+  virtual void set_ssl_options(mysql_ssl_mode ssl_mode,
+                               const std::string &tls_version,
+                               const std::string &ssl_cipher,
+                               const std::string &ca, const std::string &capath,
+                               const std::string &crl, const std::string &crlpath);         // throws Error
+  virtual void set_ssl_cert(const std::string &cert, const std::string &key);
 
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &username,

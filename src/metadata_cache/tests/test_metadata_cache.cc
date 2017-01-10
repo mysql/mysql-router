@@ -39,8 +39,9 @@ public:
 
   MetadataCacheTest() : mf("admin", "admin", 1, 1, 10),
                       cache({mysqlrouter::TCPAddress("localhost", 32275)},
-                              get_instance("admin", "admin", 1, 1, 10, ""),
-                              10, "", "replicaset-1") {}
+                              get_instance("admin", "admin", 1, 1, 10,
+                                           mysqlrouter::SSLOptions()),
+                              10, mysqlrouter::SSLOptions(), "replicaset-1") {}
 };
 
 /**

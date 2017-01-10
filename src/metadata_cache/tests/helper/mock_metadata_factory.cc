@@ -30,7 +30,7 @@ std::shared_ptr<MetaData> meta_data;
  * @param connection_attempts The number of times a connection to metadata must be
  *                            attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
- * @param ssl_mode (unused)
+ * @param ssl_options
  */
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
@@ -38,8 +38,8 @@ std::shared_ptr<MetaData> get_instance(
   int connection_timeout,
   int connection_attempts,
   unsigned int ttl,
-  const std::string & /*ssl_mode*/) {
+  const mysqlrouter::SSLOptions &ssl_options) {
   meta_data.reset(new MockNG(user, password, connection_timeout,
-                             connection_attempts, ttl));
+                             connection_attempts, ttl, ssl_options));
   return meta_data;
 }

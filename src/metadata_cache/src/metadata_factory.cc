@@ -31,7 +31,7 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *                            server must be attempted, when a connection
  *                            attempt fails.
  * @param ttl The TTL of the cached data.
- * @param ssl_mode MYSQL_OPT_SSL_MODE used for MySQL connections
+ * @param ssl_options SSL related options to be used for connection
  */
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
@@ -39,8 +39,9 @@ std::shared_ptr<MetaData> get_instance(
   int connection_timeout,
   int connection_attempts,
   unsigned int ttl,
-  const std::string &ssl_mode) {
+  const mysqlrouter::SSLOptions &ssl_options
+  ) {
   meta_data.reset(new ClusterMetadata(user, password, connection_timeout,
-                                   connection_attempts, ttl, ssl_mode));
+                                      connection_attempts, ttl, ssl_options));
   return meta_data;
 }
