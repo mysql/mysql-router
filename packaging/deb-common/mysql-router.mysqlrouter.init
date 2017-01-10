@@ -54,30 +54,30 @@ do_start() {
   fi
 
   start="start-stop-daemon --start --pidfile $PID --exec $DAEMON"
-  $start --test -u mysql 1>/dev/null || retval=1
+  $start --test -u mysqlrouter 1>/dev/null || retval=1
 
   if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
   then
           mkdir ${RUNTIMEDIR}
-          chown mysql:adm ${RUNTIMEDIR}
+          chown mysqlrouter:adm ${RUNTIMEDIR}
           chmod 750 ${RUNTIMEDIR}
   fi
 
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
   then
           mkdir ${LOGDIR}
-          chown mysql:adm ${LOGDIR}
+          chown mysqlrouter:adm ${LOGDIR}
           chmod 750 ${LOGDIR}
   fi
   touch ${LOGFILE}
 
   # Ensure the log file is writable by the own
-  chown mysql:adm ${LOGFILE}
+  chown mysqlrouter:adm ${LOGFILE}
   chmod 640 ${LOGFILE}
 
   /lib/init/apparmor-profile-load usr.bin.mysqlrouter
 
-  $start -m -b --chuid mysql -- $DAEMON_OPTIONS 2>/dev/null || retval=2
+  $start -m -b --chuid mysqlrouter -- $DAEMON_OPTIONS 2>/dev/null || retval=2
 
   case $? in
     0) log_end_msg 0 ;;
