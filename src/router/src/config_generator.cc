@@ -26,6 +26,8 @@
 #include "rapidjson/rapidjson.h"
 #include "utils.h"
 #include "router_app.h"
+#include "dim.h"
+
 // #include "logger.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -33,6 +35,7 @@
 #include <sys/stat.h>
 #endif
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -63,6 +66,8 @@ static const char *kKeyringAttributePassword = "password";
 
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
+using mysql_harness::UniquePtr;
+using mysql_harness::DIM;
 using namespace mysqlrouter;
 
 
@@ -173,14 +178,55 @@ private:
 };
 
 
-
 void ConfigGenerator::init(MySQLSession *session) {
-  mysql_ = session;
+  mysql_ = session; // TODO migrate to DIM and get rid of mysql_ and mysql_owned_
 
   check_innodb_metadata_cluster_session(session, false);
 }
 
-void ConfigGenerator::init(const std::string &server_url) {
+/*static*/
+void ConfigGenerator::set_ssl_mode(MySQLSession* sess,
+                                   const std::map<std::string, std::string>& bootstrap_options,
+                                   const std::string& host,
+                                   int port) {
+  
+  std::string ssl_mode = bootstrap_options.count("ssl_mode")
+      ? bootstrap_options.at("ssl_mode")
+      : MySQLSession::kSslModePreferred;
+
+  // parse ssl_mode option
+  mysql_ssl_mode ssl_enum;
+  try {
+    ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
+  } catch (const std::logic_error& e) {
+    assert(0);  // if we get here, we have a bug (this should have been caught before we got here)
+    std::cerr << "[PANIC] Unhandled exception in " << __FILE__ << ":" << __LINE__ << ", please contact MySQL Router team." << std::endl;
+    exit(-1);
+  }
+
+  // set ssl_mode (one of SSL_MODE_DISABLED, SSL_MODE_REQUIRED, SSL_MODE_PREFERRED)
+  try {
+    sess->set_ssl_mode(ssl_enum);
+  } catch (const MySQLSession::Error& e) {
+    std::cerr << "[WARNING] Connection to '" << host << ":" << port << "': " << e.what() << std::endl;
+
+    std::string mode = ssl_mode;  // leave the original intact
+    std::transform(mode.begin(), mode.end(), mode.begin(), toupper);
+
+    // on failure, user's security preference decides reasonable action
+    if (!strcmp(mode.c_str(), MySQLSession::kSslModePreferred)) {
+      // do nothing, user doesn't care if (s)he's using SSL, so no biggie
+    } else if (!strcmp(mode.c_str(), MySQLSession::kSslModeRequired)
+           ||  !strcmp(mode.c_str(), MySQLSession::kSslModeDisabled)) {
+      throw;
+    } else {
+      assert(0);  // unrecognised mode
+      throw;
+    }
+  }
+}
+
+void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
   int connection_timeout_ = 5;
   // Extract connection information from the bootstrap server URL.
@@ -202,22 +248,24 @@ void ConfigGenerator::init(const std::string &server_url) {
       "Please enter MySQL password for "+u.username);
   }
 
-  std::unique_ptr<MySQLSession> s(new MySQLSession());
+  UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
   try
   {
+    set_ssl_mode(s.get(), bootstrap_options, u.host, u.port);
     s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
     throw std::runtime_error(err.str());
   }
-  init(s.release());
-  mysql_owned_ = true;
+  mysql_deleter_ = s.get_deleter(); // \.
+  init(s.release());                //  > TODO get rid of mysql_* variables
+  mysql_owned_ = true;              // /       (replace by DIM semantics)
 }
 
 ConfigGenerator::~ConfigGenerator() {
   if (mysql_owned_)
-    delete mysql_;
+    mysql_deleter_(mysql_);
 }
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
@@ -244,16 +292,16 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     options["socketsdir"] = "/tmp";
 
   // (re-)bootstrap the instance
-  std::ofstream config_file;
-  config_file.open(config_file_path + ".tmp");
-  if (config_file.fail()) {
+  UniquePtr<Ofstream> config_file = DIM::instance().new_Ofstream();
+  config_file->open(config_file_path + ".tmp");
+  if (config_file->fail()) {
     throw std::runtime_error("Could not open " + config_file_path + ".tmp for writing: " + get_strerror(errno));
   }
-  bootstrap_deployment(config_file, _config_file_path,
+  bootstrap_deployment(*config_file, _config_file_path,
     router_name, options, default_paths,
     keyring_file_path, keyring_master_key_file,
     false);
-  config_file.close();
+  config_file->close();
 
   if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options)) {
     if (!quiet)
@@ -497,6 +545,12 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.override_datadir = user_options.at("datadir");
   if (user_options.find("socketsdir") != user_options.end())
     options.socketsdir = user_options.at("socketsdir");
+
+  if (user_options.count("ssl_mode"))
+    options.mdc_ssl_mode = user_options.at("ssl_mode");
+  else
+    options.mdc_ssl_mode = MySQLSession::kSslModePreferred;
+
   return options;
 }
 
@@ -855,6 +909,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << "user=" << username << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
       << "ttl=300" << "\n"
+      << "ssl_mode=" << options.mdc_ssl_mode << "\n"
       << "\n";
 
   const std::string fast_router_key = metadata_key+"_"+metadata_replicaset;

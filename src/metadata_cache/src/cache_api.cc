@@ -44,15 +44,17 @@ const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick
  * @param user The user name used to connect to the metadata servers.
  * @param password The password used to connect to the metadata servers.
  * @param ttl The ttl for the contents of the cache
+ * @param ssl_mode MYSQL_OPT_SSL_MODE used for MySQL connections
  * @param cluster_name The name of the cluster from the metadata schema
  */
 void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
                   unsigned int ttl,
+                  const std::string &ssl_mode,
                   const std::string &cluster_name) {
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
-    get_instance(user, password, 1, 1, ttl), ttl, cluster_name));
+    get_instance(user, password, 1, 1, ttl, ssl_mode), ttl, ssl_mode, cluster_name));
   g_metadata_cache->start();
 }
 

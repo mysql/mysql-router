@@ -16,6 +16,7 @@
 */
 
 #include "cluster_metadata.h"
+#include "dim.h"
 #include "group_replication_metadata.h"
 #include "logger.h"
 #include "mysqlrouter/datatypes.h"
@@ -59,8 +60,7 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
                                  int connection_timeout,
                                  int /*connection_attempts*/,
                                  unsigned int ttl,
-                                 std::unique_ptr<mysqlrouter::MySQLSessionFactory> mysqlsession_factory)
-    : mysqlsession_factory_(std::move(mysqlsession_factory)) {
+                                 const std::string &ssl_mode) {
   this->ttl_ = ttl;
   this->user_ = user;
   this->password_ = password;
@@ -71,6 +71,13 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
   this->connection_attempts_ = connection_attempts;
   this->reconnect_tries_ = 0;
 #endif
+
+  try {
+    ssl_mode_ = MySQLSession::parse_ssl_mode(ssl_mode);
+    log_info("Connections using ssl_mode '%s'", ssl_mode.c_str());
+  } catch (const std::logic_error& e) {
+    throw metadata_cache::metadata_error("Error initializing metadata cache: invalid configuration item 'ssl_mode=" + ssl_mode + "'");
+  }
 }
 
 /** @brief Destructor
@@ -80,11 +87,32 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
  */
 ClusterMetadata::~ClusterMetadata() {}
 
-bool ClusterMetadata::do_connect(MySQLSession& metadata_connection, const metadata_cache::ManagedInstance &mi) {
+bool ClusterMetadata::do_connect(MySQLSession& connection, const metadata_cache::ManagedInstance &mi) {
 
+  // set ssl_mode specified in config (one of SSL_MODE_DISABLED, SSL_MODE_REQUIRED, SSL_MODE_PREFERRED)
+  try {
+    connection.set_ssl_mode(ssl_mode_);
+  } catch (const MySQLSession::Error& e) {
+    log_error("Metadata cache: %s", e.what());
+
+    // on failure, user's security preference decides reasonable action
+    switch (ssl_mode_) {
+      case SSL_MODE_PREFERRED:
+        break; // user doesn't care if (s)he's using SSL, so no biggie
+      case SSL_MODE_DISABLED:
+      case SSL_MODE_REQUIRED:
+      case SSL_MODE_VERIFY_CA:        // \_ note: we don't support
+      case SSL_MODE_VERIFY_IDENTITY:  // /        these atm
+        log_error("Metadata cache: Cowardly refusing to connect to %s:%d: %s",
+                  mi.host.c_str(), mi.port, e.what());
+        return false; // general "not connected" error is also logged in calling function
+    }
+  }
+
+  // connect
   std::string host = (mi.host == "localhost" ? "127.0.0.1" : mi.host);
   try {
-    metadata_connection.connect(host, static_cast<unsigned int>(mi.port), user_, password_, connection_timeout_);
+    connection.connect(host, static_cast<unsigned int>(mi.port), user_, password_, connection_timeout_);
     return true;
   } catch (const MySQLSession::Error& e) {
     return false; // error is logged in calling function
@@ -98,7 +126,13 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
 
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
-  metadata_connection_ = mysqlsession_factory_->create();
+  try {
+    metadata_connection_ = mysql_harness::DIM::instance().new_MySQLSession();
+  } catch (const std::logic_error& e) {
+    // defensive programming, shouldn't really happen
+    log_error("Failed connecting with Metadata Server: %s", e.what());
+    return false;
+  }
 
   // Iterate through the list of servers in the metadata replicaset
   // to fetch a valid connection from which the metadata can be
@@ -142,7 +176,13 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
     if (mi_addr == metadata_connection_->get_address()) { // optimisation: if node is the same as metadata server,
       gr_member_connection = metadata_connection_;        //               share the established connection
     } else {
-      gr_member_connection = mysqlsession_factory_->create();
+      try {
+        gr_member_connection = mysql_harness::DIM::instance().new_MySQLSession();
+      } catch (const std::logic_error& e) {
+        // defensive programming, shouldn't really happen. If it does, there's nothing we can do really, we give up
+        log_error("While updating metadata, could not initialise MySQL connetion structure");
+        throw metadata_cache::metadata_error(e.what());
+      }
 
       if (!do_connect(*gr_member_connection, mi)) {
         log_error("While updating metadata, could not establish a connection to replicaset '%s' through %s",

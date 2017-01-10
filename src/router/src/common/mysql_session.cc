@@ -17,10 +17,14 @@
 
 #include "mysqlrouter/mysql_session.h"
 #include "logger.h"
+
+#include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <sstream>
 #include <fstream>
 #include <mysql.h>
+#include <algorithm>
 #include <cstdlib>
+#include <ctype.h>  // not <cctype> because we don't want std::toupper(), which causes problems with std::transform()
 #include <iostream>
 
 using namespace mysqlrouter;
@@ -44,6 +48,9 @@ using namespace mysqlrouter;
 #endif
 #endif
 
+/*static*/ constexpr char MySQLSession::kSslModeDisabled[];
+/*static*/ constexpr char MySQLSession::kSslModePreferred[];
+/*static*/ constexpr char MySQLSession::kSslModeRequired[];
 
 #ifdef MOCK_RECORDER
 class MockRecorder {
@@ -154,6 +161,50 @@ MySQLSession::MySQLSession() {
 MySQLSession::~MySQLSession() {
   mysql_close(connection_);
   delete connection_;
+}
+
+mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
+
+  // we allow lowercase equivalents, to be consistent with mysql client
+  std::transform(ssl_mode.begin(), ssl_mode.end(), ssl_mode.begin(), toupper);
+
+  if (ssl_mode == kSslModeDisabled)
+    return SSL_MODE_DISABLED;
+  else if (ssl_mode == kSslModePreferred)
+    return SSL_MODE_PREFERRED;
+  else if (ssl_mode == kSslModeRequired)
+    return SSL_MODE_REQUIRED;
+  else
+    throw std::logic_error(std::string("Unrecognised SSL mode '") + kSslModeRequired + "'");
+}
+
+void MySQLSession::set_ssl_mode(mysql_ssl_mode ssl_mode) {
+ 
+  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode)) {
+
+    // find mode's textual representation
+    const char* text;
+    switch (ssl_mode) {
+      case SSL_MODE_DISABLED:
+        text = kSslModeDisabled;
+        break;
+      case SSL_MODE_PREFERRED:
+        text = kSslModePreferred;
+        break;
+      case SSL_MODE_REQUIRED:
+        text = kSslModeRequired;
+        break;
+      case SSL_MODE_VERIFY_CA:
+      case SSL_MODE_VERIFY_IDENTITY:
+        text = "<unsupported mode>";  // we don't support these atm
+        break;
+    };
+
+    // report error
+    std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
+                    + mysql_error(connection_);
+    throw Error(msg.c_str(), mysql_errno(connection_));
+  }
 }
 
 void MySQLSession::connect(const std::string &host, unsigned int port,
@@ -318,11 +369,11 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
   throw Error("Not connected", 0);
 }
 
-uint64_t MySQLSession::last_insert_id() {
+uint64_t MySQLSession::last_insert_id() noexcept {
   return mysql_insert_id(connection_);
 }
 
-std::string MySQLSession::quote(const std::string &s, char qchar) {
+std::string MySQLSession::quote(const std::string &s, char qchar) noexcept {
   std::string r;
   r.resize(s.length()*2+3);
   r[0] = qchar;

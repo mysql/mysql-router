@@ -162,17 +162,6 @@ public:
    */
   std::string get_version_line() noexcept;
 
-  /** @brief Prepares a command line option
-   *
-   * Prepares command line options for the MySQL Router `mysqlrouter` application.
-   *
-   * @internal
-   * Currently, to add options to the command line, you need to add it to the
-   * `prepare_command_options`-method using `CmdArgHandler::add_option()`.
-   * @endinternal
-   */
-  void prepare_command_options() noexcept;
-
   /** @brief Starts the MySQL Router application
    *
    * Starts the MySQL Router application, reading the configuration file(s) and
@@ -268,7 +257,24 @@ private:
    *
    * @param arguments command line arguments as vector of strings
    */
-  void init(const std::vector<std::string>& arguments);
+  virtual void init(const std::vector<std::string>& arguments);
+
+  /** @brief Prepares a command line option
+   *
+   * Prepares command line options for the MySQL Router `mysqlrouter` application.
+   *
+   * @internal
+   * Currently, to add options to the command line, you need to add it to the
+   * `prepare_command_options`-method using `CmdArgHandler::add_option()`.
+   * @endinternal
+   */
+  void prepare_command_options() noexcept;
+
+  /** @brief Process command line options
+   *
+   * Processes command line options for the MySQL Router `mysqlrouter` application.
+   */
+  void parse_command_options(const vector<string>& arguments); // throws std::runtime_error
 
   /** @brief Finds all valid configuration files
    *
@@ -408,6 +414,9 @@ private:
 #ifdef FRIEND_TEST
   FRIEND_TEST(Bug24909259, PasswordPrompt_plain);
   FRIEND_TEST(Bug24909259, PasswordPrompt_keyed);
+  FRIEND_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
+  FRIEND_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
+  FRIEND_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
 #endif
 };
 

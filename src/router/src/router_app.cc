@@ -20,6 +20,7 @@
 #include "keyring/keyring_manager.h"
 #include "router_app.h"
 #include "config_generator.h"
+#include "mysql_session.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -165,14 +166,20 @@ MySQLRouter::MySQLRouter(const int argc, char **argv
 {
 }
 
-void MySQLRouter::init(const vector<string>& arguments) {
-  set_default_config_files(CONFIG_FILES);
+// throws std::runtime_error
+void MySQLRouter::parse_command_options(const vector<string>& arguments) {
   prepare_command_options();
   try {
     arg_handler_.process(arguments);
   } catch (const std::invalid_argument &exc) {
     throw std::runtime_error(exc.what());
   }
+}
+
+void MySQLRouter::init(const vector<string>& arguments) {
+  set_default_config_files(CONFIG_FILES);
+
+  parse_command_options(arguments); // throws std::runtime_error
 
   if (showing_info_) {
     return;
@@ -593,6 +600,31 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+
+  char ssl_mode_vals[128];
+  char ssl_mode_desc[128];
+  snprintf(ssl_mode_vals, sizeof(ssl_mode_vals), "%s|%s|%s",
+           mysqlrouter::MySQLSession::kSslModeDisabled,
+           mysqlrouter::MySQLSession::kSslModePreferred,
+           mysqlrouter::MySQLSession::kSslModeRequired);
+  snprintf(ssl_mode_desc, sizeof(ssl_mode_desc),
+           "SSL connection mode, analogous to --ssl-mode in mysql client. Default = %s. (bootstrap)",
+           mysqlrouter::MySQLSession::kSslModeRequired);
+
+  arg_handler_.add_option(OptionNames({"--conf-ssl-mode"}), ssl_mode_desc,
+                          CmdOptionValueReq::required, ssl_mode_vals,
+                          [this](const string &ssl_mode) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --conf-ssl-mode can only be used together with -B/--bootstrap");
+
+        try {
+          mysqlrouter::MySQLSession::parse_ssl_mode(ssl_mode);  // we only care if this succeeds
+          bootstrap_options_["ssl_mode"] = ssl_mode;
+        } catch (const std::logic_error& e) {
+          throw std::runtime_error("Invalid value for --ssl-mode option");
+        }
+      });
+
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
@@ -675,7 +707,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       sys_user_operations_
 #endif
   };
-  config_gen.init(server_url);
+  config_gen.init(server_url, bootstrap_options_);
 
 #ifdef _WIN32
   // Cannot run boostrap mode as windows service since it requires console interaction.

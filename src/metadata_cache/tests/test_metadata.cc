@@ -19,6 +19,7 @@
 #include <gtest/gtest_prod.h>
 
 #include "cluster_metadata.h"
+#include "dim.h"
 #include "group_replication_metadata.h"
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
@@ -57,7 +58,6 @@ using ::testing::StartsWith;
 using ::testing::Throw;
 
 using mysqlrouter::MySQLSession;
-using mysqlrouter::MySQLSessionFactory;
 using metadata_cache::ManagedInstance;
 using metadata_cache::ManagedReplicaSet;
 using metadata_cache::ServerMode;
@@ -180,7 +180,7 @@ class MockMySQLSession: public MySQLSession {
   std::set<std::string> good_conns_;
 };
 
-class MockMySQLSessionFactory : public MySQLSessionFactory {
+class MockMySQLSessionFactory {
   const int kInstances = 4;
 
  public:
@@ -192,7 +192,7 @@ class MockMySQLSessionFactory : public MySQLSessionFactory {
     }
   }
 
-  std::shared_ptr<MySQLSession> create() const override {
+  std::shared_ptr<MySQLSession> create() const {
     return sessions_.at(next_++);
   }
 
@@ -264,6 +264,12 @@ class MetadataTest : public ::testing::Test {
     // redirect cout > nothing (following tests print to cout)
     original_cout = std::cout.rdbuf();
     std::cout.rdbuf(nullptr);
+
+    // setup DI for MySQLSession
+    mysql_harness::DIM::instance().set_MySQLSession(
+      [this](){ return session_factory.create().get(); }, // provide raw pointer
+      [](MySQLSession*){}                                 // and try don't deleting it!
+    );
   }
 
   void TearDown() override {
@@ -335,7 +341,7 @@ class MetadataTest : public ::testing::Test {
   std::unique_ptr<MockMySQLSessionFactory> up_session_factory_{new MockMySQLSessionFactory()};
  public:
   MockMySQLSessionFactory& session_factory = *up_session_factory_; // hack: we can do this because unique_ptr will outlive our tests
-  ClusterMetadata metadata{"user", "pass", 0, 0, 0, std::move(up_session_factory_)};
+  ClusterMetadata metadata{"user", "pass", 0, 0, 0, "PREFERRED"};
 
   // set instances that would be returned by successful metadata.fetch_instances_from_metadata_server()
   // for a healthy 3-node setup. Only some tests need this variable.

@@ -17,6 +17,7 @@
 
 #include "metadata_cache.h"
 #include "plugin_config.h"
+#include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 
 #include <string>
 #include <thread>
@@ -87,11 +88,12 @@ static void start(const mysql_harness::ConfigSection *section) {
     log_info("Starting Metadata Cache");
 
     // Initialize the metadata cache.
+    constexpr const char* kPreferred = mysqlrouter::MySQLSession::kSslModePreferred;
     metadata_cache::cache_init(config.bootstrap_addresses, config.user,
                                password, ttl,
+                               section->has("ssl_mode") ? section->get("ssl_mode") : kPreferred,
                                metadata_cluster);
-  } catch (const std::runtime_error &exc) {
-    // We continue and retry
+  } catch (const std::runtime_error &exc) { // metadata_cache::metadata_error inherits from runtime_error
     log_error(exc.what());
   } catch (const std::invalid_argument &exc) {
     log_error(exc.what());

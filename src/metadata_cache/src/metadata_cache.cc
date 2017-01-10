@@ -34,13 +34,16 @@
  * @param connection_attempts The number of times a connection to metadata must
  *                            be attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
+ * @param ssl_mode MYSQL_OPT_SSL_MODE used for MySQL connections
  * @param cluster The name of the desired cluster in the metadata server
  */
 MetadataCache::MetadataCache(
   const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
-  std::shared_ptr<MetaData> cluster_metadata,
+  std::shared_ptr<MetaData> cluster_metadata, // this could be changed to UniquePtr
   unsigned int ttl,
+  const std::string &ssl_mode,
   const std::string &cluster) {
+(void) ssl_mode; // TODO PM FIXME
   std::string host;
   for (auto s : bootstrap_servers) {
     metadata_cache::ManagedInstance bootstrap_server_instance;

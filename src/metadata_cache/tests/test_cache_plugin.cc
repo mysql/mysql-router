@@ -65,7 +65,7 @@ public:
   virtual void SetUp() {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::cache_init(bootstrap_server_vector, kDefaultMetadataUser,
-                               kDefaultMetadataPassword, kDefaultTTL,
+                               kDefaultMetadataPassword, kDefaultTTL, "",
                                kDefaultMetadataReplicaset);
     int count = 1;
     /**

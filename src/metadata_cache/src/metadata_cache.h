@@ -46,7 +46,8 @@ public:
   /** @brief Constructor */
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 std::shared_ptr<MetaData> cluster_metadata,
-                unsigned int ttl, const std::string &cluster_name);
+                unsigned int ttl, const std::string &ssl_mode,
+                const std::string &cluster_name);
 
   /** @brief Destructor */
   ~MetadataCache();

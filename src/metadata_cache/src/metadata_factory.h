@@ -30,6 +30,6 @@
 
 std::shared_ptr<MetaData> get_instance(
   const std::string &user, const std::string &password, int connection_timeout,
-  int connection_attempts, unsigned int ttl);
+  int connection_attempts, unsigned int ttl, const std::string &ssl_mode);
 
 #endif // METADATA_CACHE_METADATA_FACTORY_INCLUDED

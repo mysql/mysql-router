@@ -113,6 +113,7 @@
 
 // forward declarations [step 1]
 namespace mysqlrouter { class MySQLSession; }
+namespace mysqlrouter { class Ofstream; }
 
 namespace mysql_harness {
 
@@ -143,6 +144,14 @@ class DIM { // DIM = Dependency Injection Manager
     deleter_MySQLSession_ = deleter;
   }
 
+  // Ofstream
+  void set_Ofstream(const std::function<mysqlrouter::Ofstream*(void)>& factory,
+                    const std::function<void(mysqlrouter::Ofstream*)>& deleter
+                          = std::default_delete<mysqlrouter::Ofstream>()) {
+    factory_Ofstream_ = factory;
+    deleter_Ofstream_ = deleter;
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // object getters [step 3]
   ////////////////////////////////////////////////////////////////////////////////
@@ -154,6 +163,9 @@ class DIM { // DIM = Dependency Injection Manager
   // MySQLSession
   UniquePtr<mysqlrouter::MySQLSession> new_MySQLSession() const { return new_generic(factory_MySQLSession_, deleter_MySQLSession_); }
 
+  // Ofstream
+  UniquePtr<mysqlrouter::Ofstream> new_Ofstream() const { return new_generic(factory_Ofstream_, deleter_Ofstream_); }
+
  private:
   ////////////////////////////////////////////////////////////////////////////////
   // factory and deleter functions [step 4]
@@ -162,6 +174,10 @@ class DIM { // DIM = Dependency Injection Manager
   // MySQLSession
   std::function<mysqlrouter::MySQLSession*(void)> factory_MySQLSession_;
   std::function<void(mysqlrouter::MySQLSession*)> deleter_MySQLSession_;
+
+  // Ofstream
+  std::function<mysqlrouter::Ofstream*(void)> factory_Ofstream_;
+  std::function<void(mysqlrouter::Ofstream*)> deleter_Ofstream_;
 
 
 

@@ -26,20 +26,19 @@ std::shared_ptr<MetaData> meta_data;
  *
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
- * @param metadata_connection_timeout The time after which a connection to the
- *                                  metadata server should timeout.
+ * @param connection_timeout The time after which a connection to the
  * @param connection_attempts The number of times a connection to metadata must be
  *                            attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
- * @param metadata_replicaset The replicaset that servers as the metadata
- *                            HA setup for the topology metadata.
+ * @param ssl_mode (unused)
  */
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
   const std::string &password,
   int connection_timeout,
   int connection_attempts,
-  unsigned int ttl) {
+  unsigned int ttl,
+  const std::string & /*ssl_mode*/) {
   meta_data.reset(new MockNG(user, password, connection_timeout,
                              connection_attempts, ttl));
   return meta_data;

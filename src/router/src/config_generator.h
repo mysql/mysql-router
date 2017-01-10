@@ -18,10 +18,12 @@
 #ifndef ROUTER_CONFIG_GENERATOR_INCLUDED
 #define ROUTER_CONFIG_GENERATOR_INCLUDED
 
+#include <functional>
 #include <map>
 #include <vector>
 #include <string>
 #include <ostream>
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 
 namespace mysql_harness {
@@ -41,6 +43,9 @@ DECLARE_TEST(ConfigGeneratorTest, create_config_multi_master);
 DECLARE_TEST(ConfigGeneratorTest, create_acount);
 DECLARE_TEST(ConfigGeneratorTest, fill_options);
 DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
+DECLARE_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
+DECLARE_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
+DECLARE_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
 DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
 #endif
 
@@ -61,7 +66,7 @@ public:
     , sys_user_operations_(sys_user_operations)
   #endif
   {}
-  void init(const std::string &server_url);
+  void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);
   void init(mysqlrouter::MySQLSession *session);
   ~ConfigGenerator();
 
@@ -104,6 +109,8 @@ public:
 
     bool multi_master;
     std::string bind_address;
+
+    std::string mdc_ssl_mode;
   };
 private:
   friend class MySQLInnoDBClusterMetadata;
@@ -155,12 +162,17 @@ private:
                                        const std::string &new_file_path,
                                        const std::map<std::string, std::string> &options);
 
+  static void set_ssl_options(MySQLSession* sess,
+                           const std::map<std::string, std::string>& options);
 
   void set_file_owner(const std::map<std::string, std::string> &options,
                       const std::string &owner); // throws std::runtime_error
 private:
+  // TODO refactoring: these 3 should be removed (replaced by DIM semantics)
   MySQLSession *mysql_;
   bool mysql_owned_;
+  std::function<void(mysqlrouter::MySQLSession*)> mysql_deleter_;
+
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;
 #endif
@@ -175,6 +187,9 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, create_acount);
   FRIEND_TEST(::ConfigGeneratorTest, fill_options);
   FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
+  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
+  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
+  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage3_create_config);
   FRIEND_TEST(::ConfigGeneratorTest, empty_config_file);
 #endif
 };

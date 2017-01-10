@@ -177,7 +177,7 @@ MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &sql)
   return result;
 }
 
-uint64_t MySQLSessionReplayer::last_insert_id() {
+uint64_t MySQLSessionReplayer::last_insert_id() noexcept {
   return last_insert_id_;
 }
 
@@ -190,7 +190,7 @@ unsigned int MySQLSessionReplayer::last_errno() {
 }
 
 
-std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) {
+std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) noexcept {
   std::string quoted;
   quoted.push_back(qchar);
   quoted.append(mysqlrouter::escape_sql_string(s));

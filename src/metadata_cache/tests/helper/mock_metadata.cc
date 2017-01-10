@@ -34,12 +34,13 @@ using namespace std;
  *                           metadata server should timeout.
  * @param connection_attempts The number of times a connection to metadata must
  *                            be attempted, when a connection attempt fails.
- *
+ * @param ttl The TTL of the cached data.
+ * @param ssl_mode MYSQL_OPT_SSL_MODE used for MySQL connections
  */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connection_timeout, int connection_attempts,
                unsigned int ttl)
-  : ClusterMetadata(user, password, connection_timeout, connection_attempts, ttl) {
+  : ClusterMetadata(user, password, connection_timeout, connection_attempts, ttl, "PREFERRED") {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
   ms1.location = "us.wa.seattle";
