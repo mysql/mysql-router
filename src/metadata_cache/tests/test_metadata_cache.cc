@@ -149,7 +149,7 @@ void expect_cluster_routable(MetadataCache& mc) {
   EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[1].mode);
   EXPECT_EQ("uuid-server3", instances[2].mysql_server_uuid);
   EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[2].mode);
-};
+}
 
 void expect_cluster_not_routable(MetadataCache& mc) {
   std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
