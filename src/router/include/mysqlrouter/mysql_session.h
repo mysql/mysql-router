@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,11 +41,11 @@ class MySQLSession {
   typedef std::function<bool (const Row&)> RowProcessor;
 
   // text representations of SSL modes
-  static constexpr char kSslModeDisabled[]  = "DISABLED";
-  static constexpr char kSslModePreferred[] = "PREFERRED";
-  static constexpr char kSslModeRequired[]  = "REQUIRED";
-  static constexpr char kSslModeVerifyCa[]  = "VERIFY_CA";
-  static constexpr char kSslModeVerifyIdentity[]  = "VERIFY_IDENTITY";
+  static const char kSslModeDisabled[];
+  static const char kSslModePreferred[];
+  static const char kSslModeRequired[];
+  static const char kSslModeVerifyCa[];
+  static const char kSslModeVerifyIdentity[];
 
   class Transaction {
    public:
@@ -100,6 +100,8 @@ class MySQLSession {
   virtual ~MySQLSession();
 
   static mysql_ssl_mode parse_ssl_mode(std::string ssl_mode); // throws std::logic_error
+  static const char* ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept;
+
   virtual void set_ssl_options(mysql_ssl_mode ssl_mode,
                                const std::string &tls_version,
                                const std::string &ssl_cipher,

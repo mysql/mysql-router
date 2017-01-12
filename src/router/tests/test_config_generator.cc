@@ -34,9 +34,7 @@
 #include <sstream>
 #include <streambuf>
 #include "keyring/keyring_manager.h"
-#ifdef _WIN32
-#include <Winsock2.h>
-#else
+#ifndef _WIN32
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>

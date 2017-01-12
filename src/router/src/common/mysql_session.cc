@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,11 +48,11 @@ using namespace mysqlrouter;
 #endif
 #endif
 
-/*static*/ constexpr char MySQLSession::kSslModeDisabled[];
-/*static*/ constexpr char MySQLSession::kSslModePreferred[];
-/*static*/ constexpr char MySQLSession::kSslModeRequired[];
-/*static*/ constexpr char MySQLSession::kSslModeVerifyCa[];
-/*static*/ constexpr char MySQLSession::kSslModeVerifyIdentity[];
+/*static*/ const char MySQLSession::kSslModeDisabled[]  = "DISABLED";
+/*static*/ const char MySQLSession::kSslModePreferred[] = "PREFERRED";
+/*static*/ const char MySQLSession::kSslModeRequired[]  = "REQUIRED";
+/*static*/ const char MySQLSession::kSslModeVerifyCa[]  = "VERIFY_CA";
+/*static*/ const char MySQLSession::kSslModeVerifyIdentity[]  = "VERIFY_IDENTITY";
 
 #ifdef MOCK_RECORDER
 class MockRecorder {
@@ -165,6 +165,7 @@ MySQLSession::~MySQLSession() {
   delete connection_;
 }
 
+/*static*/
 mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
 
   // we allow lowercase equivalents, to be consistent with mysql client
@@ -184,6 +185,36 @@ mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
     throw std::logic_error(std::string("Unrecognised SSL mode '") + ssl_mode + "'");
 }
 
+/*static*/
+const char* MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
+  const char* text = NULL;
+
+  // The better way would be to do away with text variable and return kSslMode*
+  // directly from each case. Unfortunately, Clang 3.4 doesn't like it:
+  //   control reaches end of non-void function [-Werror=return-type]
+  // even though it knows all cases are handled (issues another warning if any
+  // one is removed).
+  switch (ssl_mode) {
+    case SSL_MODE_DISABLED:
+      text = kSslModeDisabled;
+      break;
+    case SSL_MODE_PREFERRED:
+      text = kSslModePreferred;
+      break;
+    case SSL_MODE_REQUIRED:
+      text = kSslModeRequired;
+      break;
+    case SSL_MODE_VERIFY_CA:
+      text = kSslModeVerifyCa;
+      break;
+    case SSL_MODE_VERIFY_IDENTITY:
+      text = kSslModeVerifyIdentity;
+      break;
+  }
+
+  return text;
+}
+
 void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &tls_version,
                                    const std::string &ssl_cipher,
@@ -191,28 +222,7 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &crl, const std::string &crlpath) {
 
   if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
-
-    // find mode's textual representation
-    const char* text = NULL;
-    switch (ssl_mode) {
-      case SSL_MODE_DISABLED:
-        text = kSslModeDisabled;
-        break;
-      case SSL_MODE_PREFERRED:
-        text = kSslModePreferred;
-        break;
-      case SSL_MODE_REQUIRED:
-        text = kSslModeRequired;
-        break;
-      case SSL_MODE_VERIFY_CA:
-        text = kSslModeVerifyCa;
-        break;
-      case SSL_MODE_VERIFY_IDENTITY:
-        text = kSslModeVerifyIdentity;
-        break;
-    };
-
-    // report error
+    const char* text = ssl_mode_to_string(ssl_mode);
     std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
                     + mysql_error(connection_);
     throw Error(msg.c_str(), mysql_errno(connection_));

@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+
 #include "cluster_metadata.h"
 #include "common.h"
 #include "mysqlrouter/utils.h"
@@ -23,7 +24,6 @@
 #include <cassert>
 #include <string.h>
 #ifdef _WIN32
-#include <Winsock2.h>
 #include <string.h>
 #include <io.h>
 #define strtok_r strtok_s
@@ -396,3 +396,4 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
   }
   return static_cast<uint32_t>(mysql_->last_insert_id());
 }
+

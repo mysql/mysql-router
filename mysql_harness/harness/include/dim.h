@@ -18,6 +18,7 @@
 #ifndef MYSQL_HARNESS_DIMANAGER_INCLUDED
 #define MYSQL_HARNESS_DIMANAGER_INCLUDED
 
+#include "harness_export.h"
 #include "unique_ptr.h"
 
 #include <functional>
@@ -117,7 +118,7 @@ namespace mysqlrouter { class Ofstream; }
 
 namespace mysql_harness {
 
-class DIM { // DIM = Dependency Injection Manager
+class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
 
   // this class is a singleton
   protected:
