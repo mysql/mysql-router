@@ -157,21 +157,35 @@ const std::vector<std::array<uint8_t, 16>> MySQLRouting::get_blocked_client_host
   return result;
 }
 
-static std::string make_thread_name(const std::string& config_name, const std::string& prefix) {
+/*static*/
+std::string MySQLRouting::make_thread_name(const std::string& config_name, const std::string& prefix) {
 
-  // at the time of writing, config_name = "routing:<config_from_conf_file>"
-  assert(config_name.find("routing:") != config_name.npos);
-  std::string key = config_name.substr(config_name.find(':') + 1);  // skip "routing:" prefix
+  const char* p = config_name.c_str();
+
+  // At the time of writing, config_name = "routing:<config_from_conf_file>" (with key)
+  // or "routing" (without key). Verify this assumption
+  constexpr char kRouting[] = "routing";
+  size_t kRoutingLen = sizeof(kRouting) - 1;  // -1 to ignore string terminator
+  if (memcmp(p, kRouting, kRoutingLen))
+    return prefix + ":parse err";
+
+  // skip over "routing[:]"
+  p += kRoutingLen;
+  if (*p == ':')
+    p++;
 
   // at the time of writing, config_from_conf_file by default are these 4:
-  // test_default_ro, test_default_rw, test_default_x_ro, test_default_x_rw
+  //   "<cluster_name>_default_ro",   "<cluster_name>_default_rw",
+  //   "<cluster_name>_default_x_ro", "<cluster_name>_default_x_rw"
   // since we're limited to 15 chars for thread name, we remove common
-  // "test_default_" so that suffixes ("x_ro", etc)  can fit
-  const char kPrefix[] = "test_default_";
+  // "<cluster_name>_default_" so that suffixes ("x_ro", etc) can fit
+  std::string key = p;
+  const char kPrefix[] = "_default_";
   if (key.find(kPrefix) != key.npos) {
     key = key.substr(key.find(kPrefix) + sizeof(kPrefix) - 1);  // -1 for string terminator
   }
 
+  // now put everything together
   std::string thread_name = prefix + ":" + key;
   thread_name.resize(15); // max for pthread_setname_np()
 

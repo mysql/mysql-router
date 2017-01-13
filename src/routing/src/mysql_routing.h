@@ -274,6 +274,14 @@ private:
 
   void start_acceptor();
 
+  /** @brief return a short string suitable to be used as a thread name
+   * @param config_name configuration name (e.g: "routing", "routing:test_default_x_ro", etc)
+   * @param prefix thread name prefix (e.g. "RtS")
+   *
+   * @return a short string (example: "RtS:x_ro")
+   */
+  static std::string make_thread_name(const std::string& config_name, const std::string& prefix);
+
   /** @brief Mode to use when getting next destination */
   routing::AccessMode mode_;
   /** @brief Maximum active connections
@@ -327,6 +335,7 @@ private:
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
+  FRIEND_TEST(RoutingTests, make_thread_name);
   FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
 #endif
 };
