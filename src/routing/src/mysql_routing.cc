@@ -162,8 +162,11 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
 
   const char* p = config_name.c_str();
 
-  // At the time of writing, config_name = "routing:<config_from_conf_file>" (with key)
-  // or "routing" (without key). Verify this assumption
+  // at the time of writing, config_name starts with:
+  //   "routing:<config_from_conf_file>" (with key)
+  // or with:
+  //   "routing" (without key).
+  // Verify this assumption
   constexpr char kRouting[] = "routing";
   size_t kRoutingLen = sizeof(kRouting) - 1;  // -1 to ignore string terminator
   if (memcmp(p, kRouting, kRoutingLen))
@@ -174,10 +177,11 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
   if (*p == ':')
     p++;
 
-  // at the time of writing, config_from_conf_file by default are these 4:
+  // at the time of writing, bootstrap generates 4 routing configurations by default,
+  // which will result in <config_from_conf_file> having one of below 4 values:
   //   "<cluster_name>_default_ro",   "<cluster_name>_default_rw",
   //   "<cluster_name>_default_x_ro", "<cluster_name>_default_x_rw"
-  // since we're limited to 15 chars for thread name, we remove common
+  // since we're limited to 15 chars for thread name, we skip over
   // "<cluster_name>_default_" so that suffixes ("x_ro", etc) can fit
   std::string key = p;
   const char kPrefix[] = "_default_";
