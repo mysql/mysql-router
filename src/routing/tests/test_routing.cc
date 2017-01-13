@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gtest/gtest_prod.h>
+#include <gtest/gtest_prod.h> // must be the first header
 
 #include "mysqlrouter/routing.h"
 #include "mysql_routing.h"
@@ -187,7 +187,7 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
   ASSERT_EQ(-1, res);
 }
 
-#ifndef _WIN32
+#ifndef _WIN32  // [HERE_1]
 
 class MockServer {
 public:
@@ -528,4 +528,33 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   }
 }
 
-#endif
+#endif // #ifndef _WIN32 [HERE_1]
+
+TEST_F(RoutingTests, make_thread_name) {
+  // config name must begin with "routing" (name of the plugin passed from configuration file)
+  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name("", "").c_str());
+  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name("routin", "").c_str());
+  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name(" routing", "").c_str());
+  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name("", "pre").c_str());
+  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name("routin", "pre").c_str());
+  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name(" routing", "pre").c_str());
+
+  // normally prefix would never be empty, so the behavior below is not be very meaningful;
+  // it should not crash however
+  EXPECT_STREQ(":", MySQLRouting::make_thread_name("routing",  "").c_str());
+  EXPECT_STREQ(":", MySQLRouting::make_thread_name("routing:", "").c_str());
+
+  // realistic (but unanticipated) cases - removing everything up to _default_ will fail,
+  // in which case we fall back of <prefix>:<everything after "routing:">, trimmed to 15 chars
+  EXPECT_STREQ("RtS:test_def_ul", MySQLRouting::make_thread_name("routing:test_def_ult_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:test_def_ul", MySQLRouting::make_thread_name("routing:test_def_ult_ro",   "RtS").c_str());
+  EXPECT_STREQ("RtS:",          MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
+  EXPECT_STREQ("RtS:test_x_ro", MySQLRouting::make_thread_name("routing:test_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:test_ro",   MySQLRouting::make_thread_name("routing:test_ro",   "RtS").c_str());
+
+  // real cases
+  EXPECT_STREQ("RtS:x_ro", MySQLRouting::make_thread_name("routing:test_default_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:ro",   MySQLRouting::make_thread_name("routing:test_default_ro",   "RtS").c_str());
+  EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
+}
+

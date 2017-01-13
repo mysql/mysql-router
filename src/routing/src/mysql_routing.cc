@@ -157,7 +157,44 @@ const std::vector<std::array<uint8_t, 16>> MySQLRouting::get_blocked_client_host
   return result;
 }
 
+/*static*/
+std::string MySQLRouting::make_thread_name(const std::string& config_name, const std::string& prefix) {
+
+  const char* p = config_name.c_str();
+
+  // At the time of writing, config_name = "routing:<config_from_conf_file>" (with key)
+  // or "routing" (without key). Verify this assumption
+  constexpr char kRouting[] = "routing";
+  size_t kRoutingLen = sizeof(kRouting) - 1;  // -1 to ignore string terminator
+  if (memcmp(p, kRouting, kRoutingLen))
+    return prefix + ":parse err";
+
+  // skip over "routing[:]"
+  p += kRoutingLen;
+  if (*p == ':')
+    p++;
+
+  // at the time of writing, config_from_conf_file by default are these 4:
+  //   "<cluster_name>_default_ro",   "<cluster_name>_default_rw",
+  //   "<cluster_name>_default_x_ro", "<cluster_name>_default_x_rw"
+  // since we're limited to 15 chars for thread name, we remove common
+  // "<cluster_name>_default_" so that suffixes ("x_ro", etc) can fit
+  std::string key = p;
+  const char kPrefix[] = "_default_";
+  if (key.find(kPrefix) != key.npos) {
+    key = key.substr(key.find(kPrefix) + sizeof(kPrefix) - 1);  // -1 for string terminator
+  }
+
+  // now put everything together
+  std::string thread_name = prefix + ":" + key;
+  thread_name.resize(15); // max for pthread_setname_np()
+
+  return thread_name;
+}
+
 void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& client_addr) noexcept {
+  mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
+
   int nfds;
   int res;
   int error = 0;
@@ -295,27 +332,6 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
 #else
   log_debug("[%s] Routing stopped (up:%Iub;down:%Iub) %s", name.c_str(), bytes_up, bytes_down, extra_msg.c_str());
 #endif
-}
-
-static std::string make_thread_name(const std::string& config_name, const std::string& prefix) {
-
-  // at the time of writing, config_name = "routing:<config_from_conf_file>"
-  assert(config_name.find("routing:") != config_name.npos);
-  std::string key = config_name.substr(config_name.find(':') + 1);  // skip "routing:" prefix
-
-  // at the time of writing, config_from_conf_file by default are these 4:
-  // test_default_ro, test_default_rw, test_default_x_ro, test_default_x_rw
-  // since we're limited to 15 chars for thread name, we remove common
-  // "test_default_" so that suffixes ("x_ro", etc)  can fit
-  const char kPrefix[] = "test_default_";
-  if (key.find(kPrefix) != key.npos) {
-    key = key.substr(key.find(kPrefix) + sizeof(kPrefix) - 1);  // -1 for string terminator
-  }
-
-  std::string thread_name = prefix + ":" + key;
-  thread_name.resize(15); // max for pthread_setname_np()
-
-  return thread_name;
 }
 
 void MySQLRouting::start() {
