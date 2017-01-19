@@ -22,6 +22,7 @@
 
 #include <gtest/gtest_prod.h>
 
+#include "dim.h"
 #include "router_app.h"
 #include "config_parser.h"
 #include "router_test_helpers.h"
@@ -72,6 +73,12 @@ static void create_keyfile_withkey(const std::string &path, const std::string &k
   mysql_harness::reset_keyring();
 }
 
+TEST(Bug24909259, init_tests) {
+  mysql_harness::DIM::instance().set_RandomGenerator(
+    [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
+    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+  );
+}
 
 //bug#24909259
 TEST(Bug24909259, PasswordPrompt_plain) {

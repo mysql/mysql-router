@@ -60,6 +60,10 @@ mysql_harness::Path g_origin;
 class ConfigGeneratorTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    mysql_harness::DIM::instance().set_RandomGenerator(
+      [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
+      [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+    );
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
@@ -964,11 +968,11 @@ static struct {
   {"SELECT host_id, host_name", false},
   {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true},
   {"INSERT INTO mysql_innodb_cluster_metadata.routers", true},
-  {"DROP USER IF EXISTS mysql_innodb_cluster_router0@'%'", true},
-  {"CREATE USER mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_innodb_cluster_router0@'%'", true},
+  {"DROP USER IF EXISTS mysql_router0_012345678901@'%'", true}, // HERE
+  {"CREATE USER mysql_router0_012345678901@'%'", true},
+  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router0_012345678901@'%'", true},
+  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_router0_012345678901@'%'", true},
+  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router0_012345678901@'%'", true},
   {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true},
   {"COMMIT", true},
   {NULL, true}
@@ -1521,8 +1525,7 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   file.close();
 
   EXPECT_NO_THROW(
-    router_id = config.get_router_id_from_config_file(conf_path, "dummy",
-                                                      false)
+    std::tie(router_id, std::ignore) = config.get_router_id_from_config_file(conf_path, "dummy", false)
   );
   EXPECT_EQ(router_id, uint32_t(0));
 

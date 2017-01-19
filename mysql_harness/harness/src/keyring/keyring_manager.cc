@@ -19,7 +19,9 @@
 #include "keyring/keyring_file.h"
 #include "filesystem.h"
 #include "common.h"
+#include "dim.h"
 #include "my_aes.h"
+#include "utils.h"  // FIXME: cross-depenency (we're including Router stuff from Harness)
 #include <string.h>
 #include <random>
 #include <system_error>
@@ -66,20 +68,8 @@ constexpr unsigned char kAesIv[] = {
     0xcd, 0xca, 0xf7, 0x04, 0x65, 0x8e, 0x5d, 0x88
 };
 
-static const int kKeyLength = 32;
+static const unsigned kKeyLength = 32;
 static const char kMasterKeyFileSignature[] = "MRKF";
-
-static std::string generate_password(int password_length) {
-  std::random_device rd;
-  std::string pwd;
-  static const char alphabet[] = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
-  std::uniform_int_distribution<unsigned long> dist(0, sizeof(alphabet) - 1);
-
-  for (int i = 0; i < password_length; i++)
-    pwd += alphabet[dist(rd)];
-
-  return pwd;
-}
 
 class MasterKeyFile {
 public:
@@ -233,10 +223,11 @@ static std::pair<std::string,std::string>
     if (!create_if_needed)
       throw std::runtime_error("Master key for keyring at '" + keyring_file_path + "' could not be read");
     // if the master key doesn't exist anywhere yet, generate one and store it
-    master_key = generate_password(kKeyLength);
+    mysqlrouter::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
+    master_key = rg.generate_password(kKeyLength);
     // scramble to encrypt the master key with, which should be stored in the
     // keyring
-    master_scramble = generate_password(kKeyLength);
+    master_scramble = rg.generate_password(kKeyLength);
     mkf.add(keyring_file_path, master_key, master_scramble);
   }
   return std::make_pair(master_key, master_scramble);

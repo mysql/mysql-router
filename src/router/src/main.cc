@@ -90,6 +90,11 @@ int real_main(int argc, char **argv) {
 
 int main(int argc, char **argv) {
 
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+  dim.set_RandomGenerator(
+    [](){ static mysqlrouter::RandomGenerator rg; return &rg; },
+    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+  );
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);
 #else

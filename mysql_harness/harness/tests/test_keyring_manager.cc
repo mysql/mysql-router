@@ -18,6 +18,8 @@
 #include "test/helpers.h"
 #include "gtest/gtest.h"
 #include "common.h"
+#include "dim.h"
+#include "utils.h"
 #include "keyring/keyring_memory.h"
 #include "keyring/keyring_manager.h"
 
@@ -269,6 +271,13 @@ static std::string tmpfile(const std::string &fname) {
 #else
   return "/tmp/"+fname;
 #endif
+}
+
+TEST(KeyringManager, init_tests) {
+  mysql_harness::DIM::instance().set_RandomGenerator(
+    [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
+    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+  );
 }
 
 TEST(KeyringManager, init_with_key) {
