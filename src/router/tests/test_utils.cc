@@ -306,7 +306,7 @@ void test_int_conv_common(FUNC func) {
   #undef EXPECT_EQ2
 }
 
-TEST_F(UtilsTests, test_int_conversion) {
+TEST_F(UtilsTests, int_conversion) {
   using mysqlrouter::strtoi_checked;
 
   test_int_conv_common(strtoi_checked);
@@ -330,7 +330,7 @@ TEST_F(UtilsTests, test_int_conversion) {
   EXPECT_EQ(0,  strtoi_checked("+0", 66));
 }
 
-TEST_F(UtilsTests, test_uint_conversion) {
+TEST_F(UtilsTests, uint_conversion) {
   using mysqlrouter::strtoui_checked;
 
   test_int_conv_common(strtoui_checked);
