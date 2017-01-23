@@ -35,13 +35,9 @@ case "$1" in
       --gecos "MySQL Router" mysqlrouter
 
     if [ ! -d $LOGDIR ] && [ ! -L $LOGDIR ]; then
-      mkdir $LOGDIR
-      chown mysqlrouter:adm $LOGDIR
-      chmod 750 $LOGDIR
+      install -d -m 0750 -o mysqlrouter -g adm ${LOGDIR}
     fi
-    touch $LOGFILE
-    chown mysqlrouter:adm $LOGFILE
-    chmod 640 $LOGFILE
+    install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}
 
     set +e
     ;;
