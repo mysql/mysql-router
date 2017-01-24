@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -151,7 +151,8 @@ private:
   std::string endpoint_option(const Options &options, const Options::Endpoint &ep);
 
   bool backup_config_file_if_different(const mysql_harness::Path &config_path,
-                                       const std::string &new_file_path);
+                                       const std::string &new_file_path,
+                                       const std::map<std::string, std::string> &options);
 
 
   void set_file_owner(const std::map<std::string, std::string> &options,

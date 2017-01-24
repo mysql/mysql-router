@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -254,7 +254,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     false);
   config_file.close();
 
-  if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp")) {
+  if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options)) {
     if (!quiet)
       std::cout << "\nExisting configurations backed up to " << config_file_path + ".bak" << "\n";
   }
@@ -370,7 +370,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
                        true);
   config_file.close();
 
-  if (backup_config_file_if_different(config_file_path, config_file_path.str() + ".tmp")) {
+  if (backup_config_file_if_different(config_file_path, config_file_path.str() + ".tmp", options)) {
     if (!quiet)
       std::cout << "\nExisting configurations backed up to " << config_file_path.str()+".bak" << "\n";
   }
@@ -388,6 +388,33 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   set_file_owner(options, config_file_path.str());
   // create start/stop scripts
   create_start_scripts(path.str(), keyring_master_key_file.empty(), options);
+
+#ifndef _WIN32
+  // If we are running with --user option we need to check if the user will have access
+  // to the directory where the bootstrap output files were created.
+  // It may not have access if it does not have search right to any of the directories
+  // on the path. We do this by switching to the --user and trying to open the config file.
+  if ( options.find("user") != options.end()) {
+    std::string &user_name = options.at("user");
+
+    set_user(user_name);
+    bool user_has_access{false};
+    {
+      std::ifstream conf_file;
+      conf_file.open(config_file_path.str());
+      user_has_access = !conf_file.fail();
+    }
+    // switch back to root, this is needed to clean up the files in case
+    // the user can't access them and we are failing the bootstrap
+    set_user("root");
+
+    if (!user_has_access) {
+      throw std::runtime_error("Could not access the config file as user '" + user_name
+                               + "' after the bootstrap in the directory " + directory + " : "
+                               + get_strerror(errno));
+    }
+  }
+#endif
 
   auto_clean.clear();
 }
@@ -561,8 +588,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   /* Currently at this point the logger is not yet initialized but while bootstraping
    * with the --user=<user> option we need to create a log file and chown it to the <user>.
-   * Otherwise when the router gets run later (not bootstrap) with the same --user=<user>
-   * option, the user could not have right to the logging directory.
+   * Otherwise when the router gets launched later (not bootstrap) with the same --user=<user>
+   * option, the user might not have right to the logging directory.
    */
   assert(default_paths.find("logging_folder") != default_paths.end());
   std::string logdir = (!options.override_logdir.empty()) ? options.override_logdir :
@@ -1132,12 +1159,15 @@ static bool files_equal(const std::string &f1, const std::string &f2) {
 }
 
 bool ConfigGenerator::backup_config_file_if_different(const mysql_harness::Path &config_path,
-                                         const std::string &new_file_path) {
+                                                      const std::string &new_file_path,
+                                                      const std::map<std::string, std::string> &options) {
   if (config_path.exists()) {
     // if the old and new config files are the same, don't bother with a backup
     if (!files_equal(config_path.str(), new_file_path)) {
-      copy_file(config_path.str(), config_path.str()+".bak");
-      mysql_harness::make_file_private(config_path.str()+".bak");
+      std::string file_name = config_path.str()+".bak";
+      copy_file(config_path.str(), file_name);
+      mysql_harness::make_file_private(file_name);
+      set_file_owner(options, file_name);
       return true;
     }
   }
@@ -1151,7 +1181,7 @@ void ConfigGenerator::set_file_owner(const std::map<std::string, std::string> &o
   bool change_owner = options.find("user") != options.end();
   if (change_owner) {
     auto username = options.at("user");
-    auto user_info = check_user(username, sys_user_operations_);
+    auto user_info = check_user(username, true, sys_user_operations_);
     if (user_info != nullptr) {
       mysqlrouter::set_owner_if_file_exists(file_path, username, user_info, sys_user_operations_);
     }
