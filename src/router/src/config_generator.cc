@@ -212,6 +212,63 @@ void ConfigGenerator::set_ssl_options(MySQLSession* sess,
   }
 }
 
+bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &options) {
+
+  // warninng applicable only if --ssl-mode=PREFERRED (or not specified, which defaults to PREFERRED)
+  if (get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred) != MySQLSession::kSslModePreferred)
+    return true;
+
+  // warn if the connection is unencrypted
+  try {
+    // example response
+    //
+    // > show status like "ssl_cipher"'
+    // +---------------+--------------------+
+    // | Variable_name | Value              |
+    // +---------------+--------------------+
+    // | Ssl_cipher    | DHE-RSA-AES256-SHA | (or null)
+    // +---------------+--------------------+
+
+    std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'ssl_cipher'"));
+// TODO use these as testcases in unit tests:
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("some bad query")); // TESTCASE: should throw generic exception
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("select @@port"));  // TESTCASE: should generate assert
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'HIDE_ssl_cipher'")); // TESTCASE: should throw Error reading 'Ssl_cipher' stat var (result = NULL)
+//  struct RR : public MySQLSession::ResultRow {
+//    RR(const std::vector<const char*>& v) { row_ = v; }
+//  };
+//  result.reset();                                     // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{}});                           // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{nullptr}});                    // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"something"}});                // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"ssl_cipher", nullptr}});      // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", ""}});           // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", "some_cipher"}});// TESTCASE: should pass
+//  result.reset(new RR{{"bad", ""}});                  // TESTCASE: should throw assertion
+
+    if (!result || result->size() != 2)
+      throw std::runtime_error("Error reading 'ssl_cipher' status variable");
+#ifdef _WIN32
+    assert(!_stricmp((*result)[0], "ssl_cipher"));
+#else
+    assert(!strcasecmp((*result)[0], "ssl_cipher"));
+#endif
+
+    // if ssl_cipher is empty, it means the connection is unencrypted
+    if ((*result)[1] &&    // cipher field not null
+        (*result)[1][0]) { // cipher string not empty
+      return true;  // connection is encrypted
+    } else {
+      std::cerr << "WARNING: The MySQL server does not have SSL configured and "
+                   "metadata used by the router may be transmitted unencrypted." << std::endl;
+      return false; // connection is unencrypted
+    }
+  } catch (std::exception &e) {
+    std::cerr << "Failed determining if metadata connection uses SSL: " << e.what() << std::endl;
+    throw std::runtime_error(e.what());
+  }
+}
+
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
   int connection_timeout_ = 5;

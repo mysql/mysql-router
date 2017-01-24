@@ -790,7 +790,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       sys_user_operations_
 #endif
   };
-  config_gen.init(server_url, bootstrap_options_);
+  config_gen.init(server_url, bootstrap_options_); // throws std::runtime_error
+  config_gen.warn_on_no_ssl(bootstrap_options_);   // throws std::runtime_error
 
 #ifdef _WIN32
   // Cannot run boostrap mode as windows service since it requires console interaction.

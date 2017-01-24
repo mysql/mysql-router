@@ -66,8 +66,9 @@ public:
     , sys_user_operations_(sys_user_operations)
   #endif
   {}
-  void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);
+  void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);  // throws std::runtime_error
   void init(mysqlrouter::MySQLSession *session);
+  bool warn_on_no_ssl(const std::map<std::string, std::string> &options); // throws std::runtime_error
   ~ConfigGenerator();
 
   void bootstrap_system_deployment(const std::string &config_file_path,

@@ -370,10 +370,10 @@ TEST_F(UtilsTests, generate_password) {
   // min random base
   {
     std::string s = rg.generate_password(kBigNumber, 2);
-    std::map<char, int> hist;
+    std::map<char, unsigned> hist;
     for (char c : s)
       hist[c]++;
-    EXPECT_EQ(2, hist.size());  // if this failed, you've won the jackpot! (please rerun)
+    EXPECT_EQ(2u, hist.size());  // if this failed, you've won the jackpot! (please rerun)
     EXPECT_TRUE(hist.count('0'));
     EXPECT_TRUE(hist.count('1'));
     EXPECT_EQ(kBigNumber, hist['0'] + hist['1']);
@@ -382,12 +382,12 @@ TEST_F(UtilsTests, generate_password) {
   // max random base (supported atm)
   {
     std::string s = rg.generate_password(kBigNumber, kMaxBase);
-    std::map<char, int> hist;
+    std::map<char, unsigned> hist;
     for (char c : s)
       hist[c]++;
     EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
 
-    int total_chars = 0;
+    unsigned total_chars = 0;
     for (const auto& i : hist)
       total_chars += i.second;
     EXPECT_EQ(kBigNumber, total_chars);
@@ -396,12 +396,12 @@ TEST_F(UtilsTests, generate_password) {
   // max random base (supported atm) - implicit base
   {
     std::string s = rg.generate_password(kBigNumber);
-    std::map<char, int> hist;
+    std::map<char, unsigned> hist;
     for (char c : s)
       hist[c]++;
     EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
 
-    int total_chars = 0;
+    unsigned total_chars = 0;
     for (const auto& i : hist)
       total_chars += i.second;
     EXPECT_EQ(kBigNumber, total_chars);
@@ -410,14 +410,14 @@ TEST_F(UtilsTests, generate_password) {
   // random base 10
   {
     std::string s = rg.generate_password(kBigNumber, 10);
-    std::map<char, int> hist;
+    std::map<char, unsigned> hist;
     for (char c : s)
       hist[c]++;
-    EXPECT_EQ(10, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+    EXPECT_EQ(10u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
 
-    int total_chars = 0;
+    unsigned total_chars = 0;
     for (char c = '0'; c <= '9'; c++) {
-      EXPECT_NE(0, hist[c]);
+      EXPECT_NE(0u, hist[c]);
       total_chars += hist[c];
     }
     EXPECT_EQ(kBigNumber, total_chars);
@@ -426,18 +426,18 @@ TEST_F(UtilsTests, generate_password) {
   // random base 36
   {
     std::string s = rg.generate_password(kBigNumber, 36);
-    std::map<char, int> hist;
+    std::map<char, unsigned> hist;
     for (char c : s)
       hist[c]++;
-    EXPECT_EQ(36, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+    EXPECT_EQ(36u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
 
-    int total_chars = 0;
+    unsigned total_chars = 0;
     for (char c = '0'; c <= '9'; c++) {
-      EXPECT_NE(0, hist[c]);
+      EXPECT_NE(0u, hist[c]);
       total_chars += hist[c];
     }
     for (char c = 'a'; c <= 'z'; c++) {
-      EXPECT_NE(0, hist[c]);
+      EXPECT_NE(0u, hist[c]);
       total_chars += hist[c];
     }
     EXPECT_EQ(kBigNumber, total_chars);
@@ -446,13 +446,13 @@ TEST_F(UtilsTests, generate_password) {
   // length = 0
   {
     std::string s = rg.generate_password(0, 10);
-    EXPECT_EQ(0, s.size());
+    EXPECT_EQ(0u, s.size());
   }
 
   // length = 1
   {
     std::string s = rg.generate_password(1, 10);
-    EXPECT_EQ(1, s.size());
+    EXPECT_EQ(1u, s.size());
   }
 }
 

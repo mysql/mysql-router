@@ -1434,10 +1434,10 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       std::string expected = std::string("Invalid master key file ");
       ASSERT_EQ(expected, std::string(e.what()).substr(0, expected.size()));
     }
-    mysqlrouter::delete_recursive("./delme");
-    mysqlrouter::delete_file("emptyfile");
-    mysql_harness::reset_keyring();
   }
+  mysqlrouter::delete_recursive("./delme");
+  mysqlrouter::delete_file("emptyfile");
+  mysql_harness::reset_keyring();
   // directory name but no filename
   {
     StrictMock<MySQLSessionReplayer> mysql;
@@ -1470,11 +1470,9 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       std::runtime_error,
       "Permission denied");
 #endif
-
-
-    mysqlrouter::delete_recursive("./delme");
-    mysql_harness::reset_keyring();
   }
+  mysqlrouter::delete_recursive("./delme");
+  mysql_harness::reset_keyring();
 }
 
 TEST_F(ConfigGeneratorTest, full_test) {
