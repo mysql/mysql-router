@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,6 +73,8 @@ class MockSysUserOperations: public SysUserOperationsBase {
   MOCK_METHOD2(initgroups, int(const char *, gid_type));
   MOCK_METHOD1(setgid, int(gid_t));
   MOCK_METHOD1(setuid, int(uid_t));
+  MOCK_METHOD1(setegid, int(gid_t));
+  MOCK_METHOD1(seteuid, int(uid_t));
   MOCK_METHOD0(geteuid, uid_t());
   MOCK_METHOD1(getpwnam, struct passwd*(const char *));
   MOCK_METHOD1(getpwuid, struct passwd*(uid_t));
@@ -268,6 +270,34 @@ TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
   }
 }
 
+#ifndef _WIN32
+TEST_F(AppTest, CmdLineUserBeforeBootstrapFail) {
+  vector<string> argv = {
+      "--user", "mysqlrouter",
+      "--bootstrap", "127.0.0.1:5000"
+  };
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(g_origin, argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
+  }
+}
+
+TEST_F(AppTest, CmdLineUserShortBeforeBootstrapFail) {
+  vector<string> argv = {
+      "-u", "mysqlrouter",
+      "--bootstrap", "127.0.0.1:5000"
+  };
+  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  try {
+    MySQLRouter r(g_origin, argv);
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
+  }
+}
+#endif
+
 TEST_F(AppTest, CmdLineVersion) {
   vector<string> argv = {"--version"};
 
@@ -365,7 +395,7 @@ TEST_F(AppTest, ShowingInfoFalse) {
   }
 }
 
-TEST_F(AppTest, UserSetByName) {
+TEST_F(AppTest, UserSetPermanentlyByName) {
   const char* USER = "mysqluser";
 
   struct passwd user_info;
@@ -377,10 +407,10 @@ TEST_F(AppTest, UserSetByName) {
   EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
   EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
 
-  ASSERT_NO_THROW({set_user(USER, mock_sys_user_operations.get());});
+  ASSERT_NO_THROW({set_user(USER, true, mock_sys_user_operations.get());});
 }
 
-TEST_F(AppTest, UserSetById) {
+TEST_F(AppTest, UserSetPermanentlyById) {
   const char* USER = "1234";
 
   struct passwd user_info;
@@ -394,10 +424,10 @@ TEST_F(AppTest, UserSetById) {
   EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
 
 
-  ASSERT_NO_THROW({set_user(USER, mock_sys_user_operations.get());});
+  ASSERT_NO_THROW({set_user(USER, true, mock_sys_user_operations.get());});
 }
 
-TEST_F(AppTest, UserSetByNotExistingId) {
+TEST_F(AppTest, UserSetPermanentlyByNotExistingId) {
   const char* USER = "124";
 
   EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
@@ -405,7 +435,7 @@ TEST_F(AppTest, UserSetByNotExistingId) {
   EXPECT_CALL(*mock_sys_user_operations, getpwuid((uid_t)atoi(USER))).Times(1).WillOnce(Return(nullptr));
 
   try {
-    set_user(USER, mock_sys_user_operations.get());
+    set_user(USER, true, mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), StrEq("Can't use user '124'. "
@@ -413,14 +443,14 @@ TEST_F(AppTest, UserSetByNotExistingId) {
   }
 }
 
-TEST_F(AppTest, UserSetByNotExistingName) {
+TEST_F(AppTest, UserSetPermanentlyByNotExistingName) {
   const char* USER = "124name";
 
   EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
   EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
 
   try {
-    set_user(USER, mock_sys_user_operations.get());
+    set_user(USER, true, mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), StrEq("Can't use user '124name'. "
@@ -428,21 +458,21 @@ TEST_F(AppTest, UserSetByNotExistingName) {
   }
 }
 
-TEST_F(AppTest, UserSetByNonRootUser) {
+TEST_F(AppTest, UserSetPermanentlyByNonRootUser) {
   const char* USER = "mysqlrouter";
 
   EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(1));
   EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
 
   try {
-    set_user(USER, mock_sys_user_operations.get());
+    set_user(USER, true, mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), StrEq("One can only use the --user switch if running as root"));
+    EXPECT_THAT(exc.what(), StrEq("One can only use the -u/--user switch if running as root"));
   }
 }
 
-TEST_F(AppTest, UserSetSetGidFails) {
+TEST_F(AppTest, UserSetPermanentlySetEGidFails) {
   const char* USER = "mysqlrouter";
 
   struct passwd user_info;
@@ -454,15 +484,14 @@ TEST_F(AppTest, UserSetSetGidFails) {
   EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(-1));
 
   try {
-    set_user(USER, mock_sys_user_operations.get());
+    set_user(USER, true, mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. setgid failed:"));
   }
 }
 
-
-TEST_F(AppTest, UserSetSetUidFails) {
+TEST_F(AppTest, UserSetPermanentlySetEUidFails) {
   const char* USER = "mysqlrouter";
 
   struct passwd user_info;
@@ -475,13 +504,107 @@ TEST_F(AppTest, UserSetSetUidFails) {
   EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(Return(-1));
 
   try {
-    set_user(USER, mock_sys_user_operations.get());
+    set_user(USER, true, mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. setuid failed:"));
   }
 }
 
+TEST_F(AppTest, UserSetByName) {
+  const char* USER = "mysqluser";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setegid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, seteuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
+
+  ASSERT_NO_THROW({set_user(USER, false, mock_sys_user_operations.get());});
+}
+
+TEST_F(AppTest, UserSetById) {
+  const char* USER = "1234";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+  EXPECT_CALL(*mock_sys_user_operations, getpwuid((uid_t)atoi(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setegid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, seteuid(user_info.pw_uid)).Times(1).WillOnce(Return(0));
+
+  ASSERT_NO_THROW({set_user(USER, false, mock_sys_user_operations.get());});
+}
+
+TEST_F(AppTest, UserSetByNotExistingId) {
+  const char* USER = "124";
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+  EXPECT_CALL(*mock_sys_user_operations, getpwuid((uid_t)atoi(USER))).Times(1).WillOnce(Return(nullptr));
+
+  try {
+    set_user(USER, false, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StrEq("Can't use user '124'. "
+                                  "Please check that the user exists!"));
+  }
+}
+
+TEST_F(AppTest, UserSetByNotExistingName) {
+  const char* USER = "124name";
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(nullptr));
+
+  try {
+    set_user(USER, false, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StrEq("Can't use user '124name'. "
+                                  "Please check that the user exists!"));
+  }
+}
+
+TEST_F(AppTest, UserSetSetGidFails) {
+  const char* USER = "mysqlrouter";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setegid(user_info.pw_gid)).Times(1).WillOnce(Return(-1));
+
+  try {
+    set_user(USER, false, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. setegid failed:"));
+  }
+}
+
+TEST_F(AppTest, UserSetSetUidFails) {
+  const char* USER = "mysqlrouter";
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(USER))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(USER), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setegid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, seteuid(user_info.pw_uid)).Times(1).WillOnce(Return(-1));
+
+  try {
+    set_user(USER, false, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StartsWith("Error trying to set the user. seteuid failed:"));
+  }
+}
 
 #endif
 

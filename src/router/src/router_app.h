@@ -398,9 +398,9 @@ private:
   mysql_harness::Path origin_;
 
 #ifndef _WIN32
-  void set_effective_user(mysql_harness::Config &config);
   /** @brief Value of the --user parameter given on the command line **/
-  std::string user_;
+  std::string user_cmd_line_;
+
   /** @brief Pointer to the object to be used to perform system specific user-related operations **/
   mysqlrouter::SysUserOperationsBase* sys_user_operations_;
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -261,6 +261,8 @@ class SysUserOperationsBase {
   virtual int initgroups (const char *user, gid_type gid) = 0;
   virtual int setgid(gid_t gid) = 0;
   virtual int setuid(uid_t uid) = 0;
+  virtual int setegid(gid_t gid) = 0;
+  virtual int seteuid(uid_t uid) = 0;
   virtual uid_t geteuid (void) = 0;
   virtual struct passwd *getpwnam(const char *name) = 0;
   virtual struct passwd *getpwuid(uid_t uid) = 0;
@@ -283,6 +285,12 @@ class SysUserOperations : public SysUserOperationsBase {
 
   /** @brief Thin wrapper around system setuid() */
   virtual int setuid(uid_t uid) override;
+
+  /** @brief Thin wrapper around system setegid() */
+  virtual int setegid(gid_t gid) override;
+
+  /** @brief Thin wrapper around system seteuid() */
+  virtual int seteuid(uid_t uid) override;
 
   /** @brief Thin wrapper around system geteuid() */
   virtual uid_t geteuid() override;
@@ -319,32 +327,27 @@ void set_owner_if_file_exists(const std::string &filepath,
  * @throws std::runtime_error in case of an error
  *
  * @param username            name of the system user that the process should switch to
- * @param user_info_arg       passwd structure for the user
+ * @param permanently         if it's tru then if the root is dropping privileges it can't be regained after
+ *                            this call
  * @param sys_user_operations object for the system specific operation that should be used by the function
  */
-void set_user(const std::string &username, struct passwd *user_info_arg,
-              mysqlrouter::SysUserOperationsBase* sys_user_operations);
-
-/** @brief Sets effective user of the calling process.
- *
- * @throws std::runtime_error in case of an error
- *
- * @param username            name of the system user that the process should switch to
- * @param sys_user_operations object for the system specific operation that should be used by the function
- */
-void set_user(const std::string &username, mysqlrouter::SysUserOperationsBase* sys_user_operations);
+void set_user(const std::string &username, bool permanently = false,
+              mysqlrouter::SysUserOperationsBase* sys_user_operations = SysUserOperations::instance());
 
 /** @brief Checks if the given user can be switched to or made an owner of a selected file.
  *
  * @throws std::runtime_error in case of an error
  *
  * @param username            name of the system user to check
+ * @param must_be_root        make sure that the current user is root
  * @param sys_user_operations object for the system specific operation that should be used by the function
  * @return pointer to the user's passwd structure if the user can be switched to or nullptr otherwise
  *
  */
 struct passwd* check_user(const std::string& username,
+                          bool must_be_root,
                           mysqlrouter::SysUserOperationsBase* sys_user_operations);
+
 
 #endif // ! _WIN32
 
