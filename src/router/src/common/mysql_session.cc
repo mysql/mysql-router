@@ -221,12 +221,7 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &ca, const std::string &capath,
                                    const std::string &crl, const std::string &crlpath) {
 
-  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
-    const char* text = ssl_mode_to_string(ssl_mode);
-    std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
-                    + mysql_error(connection_);
-    throw Error(msg.c_str(), mysql_errno(connection_));
-  }
+
 
   if (!ssl_cipher.empty() &&
       mysql_options(connection_, MYSQL_OPT_SSL_CIPHER, ssl_cipher.c_str()) != 0) {
@@ -267,6 +262,15 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
     throw Error(("Error setting SSL_CRLPATH option for MySQL connection: "
                 + std::string(mysql_error(connection_))).c_str(),
                 mysql_errno(connection_));
+  }
+
+  // this has to be the last option that gets set due to what appears to be a bug in libmysql
+  // causing ssl_mode downgrade from REQUIRED if other options (like tls_version) are also specified
+  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
+    const char* text = ssl_mode_to_string(ssl_mode);
+    std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
+                    + mysql_error(connection_);
+    throw Error(msg.c_str(), mysql_errno(connection_));
   }
 }
 
