@@ -92,6 +92,8 @@ static std::string get_my_hostname() {
       freeifaddrs(ifa);
     throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret)));
   }
+  if (ifa)
+    freeifaddrs(ifa);
   return buf;
 }
 #endif
