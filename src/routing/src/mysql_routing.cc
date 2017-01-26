@@ -510,25 +510,28 @@ void MySQLRouting::setup_tcp_service() {
   // Try to setup socket and bind
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((service_tcp_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      throw std::runtime_error(get_strerror(errno));
+       // in windows, WSAGetLastError() will be called by get_message_error()
+      std::string error = get_message_error(errno);
+      freeaddrinfo(servinfo);
+      throw std::runtime_error(error);
     }
 
 #ifndef _WIN32
     option_value = 1;
     if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&option_value),
             static_cast<socklen_t>(sizeof(int))) == -1) {
-      throw std::runtime_error(get_message_error(errno));
+      std::string error = get_message_error(errno);
+      freeaddrinfo(servinfo);
+      socket_operations_->close(service_tcp_);
+      throw std::runtime_error(error);
     }
 #endif
 
     if (::bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
+      std::string error = get_message_error(errno);
+      freeaddrinfo(servinfo);
       socket_operations_->close(service_tcp_);
-#ifdef _WIN32
-      int errcode = WSAGetLastError();
-#else
-      int errcode = errno;
-#endif
-      throw std::runtime_error(get_message_error(errcode));
+      throw std::runtime_error(error);
     }
     break;
   }

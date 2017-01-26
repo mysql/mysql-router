@@ -325,7 +325,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     std::make_tuple("logdir",     "log",        true),
     std::make_tuple("rundir",     "run",        true),
     std::make_tuple("statedir",   "data",       true),
-    std::make_tuple("socketsdir", "socketsdir", false),
+    std::make_tuple("socketsdir", "",           false),
   };
 
   for (const auto &dir: directories) {
@@ -333,9 +333,13 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     const auto& dir_name = std::get<1>(dir);
     const auto& do_mkdir = std::get<2>(dir);
 
-    if (user_options.find(option_name) == user_options.end())
-      options[option_name] = path.join(dir_name).str();
-
+    if (user_options.find(option_name) == user_options.end()) {
+      if (dir_name.empty()) {
+        options[option_name] = path.str();
+      } else {
+        options[option_name] = path.join(dir_name).str();
+      }
+    }
     if (do_mkdir) {
       if (mkdir(options[option_name].c_str(), 0700) < 0) {
         if (errno != EEXIST) {

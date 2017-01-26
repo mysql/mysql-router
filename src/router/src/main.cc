@@ -18,13 +18,19 @@
 #include "common.h"
 #include "router_app.h"
 #include "windows/main-windows.h"
-
+#include <mysql.h>
 #include <iostream>
 
 int real_main(int argc, char **argv) {
   extern std::string g_program_name;
   g_program_name = argv[0];
   int result = 0;
+
+  if (mysql_library_init(argc, argv, NULL)) {
+    std::cerr << "Could not initialize MySQL library\n";
+    return 1;
+  }
+
   try {
     MySQLRouter router(argc, argv);
     // This nested try/catch block is necessary in Windows, to
@@ -52,6 +58,9 @@ int real_main(int argc, char **argv) {
     std::cerr << "Error: " << exc.what() << std::endl;
     result = 1;
   }
+
+  mysql_library_end();
+
   return result;
 }
 

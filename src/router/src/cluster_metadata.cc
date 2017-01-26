@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -92,6 +92,8 @@ static std::string get_my_hostname() {
       freeifaddrs(ifa);
     throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret)));
   }
+  if (ifa)
+    freeifaddrs(ifa);
   return buf;
 }
 #endif
@@ -389,8 +391,8 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
       if (row) {
         return static_cast<uint32_t>(std::stoul((*row)[0]));
       }
-      throw;
     }
+    throw;
   }
   return static_cast<uint32_t>(mysql_->last_insert_id());
 }
