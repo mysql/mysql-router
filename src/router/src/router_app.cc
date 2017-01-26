@@ -690,6 +690,8 @@ void MySQLRouter::prepare_command_options() noexcept {
         bootstrap_options_["ssl_crlpath"] = path;
       });
 
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
   arg_handler_.add_option(OptionNames({"--ssl-cert"}), "Path to client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
@@ -707,6 +709,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
         bootstrap_options_["ssl_key"] = path;
       });
+#endif
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
