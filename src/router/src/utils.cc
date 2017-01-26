@@ -440,21 +440,27 @@ std::string get_last_error(int myerrnum)
 #ifndef _WIN32
 static string default_prompt_password(const string &prompt) {
   struct termios console;
-  tcgetattr(STDIN_FILENO, &console);
-
+  bool no_terminal = false;
+  if (tcgetattr(STDIN_FILENO, &console) != 0) {
+    // this can happen if we're running without a terminal, in that case
+    // we don't care about terminal attributes
+    no_terminal = true;
+  }
   std::cout << prompt << ": ";
 
-  // prevent showing input
-  console.c_lflag &= ~(uint)ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
+  if (!no_terminal) {
+    // prevent showing input
+    console.c_lflag &= ~(uint)ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &console);
+  }
   string result;
   std::getline(std::cin, result);
 
-  // reset
-  console.c_lflag |= ECHO;
-  tcsetattr(STDIN_FILENO, TCSANOW, &console);
-
+  if (!no_terminal) {
+    // reset
+    console.c_lflag |= ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &console);
+  }
   std::cout << std::endl;
   return result;
 }
