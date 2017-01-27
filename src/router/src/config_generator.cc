@@ -906,11 +906,11 @@ void ConfigGenerator::create_config(std::ostream &cfp,
         << "Classic MySQL protocol connections to cluster '" << metadata_cluster << "':\n";
       if (options.rw_endpoint.port > 0)
         std::cout << "- Read/Write Connections: localhost:" << options.rw_endpoint.port << "\n";
-      else if (!options.rw_endpoint.socket.empty())
+      if (!options.rw_endpoint.socket.empty())
         std::cout << "- Read/Write Connections: " << options.socketsdir + "/" + options.rw_endpoint.socket << "\n";
       if (options.ro_endpoint.port > 0)
         std::cout << "- Read/Only Connections: localhost:" << options.ro_endpoint.port << "\n";
-      else if (!options.ro_endpoint.socket.empty())
+      if (!options.ro_endpoint.socket.empty())
         std::cout << "- Read/Only Connections: " << options.socketsdir + "/" + options.ro_endpoint.socket << "\n";
       std::cout << "\n";
     }
@@ -919,11 +919,11 @@ void ConfigGenerator::create_config(std::ostream &cfp,
         << "X protocol connections to cluster '" << metadata_cluster << "':\n";
       if (options.rw_x_endpoint.port > 0)
         std::cout << "- Read/Write Connections: localhost:" << options.rw_x_endpoint.port << "\n";
-      else if (!options.rw_x_endpoint.socket.empty())
+      if (!options.rw_x_endpoint.socket.empty())
         std::cout << "- Read/Write Connections: " << options.socketsdir + "/" + options.rw_x_endpoint.socket << "\n";
       if (options.ro_x_endpoint.port > 0)
         std::cout << "- Read/Only Connections: localhost:" << options.ro_x_endpoint.port << "\n";
-      else if (!options.ro_x_endpoint.socket.empty())
+      if (!options.ro_x_endpoint.socket.empty())
         std::cout << "- Read/Only Connections: " << options.socketsdir + "/" + options.ro_x_endpoint.socket << "\n";
     }
   }
