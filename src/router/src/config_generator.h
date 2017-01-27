@@ -95,6 +95,7 @@ public:
 
     std::string override_logdir;
     std::string override_rundir;
+    std::string override_datadir;
     std::string socketsdir;
 
     std::string keyring_file_path;

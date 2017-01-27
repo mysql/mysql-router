@@ -63,6 +63,13 @@ do_start() {
           chmod 750 ${RUNTIMEDIR}
   fi
 
+  if [ ! -d ${DATADIR} -a ! -L ${DATADIR} ];
+  then
+          mkdir ${DATADIR}
+          chown mysql:adm ${DATADIR}
+          chmod 750 ${DATADIR}
+  fi
+
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
   then
           mkdir ${LOGDIR}

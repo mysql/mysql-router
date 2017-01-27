@@ -83,6 +83,16 @@ struct AppInfo {
 
   const char *runtime_folder;
 
+  /**
+   * Directory name for data files.
+   *
+   * Name of the directory where data files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/var/lib/<name>`.
+   */
+
+  const char *data_folder;
+
 
   /**
    * Directory name for configuration files.

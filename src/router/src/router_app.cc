@@ -210,7 +210,7 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
 
     // fill in default keyring file path, if not set
     if (keyring_file.empty()) {
-      keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
+      keyring_file = substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
                                          "{origin}", origin_.str());
       keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
     }
@@ -266,7 +266,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() {
       {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
       {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
       {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
-      {"state_folder", fixpath(MYSQL_ROUTER_SECURE_FILE_PRIVDIR, basedir)}
+      {"data_folder", fixpath(MYSQL_ROUTER_DATA_FOLDER, basedir)}
   };
   // check if the executable is being ran from the install location and if not
   // set the plugin dir to a path relative to it
@@ -689,13 +689,13 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   if (bootstrap_directory_.empty()) {
     std::string config_file_path =
         substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
-                            "{origin}", origin_.str());
+                              "{origin}", origin_.str());
     std::string master_key_path =
         substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
-                            "{origin}", origin_.str());
+                              "{origin}", origin_.str());
     std::string default_keyring_file;
-    default_keyring_file = substitute_variable(MYSQL_ROUTER_RUNTIME_FOLDER,
-                                               "{origin}", origin_.str());
+    default_keyring_file = substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
+                                                 "{origin}", origin_.str());
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysqlrouter::mkdir(default_keyring_file, 0x700) < 0) {
@@ -740,8 +740,8 @@ void MySQLRouter::show_help() noexcept {
       "  " << paths.at("plugin_folder") << std::endl;
   std::cout << "Default Log Directory:" << std::endl <<
       "  " << paths.at("logging_folder") << std::endl;
-  std::cout << "Default Persistent State Directory:" << std::endl <<
-      "  " << paths.at("state_folder") << std::endl;
+  std::cout << "Default Persistent Data Directory:" << std::endl <<
+      "  " << paths.at("data_folder") << std::endl;
   std::cout << "Default Runtime State Directory:" << std::endl <<
       "  " << paths.at("runtime_folder") << std::endl;
   std::cout << std::endl;

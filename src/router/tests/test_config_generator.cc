@@ -719,6 +719,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(false));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -734,6 +735,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(false));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -751,6 +753,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -841,6 +844,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -858,6 +862,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(false));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -875,6 +880,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -891,6 +897,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     ASSERT_THAT(options.ro_x_endpoint, Eq(true));
     ASSERT_THAT(options.override_logdir, Eq(""));
     ASSERT_THAT(options.override_rundir, Eq(""));
+    ASSERT_THAT(options.override_datadir, Eq(""));
   }
 }
 

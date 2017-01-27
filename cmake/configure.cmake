@@ -74,6 +74,20 @@ endif()
 set(ROUTER_PLUGINDIR ${_plugindir} CACHE STRING "Location MySQL Router plugins (plugin_folder)")
 unset(_plugindir)
 
+# Data folder (data_folder configuration option)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(_datadir "ENV{APPDATA}\\\\data")
+else()
+  if(IS_ABSOLUTE "${INSTALL_DATADIR}" OR NOT INSTALL_DATADIR)
+    set(_datadir ${INSTALL_DATADIR})
+  else()
+    set(_datadir ${CMAKE_INSTALL_PREFIX}/${INSTALL_DATADIR})
+  endif()
+endif()
+set(ROUTER_DATADIR ${_datadir} CACHE STRING "Location of data files such as keyring file")
+unset(_datadir)
+
+
 # Generate the copyright string
 function(SET_COPYRIGHT TARGET)
   string(TIMESTAMP curr_year "%Y" UTC)
@@ -92,6 +106,7 @@ if(INSTALL_LAYOUT STREQUAL "STANDALONE")
   set(ROUTER_CONFIGDIR "{origin}/../${INSTALL_CONFIGDIR_STANDALONE}")
   set(ROUTER_RUNTIMEDIR "{origin}/../${INSTALL_RUNTIMEDIR_STANDALONE}")
   set(ROUTER_LOGDIR "{origin}/../${INSTALL_LOGDIR_STANDALONE}")
+  set(ROUTER_DATADIR "{origin}/../${INSTALL_DATADIR_STANDALONE}")
 endif()
 
 # Default configuration file locations (similar to MySQL Server)

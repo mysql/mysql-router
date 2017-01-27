@@ -95,7 +95,8 @@ protected:
       ofs_config << "logging_folder =\n";
       ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
       ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
-      ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
+      ofs_config << "config_folder = " << stage_dir->str() << "\n";
+      ofs_config << "data_folder = " << stage_dir->str() << "\n\n";
       ofs_config << "[routing:tests]\n";
 
       using ConfigOption = std::pair<std::string, std::string&>;
@@ -142,6 +143,7 @@ protected:
   const string program = "routing_plugin_test";
   const string rundir = "/path/to/rundir";
   const string cfgdir = "/path/to/cfgdir";
+  const string datadir = "/path/to/datadir";
   string bind_address;
   string destinations;
   string socket;
@@ -183,6 +185,7 @@ TEST_F(RoutingPluginTests, InitAppInfo) {
       logdir.c_str(),
       rundir.c_str(),
       cfgdir.c_str(),
+      datadir.c_str(),
       nullptr
   };
 
