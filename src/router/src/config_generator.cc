@@ -917,11 +917,11 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     if (options.rw_x_endpoint || options.ro_x_endpoint) {
       std::cout
         << "X protocol connections to cluster '" << metadata_cluster << "':\n";
-      if (options.rw_x_endpoint)
+      if (options.rw_x_endpoint.port > 0)
         std::cout << "- Read/Write Connections: localhost:" << options.rw_x_endpoint.port << "\n";
       else if (!options.rw_x_endpoint.socket.empty())
         std::cout << "- Read/Write Connections: " << options.socketsdir + "/" + options.rw_x_endpoint.socket << "\n";
-      if (options.ro_x_endpoint)
+      if (options.ro_x_endpoint.port > 0)
         std::cout << "- Read/Only Connections: localhost:" << options.ro_x_endpoint.port << "\n";
       else if (!options.ro_x_endpoint.socket.empty())
         std::cout << "- Read/Only Connections: " << options.socketsdir + "/" + options.ro_x_endpoint.socket << "\n";
