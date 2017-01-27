@@ -11,7 +11,7 @@
 #                    MySQL Router.
 ### END INIT INFO
 
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ do_start() {
 
   if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
   then
- 		install -d -m 0750 -o mysqlrouter -g adm ${RUNTIMEDIR}
+    install -d -m 0750 -o mysqlrouter -g adm ${RUNTIMEDIR}
   fi
 
   if [ ! -d ${DATADIR} -a ! -L ${DATADIR} ];
@@ -70,7 +70,7 @@ do_start() {
 
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
   then
- 		install -d -m 0750 -o mysqlrouter -g adm ${LOGDIR}
+    install -d -m 0750 -o mysqlrouter -g adm ${LOGDIR}
   fi
 
   install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}

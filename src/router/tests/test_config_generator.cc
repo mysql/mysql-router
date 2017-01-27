@@ -963,26 +963,28 @@ TEST_F(ConfigGeneratorTest, fill_options) {
 static struct {
   const char *query;
   bool execute;
+  uint64_t last_insert_id;
+
 } expected_bootstrap_queries[] = {
-  {"START TRANSACTION", true},
-  {"SELECT host_id, host_name", false},
-  {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true},
-  {"INSERT INTO mysql_innodb_cluster_metadata.routers", true},
-  {"DROP USER IF EXISTS mysql_router0_012345678901@'%'", true}, // HERE
-  {"CREATE USER mysql_router0_012345678901@'%'", true},
-  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router0_012345678901@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_router0_012345678901@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router0_012345678901@'%'", true},
-  {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true},
-  {"COMMIT", true},
-  {NULL, true}
+  {"START TRANSACTION", true, 0},
+  {"SELECT host_id, host_name", false, 0 },
+  {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true, 0 },
+  {"INSERT INTO mysql_innodb_cluster_metadata.routers", true, 4},
+  {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", true, 0},
+  {"CREATE USER mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router4_012345678901@'%'", true, 0},
+  {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true, 0},
+  {"COMMIT", true, 0},
+  {NULL, true, 0}
 };
 
 static void expect_bootstrap_queries(MySQLSessionReplayer &m, const char *cluster_name) {
   m.expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
   for (int i = 0; expected_bootstrap_queries[i].query; i++) {
     if (expected_bootstrap_queries[i].execute)
-      m.expect_execute(expected_bootstrap_queries[i].query).then_ok();
+      m.expect_execute(expected_bootstrap_queries[i].query).then_ok(expected_bootstrap_queries[i].last_insert_id);
     else
       m.expect_query_one(expected_bootstrap_queries[i].query).then_return(2, {});
   }
@@ -1005,6 +1007,7 @@ static void bootstrap_name_test(const std::string &dir,
   std::map<std::string, std::string> options;
   options["name"] = name;
   options["quiet"] = "1";
+  options["id"] = "4";
   config_gen.bootstrap_directory_deployment(dir,
       options, default_paths, "delme", "delme.key");
 }
@@ -1523,7 +1526,7 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   file.close();
 
   EXPECT_NO_THROW(
-    std::tie(router_id, std::ignore) = config.get_router_id_from_config_file(conf_path, "dummy", false)
+    std::tie(router_id, std::ignore) = config.get_router_id_and_name_from_config(conf_path, "dummy", false)
   );
   EXPECT_EQ(router_id, uint32_t(0));
 
@@ -1779,6 +1782,22 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   test_config_output({{"ssl_cipher", "FOO-BAR-SHA678"}}, "ssl_cipher=FOO-BAR-SHA678");
   test_config_output({{"tls_version", "TLSv1"}}, "tls_version=TLSv1");
 }
+
+// TODO use these as testcases in unit tests:
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("some bad query")); // TESTCASE: should throw generic exception
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("select @@port"));  // TESTCASE: should generate assert
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'HIDE_ssl_cipher'")); // TESTCASE: should throw Error reading 'Ssl_cipher' stat var (result = NULL)
+//  struct RR : public MySQLSession::ResultRow {
+//    RR(const std::vector<const char*>& v) { row_ = v; }
+//  };
+//  result.reset();                                     // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{}});                           // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{nullptr}});                    // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"something"}});                // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"ssl_cipher", nullptr}});      // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", ""}});           // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", "some_cipher"}});// TESTCASE: should pass
+//  result.reset(new RR{{"bad", ""}});                  // TESTCASE: should throw assertion
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

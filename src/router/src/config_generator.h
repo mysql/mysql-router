@@ -151,7 +151,7 @@ private:
 
   void create_account(const std::string &username, const std::string &password);
 
-  std::pair<uint32_t, std::string> get_router_id_from_config_file(const std::string &config_file_path,  //TODO rename the function
+  std::pair<uint32_t, std::string> get_router_id_and_name_from_config(const std::string &config_file_path,
                                           const std::string &cluster_name,
                                           bool forcing_overwrite);
 

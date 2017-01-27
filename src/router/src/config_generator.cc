@@ -236,21 +236,6 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
     // +---------------+--------------------+
 
     std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'ssl_cipher'"));
-// TODO use these as testcases in unit tests:
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("some bad query")); // TESTCASE: should throw generic exception
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("select @@port"));  // TESTCASE: should generate assert
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'HIDE_ssl_cipher'")); // TESTCASE: should throw Error reading 'Ssl_cipher' stat var (result = NULL)
-//  struct RR : public MySQLSession::ResultRow {
-//    RR(const std::vector<const char*>& v) { row_ = v; }
-//  };
-//  result.reset();                                     // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{}});                           // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{nullptr}});                    // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{"something"}});                // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{"ssl_cipher", nullptr}});      // TESTCASE: should warn about no SSL
-//  result.reset(new RR{{"ssl_cipher", ""}});           // TESTCASE: should warn about no SSL
-//  result.reset(new RR{{"ssl_cipher", "some_cipher"}});// TESTCASE: should pass
-//  result.reset(new RR{{"bad", ""}});                  // TESTCASE: should throw assertion
 
     if (!result || result->size() != 2)
       throw std::runtime_error("Error reading 'ssl_cipher' status variable");
@@ -261,8 +246,8 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 #endif
 
     // if ssl_cipher is empty, it means the connection is unencrypted
-    if ((*result)[1] &&    // cipher field not null
-        (*result)[1][0]) { // cipher string not empty
+    if ((*result)[1] &&
+        (*result)[1][0]) {
       return true;  // connection is encrypted
     } else {
       std::cerr << "WARNING: The MySQL server does not have SSL configured and "
@@ -637,7 +622,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     multi_master);
 
   if (config_file_path.exists()) {
-    std::tie(router_id, username) = get_router_id_from_config_file(config_file_path.str(),
+    std::tie(router_id, username) = get_router_id_and_name_from_config(config_file_path.str(),
                                                primary_cluster_name, force);
   }
 
@@ -671,7 +656,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   }
   // router not registered yet (or router_id was invalid)
   if (router_id == 0) {
-//  assert(username.empty()); // TODO fix unit tests
+    assert(username.empty());
     try {
       router_id = metadata.register_router(router_name, force);
       if (router_id > kMaxRouterId)
@@ -696,8 +681,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   // Create or recreate the account used by this router instance to access
   // metadata server
-//assert(router_id);          // \_ TODO: fix unit tests that fail this:
-//assert(!username.empty());  // /        bootstrap_overwrite_test, .. ?
+  assert(router_id);
+  assert(!username.empty());
   std::string password = rg.generate_password(kMetadataServerPasswordLength);
   {
     mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
@@ -1144,13 +1129,13 @@ void ConfigGenerator::create_account(const std::string &username,
 }
 
 /**
- * Get router_id value associated with a metadata_cache configuration for
+ * Get router_id name values associated with a metadata_cache configuration for
  * the given cluster_name.
  *
  * The lookup is done through the metadata_cluster option inside the
  * metadata_cache section.
  */
-std::pair<uint32_t, std::string> ConfigGenerator::get_router_id_from_config_file(
+std::pair<uint32_t, std::string> ConfigGenerator::get_router_id_and_name_from_config(
     const std::string &config_file_path,
     const std::string &cluster_name,
     bool forcing_overwrite) {
