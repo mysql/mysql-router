@@ -441,6 +441,7 @@ vector<string> MySQLRouter::check_config_files() {
       &extra_config_files_
   };
 
+  std::string paths_attempted;
   for (vector<string> *vec: config_file_containers) {
     for (auto &file: *vec) {
       auto pos = std::find(result.begin(), result.end(), file);
@@ -454,6 +455,8 @@ vector<string> MySQLRouter::check_config_files() {
         if (vec != &extra_config_files_) {
           nr_of_none_extra++;
         }
+      } else {
+        paths_attempted.append(file).append(path_sep);
       }
     }
   }
@@ -464,7 +467,7 @@ vector<string> MySQLRouter::check_config_files() {
   }
 
   if (result.empty()) {
-    throw std::runtime_error("No valid configuration file available. See --help for more information.");
+    throw std::runtime_error("No valid configuration file available. See --help for more information (looked at paths '" + paths_attempted + "').");
   }
 
   return result;
