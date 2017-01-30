@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # MySQL MySQL Router is licensed under the terms of the GPLv2
 # <http://www.gnu.org/licenses/old-licenses/gpl-2.0.html>, like most
@@ -208,6 +208,9 @@ fi
 %dir %attr(755, mysql, mysql) %{_localstatedir}/run/mysqlrouter
 
 %changelog
+* Mon Jan 30 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.1.2-0.1-rc
+- Updated for 2.1.2 rc release
+
 * Tue Nov 29 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.1.1-0.1
 - Updated for 2.1.1 labs release
 
