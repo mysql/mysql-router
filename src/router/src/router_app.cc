@@ -384,7 +384,7 @@ void MySQLRouter::start() {
     pos = log_path.find_last_of('/');
     if (pos != std::string::npos)
       log_path.erase(pos);
-    if (mysqlrouter::mkdir(log_path, 0700) != 0)
+    if (mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
       throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
     std::cout << "Logging to " << log_file << std::endl;
   } catch (...) {
@@ -701,7 +701,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
                                                  "{origin}", origin_.str());
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
-      if (mysqlrouter::mkdir(default_keyring_file, 0x700) < 0) {
+      if (mysqlrouter::mkdir(default_keyring_file, mysqlrouter::kStrictDirectoryPerm) < 0) {
         std::cerr << "Cannot create directory " << default_keyring_file << ": " << get_strerror(errno) << "\n";
         throw std::runtime_error("Could not create keyring directory");
       } else {

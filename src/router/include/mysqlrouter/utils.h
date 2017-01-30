@@ -33,6 +33,14 @@
 
 namespace mysqlrouter {
 
+#ifndef _WIN32
+using perm_mode = mode_t;
+#else
+using perm_mode = int;
+#endif
+/** @brief Constant for directory accessible only for the owner */
+extern const perm_mode kStrictDirectoryPerm;
+
 // Some (older) compiler have no std::to_string available
 template<typename T>
 std::string to_string(const T &data) {
@@ -189,7 +197,7 @@ std::vector<std::string> wrap_string(const std::string &str, size_t width, size_
 
 bool my_check_access(const std::string& path);
 
-int mkdir(const std::string& dir, int mode);
+int mkdir(const std::string& dir, perm_mode mode);
 
 int rmdir(const std::string& dir);
 
