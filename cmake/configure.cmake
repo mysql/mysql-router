@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -111,14 +111,10 @@ endif()
 
 # Default configuration file locations (similar to MySQL Server)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  set(ver "${MySQLRouter_VERSION_MAJOR}.${MySQLRouter_VERSION_MINOR}")
-  file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX} install_prefix)
-  # We are using Raw strings (see config.h.in), no double escaping of \\ needed
   set(CONFIG_FILE_LOCATIONS
-      "${SYSCONFDIR}\\${MYSQL_ROUTER_INI}"
+      "${ROUTER_CONFIGDIR}/${MYSQL_ROUTER_INI}"
+      "ENV{APPDATA}/${MYSQL_ROUTER_INI}"
       )
-  unset(ver)
-  unset(install_prefix)
 else()
   set(CONFIG_FILE_LOCATIONS
       "${ROUTER_CONFIGDIR}/${MYSQL_ROUTER_INI}"

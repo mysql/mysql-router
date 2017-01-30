@@ -303,7 +303,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   }
 
   if (!path.exists()) {
-    if (mkdir(directory.c_str(), 0700) < 0) {
+    if (mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
       std::cerr << "Cannot create directory " << directory << ": " << get_strerror(errno) << "\n";
       throw std::runtime_error("Could not create deployment directory");
     }
@@ -341,7 +341,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
       }
     }
     if (do_mkdir) {
-      if (mkdir(options[option_name].c_str(), 0700) < 0) {
+      if (mkdir(options[option_name].c_str(), kStrictDirectoryPerm) < 0) {
         if (errno != EEXIST) {
           std::cerr << "Cannot create directory " << options[option_name] << ": " << get_strerror(errno) << "\n";
           throw std::runtime_error("Could not create " + option_name + "directory");
@@ -1121,7 +1121,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
          << "&\n";
   script << "disown %-\n";
   script.close();
-  if (::chmod(script_path.c_str(), 0700) < 0) {
+  if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
   set_file_owner(options, script_path);
@@ -1136,7 +1136,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   script << "  rm -f " << directory + "/mysqlrouter.pid\n";
   script << "fi\n";
   script.close();
-  if (::chmod(script_path.c_str(), 0700) < 0) {
+  if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
   set_file_owner(options, script_path);

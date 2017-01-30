@@ -57,6 +57,12 @@ const string kValidPortChars = "0123456789";
 
 namespace mysqlrouter {
 
+#ifndef _WIN32
+const perm_mode kStrictDirectoryPerm = S_IRWXU;
+#else
+const perm_mode kStrictDirectoryPerm = 0;
+#endif
+
 std::vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_size) {
   size_t curr_pos = 0;
   size_t wrap_pos = 0;
@@ -142,9 +148,9 @@ int rename_file(const std::string &from, const std::string &to)
 #endif
 }
 
-int mkdir(const std::string& dir, int mode) {
+int mkdir(const std::string& dir, perm_mode mode) {
 #ifndef _WIN32
-  return ::mkdir(dir.c_str(), static_cast<mode_t>(mode));
+  return ::mkdir(dir.c_str(), mode);
 #else
   return _mkdir(dir.c_str());
 #endif
