@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -172,6 +172,15 @@ void MetadataCache::refresh() {
     // TODO: connect() could really be called from inside of metadata_->fetch_instances()
     if (!meta_data_->connect(metadata_servers_)) { // metadata_servers_ come from config file
       log_error("Failed connecting to metadata servers");
+      bool clearing;
+      {
+        std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+        clearing = !replicaset_data_.empty();
+        if (clearing)
+          replicaset_data_.clear();
+      }
+      if (clearing)
+        log_info("... cleared current routing table as a precaution");
       return;
     }
   }

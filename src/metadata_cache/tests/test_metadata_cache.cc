@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
  * Test the metadata cache implementation.
  */
 
+#include "gtest/gtest_prod.h" // must be the first header
+#include "cluster_metadata.h"
 #include "metadata_cache.h"
 #include "metadata_factory.h"
 #include "mock_metadata.h"
-#include "cluster_metadata.h"
+#include "mysql_session_replayer.h"
 
 #include "gmock/gmock.h"
 
@@ -64,3 +66,152 @@ TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
 
   EXPECT_TRUE(instance_vector.empty());
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Test Metadata Cache vs metadata server availabilty
+//
+////////////////////////////////////////////////////////////////////////////////
+
+class TestSessionFactory : public mysqlrouter::MySQLSessionFactory {
+ public:
+  TestSessionFactory(std::shared_ptr<mysqlrouter::MySQLSession> s) {
+    session = s;
+  }
+
+  virtual std::shared_ptr<mysqlrouter::MySQLSession> create() const {
+    return session;
+  }
+
+  std::shared_ptr<mysqlrouter::MySQLSession> session;
+};
+
+class MetadataCacheTest2 : public ::testing::Test {
+ public:
+  // per-test setup
+  virtual void SetUp() override {
+    session.reset(new MySQLSessionReplayer(true));
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10,
+        std::unique_ptr<mysqlrouter::MySQLSessionFactory>(new TestSessionFactory(session))));
+  }
+
+  // make queries on metadata schema return a 3 members replicaset
+  void expect_sql_metadata() {
+    MySQLSessionReplayer &m = *session;
+
+    m.expect_query("SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, I.version_token, H.location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON F.cluster_id = R.cluster_id JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = I.replicaset_id JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = H.host_id WHERE F.cluster_name = 'cluster-1';");
+    m.then_return(8, {
+      // replicaset_name, mysql_server_uuid, role, weight, version_token, location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
+      {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"), m.string_or_null("HA"), m.string_or_null(), m.string_or_null(), m.string_or_null(""), m.string_or_null("localhost:3000"), m.string_or_null("localhost:30000")},
+      {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"), m.string_or_null("HA"), m.string_or_null(), m.string_or_null(), m.string_or_null(""), m.string_or_null("localhost:3001"), m.string_or_null("localhost:30010")},
+      {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"), m.string_or_null("HA"), m.string_or_null(), m.string_or_null(), m.string_or_null(""), m.string_or_null("localhost:3002"), m.string_or_null("localhost:30020")}
+    });
+  }
+
+  // make queries on PFS.replication_group_members return all members ONLINE
+  void expect_sql_members() {
+    MySQLSessionReplayer &m = *session;
+
+    m.expect_query("show status like 'group_replication_primary_member'");
+    m.then_return(2, {
+      // Variable_name, Value
+      {m.string_or_null("group_replication_primary_member"), m.string_or_null("uuid-server1")}
+    });
+
+    m.expect_query("SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'");
+    m.then_return(5, {
+      // member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode
+      {m.string_or_null("uuid-server1"), m.string_or_null("somehost"), m.string_or_null("3000"), m.string_or_null("ONLINE"), m.string_or_null("1")},
+      {m.string_or_null("uuid-server2"), m.string_or_null("somehost"), m.string_or_null("3001"), m.string_or_null("ONLINE"), m.string_or_null("1")},
+      {m.string_or_null("uuid-server3"), m.string_or_null("somehost"), m.string_or_null("3002"), m.string_or_null("ONLINE"), m.string_or_null("1")}
+    });
+  }
+
+  std::shared_ptr<MySQLSessionReplayer> session;
+  std::shared_ptr<ClusterMetadata> cmeta;
+  std::shared_ptr<MetadataCache> cache;
+
+  std::vector<mysqlrouter::TCPAddress> metadata_servers {
+    {"localhost", 3000},
+    {"localhost", 3001},
+    {"localhost", 3002},
+  };
+};
+
+void expect_cluster_routable(MetadataCache& mc) {
+  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+  ASSERT_EQ(3U, instances.size());
+  EXPECT_EQ("uuid-server1", instances[0].mysql_server_uuid);
+  EXPECT_EQ(metadata_cache::ServerMode::ReadWrite, instances[0].mode);
+  EXPECT_EQ("uuid-server2", instances[1].mysql_server_uuid);
+  EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[1].mode);
+  EXPECT_EQ("uuid-server3", instances[2].mysql_server_uuid);
+  EXPECT_EQ(metadata_cache::ServerMode::ReadOnly, instances[2].mode);
+}
+
+void expect_cluster_not_routable(MetadataCache& mc) {
+  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+  ASSERT_EQ(0U, instances.size());
+}
+
+TEST_F(MetadataCacheTest2, basic_test) {
+
+  // start off with all metadata servers up
+  expect_sql_metadata();
+  expect_sql_members();
+  MetadataCache mc(metadata_servers, cmeta, 10, "cluster-1");
+
+  // verify that cluster can be seen
+  expect_cluster_routable(mc);
+  expect_cluster_routable(mc);  // repeated queries should not change anything
+  expect_cluster_routable(mc);  // repeated queries should not change anything
+
+  // refresh MC
+  expect_sql_metadata();
+  expect_sql_members();
+  mc.refresh();
+
+  // verify that cluster can be seen
+  expect_cluster_routable(mc);
+  expect_cluster_routable(mc);  // repeated queries should not change anything
+  expect_cluster_routable(mc);  // repeated queries should not change anything
+}
+
+TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
+
+  // Here we test MC behaviour when metadata servers go down and back up again. ATM (2017.01.10, might be changed later)
+  // at least one metadata server must be reachable for Router to continue Routing.
+
+  MySQLSessionReplayer& m = *session;
+
+  // start off with all metadata servers up
+  expect_sql_metadata();
+  expect_sql_members();
+  MetadataCache mc(metadata_servers, cmeta, 10, "cluster-1");
+  expect_cluster_routable(mc);
+
+  // refresh: fail connecting to first metadata server
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
+  expect_sql_metadata();
+  expect_sql_members();
+  mc.refresh();
+  expect_cluster_routable(mc);
+
+  // refresh: fail connecting to all 3 metadata servers
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3001, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3002, "admin", "admin").then_error("some fake bad connection message", 66);
+  mc.refresh();
+  expect_cluster_not_routable(mc); // lookup should return nothing (all route paths should have been cleared)
+
+  // refresh: fail connecting to first 2 metadata servers
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3001, "admin", "admin").then_error("some fake bad connection message", 66);
+  expect_sql_metadata();
+  expect_sql_members();
+  mc.refresh();
+  expect_cluster_routable(mc); // lookup should see the cluster again
+}
+
