@@ -21,7 +21,6 @@
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
 #include <memory>
-#include <cassert>
 #include <string.h>
 #ifdef _WIN32
 #include <string.h>
@@ -122,17 +121,22 @@ static bool check_version(MySQLSession *mysql, std::tuple<int,int,int> &version)
 
   int major, minor, patch;
 
-  if (result->size() == 2) {
+  size_t result_size = result->size();
+  if (result_size == 3) {
+    major = strtoi_checked((*result)[0]);
+    minor = strtoi_checked((*result)[1]);
+    patch = strtoi_checked((*result)[2]);
+  } else if (result_size == 2) {
     // Initially shell used to create version number with 2 digits only (1.0)
     // It has since moved to 3 digit numbers. We normalize it to 1.0.0 here for
     // simplicity and backwards compatibility.
     major = 1;
     minor = 0;
     patch = 0;
-  } else {
-    major = strtoi_checked((*result)[0]);
-    minor = strtoi_checked((*result)[1]);
-    patch = strtoi_checked((*result)[2]);
+  }
+  else {
+    throw std::out_of_range("Invalid number of values returned from mysql_innodb_cluster_metadata.schema_version: "
+                             "expected 2 or 3 got " + std::to_string(result_size));
   }
   version = std::make_tuple(major, minor, patch);
 
@@ -167,7 +171,7 @@ static bool check_group_replication_online(MySQLSession *mysql) {
       // log_warning("Member state for current server is %s", (*result)[0]);
       return false;
     }
-  } catch (std::exception &e) {
+  } catch (const std::exception &e) {
     //log_error("Error querying for group_replication state: %s", e.what());
     return false;
   }
@@ -180,7 +184,10 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
   try {
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
-      assert(result->size() == 2);
+      if (result->size() != 2) {
+        throw std::out_of_range("Invalid number of values returned from performance_schema.replication_group_members: "
+                                "expected 2 got " + std::to_string(result->size()));
+      }
       int online = strtoi_checked((*result)[0]);
       int all = strtoi_checked((*result)[1]);
       //log_info("%d members online out of %d", online, all);
@@ -188,7 +195,9 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
         return true;
       return false;
     }
-  } catch (std::exception &e) {
+  } catch (const std::out_of_range &e) {
+    throw;
+  } catch (const std::exception &e) {
     // log_error("Error querying for group_replication state: %s", e.what());
     return false;
   }
@@ -202,7 +211,10 @@ static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_
   try {
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
-      assert(result->size() == 3);
+      if (result->size() != 3) {
+        throw std::out_of_range("Invalid number of values returned from query for primary: "
+                                "expected 3 got " + std::to_string(result->size()));
+      }
       int single_primary_mode = strtoi_checked((*result)[0]);
       if (!single_primary_mode || strcmp((*result)[1], (*result)[2]) == 0)
         return true;
@@ -212,7 +224,9 @@ static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_
       ret_primary = (*result)[1];
       return false;
     }
-  } catch (std::exception &e) {
+  } catch (const std::out_of_range &e) {
+    throw;
+  } catch (const std::exception &e) {
     // log_error("Error querying for group_replication state: %s", e.what());
     return false;
   }
@@ -231,7 +245,10 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
   try {
     std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
     if (result) {
-      assert(result->size() == 2);
+      if (result->size() != 2) {
+        throw std::out_of_range("Invalid number of values returned from query for metadata support: "
+                                "expected 2 got " + std::to_string(result->size()));
+      }
       bool has_only_one_replicaset = strtoi_checked((*result)[0]) == 1;
       bool replicaset_is_ours = true;
       if (version_matches(std::make_tuple(1, 0, 1), version))
@@ -241,7 +258,9 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
       //           has_only_one_replicaset, replicaset_is_ours);
       return has_only_one_replicaset && replicaset_is_ours;
     }
-  } catch (std::exception &e) {
+  } catch (const std::out_of_range &e) {
+    throw;
+  } catch (const std::exception &e) {
     // log_error("Error querying for group_replication state: %s", e.what());
     return false;
   }

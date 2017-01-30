@@ -81,37 +81,52 @@ using ::testing::Return;
 using namespace testing;
 using mysqlrouter::ConfigGenerator;
 
-
-static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
+static void common_pass_schema_version(MySQLSessionReplayer &m) {
   m.expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
   m.then_return(2, {
-      // major, minor
-      {m.string_or_null("1"), m.string_or_null("0")}
-    });
+    // major, minor
+    {m.string_or_null("1"), m.string_or_null("0")}
+  });
+}
 
+static void common_pass_metadata_supported(MySQLSessionReplayer &m) {
   m.expect_query_one("SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours");
   m.then_return(2, {
-      // has_one_replicaset, replicaset_is_ours
-      {m.string_or_null("1"), m.string_or_null()}
-    });
+    // has_one_replicaset, replicaset_is_ours
+    {m.string_or_null("1"), m.string_or_null()}
+  });
+}
 
+static void common_pass_group_replication_online(MySQLSessionReplayer &m) {
   m.expect_query_one("SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid");
   m.then_return(1, {
-      // member_state
-      {m.string_or_null("ONLINE")}
-    });
+    // member_state
+    {m.string_or_null("ONLINE")}
+  });
+}
 
+static void common_pass_group_has_quorum(MySQLSessionReplayer &m) {
   m.expect_query_one("SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members");
   m.then_return(2, {
-      // num_onlines, num_total
-      {m.string_or_null("3"), m.string_or_null("3")}
-    });
+    // num_onlines, num_total
+    {m.string_or_null("3"), m.string_or_null("3")}
+  });
+}
 
+static void common_pass_member_is_primary(MySQLSessionReplayer &m) {
   m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   m.then_return(3, {
-      // single_primary_mode, primary_member, my_uuid
-      {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
-    });
+    // single_primary_mode, primary_member, my_uuid
+    {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
+  });
+}
+
+static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
+  common_pass_schema_version(m);
+  common_pass_metadata_supported(m);
+  common_pass_group_replication_online(m);
+  common_pass_group_has_quorum(m);
+  common_pass_member_is_primary(m);
 }
 
 void set_mock_mysql(MySQLSessionReplayer* ptr) {
@@ -318,6 +333,113 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
       std::runtime_error
     );
   }
+}
+
+TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
+  MySQLSessionReplayer mock_mysql;
+
+  // invalid number of values returned from schema_version table
+  {
+    ConfigGenerator config_gen;
+
+    mock_mysql.expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
+    mock_mysql.then_return(1, {
+      // major, [minor missing]
+      {mock_mysql.string_or_null("0")}
+    });
+
+    ASSERT_THROW_LIKE(
+      config_gen.init(&mock_mysql),
+      std::out_of_range,
+      "Invalid number of values returned from mysql_innodb_cluster_metadata.schema_version: "
+      "expected 2 or 3 got 1"
+    );
+  }
+
+  // invalid number of values returned from query for metadata support
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_schema_version(mock_mysql);
+
+    mock_mysql.expect_query_one("SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours");
+    mock_mysql.then_return(1, {
+      // has_one_replicaset, [replicaset_is_ours missing]
+      {mock_mysql.string_or_null("1")}
+    });
+
+    ASSERT_THROW_LIKE(
+      config_gen.init(&mock_mysql),
+      std::out_of_range,
+      "Invalid number of values returned from query for metadata support: "
+      "expected 2 got 1"
+    );
+  }
+
+  // invalid number of values returned from query for member_state
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_schema_version(mock_mysql);
+    common_pass_metadata_supported(mock_mysql);
+
+    mock_mysql.expect_query_one("SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid");
+    mock_mysql.then_return(0, {
+      // [state field missing]
+    });
+
+    ASSERT_THROW_LIKE(
+      config_gen.init(&mock_mysql),
+      std::out_of_range,
+      "No result returned for metadata query"
+    );
+  }
+
+  // invalid number of values returned from query checking for group quorum
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_schema_version(mock_mysql);
+    common_pass_metadata_supported(mock_mysql);
+    common_pass_group_replication_online(mock_mysql);
+
+    mock_mysql.expect_query_one("SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members");
+    mock_mysql.then_return(1, {
+      // num_onlines, [num_total field missing]
+      {mock_mysql.string_or_null("3")}
+    });
+
+    ASSERT_THROW_LIKE(
+      config_gen.init(&mock_mysql),
+      std::out_of_range,
+      "Invalid number of values returned from performance_schema.replication_group_members: "
+      "expected 2 got 1"
+    );
+  }
+
+  // invalid number of values returned from query checking if member is primary
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_schema_version(mock_mysql);
+    common_pass_metadata_supported(mock_mysql);
+    common_pass_group_replication_online(mock_mysql);
+    common_pass_group_has_quorum(mock_mysql);
+
+    mock_mysql.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+    mock_mysql.then_return(2, {
+      // single_primary_mode, primary_member, [my_uuid field missing]
+      {mock_mysql.string_or_null("0"), mock_mysql.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
+    });
+
+    ASSERT_THROW_LIKE(
+      config_gen.init(&mock_mysql),
+      std::out_of_range,
+      "Invalid number of values returned from query for primary: "
+      "expected 3 got 2"
+    );
+  }
+
 }
 
 TEST_F(ConfigGeneratorTest, create_acount) {
