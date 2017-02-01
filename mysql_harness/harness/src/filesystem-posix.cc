@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -174,11 +174,7 @@ Directory::DirectoryIterator::State::State(const Path& path,
 
   if (dirp_ == nullptr) {
     ostringstream buffer;
-    char buf[256];
-    if (strerror_r(errno, buf, sizeof(buf)) != 0)
-      buffer << "Failed to open path " << path << " - " << errno;
-    else
-      buffer << "Failed to open path " << path << " - " << buf;
+    buffer << "Failed to open path " << path << " - " << get_strerror(errno);
     throw runtime_error(buffer.str());
   }
 
@@ -207,11 +203,8 @@ void Directory::DirectoryIterator::State::fill_result() {
   while (true) {
     if (int error = readdir_safe(dirp_, entry_, &result_)) {
       ostringstream buffer;
-      char msg[256];
-      if (strerror_r(error, msg, sizeof(msg)))
-        buffer << "strerror_r failed: " << errno;
-      else
-        buffer << "Failed to read directory entry - " << msg;
+
+      buffer << "Failed to read directory entry - " << get_strerror(error);
       throw std::runtime_error(buffer.str());
     }
 
@@ -236,11 +229,7 @@ void Directory::DirectoryIterator::State::fill_result() {
       break;
     } else {
       ostringstream buffer;
-      char msg[256];
-      if (strerror_r(error, msg, sizeof(msg)))
-        buffer << "strerror_r failed: " << errno;
-      else
-        buffer << "Match failed - " << msg;
+      buffer << "Match failed - " << get_strerror(error);
       throw std::runtime_error(buffer.str());
     }
   }

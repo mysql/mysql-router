@@ -62,6 +62,7 @@ static const int kMaxRouterNameLength = 255; // must match metadata router.name 
 static const char *kKeyringAttributePassword = "password";
 
 using mysql_harness::get_strerror;
+using mysql_harness::Path;
 using namespace mysqlrouter;
 
 
@@ -309,6 +310,11 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     }
     auto_clean.add_directory_delete(directory, true);
   }
+
+  if (!Path(directory).is_directory()) {
+    throw std::runtime_error("Can't use " + directory + " for bootstrap, it is not directory.");
+  }
+
   set_file_owner(user_options, directory);
 
   path = path.real_path();
