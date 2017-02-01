@@ -104,9 +104,17 @@ static void start(const mysql_harness::ConfigSection *section) {
     metadata_cluster = metadata_cluster.empty()?
       metadata_cache::kDefaultMetadataCluster : metadata_cluster;
 
-    std::string password = mysql_harness::get_keyring() ?
-      mysql_harness::get_keyring()->fetch(config.user,
-                                          kKeyringAttributePassword) : "";
+    std::string password;
+    try {
+      password = mysql_harness::get_keyring() ?
+        mysql_harness::get_keyring()->fetch(config.user,
+                                            kKeyringAttributePassword) : "";
+    }
+    catch (const std::out_of_range&) {
+      std::string msg = "Could not find the password for user '" + config.user + "' in the keyring. "
+              "metadata_cache not initialized properly.";
+      throw std::runtime_error(msg);
+    }
 
     log_info("Starting Metadata Cache");
 
