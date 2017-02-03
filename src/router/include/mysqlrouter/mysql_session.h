@@ -135,6 +135,7 @@ private:
   std::string connection_address_;
 
   virtual st_mysql* raw_mysql() noexcept { return connection_; }
+  static bool check_for_yassl(st_mysql *connection);
 
   #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;
