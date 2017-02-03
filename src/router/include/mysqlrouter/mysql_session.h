@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include <functional>
 #include <memory>
 
+#include <mysql.h>  // enum mysql_ssl_mode
+
 struct st_mysql;
 
 #ifdef FRIEND_TEST
@@ -37,6 +39,13 @@ class MySQLSession {
   static const int kDefaultConnectionTimeout = 15;
   typedef std::vector<const char*> Row;
   typedef std::function<bool (const Row&)> RowProcessor;
+
+  // text representations of SSL modes
+  static const char kSslModeDisabled[];
+  static const char kSslModePreferred[];
+  static const char kSslModeRequired[];
+  static const char kSslModeVerifyCa[];
+  static const char kSslModeVerifyIdentity[];
 
   class Transaction {
    public:
@@ -90,22 +99,32 @@ class MySQLSession {
   MySQLSession();
   virtual ~MySQLSession();
 
+  static mysql_ssl_mode parse_ssl_mode(std::string ssl_mode); // throws std::logic_error
+  static const char* ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept;
+
+  virtual void set_ssl_options(mysql_ssl_mode ssl_mode,
+                               const std::string &tls_version,
+                               const std::string &ssl_cipher,
+                               const std::string &ca, const std::string &capath,
+                               const std::string &crl, const std::string &crlpath);         // throws Error
+  virtual void set_ssl_cert(const std::string &cert, const std::string &key);
+
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &username,
                        const std::string &password,
-                       int connection_timeout = kDefaultConnectionTimeout);
+                       int connection_timeout = kDefaultConnectionTimeout); // throws Error
   virtual void disconnect();
 
-  virtual void execute(const std::string &query);
-  virtual void query(const std::string &query, const RowProcessor &processor);
-  virtual ResultRow *query_one(const std::string &query);
+  virtual void execute(const std::string &query); // throws Error, std::logic_error
+  virtual void query(const std::string &query, const RowProcessor &processor);  // throws Error, std::logic_error
+  virtual ResultRow *query_one(const std::string &query); // throws Error
 
-  virtual uint64_t last_insert_id();
+  virtual uint64_t last_insert_id() noexcept;
 
-  virtual std::string quote(const std::string &s, char qchar = '\'');
+  virtual std::string quote(const std::string &s, char qchar = '\'') noexcept;
 
-  virtual bool is_connected() { return connection_ && connected_; }
-  const std::string& get_address() { return connection_address_; }
+  virtual bool is_connected() noexcept { return connection_ && connected_; }
+  const std::string& get_address() noexcept { return connection_address_; }
 
   virtual const char *last_error();
   virtual unsigned int last_errno();
@@ -115,38 +134,12 @@ private:
   bool connected_;
   std::string connection_address_;
 
-  virtual st_mysql* raw_mysql() { return connection_; }
+  virtual st_mysql* raw_mysql() noexcept { return connection_; }
+  static bool check_for_yassl(st_mysql *connection);
 
   #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;
   #endif
-};
-
-
-
-/** @class MySQLSessionFactory
- *
- * This class is meant to ease use of DI (useful for unit testing). It is meant to be derived from
- * and its create() method to return a mock object, derived from MySQLSession.
- *
- * TODO: a better approach would probably be to move create() to a DI container, if/when we
- *       implement one.
- */
-class MySQLSessionFactory {
- public:
-
-  // it would seem to make more sense to use unique_ptr instead of shared_ptr here, but unfortunately
-  // unique_ptr's deleter is part of its type specification.  Therefore all places where unique_ptr
-  // was used would have to declare it like so: std::unique_ptr<MySQLSession, void(*)(MySQLSession*)>
-  // This is not very convenient. shared_ptr doesn't have this problem.
-  virtual std::shared_ptr<MySQLSession> create() const {
-    // custom deleter guarantees that memory will be freed HERE. Which means, it won't get freed in another DLL
-    return std::shared_ptr<MySQLSession>(new MySQLSession, [](MySQLSession* ptr) {
-      delete ptr;
-    });
-  }
-
-  virtual ~MySQLSessionFactory() {}
 };
 
 } // namespace mysqlrouter

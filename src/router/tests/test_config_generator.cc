@@ -15,19 +15,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "router_test_helpers.h"
-#include "mysqlrouter/utils.h"
+// must be the first header, don't move it
+#include <gtest/gtest_prod.h>
+
+#include "cluster_metadata.h"
+#include "config_generator.h"
 #include "config_parser.h"
+#include "dim.h"
 #include "gtest_consoleoutput.h"
+#include "mysql_session_replayer.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/utils.h"
+#include "router_app.h"
+#include "router_test_helpers.h"
 
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <streambuf>
 #include "keyring/keyring_manager.h"
-#ifdef _WIN32
-#include <Winsock2.h>
-#else
+#ifndef _WIN32
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -45,10 +52,7 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "config_generator.h"
-#include "mysqlrouter/mysql_session.h"
-#include "mysql_session_replayer.h"
-#include "cluster_metadata.h"
+#include <mysql.h>
 
 std::string g_cwd;
 mysql_harness::Path g_origin;
@@ -56,6 +60,10 @@ mysql_harness::Path g_origin;
 class ConfigGeneratorTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
+    mysql_harness::DIM::instance().set_RandomGenerator(
+      [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
+      [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+    );
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
@@ -104,6 +112,55 @@ static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
       {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
     });
 }
+
+void set_mock_mysql(MySQLSessionReplayer* ptr) {
+  mysql_harness::DIM::instance().set_MySQLSession(
+    [ptr](){ return ptr; },
+    [](mysqlrouter::MySQLSession*){}
+  );
+}
+
+class ReplayerWithMockSSL : public MySQLSessionReplayer {
+ public:
+  void set_ssl_options(mysql_ssl_mode ssl_mode,
+                       const std::string &tls_version,
+                       const std::string &ssl_cipher,
+                       const std::string &ca, const std::string &capath,
+                       const std::string &crl, const std::string &crlpath) {
+    last_ssl_mode = ssl_mode;
+    last_tls_version = tls_version;
+    last_ssl_cipher = ssl_cipher;
+    last_ssl_ca = ca;
+    last_ssl_capath = capath;
+    last_ssl_crl = crl;
+    last_ssl_crlpath = crlpath;
+    if (should_throw_)
+      throw Error("", 0);
+  }
+
+  void set_ssl_cert(const std::string &cert, const std::string &key) {
+    last_ssl_cert = cert;
+    last_ssl_key = key;
+    if (should_throw_)
+      throw Error("", 0);
+  }
+
+  void set_ssl_mode_should_fail(bool flag) { should_throw_ = flag; }
+
+public:
+  mysql_ssl_mode last_ssl_mode;
+  std::string last_tls_version;
+  std::string last_ssl_cipher;
+  std::string last_ssl_ca;
+  std::string last_ssl_capath;
+  std::string last_ssl_crl;
+  std::string last_ssl_crlpath;
+  std::string last_ssl_cert;
+  std::string last_ssl_key;
+
+ private:
+  bool should_throw_ = false;
+};
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
   MySQLSessionReplayer mock_mysql;
@@ -906,26 +963,28 @@ TEST_F(ConfigGeneratorTest, fill_options) {
 static struct {
   const char *query;
   bool execute;
+  uint64_t last_insert_id;
+
 } expected_bootstrap_queries[] = {
-  {"START TRANSACTION", true},
-  {"SELECT host_id, host_name", false},
-  {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true},
-  {"INSERT INTO mysql_innodb_cluster_metadata.routers", true},
-  {"DROP USER IF EXISTS mysql_innodb_cluster_router0@'%'", true},
-  {"CREATE USER mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_innodb_cluster_router0@'%'", true},
-  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_innodb_cluster_router0@'%'", true},
-  {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true},
-  {"COMMIT", true},
-  {NULL, true}
+  {"START TRANSACTION", true, 0},
+  {"SELECT host_id, host_name", false, 0 },
+  {"INSERT INTO mysql_innodb_cluster_metadata.hosts", true, 0 },
+  {"INSERT INTO mysql_innodb_cluster_metadata.routers", true, 4},
+  {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", true, 0},
+  {"CREATE USER mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_router4_012345678901@'%'", true, 0},
+  {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router4_012345678901@'%'", true, 0},
+  {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", true, 0},
+  {"COMMIT", true, 0},
+  {NULL, true, 0}
 };
 
 static void expect_bootstrap_queries(MySQLSessionReplayer &m, const char *cluster_name) {
   m.expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
   for (int i = 0; expected_bootstrap_queries[i].query; i++) {
     if (expected_bootstrap_queries[i].execute)
-      m.expect_execute(expected_bootstrap_queries[i].query).then_ok();
+      m.expect_execute(expected_bootstrap_queries[i].query).then_ok(expected_bootstrap_queries[i].last_insert_id);
     else
       m.expect_query_one(expected_bootstrap_queries[i].query).then_return(2, {});
   }
@@ -948,6 +1007,7 @@ static void bootstrap_name_test(const std::string &dir,
   std::map<std::string, std::string> options;
   options["name"] = name;
   options["quiet"] = "1";
+  options["id"] = "4";
   config_gen.bootstrap_directory_deployment(dir,
       options, default_paths, "delme", "delme.key");
 }
@@ -1377,10 +1437,10 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       std::string expected = std::string("Invalid master key file ");
       ASSERT_EQ(expected, std::string(e.what()).substr(0, expected.size()));
     }
-    mysqlrouter::delete_recursive("./delme");
-    mysqlrouter::delete_file("emptyfile");
-    mysql_harness::reset_keyring();
   }
+  mysqlrouter::delete_recursive("./delme");
+  mysqlrouter::delete_file("emptyfile");
+  mysql_harness::reset_keyring();
   // directory name but no filename
   {
     StrictMock<MySQLSessionReplayer> mysql;
@@ -1413,11 +1473,9 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       std::runtime_error,
       "Permission denied");
 #endif
-
-
-    mysqlrouter::delete_recursive("./delme");
-    mysql_harness::reset_keyring();
   }
+  mysqlrouter::delete_recursive("./delme");
+  mysql_harness::reset_keyring();
 }
 
 TEST_F(ConfigGeneratorTest, full_test) {
@@ -1468,8 +1526,7 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   file.close();
 
   EXPECT_NO_THROW(
-    router_id = config.get_router_id_from_config_file(conf_path, "dummy",
-                                                      false)
+    std::tie(router_id, std::ignore) = config.get_router_id_and_name_from_config(conf_path, "dummy", false)
   );
   EXPECT_EQ(router_id, uint32_t(0));
 
@@ -1477,10 +1534,317 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   mysql_harness::reset_keyring();
 }
 
+TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
+
+  // These tests verify that SSL options are handled correctly at argument parsing stage during bootstrap.
+  // Note that at this stage, we only care about arguments being passed further down, and rely on mysql_*()
+  // calls to deal with eventual inconsistencies. The only exception to this rule is parsing --ssl-mode,
+  // which is a string that has to be converted to an SSL_MODE_* enum (though arguably that validation
+  // could also be delayed).
+
+  // --ssl-mode not given
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310" };
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ(0u, router.bootstrap_options_.count("ssl_mode"));
+  }
+
+  // --ssl-mode missing argument
+  std::vector<std::string> argument_required_options{"--ssl-mode",
+      "--ssl-cipher", "--tls-version",
+      "--ssl-ca", "--ssl-capath", "--ssl-crl", "--ssl-crlpath",
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+      "--ssl-cert", "--ssl-key"
+#endif
+  };
+  for (auto &opt : argument_required_options) {
+                                   //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", opt};
+    try {
+      MySQLRouter router(Path(), argv);
+      FAIL() << "Expected std::invalid_argument to be thrown";
+    } catch (const std::runtime_error &e) {
+      EXPECT_STREQ(("option '"+opt+"' requires a value.").c_str(), e.what()); // TODO it would be nice to make case consistent
+      SUCCEED();
+    } catch (...) {
+      FAIL() << "Expected std::runtime_error to be thrown";
+    }
+  }
+
+  // --bootstrap missing
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--ssl-mode", "whatever"};
+    try {
+      MySQLRouter router(Path(), argv);
+      FAIL() << "Expected std::invalid_argument to be thrown";
+    } catch (const std::runtime_error &e) {
+      EXPECT_STREQ("Option --ssl-mode can only be used together with -B/--bootstrap", e.what());
+      SUCCEED();
+    } catch (...) {
+      FAIL() << "Expected std::runtime_error to be thrown";
+    }
+  }
+
+  // --ssl-mode has an invalid argument
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "bad"};
+    try {
+      MySQLRouter router(Path(), argv);
+      FAIL() << "Expected std::invalid_argument to be thrown";
+    } catch (const std::runtime_error &e) {
+      EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
+      SUCCEED();
+    } catch (...) {
+      FAIL() << "Expected std::runtime_error to be thrown";
+    }
+  }
+
+  // --ssl-mode = DISABLED + uppercase
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "DISABLED"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("DISABLED", router.bootstrap_options_.at("ssl_mode"));
+  }
+
+  // --ssl-mode = PREFERRED + lowercase
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "preferred"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("preferred", router.bootstrap_options_.at("ssl_mode"));
+  }
+
+  // --ssl-mode = REQUIRED + mixedcase
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "rEqUIrEd"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("rEqUIrEd", router.bootstrap_options_.at("ssl_mode"));
+  }
+
+  // --ssl-mode = VERIFY_CA
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("verify_ca", router.bootstrap_options_.at("ssl_mode"));
+  }
+
+  // --ssl-mode = VERIFY_CA, --ssl-ca etc
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca",
+                                    "--ssl-ca=/some/ca.pem", "--ssl-capath=/some/cadir",
+                                    "--ssl-crl=/some/crl.pem", "--ssl-crlpath=/some/crldir"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("verify_ca", router.bootstrap_options_.at("ssl_mode"));
+    EXPECT_EQ("/some/ca.pem", router.bootstrap_options_.at("ssl_ca"));
+    EXPECT_EQ("/some/cadir", router.bootstrap_options_.at("ssl_capath"));
+    EXPECT_EQ("/some/crl.pem", router.bootstrap_options_.at("ssl_crl"));
+    EXPECT_EQ("/some/crldir", router.bootstrap_options_.at("ssl_crlpath"));
+  }
+
+  // --ssl-mode = VERIFY_IDENTITY, --ssl-ca etc
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_identity",
+                                    "--ssl-ca=/some/ca.pem", "--ssl-capath=/some/cadir",
+                                    "--ssl-crl=/some/crl.pem", "--ssl-crlpath=/some/crldir"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("verify_identity", router.bootstrap_options_.at("ssl_mode"));
+    EXPECT_EQ("/some/ca.pem", router.bootstrap_options_.at("ssl_ca"));
+    EXPECT_EQ("/some/cadir", router.bootstrap_options_.at("ssl_capath"));
+    EXPECT_EQ("/some/crl.pem", router.bootstrap_options_.at("ssl_crl"));
+    EXPECT_EQ("/some/crldir", router.bootstrap_options_.at("ssl_crlpath"));
+  }
+
+  // --ssl-mode = REQUIRED, --ssl-* cipher options
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "required",
+                                   "--ssl-cipher",  "FOO-BAR-SHA678", "--tls-version", "TLSv1"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
+    EXPECT_EQ("FOO-BAR-SHA678", router.bootstrap_options_.at("ssl_cipher"));
+    EXPECT_EQ("TLSv1", router.bootstrap_options_.at("tls_version"));
+  }
+
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+  // --ssl-mode = REQUIRED, --ssl-cert, --ssl-key
+  {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "required", "--ssl-cert=/some/cert.pem", "--ssl-key=/some/key.pem"};
+    MySQLRouter router(Path(), argv);
+    EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
+    EXPECT_EQ("/some/cert.pem", router.bootstrap_options_.at("ssl_cert"));
+    EXPECT_EQ("/some/key.pem", router.bootstrap_options_.at("ssl_key"));
+  }
+#endif
+}
+
+TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
+
+  // These tests verify that MySQLSession::set_ssl_options() gets called with appropriate
+  // SSL options before making connection to metadata server during bootstrap
+
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  // mode
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {{"ssl_mode", "DISABLED"}});   // DISABLED + uppercase
+    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_DISABLED);
+  }
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {{"ssl_mode", "preferred"}});  // PREFERRED + lowercase
+    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_PREFERRED);
+  }
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {{"ssl_mode", "rEqUIrEd"}});   // REQUIRED + mixedcase
+    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_REQUIRED);
+  }
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {{"ssl_mode", "VERIFY_CA"}});
+    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_VERIFY_CA);
+  }
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {{"ssl_mode", "VERIFY_IDENTITY"}});
+    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_VERIFY_IDENTITY);
+  }
+  {
+    // invalid ssl_mode should get handled at arg-passing stage, and so we have a unit test for that
+    // in ssl_stage1_cmdline_arg_parse test above
+  }
+
+  // other fields
+  {
+    common_pass_metadata_checks(mock_mysql);
+    ConfigGenerator config_gen;
+    config_gen.init("", {
+      {"ssl_ca",      "/some/ca/file"},
+      {"ssl_capath",  "/some/ca/dir"},
+      {"ssl_crl",     "/some/crl/file"},
+      {"ssl_crlpath", "/some/crl/dir"},
+      {"ssl_cipher",  "FOO-BAR-SHA678"},
+      {"tls_version", "TLSv1"},
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+      {"ssl_cert","/some/cert.pem"},
+      {"ssl_key", "/some/key.pem"},
+#endif
+    });
+    EXPECT_EQ(mock_mysql.last_ssl_ca,      "/some/ca/file");
+    EXPECT_EQ(mock_mysql.last_ssl_capath,  "/some/ca/dir");
+    EXPECT_EQ(mock_mysql.last_ssl_crl,     "/some/crl/file");
+    EXPECT_EQ(mock_mysql.last_ssl_crlpath, "/some/crl/dir");
+    EXPECT_EQ(mock_mysql.last_ssl_cipher,  "FOO-BAR-SHA678");
+    EXPECT_EQ(mock_mysql.last_tls_version, "TLSv1");
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+    EXPECT_EQ(mock_mysql.last_ssl_cert,    "/some/cert.pem");
+    EXPECT_EQ(mock_mysql.last_ssl_key,     "/some/key.pem");
+#endif
+  }
+}
+
+TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
+
+  // These tests verify that config parameters passed to ConfigGenerator::create_config() will make
+  // it to configuration file as expected. Note that even though ssl_mode options are not case-sensive,
+  // their case should be preserved (written to config file exactly as given in bootstrap options).
+
+  ConfigGenerator config_gen;
+
+  auto test_config_output = [&config_gen](const std::map<std::string, std::string>& user_options, const char* result) {
+    ConfigGenerator::Options options = config_gen.fill_options(false, user_options);
+    std::stringstream output;
+    config_gen.create_config(output, 123, "myrouter", "user", "server1,server2,server3",
+                             "mycluster", "myreplicaset", "cluster_user", options);
+    EXPECT_THAT(output.str(), HasSubstr(result));
+  };
+
+  test_config_output({{"ssl_mode", "DISABLED"}},  "ssl_mode=DISABLED");   // DISABLED + uppercase
+  test_config_output({{"ssl_mode", "preferred"}}, "ssl_mode=preferred");  // PREFERRED + lowercase
+  test_config_output({{"ssl_mode", "rEqUIrEd"}},  "ssl_mode=rEqUIrEd");   // REQUIRED + mixedcase
+  test_config_output({{"ssl_mode", "Verify_Ca"}}, "ssl_mode=Verify_Ca");
+  test_config_output({{"ssl_mode", "Verify_identity"}},  "ssl_mode=Verify_identity");
+
+  test_config_output({{"ssl_ca", "/some/path"}}, "ssl_ca=/some/path");
+  test_config_output({{"ssl_capath", "/some/path"}}, "ssl_capath=/some/path");
+  test_config_output({{"ssl_crl", "/some/path"}}, "ssl_crl=/some/path");
+  test_config_output({{"ssl_crlpath", "/some/path"}}, "ssl_crlpath=/some/path");
+  test_config_output({{"ssl_cipher", "FOO-BAR-SHA678"}}, "ssl_cipher=FOO-BAR-SHA678");
+  test_config_output({{"tls_version", "TLSv1"}}, "tls_version=TLSv1");
+}
+
+// TODO use these as testcases in unit tests:
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("some bad query")); // TESTCASE: should throw generic exception
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("select @@port"));  // TESTCASE: should generate assert
+//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'HIDE_ssl_cipher'")); // TESTCASE: should throw Error reading 'Ssl_cipher' stat var (result = NULL)
+//  struct RR : public MySQLSession::ResultRow {
+//    RR(const std::vector<const char*>& v) { row_ = v; }
+//  };
+//  result.reset();                                     // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{}});                           // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{nullptr}});                    // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"something"}});                // TESTCASE: should throw Error reading 'ssl_cipher' stat var
+//  result.reset(new RR{{"ssl_cipher", nullptr}});      // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", ""}});           // TESTCASE: should warn about no SSL
+//  result.reset(new RR{{"ssl_cipher", "some_cipher"}});// TESTCASE: should pass
+//  result.reset(new RR{{"bad", ""}});                  // TESTCASE: should throw assertion
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();
   g_cwd = mysql_harness::Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
+}
+
+TEST_F(ConfigGeneratorTest, warn_no_ssl_false) {
+  MySQLSessionReplayer mock_mysql;
+
+  const std::vector<std::string> prefered_values{"PREFERRED", "preferred", "Preferred"};
+  for (size_t i = 0u; i < prefered_values.size(); ++i)
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_metadata_checks(mock_mysql);
+    mock_mysql.expect_query_one("show status like 'ssl_cipher'");
+    mock_mysql.then_return(2, {
+        {mock_mysql.string_or_null("ssl_cipher"), mock_mysql.string_or_null("")}
+      });
+
+    std::map<std::string, std::string> options;
+    options["ssl_mode"] = prefered_values[i];
+
+    config_gen.init(&mock_mysql);
+    const bool res = config_gen.warn_on_no_ssl(options);
+
+    ASSERT_FALSE(res);
+  }
+}
+
+TEST_F(ConfigGeneratorTest, warn_no_ssl_true) {
+  MySQLSessionReplayer mock_mysql;
+
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_metadata_checks(mock_mysql);
+
+    std::map<std::string, std::string> options;
+    options["ssl_mode"] = "DISABLED";
+
+    config_gen.init(&mock_mysql);
+    const bool res = config_gen.warn_on_no_ssl(options);
+
+    ASSERT_TRUE(res);
+  }
 }

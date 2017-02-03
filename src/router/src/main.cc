@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,12 +16,36 @@
 */
 
 #include "common.h"
+#include "dim.h"
+#include "utils.h"
+#include "mysql_session.h"
 #include "router_app.h"
 #include "windows/main-windows.h"
 #include <mysql.h>
 #include <iostream>
 
+/** @brief Initialise Dependency Injection Manager (DIM)
+ *
+ * This is the place to initialise all the DI stuff used thoroughout our application.
+ * (well, maybe we'll want plugins to init their own stuff, we'll see).
+ *
+ * Naturally, unit tests will not run this code, as they will initialise the objects
+ * they need their own way.
+ */
+static void init_DIM() {
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+
+  // MySQLSession
+  dim.set_MySQLSession([](){ return new mysqlrouter::MySQLSession(); });
+
+  // Ofstream
+  dim.set_Ofstream([](){ return new mysqlrouter::RealOfstream(); });
+}
+
 int real_main(int argc, char **argv) {
+  mysql_harness::rename_thread("main");
+  init_DIM();
+
   extern std::string g_program_name;
   g_program_name = argv[0];
   int result = 0;
@@ -65,8 +89,12 @@ int real_main(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-  mysql_harness::rename_thread("main");
 
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+  dim.set_RandomGenerator(
+    [](){ static mysqlrouter::RandomGenerator rg; return &rg; },
+    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+  );
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);
 #else

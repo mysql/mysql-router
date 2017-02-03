@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,12 +34,14 @@ using namespace std;
  *                           metadata server should timeout.
  * @param connection_attempts The number of times a connection to metadata must
  *                            be attempted, when a connection attempt fails.
- *
+ * @param ttl The TTL of the cached data.
+ * @param ssl_options SSL related options for connections
  */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connection_timeout, int connection_attempts,
-               unsigned int ttl)
-  : ClusterMetadata(user, password, connection_timeout, connection_attempts, ttl) {
+               unsigned int ttl,
+               const mysqlrouter::SSLOptions &ssl_options)
+  : ClusterMetadata(user, password, connection_timeout, connection_attempts, ttl, ssl_options) {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
   ms1.location = "us.wa.seattle";

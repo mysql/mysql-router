@@ -63,6 +63,35 @@ const perm_mode kStrictDirectoryPerm = S_IRWXU;
 const perm_mode kStrictDirectoryPerm = 0;
 #endif
 
+void MockOfstream::open(const char* filename, ios_base::openmode mode /*= ios_base::out*/) {
+
+  // deal properly with A, B, C, B scenario
+  // (without this, last B would create a 4th file which would not be tracked by map)
+  if (filenames_.count(filename)) {
+    erase_file(filenames_.at(filename));
+    filenames_.erase(filename);
+  }
+
+  std::string fake_filename = gen_fake_filename(filenames_.size());
+  filenames_.emplace(filename, fake_filename);
+
+  std::ofstream::open(fake_filename, mode);
+}
+
+/*static*/ std::map<std::string, std::string> MockOfstream::filenames_;
+
+/*static*/ void MockOfstream::erase_file(const std::string& filename) {
+  remove(filename.c_str());
+}
+
+/*static*/ std::string MockOfstream::gen_fake_filename(unsigned long i) {
+#ifndef WIN32_
+  return std::string("/tmp/mysqlrouter_mockfile") + std::to_string(i);
+#else
+  return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
+#endif
+}
+
 std::vector<string> wrap_string(const string &to_wrap, size_t width, size_t indent_size) {
   size_t curr_pos = 0;
   size_t wrap_pos = 0;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -306,7 +306,7 @@ void test_int_conv_common(FUNC func) {
   #undef EXPECT_EQ2
 }
 
-TEST_F(UtilsTests, test_int_conversion) {
+TEST_F(UtilsTests, int_conversion) {
   using mysqlrouter::strtoi_checked;
 
   test_int_conv_common(strtoi_checked);
@@ -330,7 +330,7 @@ TEST_F(UtilsTests, test_int_conversion) {
   EXPECT_EQ(0,  strtoi_checked("+0", 66));
 }
 
-TEST_F(UtilsTests, test_uint_conversion) {
+TEST_F(UtilsTests, uint_conversion) {
   using mysqlrouter::strtoui_checked;
 
   test_int_conv_common(strtoui_checked);
@@ -347,5 +347,112 @@ TEST_F(UtilsTests, test_uint_conversion) {
   // extra + sign
   EXPECT_EQ(12u, strtoui_checked("+12", 66));
   EXPECT_EQ(0u,  strtoui_checked("+0", 66));
+}
+
+TEST_F(UtilsTests, generate_password) {
+  // here we test the output of our password generator. In each test we verify:
+  // - password length to be as specified
+  // - random distribution of chars: we expect to see at least one occurrence
+  //   of every char possible (for example, if base is 4, we expect at least one
+  //   occurrence of '0', '1', '2' and '3'). We rely on kBigNumber being large
+  //   enough to bring the chance of this test failing extremely close to 0,
+  //   however in theory, this test can randomly fail.
+
+  // number large enough so that (in practice) at least one representative of each
+  // possible random char will be present in the output.  Obviously nothing is 100%
+  // guaranteed, the idea is to make random test failures very very very unlikely.
+  constexpr unsigned kBigNumber = 10 * 1000;
+
+  constexpr unsigned kMaxBase = 89;  // this is the max base (atm)
+
+  mysqlrouter::RandomGenerator rg;
+
+  // min random base
+  {
+    std::string s = rg.generate_password(kBigNumber, 2);
+    std::map<char, unsigned> hist;
+    for (char c : s)
+      hist[c]++;
+    EXPECT_EQ(2u, hist.size());  // if this failed, you've won the jackpot! (please rerun)
+    EXPECT_TRUE(hist.count('0'));
+    EXPECT_TRUE(hist.count('1'));
+    EXPECT_EQ(kBigNumber, hist['0'] + hist['1']);
+  }
+
+  // max random base (supported atm)
+  {
+    std::string s = rg.generate_password(kBigNumber, kMaxBase);
+    std::map<char, unsigned> hist;
+    for (char c : s)
+      hist[c]++;
+    EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+
+    unsigned total_chars = 0;
+    for (const auto& i : hist)
+      total_chars += i.second;
+    EXPECT_EQ(kBigNumber, total_chars);
+  }
+
+  // max random base (supported atm) - implicit base
+  {
+    std::string s = rg.generate_password(kBigNumber);
+    std::map<char, unsigned> hist;
+    for (char c : s)
+      hist[c]++;
+    EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+
+    unsigned total_chars = 0;
+    for (const auto& i : hist)
+      total_chars += i.second;
+    EXPECT_EQ(kBigNumber, total_chars);
+  }
+
+  // random base 10
+  {
+    std::string s = rg.generate_password(kBigNumber, 10);
+    std::map<char, unsigned> hist;
+    for (char c : s)
+      hist[c]++;
+    EXPECT_EQ(10u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+
+    unsigned total_chars = 0;
+    for (char c = '0'; c <= '9'; c++) {
+      EXPECT_NE(0u, hist[c]);
+      total_chars += hist[c];
+    }
+    EXPECT_EQ(kBigNumber, total_chars);
+  }
+
+  // random base 36
+  {
+    std::string s = rg.generate_password(kBigNumber, 36);
+    std::map<char, unsigned> hist;
+    for (char c : s)
+      hist[c]++;
+    EXPECT_EQ(36u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
+
+    unsigned total_chars = 0;
+    for (char c = '0'; c <= '9'; c++) {
+      EXPECT_NE(0u, hist[c]);
+      total_chars += hist[c];
+    }
+    for (char c = 'a'; c <= 'z'; c++) {
+      EXPECT_NE(0u, hist[c]);
+      total_chars += hist[c];
+    }
+    EXPECT_EQ(kBigNumber, total_chars);
+  }
+
+  // length = 0
+  {
+    std::string s = rg.generate_password(0, 10);
+    EXPECT_EQ(0u, s.size());
+  }
+
+  // length = 1
+  {
+    std::string s = rg.generate_password(1, 10);
+    EXPECT_EQ(1u, s.size());
+  }
 }
 

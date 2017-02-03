@@ -44,12 +44,9 @@ lockfile=/var/lock/subsys/$prog
 datadir=/var/lib/mysqlrouter
 
 start () {
-    [ -d $piddir ] || mkdir -p $piddir
-    chown mysqlrouter:mysqlrouter $piddir
-    [ -d $logdir ] || mkdir -p $logdir
-    chown mysqlrouter:mysqlrouter $logdir
-    [ -e $logfile ] || touch $logfile
-    chown mysqlrouter:mysqlrouter $logfile
+    [ -d $piddir ] || [ -L $piddir ] || install -d -m 0750 -o mysqlrouter -g mysqlrouter ${piddir}
+    [ -d $logdir ] || [ -L $logdir ] || install -d -m 0750 -o mysqlrouter -g mysqlrouter ${logdir}
+    [ -e $logfile ] || [ -L $logfile ] || install /dev/null -m 0750 -o mysqlrouter -g mysqlrouter ${logfile}
     export ROUTER_PID=$pidfile
     [ -d $datadir ] || mkdir -p $datadir
     chown mysqlrouter:mysqlrouter $datadir

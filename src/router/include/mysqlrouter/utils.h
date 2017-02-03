@@ -18,8 +18,10 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
+#include <assert.h>
 #include <cstdarg>
 #include <cstdint>
+#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -28,6 +30,11 @@
 #  include <netdb.h>
 #  include <pwd.h>
 #endif
+
+#include <stdio.h>
+#include <fstream>
+#include <iostream>
+#include <map>
 
 #include "config.h"
 
@@ -40,6 +47,72 @@ using perm_mode = int;
 #endif
 /** @brief Constant for directory accessible only for the owner */
 extern const perm_mode kStrictDirectoryPerm;
+
+/** @class Ofstream
+ *  @brief interface to std::ofstream and alternative (mock) implementations
+ *
+ * std::ofstream is not mockable, because its methods are not virtual. To work around this,
+ * we create this interface class, which then acts as superclass to various std::ofstream
+ * implementation classes.
+ */
+class Ofstream : public std::ofstream {
+ public:
+  using std::ofstream::ofstream;
+  virtual ~Ofstream() {}
+  virtual void open(const char* filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
+  virtual void open(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
+};
+
+/** @class RealOfstream 
+ *  @brief simple std::ofstream adapter, needed for DI purposes
+ *
+ * This class is just a simple adapter for std::ofstream. It forwards all calls to std::ofstream
+ */
+class RealOfstream : public Ofstream {
+ public:
+  using Ofstream::Ofstream;
+  virtual void open(const char* filename, std::ios_base::openmode mode = std::ios_base::out) {
+    return std::ofstream::open(filename, mode);
+  }
+  virtual void open(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out) {
+    return open(filename.c_str(), mode);
+  }
+};
+
+/** @class MockOfstream
+ *  @brief mock implementation of std::ofstream
+ *
+ * The idea behind this class is to allow unit tests to run, without actually causing a mess on disk.
+ * So far a minimal implementation is provided, which can be expanded as needed.
+ */
+class MockOfstream : public Ofstream {
+ public:
+  MockOfstream(const char* filename, ios_base::openmode mode = ios_base::out) {
+    open(filename, mode);
+  }
+
+  // mock open
+  void open(const char* filename, ios_base::openmode mode = ios_base::out) override;
+  void open(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out) override {
+    return open(filename.c_str(), mode);
+  }
+
+  // extract the original filename
+  static std::string application_to_real_filename(const std::string& application_filename) {
+    return filenames_.at(application_filename);
+  }
+
+  // run this at the end of the unit test
+  static void clean_up() {
+    for (auto filename : filenames_)
+      erase_file(filename.second);
+  }
+
+ private:
+  static std::string gen_fake_filename(unsigned long i);
+  static void erase_file(const std::string& filename);
+  static std::map<std::string, std::string> filenames_; // key = application filename, value = filename on disk
+};
 
 // Some (older) compiler have no std::to_string available
 template<typename T>
@@ -359,6 +432,46 @@ struct passwd* check_user(const std::string& username,
 
 #endif // ! _WIN32
 
+class RandomGeneratorInterface {
+ public:
+  /** @brief Generates a random (password) string
+   *
+   * @param password_length length of string requested
+   * @param base            number of possible random values per character
+   * @return string with random chars (aka password string)
+   *
+   */
+  virtual std::string generate_password(unsigned password_length, unsigned base = 89) noexcept = 0;
+};
+
+class RandomGenerator : public RandomGeneratorInterface {
+ public:
+  std::string generate_password(unsigned password_length, unsigned base = 89) noexcept override {
+    constexpr char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
+    assert(base <= sizeof(alphabet) - 1); // unsupported base requested (-1 for string terminator)
+    assert(base > 1);                     // sanity check
+
+    std::random_device rd;
+    std::string pwd;
+    std::uniform_int_distribution<unsigned long> dist(0, base - 1);
+
+    for (unsigned i = 0; i < password_length; i++)
+      pwd += alphabet[dist(rd)];
+
+    return pwd;
+  }
+};
+
+class FakeRandomGenerator : public RandomGeneratorInterface {
+ public:
+  // returns "012345678901234567890123...", truncated to password_length
+  std::string generate_password(unsigned password_length, unsigned = 0) noexcept override {
+    std::string pwd;
+    for (unsigned i = 0; i < password_length; i++)
+      pwd += static_cast<char>('0' + i % 10);
+    return pwd;
+  }
+};
 
 } // namespace mysqlrouter
 

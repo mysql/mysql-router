@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,15 +44,17 @@ const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick
  * @param user The user name used to connect to the metadata servers.
  * @param password The password used to connect to the metadata servers.
  * @param ttl The ttl for the contents of the cache
+ * @param ssl_options SSL related options for connections
  * @param cluster_name The name of the cluster from the metadata schema
  */
 void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
                   unsigned int ttl,
+                  const mysqlrouter::SSLOptions &ssl_options,
                   const std::string &cluster_name) {
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
-    get_instance(user, password, 1, 1, ttl), ttl, cluster_name));
+    get_instance(user, password, 1, 1, ttl, ssl_options), ttl, ssl_options, cluster_name));
   g_metadata_cache->start();
 }
 

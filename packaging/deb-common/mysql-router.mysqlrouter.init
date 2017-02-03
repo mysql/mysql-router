@@ -11,7 +11,7 @@
 #                    MySQL Router.
 ### END INIT INFO
 
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,9 +58,7 @@ do_start() {
 
   if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
   then
-          mkdir ${RUNTIMEDIR}
-          chown mysqlrouter:adm ${RUNTIMEDIR}
-          chmod 750 ${RUNTIMEDIR}
+    install -d -m 0750 -o mysqlrouter -g adm ${RUNTIMEDIR}
   fi
 
   if [ ! -d ${DATADIR} -a ! -L ${DATADIR} ];
@@ -72,15 +70,10 @@ do_start() {
 
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
   then
-          mkdir ${LOGDIR}
-          chown mysqlrouter:adm ${LOGDIR}
-          chmod 750 ${LOGDIR}
+    install -d -m 0750 -o mysqlrouter -g adm ${LOGDIR}
   fi
-  touch ${LOGFILE}
 
-  # Ensure the log file is writable by the own
-  chown mysqlrouter:adm ${LOGFILE}
-  chmod 640 ${LOGFILE}
+  install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}
 
   /lib/init/apparmor-profile-load usr.bin.mysqlrouter
 

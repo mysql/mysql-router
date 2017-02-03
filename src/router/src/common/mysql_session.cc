@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,10 +17,14 @@
 
 #include "mysqlrouter/mysql_session.h"
 #include "logger.h"
+
+#include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <sstream>
 #include <fstream>
 #include <mysql.h>
+#include <algorithm>
 #include <cstdlib>
+#include <ctype.h>  // not <cctype> because we don't want std::toupper(), which causes problems with std::transform()
 #include <iostream>
 
 using namespace mysqlrouter;
@@ -44,6 +48,11 @@ using namespace mysqlrouter;
 #endif
 #endif
 
+/*static*/ const char MySQLSession::kSslModeDisabled[]  = "DISABLED";
+/*static*/ const char MySQLSession::kSslModePreferred[] = "PREFERRED";
+/*static*/ const char MySQLSession::kSslModeRequired[]  = "REQUIRED";
+/*static*/ const char MySQLSession::kSslModeVerifyCa[]  = "VERIFY_CA";
+/*static*/ const char MySQLSession::kSslModeVerifyIdentity[]  = "VERIFY_IDENTITY";
 
 #ifdef MOCK_RECORDER
 class MockRecorder {
@@ -141,7 +150,6 @@ static MockRecorder g_mock_recorder;
 #define MOCK_REC_ROW(r, m) do {} while(0)
 #endif // !MOCK_RECORDER
 
-
 MySQLSession::MySQLSession() {
   connection_ = new MYSQL();
   connected_ = false;
@@ -151,9 +159,162 @@ MySQLSession::MySQLSession() {
   }
 }
 
+
 MySQLSession::~MySQLSession() {
   mysql_close(connection_);
   delete connection_;
+}
+
+/*static*/
+mysql_ssl_mode MySQLSession::parse_ssl_mode(std::string ssl_mode) {
+
+  // we allow lowercase equivalents, to be consistent with mysql client
+  std::transform(ssl_mode.begin(), ssl_mode.end(), ssl_mode.begin(), toupper);
+
+  if (ssl_mode == kSslModeDisabled)
+    return SSL_MODE_DISABLED;
+  else if (ssl_mode == kSslModePreferred)
+    return SSL_MODE_PREFERRED;
+  else if (ssl_mode == kSslModeRequired)
+    return SSL_MODE_REQUIRED;
+  else if (ssl_mode == kSslModeVerifyCa)
+    return SSL_MODE_VERIFY_CA;
+  else if (ssl_mode == kSslModeVerifyIdentity)
+    return SSL_MODE_VERIFY_IDENTITY;
+  else
+    throw std::logic_error(std::string("Unrecognised SSL mode '") + ssl_mode + "'");
+}
+
+/*static*/
+const char* MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
+  const char* text = NULL;
+
+  // The better way would be to do away with text variable and return kSslMode*
+  // directly from each case. Unfortunately, Clang 3.4 doesn't like it:
+  //   control reaches end of non-void function [-Werror=return-type]
+  // even though it knows all cases are handled (issues another warning if any
+  // one is removed).
+  switch (ssl_mode) {
+    case SSL_MODE_DISABLED:
+      text = kSslModeDisabled;
+      break;
+    case SSL_MODE_PREFERRED:
+      text = kSslModePreferred;
+      break;
+    case SSL_MODE_REQUIRED:
+      text = kSslModeRequired;
+      break;
+    case SSL_MODE_VERIFY_CA:
+      text = kSslModeVerifyCa;
+      break;
+    case SSL_MODE_VERIFY_IDENTITY:
+      text = kSslModeVerifyIdentity;
+      break;
+  }
+
+  return text;
+}
+
+bool MySQLSession::check_for_yassl(st_mysql *connection) {
+  static bool check_done = false;
+  static bool is_yassl = false;
+  if (!check_done) {
+    const char* old_version{nullptr};
+    // the assumption is that yaSSL does not support this version
+    const char* kTlsNoYassl = "TLSv1.2";
+
+    if (mysql_get_option(connection, MYSQL_OPT_TLS_VERSION, &old_version)) {
+      throw Error("Error checking for SSL implementation", mysql_errno(connection));
+    }
+    int res = mysql_options(connection, MYSQL_OPT_TLS_VERSION, kTlsNoYassl);
+    is_yassl = (res != 0);
+    if (mysql_options(connection, MYSQL_OPT_TLS_VERSION, old_version)) {
+      throw Error("Error checking for SSL implementation", mysql_errno(connection));
+    }
+    check_done = true;
+  }
+
+  return is_yassl;
+}
+
+void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
+                                   const std::string &tls_version,
+                                   const std::string &ssl_cipher,
+                                   const std::string &ca, const std::string &capath,
+                                   const std::string &crl, const std::string &crlpath) {
+
+
+  if (check_for_yassl(connection_)) {
+    if ((ssl_mode >= SSL_MODE_VERIFY_CA) ||
+        (!ca.empty()) || (!capath.empty()) ||
+        (!crl.empty()) || (!crlpath.empty())) {
+      throw std::invalid_argument("Certificate Verification is disabled in this build of the MySQL Router. \n"
+                                  "The following parameters are not supported: \n"
+                                  " --ssl-mode=VERIFY_CA, --ssl-mode=VERIFY_IDENTITY, \n"
+                                  " --ssl-ca, --ssl-capath, --ssl-crl, --ssl-crlpath \n"
+                                  "Please check documentation for the details."
+                                  );
+    }
+  }
+
+  if (!ssl_cipher.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CIPHER, ssl_cipher.c_str()) != 0) {
+    throw Error(("Error setting SSL_CIPHER option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!tls_version.empty() &&
+      mysql_options(connection_, MYSQL_OPT_TLS_VERSION, tls_version.c_str()) != 0) {
+    throw Error("Error setting TLS_VERSION option for MySQL connection",
+                mysql_errno(connection_));
+  }
+
+  if (!ca.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CA, ca.c_str()) != 0) {
+    throw Error(("Error setting SSL_CA option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!capath.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CAPATH, capath.c_str()) != 0) {
+    throw Error(("Error setting SSL_CAPATH option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!crl.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CRL, crl.c_str()) != 0) {
+    throw Error(("Error setting SSL_CRL option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  if (!crlpath.empty() &&
+      mysql_options(connection_, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str()) != 0) {
+    throw Error(("Error setting SSL_CRLPATH option for MySQL connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
+
+  // this has to be the last option that gets set due to what appears to be a bug in libmysql
+  // causing ssl_mode downgrade from REQUIRED if other options (like tls_version) are also specified
+  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
+    const char* text = ssl_mode_to_string(ssl_mode);
+    std::string msg = std::string("Setting SSL mode to '") + text + "' on connection failed: "
+                    + mysql_error(connection_);
+    throw Error(msg.c_str(), mysql_errno(connection_));
+  }
+}
+
+void MySQLSession::set_ssl_cert(const std::string &cert, const std::string &key) {
+  if (mysql_options(connection_, MYSQL_OPT_SSL_CERT, cert.c_str()) != 0 ||
+      mysql_options(connection_, MYSQL_OPT_SSL_KEY, key.c_str()) != 0) {
+    throw Error(("Error setting client SSL certificate for connection: "
+                + std::string(mysql_error(connection_))).c_str(),
+                mysql_errno(connection_));
+  }
 }
 
 void MySQLSession::connect(const std::string &host, unsigned int port,
@@ -318,11 +479,11 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
   throw Error("Not connected", 0);
 }
 
-uint64_t MySQLSession::last_insert_id() {
+uint64_t MySQLSession::last_insert_id() noexcept {
   return mysql_insert_id(connection_);
 }
 
-std::string MySQLSession::quote(const std::string &s, char qchar) {
+std::string MySQLSession::quote(const std::string &s, char qchar) noexcept {
   std::string r;
   r.resize(s.length()*2+3);
   r[0] = qchar;

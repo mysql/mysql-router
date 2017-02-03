@@ -20,12 +20,15 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/uri.h"
 #include "common.h"
+#include "dim.h"
 #include "filesystem.h"
 #include "config_parser.h"
 #include "common.h"
 #include "rapidjson/rapidjson.h"
 #include "utils.h"
 #include "router_app.h"
+#include "dim.h"
+
 // #include "logger.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -33,6 +36,7 @@
 #include <sys/stat.h>
 #endif
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -61,8 +65,15 @@ static const int kMaxRouterNameLength = 255; // must match metadata router.name 
 
 static const char *kKeyringAttributePassword = "password";
 
+static const int kDefaultTTL = 300; // default configured TTL in seconds
+static constexpr uint32_t kMaxRouterId = 999999;  // max router id is 6 digits due to username size constraints
+static constexpr unsigned kNumRandomChars = 12;
+static constexpr unsigned kRandomCharBase = 36;
+
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
+using mysql_harness::UniquePtr;
+using mysql_harness::DIM;
 using namespace mysqlrouter;
 
 
@@ -79,19 +90,6 @@ static std::string get_string(const char *input_str) {
     return "";
   }
   return std::string(input_str);
-}
-
-
-static std::string generate_password(int password_length) {
-  std::random_device rd;
-  std::string pwd;
-  const char *alphabet = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
-  std::uniform_int_distribution<unsigned long> dist(0, strlen(alphabet) - 1);
-
-  for (int i = 0; i < password_length; i++)
-    pwd += alphabet[dist(rd)];
-
-  return pwd;
 }
 
 static bool is_valid_name(const std::string& name) {
@@ -173,14 +171,99 @@ private:
 };
 
 
-
 void ConfigGenerator::init(MySQLSession *session) {
-  mysql_ = session;
+  mysql_ = session; // TODO migrate to DIM and get rid of mysql_ and mysql_owned_
 
   check_innodb_metadata_cluster_session(session, false);
 }
 
-void ConfigGenerator::init(const std::string &server_url) {
+inline std::string get_opt(const std::map<std::string, std::string> &map,
+                       const std::string &key, const std::string &default_value) {
+  auto iter = map.find(key);
+  if (iter == map.end())
+    return default_value;
+  return iter->second;
+}
+
+/*static*/
+void ConfigGenerator::set_ssl_options(MySQLSession* sess,
+                                   const std::map<std::string, std::string>& options) {
+
+  std::string ssl_mode = get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred);
+  std::string ssl_cipher = get_opt(options, "ssl_cipher", "");
+  std::string tls_version = get_opt(options, "tls_version", "");
+  std::string ssl_ca = get_opt(options, "ssl_ca", "");
+  std::string ssl_capath = get_opt(options, "ssl_capath", "");
+  std::string ssl_crl = get_opt(options, "ssl_crl", "");
+  std::string ssl_crlpath = get_opt(options, "ssl_crlpath", "");
+
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+  std::string ssl_cert = get_opt(options, "ssl_cert", "");
+  std::string ssl_key = get_opt(options, "ssl_key", "");
+#endif
+
+  // parse ssl_mode option (already validated in cmdline option handling)
+  mysql_ssl_mode ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
+
+  // set ssl_mode
+  sess->set_ssl_options(ssl_enum, tls_version, ssl_cipher,
+                        ssl_ca, ssl_capath, ssl_crl, ssl_crlpath);
+
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+  if (!ssl_cert.empty() || !ssl_key.empty()) {
+    sess->set_ssl_cert(ssl_cert, ssl_key);
+  }
+#endif
+}
+
+bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &options) {
+
+  // warninng applicable only if --ssl-mode=PREFERRED (or not specified, which defaults to PREFERRED)
+  std::string ssl_mode = get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred);
+  std::transform(ssl_mode.begin(), ssl_mode.end(), ssl_mode.begin(), toupper);
+
+  if (ssl_mode != MySQLSession::kSslModePreferred)
+    return true;
+
+  // warn if the connection is unencrypted
+  try {
+    // example response
+    //
+    // > show status like "ssl_cipher"'
+    // +---------------+--------------------+
+    // | Variable_name | Value              |
+    // +---------------+--------------------+
+    // | Ssl_cipher    | DHE-RSA-AES256-SHA | (or null)
+    // +---------------+--------------------+
+
+    std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'ssl_cipher'"));
+
+    if (!result || result->size() != 2)
+      throw std::runtime_error("Error reading 'ssl_cipher' status variable");
+#ifdef _WIN32
+    assert(!_stricmp((*result)[0], "ssl_cipher"));
+#else
+    assert(!strcasecmp((*result)[0], "ssl_cipher"));
+#endif
+
+    // if ssl_cipher is empty, it means the connection is unencrypted
+    if ((*result)[1] &&
+        (*result)[1][0]) {
+      return true;  // connection is encrypted
+    } else {
+      std::cerr << "WARNING: The MySQL server does not have SSL configured and "
+                   "metadata used by the router may be transmitted unencrypted." << std::endl;
+      return false; // connection is unencrypted
+    }
+  } catch (std::exception &e) {
+    std::cerr << "Failed determining if metadata connection uses SSL: " << e.what() << std::endl;
+    throw std::runtime_error(e.what());
+  }
+}
+
+void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
   int connection_timeout_ = 5;
   // Extract connection information from the bootstrap server URL.
@@ -202,22 +285,24 @@ void ConfigGenerator::init(const std::string &server_url) {
       "Please enter MySQL password for "+u.username);
   }
 
-  std::unique_ptr<MySQLSession> s(new MySQLSession());
+  UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
   try
   {
+    set_ssl_options(s.get(), bootstrap_options);
     s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
     throw std::runtime_error(err.str());
   }
-  init(s.release());
-  mysql_owned_ = true;
+  mysql_deleter_ = s.get_deleter(); // \.
+  init(s.release());                //  > TODO get rid of mysql_* variables
+  mysql_owned_ = true;              // /       (replace by DIM semantics)
 }
 
 ConfigGenerator::~ConfigGenerator() {
   if (mysql_owned_)
-    delete mysql_;
+    mysql_deleter_(mysql_);
 }
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
@@ -244,16 +329,16 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     options["socketsdir"] = "/tmp";
 
   // (re-)bootstrap the instance
-  std::ofstream config_file;
-  config_file.open(config_file_path + ".tmp");
-  if (config_file.fail()) {
+  UniquePtr<Ofstream> config_file = DIM::instance().new_Ofstream();
+  config_file->open(config_file_path + ".tmp");
+  if (config_file->fail()) {
     throw std::runtime_error("Could not open " + config_file_path + ".tmp for writing: " + get_strerror(errno));
   }
-  bootstrap_deployment(config_file, _config_file_path,
+  bootstrap_deployment(*config_file, _config_file_path,
     router_name, options, default_paths,
     keyring_file_path, keyring_master_key_file,
     false);
-  config_file.close();
+  config_file->close();
 
   if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options)) {
     if (!quiet)
@@ -497,6 +582,15 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     options.override_datadir = user_options.at("datadir");
   if (user_options.find("socketsdir") != user_options.end())
     options.socketsdir = user_options.at("socketsdir");
+
+  options.ssl_options.mode = get_opt(user_options, "ssl_mode", "");
+  options.ssl_options.cipher = get_opt(user_options, "ssl_cipher", "");
+  options.ssl_options.tls_version = get_opt(user_options, "tls_version", "");
+  options.ssl_options.ca = get_opt(user_options, "ssl_ca", "");
+  options.ssl_options.capath = get_opt(user_options, "ssl_capath", "");
+  options.ssl_options.crl = get_opt(user_options, "ssl_crl", "");
+  options.ssl_options.crlpath = get_opt(user_options, "ssl_crlpath", "");
+
   return options;
 }
 
@@ -514,7 +608,9 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
+  std::string username;
   AutoCleaner auto_clean;
+  mysqlrouter::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
 
   if (!keyring_master_key_file.empty())
@@ -529,7 +625,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     multi_master);
 
   if (config_file_path.exists()) {
-    router_id = get_router_id_from_config_file(config_file_path.str(),
+    std::tie(router_id, username) = get_router_id_and_name_from_config(config_file_path.str(),
                                                primary_cluster_name, force);
   }
 
@@ -558,12 +654,18 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
       std::cerr << "WARNING: " << e.what() << "\n";
       // TODO: abort here and suggest --force to force reconfiguration?
       router_id = 0;
+      username.clear();
     }
   }
   // router not registered yet (or router_id was invalid)
   if (router_id == 0) {
+    assert(username.empty());
     try {
       router_id = metadata.register_router(router_name, force);
+      if (router_id > kMaxRouterId)
+        throw std::runtime_error("router_id (" + std::to_string(router_id)
+            + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
+      username = "mysql_router" + std::to_string(router_id) + "_" + rg.generate_password(kNumRandomChars, kRandomCharBase);
     } catch (MySQLSession::Error &e) {
       if (e.code() == 1062) { // duplicate key
         throw std::runtime_error(
@@ -582,8 +684,9 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   // Create or recreate the account used by this router instance to access
   // metadata server
-  std::string username = "mysql_innodb_cluster_router"+std::to_string(router_id);
-  std::string password = generate_password(kMetadataServerPasswordLength);
+  assert(router_id);
+  assert(!username.empty());
+  std::string password = rg.generate_password(kMetadataServerPasswordLength);
   {
     mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
     keyring->store(username, kKeyringAttributePassword, password);
@@ -816,6 +919,13 @@ std::string ConfigGenerator::endpoint_option(const Options &options,
 }
 
 
+static std::string option_line(const std::string &key, const std::string &value) {
+  if (!value.empty()) {
+    return key + "=" + value + "\n";
+  }
+  return "";
+}
+
 void ConfigGenerator::create_config(std::ostream &cfp,
                                     uint32_t router_id,
                                     const std::string &router_name,
@@ -854,8 +964,21 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
-      << "ttl=300" << "\n"
-      << "\n";
+      << "ttl=" << kDefaultTTL << "\n";
+
+  // SSL options
+  cfp << option_line("ssl_mode", options.ssl_options.mode);
+  cfp << option_line("ssl_cipher", options.ssl_options.cipher);
+  cfp << option_line("tls_version", options.ssl_options.tls_version);
+  cfp << option_line("ssl_ca", options.ssl_options.ca);
+  cfp << option_line("ssl_capath", options.ssl_options.capath);
+  cfp << option_line("ssl_crl", options.ssl_options.crl);
+  cfp << option_line("ssl_crlpath", options.ssl_options.crlpath);
+  // Note: we don't write cert and key because
+  // creating router accounts with REQUIRE X509 is not yet supported.
+  // The cert and key options passed to bootstrap if for the bootstrap
+  // connection itself.
+  cfp << "\n";
 
   const std::string fast_router_key = metadata_key+"_"+metadata_replicaset;
   if (options.rw_endpoint) {
@@ -1009,13 +1132,13 @@ void ConfigGenerator::create_account(const std::string &username,
 }
 
 /**
- * Get router_id value associated with a metadata_cache configuration for
+ * Get router_id name values associated with a metadata_cache configuration for
  * the given cluster_name.
  *
  * The lookup is done through the metadata_cluster option inside the
  * metadata_cache section.
  */
-uint32_t ConfigGenerator::get_router_id_from_config_file(
+std::pair<uint32_t, std::string> ConfigGenerator::get_router_id_and_name_from_config(
     const std::string &config_file_path,
     const std::string &cluster_name,
     bool forcing_overwrite) {
@@ -1028,7 +1151,7 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
     if (config.has_any("metadata_cache")) {
       sections = config.get("metadata_cache");
     } else {
-      return 0;
+      return std::make_pair(0, "");
     }
     if (sections.size() > 1) {
       throw std::runtime_error("Bootstrapping of Router with multiple metadata_cache sections not supported");
@@ -1037,19 +1160,28 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
       if (section->has("metadata_cluster")) {
         existing_cluster = section->get("metadata_cluster");
         if (existing_cluster == cluster_name) {
-          if (section->has("router_id")) {
-            std::string tmp = section->get("router_id");
-            char *end;
-            unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
-            if (end == tmp.c_str() || errno == ERANGE) {
-                throw std::runtime_error("Invalid router_id '"+tmp
-                    +"' for cluster '"+cluster_name+"' in "+config_file_path);
-            } else {
-              return static_cast<uint32_t>(r);
-            }
+          // get router_id
+          if (! section->has("router_id")) {
+            std::cerr << "WARNING: router_id not set for cluster "+cluster_name+"\n";
+            return std::make_pair(0, "");
           }
-          std::cerr << "WARNING: router_id not set for cluster "+cluster_name+"\n";
-          return 0;
+          std::string tmp = section->get("router_id");
+          char *end;
+          unsigned long r = std::strtoul(tmp.c_str(), &end, 10);
+          if (end == tmp.c_str() || errno == ERANGE) {
+              throw std::runtime_error("Invalid router_id '"+tmp
+                  +"' for cluster '"+cluster_name+"' in "+config_file_path);
+          }
+
+          // get username, example: user=mysql_router4_kot8tcepf3kn
+          if (! section->has("user")) {
+            std::cerr << "WARNING: user not set for cluster "+cluster_name+"\n";
+            return std::make_pair(0, "");
+          }
+          std::string user = section->get("user");
+
+          // return results
+          return std::make_pair(static_cast<uint32_t>(r), user);
         }
       }
     }
@@ -1061,7 +1193,7 @@ uint32_t ConfigGenerator::get_router_id_from_config_file(
     //XXX when multiple-clusters is supported, also suggest --add
     throw std::runtime_error(msg);
   }
-  return 0;
+  return std::make_pair(0, "");
 }
 
 void ConfigGenerator::create_start_scripts(const std::string &directory,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "metadata_cache.h"
 #include "plugin_config.h"
+#include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 
 #include <string>
 #include <thread>
@@ -63,6 +64,29 @@ static int init(const mysql_harness::AppInfo *info) {
   return 0;
 }
 
+static std::string get_option(const mysql_harness::ConfigSection *section,
+                              const std::string &key,
+                              const std::string &def_value) {
+  if (section->has(key))
+    return section->get(key);
+  return def_value;
+}
+
+static mysqlrouter::SSLOptions make_ssl_options(
+    const mysql_harness::ConfigSection *section) {
+  mysqlrouter::SSLOptions options;
+
+  options.mode = get_option(section, "ssl_mode", mysqlrouter::MySQLSession::kSslModePreferred);
+  options.cipher = get_option(section, "ssl_cipher", "");
+  options.tls_version = get_option(section, "tls_version", "");
+  options.ca = get_option(section, "ssl_ca", "");
+  options.capath = get_option(section, "ssl_capath", "");
+  options.crl = get_option(section, "ssl_crl", "");
+  options.crlpath = get_option(section, "ssl_crlpath", "");
+
+  return options;
+}
+
 /**
  * Initialize the metadata cache for fetching the information from the
  * metadata servers.
@@ -89,9 +113,9 @@ static void start(const mysql_harness::ConfigSection *section) {
     // Initialize the metadata cache.
     metadata_cache::cache_init(config.bootstrap_addresses, config.user,
                                password, ttl,
+                               make_ssl_options(section),
                                metadata_cluster);
-  } catch (const std::runtime_error &exc) {
-    // We continue and retry
+  } catch (const std::runtime_error &exc) { // metadata_cache::metadata_error inherits from runtime_error
     log_error(exc.what());
   } catch (const std::invalid_argument &exc) {
     log_error(exc.what());

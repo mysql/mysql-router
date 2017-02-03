@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -178,11 +178,12 @@ public:
  * @param ttl The time to live for the cached data
  * @param metadata_replicaset The replicaset that is used to maintain the
  *                            metadata.
+ * @param ssl_options SSL relatd options for connection
  * @param cluster_name The name of the cluster to be used.
  */
 void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
-                unsigned int ttl, const std::string &cluster_name);
+                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name);
 
 /** @brief Returns list of managed server in a HA replicaset
  *

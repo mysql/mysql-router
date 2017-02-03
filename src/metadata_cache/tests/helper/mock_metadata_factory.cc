@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,21 +26,20 @@ std::shared_ptr<MetaData> meta_data;
  *
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
- * @param metadata_connection_timeout The time after which a connection to the
- *                                  metadata server should timeout.
+ * @param connection_timeout The time after which a connection to the
  * @param connection_attempts The number of times a connection to metadata must be
  *                            attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
- * @param metadata_replicaset The replicaset that servers as the metadata
- *                            HA setup for the topology metadata.
+ * @param ssl_options
  */
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
   const std::string &password,
   int connection_timeout,
   int connection_attempts,
-  unsigned int ttl) {
+  unsigned int ttl,
+  const mysqlrouter::SSLOptions &ssl_options) {
   meta_data.reset(new MockNG(user, password, connection_timeout,
-                             connection_attempts, ttl));
+                             connection_attempts, ttl, ssl_options));
   return meta_data;
 }

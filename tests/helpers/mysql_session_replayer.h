@@ -31,15 +31,15 @@ public:
                        const std::string &password,
                        int connection_timeout = kDefaultConnectionTimeout) override;
   virtual void disconnect() override;
-  virtual bool is_connected() override { return connected_; }
+  virtual bool is_connected() noexcept override { return connected_; }
 
   virtual void execute(const std::string &sql) override;
   virtual void query(const std::string &sql, const RowProcessor &processor) override;
   virtual ResultRow *query_one(const std::string &sql) override;
 
-  virtual uint64_t last_insert_id() override;
+  virtual uint64_t last_insert_id() noexcept override;
 
-  virtual std::string quote(const std::string &s, char qchar = '\'') override;
+  virtual std::string quote(const std::string &s, char qchar = '\'') noexcept override;
 
   virtual const char *last_error() override;
   virtual unsigned int last_errno() override;

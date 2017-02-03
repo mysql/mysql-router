@@ -20,6 +20,7 @@
 #include "keyring/keyring_manager.h"
 #include "router_app.h"
 #include "config_generator.h"
+#include "mysql_session.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -165,14 +166,20 @@ MySQLRouter::MySQLRouter(const int argc, char **argv
 {
 }
 
-void MySQLRouter::init(const vector<string>& arguments) {
-  set_default_config_files(CONFIG_FILES);
+// throws std::runtime_error
+void MySQLRouter::parse_command_options(const vector<string>& arguments) {
   prepare_command_options();
   try {
     arg_handler_.process(arguments);
   } catch (const std::invalid_argument &exc) {
     throw std::runtime_error(exc.what());
   }
+}
+
+void MySQLRouter::init(const vector<string>& arguments) {
+  set_default_config_files(CONFIG_FILES);
+
+  parse_command_options(arguments); // throws std::runtime_error
 
   if (showing_info_) {
     return;
@@ -474,6 +481,15 @@ vector<string> MySQLRouter::check_config_files() {
 }
 
 void MySQLRouter::prepare_command_options() noexcept {
+
+  // General guidelines for naming command line options:
+  //
+  // Option names that start with --conf are meant to affect
+  // configuration only and used during bootstrap.
+  // If an option affects the bootstrap process itself, it should
+  // omit the --conf prefix, even if it affects both the bootstrap
+  // and the configuration.
+
   arg_handler_.clear_options();
   arg_handler_.add_option(CmdOption::OptionNames({"-v", "--version"}), "Display version information and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
@@ -506,7 +522,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(OptionNames({"-d", "--directory"}),
                           "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
-                          CmdOptionValueReq::required, "path",
+                          CmdOptionValueReq::required, "directory",
                           [this](const string &path) {
         if (path.empty()) {
           throw std::runtime_error("Invalid value for --directory option");
@@ -593,6 +609,108 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+
+  char ssl_mode_vals[128];
+  char ssl_mode_desc[256];
+  snprintf(ssl_mode_vals, sizeof(ssl_mode_vals), "%s|%s|%s|%s|%s",
+           mysqlrouter::MySQLSession::kSslModeDisabled,
+           mysqlrouter::MySQLSession::kSslModePreferred,
+           mysqlrouter::MySQLSession::kSslModeRequired,
+           mysqlrouter::MySQLSession::kSslModeVerifyCa,
+           mysqlrouter::MySQLSession::kSslModeVerifyIdentity);
+  snprintf(ssl_mode_desc, sizeof(ssl_mode_desc),
+           "SSL connection mode for use during bootstrap and normal operation, when connecting to the metadata server. Analogous to --ssl-mode in mysql client. One of %s. Default = %s. (bootstrap)",
+           ssl_mode_vals, mysqlrouter::MySQLSession::kSslModePreferred);
+
+  arg_handler_.add_option(OptionNames({"--ssl-mode"}), ssl_mode_desc,
+                          CmdOptionValueReq::required, "mode",
+                          [this](const string &ssl_mode) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-mode can only be used together with -B/--bootstrap");
+
+        try {
+          mysqlrouter::MySQLSession::parse_ssl_mode(ssl_mode);  // we only care if this succeeds
+          bootstrap_options_["ssl_mode"] = ssl_mode;
+        } catch (const std::logic_error& e) {
+          throw std::runtime_error("Invalid value for --ssl-mode option");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-cipher"}), ": separated list of SSL ciphers to allow, if SSL is enabeld.",
+                          CmdOptionValueReq::required, "ciphers",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-cipher can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_cipher"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--tls-version"}), ", separated list of TLS versions to request, if SSL is enabled.",
+                          CmdOptionValueReq::required, "versions",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --tls-version can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["tls_version"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-ca"}), "Path to SSL CA file to verify server's certificate against.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-ca can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_ca"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-capath"}), "Path to directory containing SSL CA files to verify server's certificate against.",
+                          CmdOptionValueReq::required, "directory",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-capath can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_capath"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-crl"}), "Path to SSL CRL file to use when verifying server certificate.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-crl can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_crl"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-crlpath"}), "Path to directory containing SSL CRL files to use when verifying server certificate.",
+                          CmdOptionValueReq::required, "directory",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-crlpath can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_crlpath"] = path;
+      });
+
+// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
+#if 0
+  arg_handler_.add_option(OptionNames({"--ssl-cert"}), "Path to client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-cert can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_cert"] = path;
+      });
+
+  arg_handler_.add_option(OptionNames({"--ssl-key"}), "Path to private key for client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
+                          CmdOptionValueReq::required, "path",
+                          [this](const string &path) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --ssl-key can only be used together with -B/--bootstrap");
+
+        bootstrap_options_["ssl_key"] = path;
+      });
+#endif
+
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
                           CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
@@ -675,7 +793,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       sys_user_operations_
 #endif
   };
-  config_gen.init(server_url);
+  config_gen.init(server_url, bootstrap_options_); // throws std::runtime_error
+  config_gen.warn_on_no_ssl(bootstrap_options_);   // throws std::runtime_error
 
 #ifdef _WIN32
   // Cannot run boostrap mode as windows service since it requires console interaction.

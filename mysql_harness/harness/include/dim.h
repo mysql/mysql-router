@@ -18,6 +18,7 @@
 #ifndef MYSQL_HARNESS_DIMANAGER_INCLUDED
 #define MYSQL_HARNESS_DIMANAGER_INCLUDED
 
+#include "harness_export.h"
 #include "unique_ptr.h"
 
 #include <functional>
@@ -113,10 +114,12 @@
 
 // forward declarations [step 1]
 namespace mysqlrouter { class MySQLSession; }
+namespace mysqlrouter { class Ofstream; }
+namespace mysqlrouter { class RandomGeneratorInterface; }
 
 namespace mysql_harness {
 
-class DIM { // DIM = Dependency Injection Manager
+class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
 
   // this class is a singleton
   protected:
@@ -143,9 +146,28 @@ class DIM { // DIM = Dependency Injection Manager
     deleter_MySQLSession_ = deleter;
   }
 
+  // Ofstream
+  void set_Ofstream(const std::function<mysqlrouter::Ofstream*(void)>& factory,
+                    const std::function<void(mysqlrouter::Ofstream*)>& deleter
+                          = std::default_delete<mysqlrouter::Ofstream>()) {
+    factory_Ofstream_ = factory;
+    deleter_Ofstream_ = deleter;
+  }
+
+  // RandomGenerator
+  void set_RandomGenerator(const std::function<mysqlrouter::RandomGeneratorInterface*(void)>& factory,
+                           const std::function<void(mysqlrouter::RandomGeneratorInterface*)>& deleter
+                                 = std::default_delete<mysqlrouter::RandomGeneratorInterface>()) {
+    factory_RandomGenerator_ = factory;
+    deleter_RandomGenerator_ = deleter;
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // object getters [step 3]
   ////////////////////////////////////////////////////////////////////////////////
+
+  // RandomGenerator
+  mysqlrouter::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
 
   ////////////////////////////////////////////////////////////////////////////////
   // object creators [step 3]
@@ -153,6 +175,9 @@ class DIM { // DIM = Dependency Injection Manager
 
   // MySQLSession
   UniquePtr<mysqlrouter::MySQLSession> new_MySQLSession() const { return new_generic(factory_MySQLSession_, deleter_MySQLSession_); }
+
+  // Ofstream
+  UniquePtr<mysqlrouter::Ofstream> new_Ofstream() const { return new_generic(factory_Ofstream_, deleter_Ofstream_); }
 
  private:
   ////////////////////////////////////////////////////////////////////////////////
@@ -163,6 +188,13 @@ class DIM { // DIM = Dependency Injection Manager
   std::function<mysqlrouter::MySQLSession*(void)> factory_MySQLSession_;
   std::function<void(mysqlrouter::MySQLSession*)> deleter_MySQLSession_;
 
+  // Ofstream
+  std::function<mysqlrouter::Ofstream*(void)> factory_Ofstream_;
+  std::function<void(mysqlrouter::Ofstream*)> deleter_Ofstream_;
+
+  // RandomGenerator
+  std::function<mysqlrouter::RandomGeneratorInterface*(void)> factory_RandomGenerator_;
+  std::function<void(mysqlrouter::RandomGeneratorInterface*)> deleter_RandomGenerator_;
 
 
 
