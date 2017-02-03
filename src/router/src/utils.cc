@@ -730,10 +730,6 @@ struct passwd* check_user(const std::string& username,
   if (must_be_root) {
     if (!check_if_root(username, sys_user_operations))
       return nullptr;
-
-    // we are running as a root and requested to switch to root so there is nothing to be done
-    if (username == "root")
-      return nullptr;
   }
 
   return get_user_info(username, sys_user_operations);
