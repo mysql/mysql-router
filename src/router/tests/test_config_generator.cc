@@ -1806,3 +1806,45 @@ int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+TEST_F(ConfigGeneratorTest, warn_no_ssl_false) {
+  MySQLSessionReplayer mock_mysql;
+
+  const std::vector<std::string> prefered_values{"PREFERRED", "preferred", "Preferred"};
+  for (size_t i = 0u; i < prefered_values.size(); ++i)
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_metadata_checks(mock_mysql);
+    mock_mysql.expect_query_one("show status like 'ssl_cipher'");
+    mock_mysql.then_return(2, {
+        {mock_mysql.string_or_null("ssl_cipher"), mock_mysql.string_or_null("")}
+      });
+
+    std::map<std::string, std::string> options;
+    options["ssl_mode"] = prefered_values[i];
+
+    config_gen.init(&mock_mysql);
+    const bool res = config_gen.warn_on_no_ssl(options);
+
+    ASSERT_FALSE(res);
+  }
+}
+
+TEST_F(ConfigGeneratorTest, warn_no_ssl_true) {
+  MySQLSessionReplayer mock_mysql;
+
+  {
+    ConfigGenerator config_gen;
+
+    common_pass_metadata_checks(mock_mysql);
+
+    std::map<std::string, std::string> options;
+    options["ssl_mode"] = "DISABLED";
+
+    config_gen.init(&mock_mysql);
+    const bool res = config_gen.warn_on_no_ssl(options);
+
+    ASSERT_TRUE(res);
+  }
+}

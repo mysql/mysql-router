@@ -221,7 +221,10 @@ void ConfigGenerator::set_ssl_options(MySQLSession* sess,
 bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &options) {
 
   // warninng applicable only if --ssl-mode=PREFERRED (or not specified, which defaults to PREFERRED)
-  if (get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred) != MySQLSession::kSslModePreferred)
+  std::string ssl_mode = get_opt(options, "ssl_mode", MySQLSession::kSslModePreferred);
+  std::transform(ssl_mode.begin(), ssl_mode.end(), ssl_mode.begin(), toupper);
+
+  if (ssl_mode != MySQLSession::kSslModePreferred)
     return true;
 
   // warn if the connection is unencrypted
