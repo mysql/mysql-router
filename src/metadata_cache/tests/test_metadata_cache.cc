@@ -21,6 +21,7 @@
 
 #include "gtest/gtest_prod.h" // must be the first header
 #include "cluster_metadata.h"
+#include "dim.h"
 #include "metadata_cache.h"
 #include "metadata_factory.h"
 #include "mock_metadata.h"
@@ -75,31 +76,17 @@ TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
 // Test Metadata Cache vs metadata server availabilty
 //
 ////////////////////////////////////////////////////////////////////////////////
-// FIXME: Commenting out those test as they use the functionality
-// that was removed/reworked on WL branch for SSL/enhanced security
-// as an effect the code does not compile after rebasing
-// that WL branch with the master
-/*
-class TestSessionFactory : public mysqlrouter::MySQLSessionFactory {
- public:
-  TestSessionFactory(std::shared_ptr<mysqlrouter::MySQLSession> s) {
-    session = s;
-  }
-
-  virtual std::shared_ptr<mysqlrouter::MySQLSession> create() const {
-    return session;
-  }
-
-  std::shared_ptr<mysqlrouter::MySQLSession> session;
-};
 
 class MetadataCacheTest2 : public ::testing::Test {
  public:
   // per-test setup
   virtual void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10,
-        std::unique_ptr<mysqlrouter::MySQLSessionFactory>(new TestSessionFactory(session))));
+    mysql_harness::DIM::instance().set_MySQLSession(
+      [this](){ return session.get(); }, // provide pointer to session
+      [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
+    );
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10, mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset
@@ -166,7 +153,7 @@ TEST_F(MetadataCacheTest2, basic_test) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(metadata_servers, cmeta, 10, "cluster-1");
+  MetadataCache mc(metadata_servers, cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1");
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -194,7 +181,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(metadata_servers, cmeta, 10, "cluster-1");
+  MetadataCache mc(metadata_servers, cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1");
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to first metadata server
@@ -219,4 +206,4 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   mc.refresh();
   expect_cluster_routable(mc); // lookup should see the cluster again
 }
-*/
+
