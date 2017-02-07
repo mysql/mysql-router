@@ -26,6 +26,7 @@
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
+#include "random_generator.h"
 #include "router_app.h"
 #include "router_test_helpers.h"
 
@@ -61,8 +62,8 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
     mysql_harness::DIM::instance().set_RandomGenerator(
-      [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
-      [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+      [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
+      [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
     );
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
@@ -1783,21 +1784,78 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   test_config_output({{"tls_version", "TLSv1"}}, "tls_version=TLSv1");
 }
 
-// TODO use these as testcases in unit tests:
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("some bad query")); // TESTCASE: should throw generic exception
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("select @@port"));  // TESTCASE: should generate assert
-//  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'HIDE_ssl_cipher'")); // TESTCASE: should throw Error reading 'Ssl_cipher' stat var (result = NULL)
-//  struct RR : public MySQLSession::ResultRow {
-//    RR(const std::vector<const char*>& v) { row_ = v; }
-//  };
-//  result.reset();                                     // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{}});                           // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{nullptr}});                    // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{"something"}});                // TESTCASE: should throw Error reading 'ssl_cipher' stat var
-//  result.reset(new RR{{"ssl_cipher", nullptr}});      // TESTCASE: should warn about no SSL
-//  result.reset(new RR{{"ssl_cipher", ""}});           // TESTCASE: should warn about no SSL
-//  result.reset(new RR{{"ssl_cipher", "some_cipher"}});// TESTCASE: should pass
-//  result.reset(new RR{{"bad", ""}});                  // TESTCASE: should throw assertion
+TEST_F(ConfigGeneratorTest, warn_on_no_ssl) {
+
+  // These test warn_on_no_ssl(). For convenience, it returns true if no warning has been issued,
+  // false if it issued a warning. And it throws if something went wrong.
+
+  constexpr char kQuery[] = "show status like 'ssl_cipher'";
+  ConfigGenerator config_gen;
+  MySQLSessionReplayer mock_mysql;
+  config_gen.mysql_ = &mock_mysql;
+
+  // anything other than PREFERRED (or empty, which defaults to PREFERRED) should never warn.
+  // warn_on_no_ssl() shouldn't even bother querying the database.
+  {
+    EXPECT_TRUE(config_gen.warn_on_no_ssl({{"ssl_mode", mysqlrouter::MySQLSession::kSslModeRequired}}));
+    EXPECT_TRUE(config_gen.warn_on_no_ssl({{"ssl_mode", mysqlrouter::MySQLSession::kSslModeDisabled}}));
+    EXPECT_TRUE(config_gen.warn_on_no_ssl({{"ssl_mode", mysqlrouter::MySQLSession::kSslModeVerifyCa}}));
+    EXPECT_TRUE(config_gen.warn_on_no_ssl({{"ssl_mode", mysqlrouter::MySQLSession::kSslModeVerifyIdentity}}));
+  }
+
+  // run for 2 ssl_mode cases: unspecified and PREFERRED (they are equivalent)
+  typedef std::map<std::string, std::string> Opts;
+  for (Opts opt : { Opts{}, Opts{{"ssl_mode", mysqlrouter::MySQLSession::kSslModePreferred}} }) {
+
+    { // have SLL
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", "some_cipher"}});
+      EXPECT_TRUE(config_gen.warn_on_no_ssl(opt));
+    }
+
+    { // don't have SLL - empty string
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", ""}});
+      EXPECT_FALSE(config_gen.warn_on_no_ssl(opt));
+    }
+
+    { // don't have SLL - null string
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", nullptr}});
+      EXPECT_FALSE(config_gen.warn_on_no_ssl(opt));
+    }
+
+    // CORNERCASES FOLLOW
+
+    { // query failure
+      mock_mysql.expect_query_one(kQuery).then_error("boo!", 1234);
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+
+    { // bogus query result - no columns
+      mock_mysql.expect_query_one(kQuery).then_return(0, {});
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+
+    { // bogus query result - null column
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{nullptr}});
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+
+    { // bogus query result - 1 column
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"foo"}});
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+
+    { // bogus query result - 1 column (ssl_cipher)
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher"}});
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+
+    { // bogus query result - 2 columns, but first is not ssl_cipher
+      mock_mysql.expect_query_one(kQuery).then_return(0, {{"foo", "bar"}});
+      EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
+    }
+  }
+}
+
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

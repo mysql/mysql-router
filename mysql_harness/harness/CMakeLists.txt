@@ -28,6 +28,7 @@ set(harness_source
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/dim.cc
+  src/random_generator.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
   src/keyring/keyring_file.cc

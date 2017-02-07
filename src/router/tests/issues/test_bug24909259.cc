@@ -25,6 +25,7 @@
 #include "dim.h"
 #include "router_app.h"
 #include "config_parser.h"
+#include "random_generator.h"
 #include "router_test_helpers.h"
 #include "mysqlrouter/utils.h"
 #include "keyring/keyring_manager.h"
@@ -75,8 +76,8 @@ static void create_keyfile_withkey(const std::string &path, const std::string &k
 
 TEST(Bug24909259, init_tests) {
   mysql_harness::DIM::instance().set_RandomGenerator(
-    [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
-    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+    [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
+    [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
   );
 }
 
