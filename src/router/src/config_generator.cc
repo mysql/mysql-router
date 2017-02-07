@@ -32,9 +32,11 @@
 // #include "logger.h"
 #ifdef _WIN32
 #include <Windows.h>
+#define strcasecmp _stricmp
 #else
 #include <sys/stat.h>
 #endif
+
 
 #include <algorithm>
 #include <iostream>
@@ -239,14 +241,8 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
     // +---------------+--------------------+
 
     std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one("show status like 'ssl_cipher'"));
-
-    if (!result || result->size() != 2)
+    if (!result || result->size() != 2 || strcasecmp((*result)[0], "ssl_cipher"))
       throw std::runtime_error("Error reading 'ssl_cipher' status variable");
-#ifdef _WIN32
-    assert(!_stricmp((*result)[0], "ssl_cipher"));
-#else
-    assert(!strcasecmp((*result)[0], "ssl_cipher"));
-#endif
 
     // if ssl_cipher is empty, it means the connection is unencrypted
     if ((*result)[1] &&
