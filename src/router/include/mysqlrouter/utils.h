@@ -440,14 +440,14 @@ class RandomGeneratorInterface {
    * @param base            number of possible random values per character
    * @return string with random chars (aka password string)
    *
-   */
-  virtual std::string generate_password(unsigned password_length, unsigned base = 89) noexcept = 0;
+   */                                                   // sizeof(alphabet)-1 ----vv
+  virtual std::string generate_password(unsigned password_length, unsigned base = 87) noexcept = 0;
 };
 
 class RandomGenerator : public RandomGeneratorInterface {
- public:
-  std::string generate_password(unsigned password_length, unsigned base = 89) noexcept override {
-    constexpr char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#%$^&*()-_=+]}[{|;:.>,</?";
+ public:                                        // sizeof(alphabet)-1 ----vv
+  std::string generate_password(unsigned password_length, unsigned base = 87) noexcept override {
+    constexpr char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#$^&*()-=+]}[{|;:.>,</?";
     assert(base <= sizeof(alphabet) - 1); // unsupported base requested (-1 for string terminator)
     assert(base > 1);                     // sanity check
 
@@ -465,7 +465,7 @@ class RandomGenerator : public RandomGeneratorInterface {
 class FakeRandomGenerator : public RandomGeneratorInterface {
  public:
   // returns "012345678901234567890123...", truncated to password_length
-  std::string generate_password(unsigned password_length, unsigned = 0) noexcept override {
+  std::string generate_password(unsigned password_length, unsigned) noexcept override {
     std::string pwd;
     for (unsigned i = 0; i < password_length; i++)
       pwd += static_cast<char>('0' + i % 10);

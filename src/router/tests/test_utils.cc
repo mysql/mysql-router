@@ -363,7 +363,7 @@ TEST_F(UtilsTests, generate_password) {
   // guaranteed, the idea is to make random test failures very very very unlikely.
   constexpr unsigned kBigNumber = 10 * 1000;
 
-  constexpr unsigned kMaxBase = 89;  // this is the max base (atm)
+  constexpr unsigned kMaxBase = 87;  // this is the max base (atm)
 
   mysqlrouter::RandomGenerator rg;
 
