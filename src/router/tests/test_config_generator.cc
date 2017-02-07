@@ -26,6 +26,7 @@
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
+#include "random_generator.h"
 #include "router_app.h"
 #include "router_test_helpers.h"
 
@@ -61,8 +62,8 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
 protected:
   virtual void SetUp() {
     mysql_harness::DIM::instance().set_RandomGenerator(
-      [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
-      [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+      [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
+      [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
     );
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();

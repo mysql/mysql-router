@@ -25,6 +25,7 @@
 #include "config_parser.h"
 #include "common.h"
 #include "rapidjson/rapidjson.h"
+#include "random_generator.h"
 #include "utils.h"
 #include "router_app.h"
 #include "dim.h"
@@ -606,7 +607,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   uint32_t router_id = 0;
   std::string username;
   AutoCleaner auto_clean;
-  mysqlrouter::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
+  mysql_harness::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
 
   if (!keyring_master_key_file.empty())

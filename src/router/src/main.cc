@@ -20,6 +20,7 @@
 #include "utils.h"
 #include "mysql_session.h"
 #include "router_app.h"
+#include "random_generator.h"
 #include "windows/main-windows.h"
 #include <mysql.h>
 #include <iostream>
@@ -92,8 +93,8 @@ int main(int argc, char **argv) {
 
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
   dim.set_RandomGenerator(
-    [](){ static mysqlrouter::RandomGenerator rg; return &rg; },
-    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+    [](){ static mysql_harness::RandomGenerator rg; return &rg; },
+    [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
   );
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,6 +81,8 @@ add_harness_test(TestKeyringManager SOURCES test_keyring_manager.cc)
 target_link_libraries(TestKeyringManager PRIVATE ${SSL_LIBRARIES})
 
 add_harness_test(TestDIMandUniquePtr SOURCES test_dim_and_unique_ptr.cc)
+
+add_harness_test(TestRandomGenerator SOURCES test_random_generator.cc)
 
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")

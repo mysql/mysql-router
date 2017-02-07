@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include "gtest/gtest.h"
 #include "common.h"
 #include "dim.h"
-#include "utils.h"
+#include "random_generator.h"
 #include "keyring/keyring_memory.h"
 #include "keyring/keyring_manager.h"
 
@@ -275,8 +275,8 @@ static std::string tmpfile(const std::string &fname) {
 
 TEST(KeyringManager, init_tests) {
   mysql_harness::DIM::instance().set_RandomGenerator(
-    [](){ static mysqlrouter::FakeRandomGenerator rg; return &rg; },
-    [](mysqlrouter::RandomGeneratorInterface*){}  // don't delete our static!
+    [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
+    [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
   );
 }
 

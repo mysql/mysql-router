@@ -18,10 +18,8 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
-#include <assert.h>
 #include <cstdarg>
 #include <cstdint>
-#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -432,46 +430,6 @@ struct passwd* check_user(const std::string& username,
 
 #endif // ! _WIN32
 
-class RandomGeneratorInterface {
- public:
-  /** @brief Generates a random (password) string
-   *
-   * @param password_length length of string requested
-   * @param base            number of possible random values per character
-   * @return string with random chars (aka password string)
-   *
-   */                                                   // sizeof(alphabet)-1 ----vv
-  virtual std::string generate_password(unsigned password_length, unsigned base = 87) noexcept = 0;
-};
-
-class RandomGenerator : public RandomGeneratorInterface {
- public:                                        // sizeof(alphabet)-1 ----vv
-  std::string generate_password(unsigned password_length, unsigned base = 87) noexcept override {
-    constexpr char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ~@#$^&*()-=+]}[{|;:.>,</?";
-    assert(base <= sizeof(alphabet) - 1); // unsupported base requested (-1 for string terminator)
-    assert(base > 1);                     // sanity check
-
-    std::random_device rd;
-    std::string pwd;
-    std::uniform_int_distribution<unsigned long> dist(0, base - 1);
-
-    for (unsigned i = 0; i < password_length; i++)
-      pwd += alphabet[dist(rd)];
-
-    return pwd;
-  }
-};
-
-class FakeRandomGenerator : public RandomGeneratorInterface {
- public:
-  // returns "012345678901234567890123...", truncated to password_length
-  std::string generate_password(unsigned password_length, unsigned) noexcept override {
-    std::string pwd;
-    for (unsigned i = 0; i < password_length; i++)
-      pwd += static_cast<char>('0' + i % 10);
-    return pwd;
-  }
-};
 
 } // namespace mysqlrouter
 

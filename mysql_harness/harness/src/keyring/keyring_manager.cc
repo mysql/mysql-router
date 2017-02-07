@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "common.h"
 #include "dim.h"
 #include "my_aes.h"
-#include "utils.h"  // FIXME: cross-depenency (we're including Router stuff from Harness)
+#include "random_generator.h"
 #include <string.h>
 #include <random>
 #include <system_error>
@@ -223,7 +223,7 @@ static std::pair<std::string,std::string>
     if (!create_if_needed)
       throw std::runtime_error("Master key for keyring at '" + keyring_file_path + "' could not be read");
     // if the master key doesn't exist anywhere yet, generate one and store it
-    mysqlrouter::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
+    mysql_harness::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
     master_key = rg.generate_password(kKeyLength);
     // scramble to encrypt the master key with, which should be stored in the
     // keyring

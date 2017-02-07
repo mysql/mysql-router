@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@
 // forward declarations [step 1]
 namespace mysqlrouter { class MySQLSession; }
 namespace mysqlrouter { class Ofstream; }
-namespace mysqlrouter { class RandomGeneratorInterface; }
+namespace mysql_harness { class RandomGeneratorInterface; }
 
 namespace mysql_harness {
 
@@ -155,9 +155,9 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   }
 
   // RandomGenerator
-  void set_RandomGenerator(const std::function<mysqlrouter::RandomGeneratorInterface*(void)>& factory,
-                           const std::function<void(mysqlrouter::RandomGeneratorInterface*)>& deleter
-                                 = std::default_delete<mysqlrouter::RandomGeneratorInterface>()) {
+  void set_RandomGenerator(const std::function<mysql_harness::RandomGeneratorInterface*(void)>& factory,
+                           const std::function<void(mysql_harness::RandomGeneratorInterface*)>& deleter
+                                 = std::default_delete<mysql_harness::RandomGeneratorInterface>()) {
     factory_RandomGenerator_ = factory;
     deleter_RandomGenerator_ = deleter;
   }
@@ -167,7 +167,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
 
   // RandomGenerator
-  mysqlrouter::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
+  mysql_harness::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
 
   ////////////////////////////////////////////////////////////////////////////////
   // object creators [step 3]
@@ -193,8 +193,8 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   std::function<void(mysqlrouter::Ofstream*)> deleter_Ofstream_;
 
   // RandomGenerator
-  std::function<mysqlrouter::RandomGeneratorInterface*(void)> factory_RandomGenerator_;
-  std::function<void(mysqlrouter::RandomGeneratorInterface*)> deleter_RandomGenerator_;
+  std::function<mysql_harness::RandomGeneratorInterface*(void)> factory_RandomGenerator_;
+  std::function<void(mysql_harness::RandomGeneratorInterface*)> deleter_RandomGenerator_;
 
 
 
