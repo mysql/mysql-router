@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -133,7 +133,13 @@ static void log_message(Level level, const char* fmt, va_list ap) {
   char time_buf[20];
   time_t now;
   time(&now);
-  strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+  struct tm local_tm={};
+#ifndef _WIN32
+  localtime_r(&now, &local_tm);
+#else
+  localtime_s(&local_tm, &now);
+#endif
+  strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &local_tm);
 
   // Get the thread ID
   std::stringstream ss;
