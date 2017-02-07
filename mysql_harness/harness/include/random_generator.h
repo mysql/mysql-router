@@ -20,9 +20,11 @@
 
 #include <string>
 
+#include "harness_export.h"
+
 namespace mysql_harness {
 
-class RandomGeneratorInterface {
+class HARNESS_EXPORT RandomGeneratorInterface {
  public:
   /** @brief Generates a random (password) string
    *
@@ -34,12 +36,12 @@ class RandomGeneratorInterface {
   virtual std::string generate_password(unsigned password_length, unsigned base = 87) noexcept = 0;
 };
 
-class RandomGenerator : public RandomGeneratorInterface {
+class HARNESS_EXPORT RandomGenerator : public RandomGeneratorInterface {
  public:                                        // sizeof(alphabet)-1 ----vv
   std::string generate_password(unsigned password_length, unsigned base = 87) noexcept override;
 };
 
-class FakeRandomGenerator : public RandomGeneratorInterface {
+class HARNESS_EXPORT FakeRandomGenerator : public RandomGeneratorInterface {
  public:
   // returns "012345678901234567890123...", truncated to password_length
   std::string generate_password(unsigned password_length, unsigned) noexcept override;
