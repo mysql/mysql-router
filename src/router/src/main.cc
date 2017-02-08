@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,7 +84,12 @@ int real_main(int argc, char **argv) {
     result = 1;
   }
 
-  mysql_library_end();
+  // We should deinitialize mysql-lib but we can't do it safely here until
+  // we do WL9558 "Plugin life-cycle that support graceful shutdown and restart."
+  // Currently we can get here while there are still some threads running
+  // (like metadata_cache thread that is managed by the global g_metadata_cache)
+  // that still use mysql-lib, which leads to crash.
+  //mysql_library_end();
 
   return result;
 }
