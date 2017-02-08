@@ -1550,26 +1550,47 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     EXPECT_EQ(0u, router.bootstrap_options_.count("ssl_mode"));
   }
 
-  // --ssl-mode missing argument
-  std::vector<std::string> argument_required_options{"--ssl-mode",
-      "--ssl-cipher", "--tls-version",
-      "--ssl-ca", "--ssl-capath", "--ssl-crl", "--ssl-crlpath",
+  // --ssl-mode missing or empty argument
+  {
+    const std::vector<std::string> argument_required_options{"--ssl-mode",
+        "--ssl-cipher", "--tls-version",
+        "--ssl-ca", "--ssl-capath", "--ssl-crl", "--ssl-crlpath",
 // 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
 #if 0
-      "--ssl-cert", "--ssl-key"
+        "--ssl-cert", "--ssl-key"
 #endif
-  };
-  for (auto &opt : argument_required_options) {
-                                   //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", opt};
-    try {
-      MySQLRouter router(Path(), argv);
-      FAIL() << "Expected std::invalid_argument to be thrown";
-    } catch (const std::runtime_error &e) {
-      EXPECT_STREQ(("option '"+opt+"' requires a value.").c_str(), e.what()); // TODO it would be nice to make case consistent
-      SUCCEED();
-    } catch (...) {
-      FAIL() << "Expected std::runtime_error to be thrown";
+    };
+
+    for (auto &opt : argument_required_options) {
+                                           //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
+      const std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", opt};
+      try {
+        MySQLRouter router(Path(), argv);
+        FAIL() << "Expected std::invalid_argument to be thrown";
+      } catch (const std::runtime_error &e) {
+        EXPECT_STREQ(("option '"+opt+"' requires a value.").c_str(), e.what()); // TODO it would be nice to make case consistent
+        SUCCEED();
+      } catch (...) {
+        FAIL() << "Expected std::runtime_error to be thrown";
+      }
+
+      // the value is required but also it CAN'T be empty, like when the user uses --tls-version ""
+      const std::vector<std::string> argv2 {"-v", "--bootstrap", "0:3310", opt, ""};
+      try {
+        MySQLRouter router(Path(), argv2);
+        FAIL() << "Expected std::invalid_argument to be thrown";
+      } catch (const std::runtime_error &e) {
+        if (opt == "--ssl-mode") {
+          // The error for -ssl-mode is sligtly different than for other options - detected differently
+          EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
+        }
+        else {
+          EXPECT_STREQ(("Value for option '"+opt+"' can't be empty.").c_str(), e.what());
+        }
+        SUCCEED();
+      } catch (...) {
+        FAIL() << "Expected std::runtime_error to be thrown";
+      }
     }
   }
 

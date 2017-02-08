@@ -304,6 +304,14 @@ private:
    */
   void show_help() noexcept;
 
+  /** @brief Saves the selected command line option in the internal options array
+   *         after verifying it's value not empty and the router is doing bootstrap.
+   *
+   *  Throws: std::runtime_error
+   */
+  void save_bootstrap_option_not_empty(const std::string& option_name, const std::string& save_name,
+                                       const std::string& option_value);
+
   /** @brief Shows command line usage and option description
    *
    * Shows command line usage and all available options together with their description.

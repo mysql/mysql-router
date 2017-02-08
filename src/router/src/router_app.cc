@@ -480,6 +480,17 @@ vector<string> MySQLRouter::check_config_files() {
   return result;
 }
 
+void MySQLRouter::save_bootstrap_option_not_empty(const std::string& option_name, const std::string& save_name,
+                                     const std::string& option_value) {
+  if (this->bootstrap_uri_.empty())
+    throw std::runtime_error("Option " + option_name + " can only be used together with -B/--bootstrap");
+
+  if (option_value.empty())
+    throw std::runtime_error("Value for option '" + option_name + "' can't be empty.");
+
+  bootstrap_options_[save_name] = option_value;
+}
+
 void MySQLRouter::prepare_command_options() noexcept {
 
   // General guidelines for naming command line options:
@@ -638,56 +649,38 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(OptionNames({"--ssl-cipher"}), ": separated list of SSL ciphers to allow, if SSL is enabeld.",
                           CmdOptionValueReq::required, "ciphers",
-                          [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-cipher can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_cipher"] = path;
+                          [this](const string &cipher) {
+        this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher", cipher);
       });
 
   arg_handler_.add_option(OptionNames({"--tls-version"}), ", separated list of TLS versions to request, if SSL is enabled.",
                           CmdOptionValueReq::required, "versions",
-                          [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --tls-version can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["tls_version"] = path;
+                          [this](const string &version) {
+        this->save_bootstrap_option_not_empty("--tls-version", "tls_version", version);
       });
 
   arg_handler_.add_option(OptionNames({"--ssl-ca"}), "Path to SSL CA file to verify server's certificate against.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-ca can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_ca"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
       });
 
   arg_handler_.add_option(OptionNames({"--ssl-capath"}), "Path to directory containing SSL CA files to verify server's certificate against.",
                           CmdOptionValueReq::required, "directory",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-capath can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_capath"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath", path);
       });
 
   arg_handler_.add_option(OptionNames({"--ssl-crl"}), "Path to SSL CRL file to use when verifying server certificate.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-crl can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_crl"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
       });
 
   arg_handler_.add_option(OptionNames({"--ssl-crlpath"}), "Path to directory containing SSL CRL files to use when verifying server certificate.",
                           CmdOptionValueReq::required, "directory",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-crlpath can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_crlpath"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath", path);
       });
 
 // 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
