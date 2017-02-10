@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ if(ENABLE_COVERAGE)
       COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_BASE_DIR}
       COMMAND ${LCOV} ${LCOV_FLAGS} -o ${GCOV_INFO_FILE} -c
       COMMAND ${LCOV} ${LCOV_FLAGS} -o ${GCOV_INFO_FILE} -r ${GCOV_INFO_FILE}
-          '/usr/include/*' 'ext/*' '*/tests/*'
+          '/usr/include/*' 'ext/*' '*/tests/*' '*/generated/*'
       COMMENT "Generating coverage info file ${GCOV_INFO_FILE}")
     add_custom_target(coverage-html
       DEPENDS coverage-info
@@ -74,7 +74,7 @@ if(ENABLE_COVERAGE)
       add_custom_target(coverage-xml
         COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_BASE_DIR}
         COMMAND ${GCOVR} ${GCOVR_FLAGS} -o ${GCOV_XML_FILE} --xml
-            -e '/usr/include/.*' -e '.*/tests/.*' -e 'ext/.*'
+            -e '/usr/include/.*' -e '.*/tests/.*' -e 'ext/.*' -e '.*/generated/.*'
             ${CMAKE_BINARY_DIR})
        message(STATUS "Target coverage-xml added to generate XML report")
     else()
