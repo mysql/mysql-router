@@ -698,6 +698,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   metadata.update_router_info(router_id, options);
 
+#ifndef _WIN32
   /* Currently at this point the logger is not yet initialized but while bootstraping
    * with the --user=<user> option we need to create a log file and chown it to the <user>.
    * Otherwise when the router gets launched later (not bootstrap) with the same --user=<user>
@@ -713,6 +714,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     f.open(log_file, std::ios::out);
     set_file_owner(user_options, log_file);
   }
+#endif
 
   auto system_username = (user_options.find("user") != user_options.end()) ?  user_options.at("user") : "";
 
