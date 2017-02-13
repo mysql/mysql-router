@@ -133,7 +133,7 @@ static void log_message(Level level, const char* fmt, va_list ap) {
   char time_buf[20];
   time_t now;
   time(&now);
-  struct tm local_tm={};
+  struct tm local_tm;
 #ifndef _WIN32
   localtime_r(&now, &local_tm);
 #else
