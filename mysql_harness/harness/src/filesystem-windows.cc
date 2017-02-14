@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -306,9 +306,21 @@ Path Path::real_path() const {
   WIN32_FIND_DATA find_data;
   HANDLE h = FindFirstFile(path, &find_data);
   if (h == INVALID_HANDLE_VALUE) {
-    return Path();
+    auto error = GetLastError();
+    // If we got ERROR_ACCESS_DENIED here that does not necessarily mean
+    // that the path does not exist. We still can have the access to the
+    // file itself but we can't call the Find on the directory that contains
+    // the file. (This is true for example when the config file is placed in
+    // the User's directory and it is accesseed by the router that is run
+    // as a Windows service.)
+    // In that case we do not treat that as an error.
+    if (error != ERROR_ACCESS_DENIED) {
+      return Path();
+    }
   }
-  FindClose(h);
+  else {
+    FindClose(h);
+  }
 
   return Path(path);
 }
