@@ -42,6 +42,7 @@ PID=${RUNTIMEDIR}/mysqlrouter.pid
 STOP_RETRY=3
 LOGDIR=/var/log/mysqlrouter
 LOGFILE=${LOGDIR}/mysqlrouter.log
+DATADIR=/var/lib/mysqlrouter
 
 do_start() {
 
