@@ -64,9 +64,7 @@ do_start() {
 
   if [ ! -d ${DATADIR} -a ! -L ${DATADIR} ];
   then
-          mkdir ${DATADIR}
-          chown mysql:adm ${DATADIR}
-          chmod 750 ${DATADIR}
+    install -d -m 0750 -o mysqlrouter -g adm ${DATADIR}
   fi
 
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
