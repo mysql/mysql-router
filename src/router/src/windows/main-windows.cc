@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -99,9 +99,10 @@ namespace {
           char abs_path[1024];
           GetFullPathName(argv[0], sizeof(abs_path), abs_path, NULL);
           add_quoted_string(full_service_path, abs_path);
+          full_service_path.append(" -c ");
+          GetFullPathName(config_path, sizeof(abs_path), abs_path, NULL);
+          add_quoted_string(full_service_path, abs_path);
         }
-        full_service_path.append(" -c ");
-        add_quoted_string(full_service_path, config_path);
         full_service_path.append(" --service");
         g_service.Install(operation == ServiceOperation::Install ? 1 : 0,
                         kRouterServiceName, kRouterServiceDisplayName, full_service_path.c_str(), kAccount);
