@@ -34,8 +34,7 @@
 
 DESC="Start / Stop MySQL Router"
 DAEMON=/usr/bin/mysqlrouter
-DAEMON_OPTIONS=""
-PROCNAME=mysqlrouter
+DAEMON_OPTIONS="-c /etc/mysqlrouter/mysqlrouter.ini"
 NAME="MySQL Router"
 RUNTIMEDIR=/var/run/mysqlrouter/
 PID=${RUNTIMEDIR}/mysqlrouter.pid
@@ -100,7 +99,7 @@ do_stop() {
     return 0
   fi
 
-  start-stop-daemon --stop --quiet --retry=$STOP_RETRY --pidfile $PID --name $PROCNAME
+  start-stop-daemon --stop --quiet --retry=$STOP_RETRY --pidfile $PID --exec $DAEMON
   retval=$?
 
   case $retval in
