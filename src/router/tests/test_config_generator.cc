@@ -390,7 +390,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
     ASSERT_THROW_LIKE(
       config_gen.init(&mock_mysql),
-      std::out_of_range,
+      std::logic_error,
       "No result returned for metadata query"
     );
   }
