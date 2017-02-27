@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -132,7 +132,14 @@ TEST(TestStart, StartFailure) {
 
   Loader loader("harness", params);
   loader.read(g_here.join("data/tests-start-1.cfg"));
-  EXPECT_THROW(loader.start(), bad_suki);
+  try {
+    loader.start();
+  }
+  catch (const std::runtime_error& exc) {
+    EXPECT_STREQ("The suki was bad, please throw away", exc.what());
+    return;
+  }
+  FAIL() << "Did not catch expected exception";
 }
 
 const char *bad_cfgs[] = {
