@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   else()
     message(FATAL_ERROR "Unsupported version of MacOS X")
   endif()
-  set(RPATH_ORIGIN "@executable_path")
+  set(RPATH_ORIGIN "@loader_path")
   set(CMAKE_INSTALL_NAME_DIR "@rpath")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
   set(RPATH_ORIGIN "\$ORIGIN")
