@@ -50,7 +50,7 @@ start () {
     export ROUTER_PID=$pidfile
     [ -d $datadir ] || mkdir -p $datadir
     chown mysqlrouter:mysqlrouter $datadir
-    daemon mysqlrouter $exec --user=mysqlrouter >/dev/null 2>&1 &
+    daemon $exec --user=mysqlrouter -c /etc/mysqlrouter/mysqlrouter.ini >/dev/null 2>&1 &
     ret=$?
     if [ $ret -eq "0" ]; then
 	action $"Starting $prog: " /bin/true
@@ -70,7 +70,7 @@ stop () {
 	rm -f /var/lock/subsys/$prog
 	action $"Stopping $prog: " /bin/true
     else
-	ation $"Stopping $prog: " /bin/false
+	action $"Stopping $prog: " /bin/false
     fi
 }
 
