@@ -74,6 +74,8 @@ public:
 
   bool empty() { return call_info_.empty(); }
 
+  void clear_expects() { call_info_.clear(); }
+
 private:
   struct CallInfo {
     CallInfo() {}

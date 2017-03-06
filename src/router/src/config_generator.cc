@@ -28,7 +28,6 @@
 #include "random_generator.h"
 #include "utils.h"
 #include "router_app.h"
-#include "dim.h"
 
 // #include "logger.h"
 #ifdef _WIN32
@@ -173,13 +172,6 @@ private:
   std::map<std::string, Type> _files;
 };
 
-
-void ConfigGenerator::init(MySQLSession *session) {
-  mysql_ = session; // TODO migrate to DIM and get rid of mysql_ and mysql_owned_
-
-  check_innodb_metadata_cluster_session(session, false);
-}
-
 inline std::string get_opt(const std::map<std::string, std::string> &map,
                        const std::string &key, const std::string &default_value) {
   auto iter = map.find(key);
@@ -282,24 +274,18 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
       "Please enter MySQL password for "+u.username);
   }
 
-  UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
+  mysql_ = DIM::instance().new_MySQLSession();
   try
   {
-    set_ssl_options(s.get(), bootstrap_options);
-    s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
+    set_ssl_options(mysql_.get(), bootstrap_options);
+    mysql_->connect(u.host, u.port, u.username, u.password, connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
     throw std::runtime_error(err.str());
   }
-  mysql_deleter_ = s.get_deleter(); // \.
-  init(s.release());                //  > TODO get rid of mysql_* variables
-  mysql_owned_ = true;              // /       (replace by DIM semantics)
-}
 
-ConfigGenerator::~ConfigGenerator() {
-  if (mysql_owned_)
-    mysql_deleter_(mysql_);
+  check_innodb_metadata_cluster_session(mysql_.get(), false);
 }
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
@@ -638,8 +624,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
       std::cout << " system MySQL Router instance...\n";
     }
   }
-  MySQLSession::Transaction transaction(mysql_);
-  MySQLInnoDBClusterMetadata metadata(mysql_);
+  MySQLSession::Transaction transaction(mysql_.get());
+  MySQLInnoDBClusterMetadata metadata(mysql_.get());
 
   // if reconfiguration
   if (router_id > 0) {

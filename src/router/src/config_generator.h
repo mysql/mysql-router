@@ -25,6 +25,7 @@
 #include <ostream>
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
+#include "unique_ptr.h"
 
 namespace mysql_harness {
   class Path;
@@ -62,15 +63,12 @@ public:
           SysUserOperationsBase* sys_user_operations = SysUserOperations::instance()
 #endif
           )
-    : mysql_(nullptr), mysql_owned_(false)
   #ifndef _WIN32
-    , sys_user_operations_(sys_user_operations)
+    : sys_user_operations_(sys_user_operations)
   #endif
   {}
   void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);  // throws std::runtime_error
-  void init(mysqlrouter::MySQLSession *session);
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options); // throws std::runtime_error
-  ~ConfigGenerator();
 
   void bootstrap_system_deployment(const std::string &config_file_path,
       const std::map<std::string, std::string> &options,
@@ -170,10 +168,7 @@ private:
   void set_file_owner(const std::map<std::string, std::string> &options,
                       const std::string &owner); // throws std::runtime_error
 private:
-  // TODO refactoring: these 3 should be removed (replaced by DIM semantics)
-  MySQLSession *mysql_;
-  bool mysql_owned_;
-  std::function<void(mysqlrouter::MySQLSession*)> mysql_deleter_;
+  mysql_harness::UniquePtr<MySQLSession> mysql_;
 
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;
