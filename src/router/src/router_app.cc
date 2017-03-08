@@ -184,7 +184,28 @@ void MySQLRouter::init(const vector<string>& arguments) {
   if (showing_info_) {
     return;
   }
+
   if (!bootstrap_uri_.empty()) {
+
+#ifndef _WIN32
+    // If the user does the bootstrap with superuser (uid==0) but did not provide
+    // --user option let's encourage her/him to do so.
+    // Otherwise [s]he will end up with the files (config, log, etc.) owned
+    // by the root user and not accessible by others, which is likely not what
+    // was expected. The user still can use --user=root to force using superuser.
+    bool user_option = !this->bootstrap_options_["user"].empty();
+    bool superuser = sys_user_operations_->geteuid() == 0;
+
+    if (superuser && !user_option) {
+      std::string msg("You are bootstraping as a superuser.\n"
+                      "This will make all the result files (config etc.) ptivately owned by the superuser.\n"
+                      "Please use --user=username option to specify the user that will be running the router.\n"
+                      "Use --user=root if this really should be the superuser.");
+
+      throw std::runtime_error(msg);
+    }
+#endif
+
     bootstrap(bootstrap_uri_);
     return;
   }
@@ -892,9 +913,9 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
 #else
   std::cout << "\nExamples:\n"
             << "  Bootstrap for use with InnoDB cluster into system-wide installation\n"
-            << "    sudo mysqlrouter --bootstrap root@clusterinstance01\n"
+            << "    sudo mysqlrouter --bootstrap root@clusterinstance01 --user=mysqlrouter\n"
             << "  Start router\n"
-            << "    sudo mysqlrouter &\n"
+            << "    sudo mysqlrouter --user=mysqlrouter&\n"
             << "\n"
             << "  Bootstrap for use with InnoDb cluster in a self-contained directory\n"
             << "    mysqlrouter --bootstrap root@clusterinstance01 -d myrouter\n"

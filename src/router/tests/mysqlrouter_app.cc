@@ -606,6 +606,21 @@ TEST_F(AppTest, UserSetSetUidFails) {
   }
 }
 
+TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
+  vector<string> argv = {
+    "--bootstrap", "127.0.0.1:3060"
+  };
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+
+  try {
+    MySQLRouter r(g_origin, argv, mock_sys_user_operations.get());
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), StartsWith("You are bootstraping as a superuser."));
+  }
+}
+
 #endif
 
 int main(int argc, char *argv[]) {
