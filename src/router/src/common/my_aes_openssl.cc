@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,10 +17,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys_ssl/my_aes_openssl.cc
 */
 
-#include <my_global.h>
-#include <m_string.h>
-#include <my_aes.h>
+#include "my_aes.h"
 #include "my_aes_impl.h"
+#include <string.h>
+#include <stdint.h>
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -122,9 +122,9 @@ aes_evp_type(const my_aes_opmode mode)
 }
 
 
-int my_aes_encrypt(const unsigned char *source, uint32 source_length,
+int my_aes_encrypt(const unsigned char *source, uint32_t source_length,
                    unsigned char *dest,
-                   const unsigned char *key, uint32 key_length,
+                   const unsigned char *key, uint32_t key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
                    bool padding)
 {
@@ -159,9 +159,9 @@ aes_error:
 }
 
 
-int my_aes_decrypt(const unsigned char *source, uint32 source_length,
+int my_aes_decrypt(const unsigned char *source, uint32_t source_length,
                    unsigned char *dest,
-                   const unsigned char *key, uint32 key_length,
+                   const unsigned char *key, uint32_t key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
                    bool padding)
 {
@@ -199,7 +199,7 @@ aes_error:
 }
 
 
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
+int my_aes_get_size(uint32_t source_length, my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   size_t block_size;
@@ -218,18 +218,17 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   my_aes_needs_iv()
   @param opmode           encryption mode
 
-  @retval TRUE   IV needed
-  @retval FALSE  IV not needed
+  @retval true   IV needed
+  @retval false  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+bool my_aes_needs_iv(my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   int iv_length;
 
   iv_length= EVP_CIPHER_iv_length(cipher);
-  DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
-  return iv_length != 0 ? TRUE : FALSE;
+  return iv_length != 0 ? true : false;
 }
 
 }

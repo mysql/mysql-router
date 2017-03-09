@@ -169,7 +169,7 @@ public:
         if (decrypted_size < 0)
           throw decryption_error("Decryption failed.");
 
-        return std::string(&decrypted_buffer[0], decrypted_buffer.size());
+        return std::string(&decrypted_buffer[0], decrypted_size);
       }
     }
     return "";
