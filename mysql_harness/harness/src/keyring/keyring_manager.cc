@@ -169,7 +169,11 @@ public:
         if (decrypted_size < 0)
           throw decryption_error("Decryption failed.");
 
-        return std::string(&decrypted_buffer[0], decrypted_size);
+        // std::string() wants an 'unsigned ...', but my_aes_decript gives an signed int.
+        // Due to the use of 'auto', we don't know the target type at static_cast<> time
+        // and have to let the compiler do the work for us and let it figure out the right
+        // unsigned type at compile time.
+        return std::string(&decrypted_buffer[0], static_cast<std::make_unsigned<decltype(decrypted_size)>::type>(decrypted_size));
       }
     }
     return "";
