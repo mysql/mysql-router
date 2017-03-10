@@ -242,8 +242,15 @@ TEST_F(UniquePtrTest, shared_ptr_conversion) {
   EXPECT_FALSE(p1);
 }
 
+// Disabled this test because it behaves differently on different platforms.
+// The culprit is the EXPECT_DEBUG_DEATH(), which does some voodoo magic that
+// isn't very portable.  For example, it can fail on same compiler (VS2015u3)
+// but on different Windows versions (7 vs 10 for example).  Swapping #ifdef
+// blocks can fix this test on one machine, but will make it fail on another.
+// Hopefully one day we can re-enable this test, if EXPECT_DEBUG_DEATH() becomes
+// more portable.
 #if !defined(__FreeBSD__) // EXPECT_DEBUG_DEATH() doesn't build on BSD
-TEST_F(UniquePtrTest, release_assertion) {
+TEST_F(UniquePtrTest, DISABLED_release_assertion) {
   EXPECT_CALL(get_notifier(), called_ctor("A")).Times(1);
 #ifdef _WIN32
   EXPECT_CALL(get_notifier(), called_dtor("A")).Times(0);
