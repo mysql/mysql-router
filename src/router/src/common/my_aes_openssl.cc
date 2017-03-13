@@ -68,7 +68,7 @@ const char *my_aes_opmode_names[]=
 
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
-static uint my_aes_opmode_key_sizes_impl[]=
+static uint32_t my_aes_opmode_key_sizes_impl[]=
 {
   128 /* aes-128-ecb */,
   192 /* aes-192-ecb */,
@@ -90,7 +90,7 @@ static uint my_aes_opmode_key_sizes_impl[]=
   256 /* aes-256-ofb */
 };
 
-uint *my_aes_opmode_key_sizes= my_aes_opmode_key_sizes_impl;
+uint32_t *my_aes_opmode_key_sizes= my_aes_opmode_key_sizes_impl;
 
 
 
