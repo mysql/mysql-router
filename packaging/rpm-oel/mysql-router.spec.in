@@ -209,7 +209,7 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) %{_localstatedir}/run/mysqlrouter
 
 %changelog
-* Mon Feb 23 2017 Pawel Mroszczyk <pawel.mroszczyk@oracle.com> - 2.1.2-0.1-rc
+* Thu Feb 23 2017 Pawel Mroszczyk <pawel.mroszczyk@oracle.com> - 2.1.2-0.1-rc
 - Updated for 2.1.2 rc release: changed file/dir owner to mysqlrouter:mysqlrouter
 
 * Mon Jan 30 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 2.1.2-0.1-rc
