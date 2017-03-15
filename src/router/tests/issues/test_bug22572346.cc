@@ -67,9 +67,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtBeg) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {#mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{#mysqld1}:3306'"));
@@ -82,9 +83,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld@1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld@1}:3306'"));
@@ -97,9 +99,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtEnd) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld1`}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld1`}:3306'"));
@@ -112,9 +115,10 @@ TEST_F(Bug22572346, ConfigVarWithSameMultIllegalChars) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld!!1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld!!1}:3306'"));
@@ -127,9 +131,10 @@ TEST_F(Bug22572346, ConfigVarWithDiffMultIllegalChars) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysql$d%1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysql$d%1}:3306'"));
@@ -142,9 +147,10 @@ TEST_F(Bug22572346, ConfigBindPortWithIllegalChar) {
   c << "[routing:modeReadOnly]\nbind_port = {mysqld@1}\ndestinations = localhost\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option bind_port in [routing:modeReadOnly] needs value between 1 and 65535 inclusive, was '{mysqld@1}'"));
@@ -157,9 +163,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtBeg) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = { mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{ mysqld1}:3306'"));
@@ -172,9 +179,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceInMid) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {my sqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{my sqld1}:3306'"));
@@ -187,9 +195,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceAtEnd) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {mysqld1 }\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{mysqld1 }:3306'"));
@@ -202,9 +211,10 @@ TEST_F(Bug22572346, ConfigVarWithSpaceBeforeIllegalChar) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = { @mysqld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{ @mysqld1}:3306'"));
@@ -217,9 +227,10 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharBeforeSpace) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {m@ysql d1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{m@ysql d1}:3306'"));
@@ -232,9 +243,10 @@ TEST_F(Bug22572346, ConfigVarWithMultSpace) {
   c << "[routing:modeReadOnly]\nbind_port = 7001\ndestinations = {my sq ld1}\nmode = read-only\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   try {
     r.start();
+    FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (std::invalid_argument &err) {
     ASSERT_THAT(err.what(), StrEq(
       "option destinations in [routing:modeReadOnly] has an invalid destination address '{my sq ld1}:3306'"));
