@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 
 ADD_TEST_DIR(issues MODULE issues)
 
-file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
+file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.conf ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
 if(WIN32)
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
     foreach(config_file ${config_files})

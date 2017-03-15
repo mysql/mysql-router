@@ -68,7 +68,7 @@ protected:
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
-    config_path->append("Bug24570426.ini");
+    config_path->append("Bug24570426.conf");
 
     default_paths["logging_folder"] = "";
   }

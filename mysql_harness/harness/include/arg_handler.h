@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -232,8 +232,8 @@ class HARNESS_EXPORT CmdArgHandler {
    *
    * It is allowed to use the equal sign when giving value. Following options
    * are equal:
-   *     --config /path/to/mysqlrouter.ini
-   *     --config=/path/to/mysqlrouter.ini
+   *     --config /path/to/mysqlrouter.conf
+   *     --config=/path/to/mysqlrouter.conf
    *
    * Throws std::invalid_argument when option name is not valid or
    * option was not registered.

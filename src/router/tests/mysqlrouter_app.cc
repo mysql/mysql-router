@@ -155,29 +155,30 @@ TEST_F(AppTest, CheckConfigFilesSuccess) {
   MySQLRouter r;
 
   r.default_config_files_ = {};
-  r.extra_config_files_ = { stage_dir.join("/etc/mysqlrouter_extra.ini").str() };
+  r.extra_config_files_ = { stage_dir.join("/etc/mysqlrouter_extra.conf").str() };
   ASSERT_THROW(r.check_config_files(), std::runtime_error);
 }
 
 TEST_F(AppTest, CmdLineConfig) {
   vector<string> argv = {
-      "--config", stage_dir.join("etc").join("mysqlrouter.ini").str()
+      "--config", stage_dir.join("etc").join("mysqlrouter.conf").str()
   };
   ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
   MySQLRouter r(g_origin, argv);
-  ASSERT_THAT(r.get_config_files().at(0), EndsWith("mysqlrouter.ini"));
+  ASSERT_THAT(r.get_config_files().at(0), EndsWith("mysqlrouter.conf"));
   ASSERT_THAT(r.get_default_config_files(), IsEmpty());
   ASSERT_THAT(r.get_extra_config_files(), IsEmpty());
 }
 
 TEST_F(AppTest, CmdLineConfigFailRead) {
-  string not_existing = "foobar.ini";
+  string not_existing = "foobar.conf";
   vector<string> argv = {
       "--config", stage_dir.join(not_existing).str(),
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(not_existing));
@@ -186,13 +187,14 @@ TEST_F(AppTest, CmdLineConfigFailRead) {
 
 TEST_F(AppTest, CmdLineMultipleConfig) {
   vector<string> argv = {
-      "--config", stage_dir.join("etc").join("mysqlrouter.ini").str(),
-      "-c", stage_dir.join("etc").join("config_a.ini").str(),
-      "--config", stage_dir.join("etc").join("config_b.ini").str()
+      "--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
+      "-c", stage_dir.join("etc").join("config_a.conf").str(),
+      "--config", stage_dir.join("etc").join("config_b.conf").str()
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     ASSERT_THAT(exc.what(), HasSubstr("can only be used once"));
   }
@@ -200,25 +202,26 @@ TEST_F(AppTest, CmdLineMultipleConfig) {
 
 TEST_F(AppTest, CmdLineExtraConfig) {
   vector<string> argv = {
-      "-c", stage_dir.join("etc").join("config_a.ini").str(),
-      "--extra-config", stage_dir.join("etc").join("config_b.ini").str()
+      "-c", stage_dir.join("etc").join("config_a.conf").str(),
+      "--extra-config", stage_dir.join("etc").join("config_b.conf").str()
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
   MySQLRouter r(g_origin, argv);
-  ASSERT_THAT(r.get_extra_config_files().at(0), EndsWith("config_b.ini"));
+  ASSERT_THAT(r.get_extra_config_files().at(0), EndsWith("config_b.conf"));
   ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
   ASSERT_THAT(r.get_config_files(), SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineExtraConfigFailRead) {
-  string not_existing = "foobar.ini";
+  string not_existing = "foobar.conf";
   vector<string> argv = {
-      "-c", stage_dir.join("etc").join("config_a.ini").str(),
+      "-c", stage_dir.join("etc").join("config_a.conf").str(),
       "--extra-config", stage_dir.join("etc").join(not_existing).str()
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
     ASSERT_THAT(exc.what(), EndsWith(not_existing));
@@ -227,30 +230,31 @@ TEST_F(AppTest, CmdLineExtraConfigFailRead) {
 
 TEST_F(AppTest, CmdLineMultipleExtraConfig) {
   vector<string> argv = {
-      "-c", stage_dir.join("etc").join("mysqlrouter.ini").str(),
-      "-a", stage_dir.join("etc").join("config_a.ini").str(),
-      "--extra-config", stage_dir.join("etc").join("config_b.ini").str()
+      "-c", stage_dir.join("etc").join("mysqlrouter.conf").str(),
+      "-a", stage_dir.join("etc").join("config_a.conf").str(),
+      "--extra-config", stage_dir.join("etc").join("config_b.conf").str()
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
   MySQLRouter r(g_origin, argv);
-  ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.ini"));
-  ASSERT_THAT(r.get_extra_config_files().at(0).c_str(), EndsWith("config_a.ini"));
-  ASSERT_THAT(r.get_extra_config_files().at(1).c_str(), EndsWith("config_b.ini"));
+  ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.conf"));
+  ASSERT_THAT(r.get_extra_config_files().at(0).c_str(), EndsWith("config_a.conf"));
+  ASSERT_THAT(r.get_extra_config_files().at(1).c_str(), EndsWith("config_b.conf"));
   ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
   ASSERT_THAT(r.get_config_files(), SizeIs(1));
 }
 
 TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
-  string duplicate = "config_a.ini";
+  string duplicate = "config_a.conf";
   vector<string> argv = {
-      "-c", stage_dir.join("etc").join("config_a.ini").str(),
-      "--extra-config", stage_dir.join("etc").join("mysqlrouter.ini").str(),
+      "-c", stage_dir.join("etc").join("config_a.conf").str(),
+      "--extra-config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
       "-a", stage_dir.join("etc").join(duplicate).str(),
       "--extra-config", stage_dir.join("etc").join(duplicate).str(),
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Duplicate configuration file"));
     ASSERT_THAT(exc.what(), HasSubstr(duplicate));
@@ -258,15 +262,39 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
 }
 
 TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
-  string duplicate = "config_a.ini";
   vector<string> argv = {
-      "--extra-config", stage_dir.join("etc").join("mysqlrouter.ini").str(),
+      "--extra-config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files only work when other "));
+  }
+}
+
+TEST_F(AppTest, CheckConfigFileFallbackToIniSuccess) {
+  MySQLRouter r;
+
+  r.default_config_files_ = {stage_dir.join("etc").join("config_c.conf").str()};
+  auto res = r.check_config_files();
+  ASSERT_EQ(1u, res.size());
+  ASSERT_THAT(res.at(0), HasSubstr("config_c.ini"));
+}
+
+TEST_F(AppTest, CheckConfigFileFallbackToInNoDefault)
+{
+  // falling back to ini should not work for command line passed configs
+  MySQLRouter r;
+
+  r.config_files_ = {stage_dir.join("etc").join("config_c.conf").str()};
+
+  try {
+    r.check_config_files();
+    FAIL() << "Should throw";
+  } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("No valid configuration file"));
   }
 }
 
@@ -279,6 +307,7 @@ TEST_F(AppTest, CmdLineUserBeforeBootstrapFail) {
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
   }
@@ -292,6 +321,7 @@ TEST_F(AppTest, CmdLineUserShortBeforeBootstrapFail) {
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
   }
@@ -318,28 +348,29 @@ TEST_F(AppTest, CmdLineVersionShort) {
 
 TEST_F(AppTest, ConfigFileParseError) {
   vector<string> argv = {
-      "--config", stage_dir.join("etc").join("parse_error.ini").str(),
+      "--config", stage_dir.join("etc").join("parse_error.conf").str(),
   };
   ASSERT_THROW({ MySQLRouter r(g_origin, argv); r.start(); }, std::runtime_error);
   try {
     MySQLRouter r(g_origin, argv);
     r.start();
+    FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Configuration error: Malformed section header:"));
   }
 }
 
 TEST_F(AppTest, SectionOverMultipleConfigFiles) {
-  string extra_config = stage_dir.join("etc").join("mysqlrouter_extra.ini").str();
+  string extra_config = stage_dir.join("etc").join("mysqlrouter_extra.conf").str();
   vector<string> argv = {
-      "--config", stage_dir.join("etc").join("mysqlrouter.ini").str(),
+      "--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
       "--extra-config=" + extra_config
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
 
   MySQLRouter r(g_origin, argv);
-  ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.ini"));
-  ASSERT_THAT(r.get_extra_config_files().at(0).c_str(), EndsWith("mysqlrouter_extra.ini"));
+  ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.conf"));
+  ASSERT_THAT(r.get_extra_config_files().at(0).c_str(), EndsWith("mysqlrouter_extra.conf"));
 
   r.start();
   ASSERT_NO_THROW(r.start());
@@ -353,7 +384,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
 #ifndef _WIN32
 TEST_F(AppTest, CanStartTrue) {
   vector<string> argv = {
-      "--config", stage_dir.join("etc").join("mysqlrouter.ini").str()
+      "--config", stage_dir.join("etc").join("mysqlrouter.conf").str()
   };
   ASSERT_NO_THROW({MySQLRouter r(g_origin, argv);});
 }
@@ -372,8 +403,8 @@ TEST_F(AppTest, ShowingInfoTrue) {
   vector<vector<string> > cases = {
       {"--version"},
       {"--help"},
-      {"--help", "--config", stage_dir.join("etc").join("mysqlrouter.ini").str()},
-      {"--config", stage_dir.join("etc").join("mysqlrouter.ini").str(), "--help"},
+      {"--help", "--config", stage_dir.join("etc").join("mysqlrouter.conf").str()},
+      {"--config", stage_dir.join("etc").join("mysqlrouter.conf").str(), "--help"},
   };
 
   // Make sure we do not start when showing information
@@ -387,7 +418,7 @@ TEST_F(AppTest, ShowingInfoTrue) {
 TEST_F(AppTest, ShowingInfoFalse) {
   // Cases should be allowing Router to start
   vector<vector<string> > cases = {
-      {"--config", stage_dir.join("etc").join("mysqlrouter.ini").str(),},
+      {"--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),},
   };
 
   for(auto &argv: cases) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -108,11 +108,11 @@ set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
 if(WIN32)
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
     set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage/${conf})
-    configure_file(data/1route.ini.in ${STAGE_DIR}/${conf}/etc/routing_1route.ini)
+    configure_file(data/1route.conf.in ${STAGE_DIR}/${conf}/etc/routing_1route.conf)
   endforeach()
 else()
   set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
-  configure_file(data/1route.ini.in ${STAGE_DIR}/etc/routing_1route.ini)
+  configure_file(data/1route.conf.in ${STAGE_DIR}/etc/routing_1route.conf)
 endif()
 
 target_link_libraries(test_issues_bug21962350 logger)

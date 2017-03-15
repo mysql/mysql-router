@@ -34,7 +34,7 @@
 
 DESC="Start / Stop MySQL Router"
 DAEMON=/usr/bin/mysqlrouter
-DAEMON_OPTIONS="-c /etc/mysqlrouter/mysqlrouter.ini"
+DAEMON_OPTIONS="-c /etc/mysqlrouter/mysqlrouter.conf"
 NAME="MySQL Router"
 RUNTIMEDIR=/var/run/mysqlrouter/
 PID=${RUNTIMEDIR}/mysqlrouter.pid

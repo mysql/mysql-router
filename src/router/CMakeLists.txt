@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ if(INSTALL_DOCDIR)
   endif()
   install(FILES ${CMAKE_SOURCE_DIR}/README.txt DESTINATION ${INSTALL_DOCDIR})
   install(FILES ${CMAKE_SOURCE_DIR}/License.txt DESTINATION ${INSTALL_DOCDIR})
-  install(FILES ${CMAKE_SOURCE_DIR}/doc/sample_mysqlrouter.ini DESTINATION ${INSTALL_DOCDIR})
+  install(FILES ${CMAKE_SOURCE_DIR}/doc/sample_mysqlrouter.conf DESTINATION ${INSTALL_DOCDIR})
   if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALONE")
     if(GPL)
       install(FILES ${CMAKE_SOURCE_DIR}/packaging/deb-common/mysql-router.mysqlrouter.init

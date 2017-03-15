@@ -9,7 +9,7 @@ life-cycles.
 For the avoidance of doubt, this particular copy of the software is
 released under the version 2 of the GNU General Public License.
 
-Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
 Building
 --------
@@ -106,7 +106,7 @@ Running
 -------
 
 To start the harness, you need a configuration file. You can find an
-example in `data/main.ini`:
+example in `data/main.conf`:
 
     # Example configuration file
 
@@ -131,7 +131,7 @@ in to all plugins.
 To run the harness, just provide the configuration file as the only
 argument:
 
-    harness /etc/mysql/harness/main.ini
+    harness /etc/mysql/harness/main.conf
 
 Note that the harness read directories for logging, configuration,
 etc. from the configuration file so you have to make sure these are

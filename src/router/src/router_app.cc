@@ -465,8 +465,22 @@ vector<string> MySQLRouter::check_config_files() {
 
   auto config_file_containers = {
     &default_config_files_,
-      &config_files_,
-      &extra_config_files_
+    &config_files_,
+    &extra_config_files_
+  };
+
+  auto check_file = [](const std::string &file_name) -> bool {
+    std::ifstream file_check;
+    file_check.open(file_name);
+    return  file_check.is_open();
+  };
+
+  auto use_ini_extension = [](const std::string &file_name) -> std::string {
+    auto pos = file_name.find_last_of(".conf");
+    if (pos == std::string::npos || (pos != file_name.length() - 1)) {
+      return std::string();
+    }
+    return file_name.substr(0, pos - 4) + ".ini";
   };
 
   std::string paths_attempted;
@@ -476,16 +490,29 @@ vector<string> MySQLRouter::check_config_files() {
       if (pos != result.end()) {
         throw std::runtime_error(string_format("Duplicate configuration file: %s.", file.c_str()));
       }
-      std::ifstream file_check;
-      file_check.open(file);
-      if (file_check.is_open()) {
+      if (check_file(file)) {
         result.push_back(file);
         if (vec != &extra_config_files_) {
           nr_of_none_extra++;
         }
-      } else {
-        paths_attempted.append(file).append(path_sep);
+        continue;
       }
+
+      // if this is a default path we also check *.ini version to be backward compatible
+      // with the previous router versions that used *.ini
+      std::string file_ini;
+      if (vec == &default_config_files_) {
+        file_ini = use_ini_extension(file);
+        if (!file_ini.empty() && check_file(file_ini)) {
+          result.push_back(file_ini);
+          nr_of_none_extra++;
+          continue;
+        }
+      }
+
+      paths_attempted.append(file).append(path_sep);
+      if (!file_ini.empty())
+          paths_attempted.append(file_ini).append(path_sep);
     }
   }
 

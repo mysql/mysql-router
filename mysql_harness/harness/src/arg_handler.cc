@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@ void CmdArgHandler::process(const vector<string>& arguments) {
 
   for (auto part = arguments.begin(); part < args_end; ++part) {
     if ((pos = (*part).find('=')) != string::npos) {
-      // Option like --config=/path/to/config.ini
+      // Option like --config=/path/to/config.conf
       argpart = (*part).substr(0, pos);
       value = (*part).substr(pos + 1);
     } else {

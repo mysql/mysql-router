@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ else()
   set(RPM_LIBDIR "/usr/lib")
 endif()
 
-configure_file(mysqlrouter.ini.in ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.ini @ONLY)
+configure_file(mysqlrouter.conf.in ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.conf @ONLY)
 configure_file(mysqlrouter.init ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.init @ONLY)
 configure_file(mysqlrouter.service ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.service @ONLY)
 configure_file(mysqlrouter.tmpfiles.d ${CMAKE_BINARY_DIR}/packaging/rpm-oel/mysqlrouter.tmpfiles.d @ONLY)
