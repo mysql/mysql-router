@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ protected:
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
-    config_path->append("test_routing_plugin.ini");
+    config_path->append("test_routing_plugin.conf");
     cmd = app_mysqlrouter->str() + " -c " + config_path->str();
 
     bind_address = "127.0.0.1:15508";

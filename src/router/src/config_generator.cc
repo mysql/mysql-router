@@ -725,7 +725,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
     // When no master key file is provided, console interaction is required to provide a master password. Since console interaction is not available when
     // run as service, throw an error to abort.
     if (mysqlrouter::is_running_as_service()) {
-      std::string msg = "Cannot run router in Windows a service without a master key file. Please use the --master-key-file option during boostrap or run MySQL Router from the command line (instead of as a service).";
+      std::string msg = "Cannot run router in Windows a service without a master key file. Please run MySQL Router from the command line (instead of as a service) to create a master keyring file.";
       mysqlrouter::write_windows_event_log(msg);
       throw std::runtime_error(msg);
     }
@@ -737,10 +737,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
     } else {
       std::cout
         << "MySQL Router needs to create a InnoDB cluster metadata client account.\n"
-        << "To allow secure storage of its password, please provide an encryption key.\n"
-        << "To generate a random encryption key to be stored in a local obscured file,\n"
-        << "and allow the router to start without interaction, press Return to cancel\n"
-        << "and use the --master-key-file option to specify a file location.\n\n";
+        << "To allow secure storage of its password, please provide an encryption key.\n\n";
     again:
       master_key = prompt_password("Please provide an encryption key");
       if (master_key.empty()) {

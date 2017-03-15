@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,7 +275,7 @@ int install_config_file(const char *install_dir, const char* progdata_dir) {
 
 	StringBuffer source_path;
 	source_path.append(install_dir);
-	source_path.append("\\etc\\mysqlrouter.ini.sample");
+	source_path.append("\\etc\\mysqlrouter.conf.sample");
   FILE *f = fopen(source_path.c_str(), "r");
   if (!f) {
     WcaLog(LOGMSG_STANDARD, "Can't open config file template %s: %s", source_path.c_str(), strerror(errno));
@@ -308,7 +308,7 @@ int install_config_file(const char *install_dir, const char* progdata_dir) {
 	// write the config file
 	StringBuffer target_file;
 	target_file.append(progdata_dir);
-	target_file.append("\\mysqlrouter.ini");
+	target_file.append("\\mysqlrouter.conf");
 	FILE *tmp;
 	if ((tmp = fopen(target_file.c_str(), "r")) != NULL) {
 		fclose(tmp);
@@ -420,7 +420,7 @@ UINT DoInstallService(MSIHANDLE hInstall, char *install_dir, char *data_dir)
   strcat(szFilePath, "bin\\mysqlrouter.exe\"");
   strcat(szFilePath, " -c \"");
   strcat(szFilePath, data_dir);
-  strcat(szFilePath, "\\mysqlrouter.ini\" --service");
+  strcat(szFilePath, "\\mysqlrouter.conf\" --service");
   int len = strlen(szFilePath);
   for (int i = 0; i < len; i++)
   {

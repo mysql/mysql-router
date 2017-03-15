@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ endif()
 
 # For testing
 if(ENABLE_TESTS)
-  file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/../tests/*.ini.in)
+  file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/../tests/*.conf.in)
   if(NOT WIN32)
     set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
     foreach(config_file ${config_files})

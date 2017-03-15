@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ ELSE()
 ENDIF()
 
 foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.ini.in  ${CMAKE_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.ini.sample)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${CMAKE_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.conf.sample)
 endforeach()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_router_extra.wxs.in

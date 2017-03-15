@@ -66,7 +66,7 @@ Debian-based 64-bit distributions.
     │   ├── init.d
     │   │   └── mysqlrouter
     │   └── mysql
-    │       └── mysqlrouter.ini
+    │       └── mysqlrouter.conf
     └── usr
         ├── lib
         │   └── x86_64-linux-gnu

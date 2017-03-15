@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ const std::vector<std::string> kLicenseSnippets{
 
 // Ignored file extensions
 const std::vector<std::string> kIgnoredExtensions{
-    ".o", ".pyc", ".pyo", ".ini.in", ".cfg.in", ".cfg", ".html", ".css", ".ini",
+    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf",
 };
 
 const std::vector<std::string> kIgnoredFileNames{

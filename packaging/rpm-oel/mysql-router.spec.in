@@ -50,7 +50,7 @@ Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
 Source3:       mysqlrouter.init
-Source4:       mysqlrouter.ini
+Source4:       mysqlrouter.conf
 BuildRequires: cmake
 %{?el6:BuildRequires:  devtoolset-3-gcc}
 %{?el6:BuildRequires:  devtoolset-3-gcc-c++}
@@ -130,7 +130,7 @@ install -D -p -m 0644 %{SOURCE2} %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 %else
 install -D -p -m 0755 %{SOURCE3} %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
 %endif
-install -D -p -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.ini
+install -D -p -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # remove some unwanted files
 rm -rf %{buildroot}%{_includedir}
@@ -192,7 +192,7 @@ fi
 %defattr(-, root, root, -)
 %doc License.txt README.txt
 %dir %{_sysconfdir}/mysqlrouter
-%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.ini
+%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
