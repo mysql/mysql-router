@@ -71,6 +71,7 @@ static const std::map<std::string, Level> map_level_str = {
 
 static std::atomic<FILE*> g_log_file(stdout);
 static std::atomic<int> g_log_level(LVL_DEBUG);
+static std::atomic<bool> g_log_file_open(false);
 
 static int init(const AppInfo* info) {
   g_log_level = LVL_INFO;  // Default log level is INFO
@@ -112,14 +113,18 @@ static int init(const AppInfo* info) {
       return 1;
     }
     g_log_file.store(fp, std::memory_order_release);
+    g_log_file_open.store(true);
   }
 
   return 0;
 }
 
 static int deinit(const AppInfo*) {
-  assert(g_log_file.load());
-  return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
+  if (g_log_file_open.exchange(false)) {
+    assert(g_log_file.load());
+    return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
+  }
+  return 0;
 }
 
 static void log_message(Level level, const char* fmt, va_list ap) {
