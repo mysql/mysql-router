@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
       if (std::string(e.what()).find(msg) == std::string::npos) {\
           FAIL() << "Expected exception with message: " << msg << "\nbut got: " << e.what() << "\n";\
       }\
+    } catch (...) {\
+      FAIL() << "Expected exception of type " #exc << " but got another\n";\
     }
 
 #define EXPECT_THROW_LIKE(expr, exc, msg) try { \
@@ -40,6 +42,8 @@
       if (std::string(e.what()).find(msg) == std::string::npos) {\
           ADD_FAILURE() << "Expected exception with message: " << msg << "\nbut got: " << e.what() << "\n";\
       }\
+    } catch (...) {\
+      ADD_FAILURE() << "Expected exception of type " #exc << " but got another\n";\
     }
 
 #include "filesystem.h"

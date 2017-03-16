@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,12 +88,8 @@ TEST_F(TestConfig, NoDestination) {
   c.close();
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-      "either bind_address or socket option needs to be supplied, or both"));
-  }
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "either bind_address or socket option needs to be supplied, or both");
 }
 
 TEST_F(TestConfig, MissingPortInBindAddress) {
@@ -104,12 +100,8 @@ TEST_F(TestConfig, MissingPortInBindAddress) {
   c.close();
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "either bind_address or socket option needs to be supplied, or both"));
-  }
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "either bind_address or socket option needs to be supplied, or both");
 }
 
 TEST_F(TestConfig, InvalidPortInBindAddress) {
@@ -120,12 +112,8 @@ TEST_F(TestConfig, InvalidPortInBindAddress) {
   c.close();
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "option bind_address in [routing] is incorrect (invalid TCP port: invalid characters or too long)"));
-  }
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option bind_address in [routing] is incorrect (invalid TCP port: invalid characters or too long)");
 }
 
 TEST_F(TestConfig, InvalidDefaultPort) {
@@ -136,12 +124,8 @@ TEST_F(TestConfig, InvalidDefaultPort) {
   c.close();
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
-  try {
-    r.start();
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-     "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'"));
-  }
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'");
 }
 
 int main(int argc, char *argv[]) {
