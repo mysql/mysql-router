@@ -49,6 +49,8 @@ DECLARE_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
 DECLARE_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
 DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
 DECLARE_TEST(ConfigGeneratorTest, warn_on_no_ssl);
+DECLARE_TEST(ConfigGeneratorTest, set_file_owner_no_user);
+DECLARE_TEST(ConfigGeneratorTest, set_file_owner_user_empty);
 #endif
 
 namespace mysqlrouter {
@@ -189,6 +191,8 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, ssl_stage3_create_config);
   FRIEND_TEST(::ConfigGeneratorTest, empty_config_file);
   FRIEND_TEST(::ConfigGeneratorTest, warn_on_no_ssl);
+  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_no_user);
+  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_user_empty);
 #endif
 };
 }

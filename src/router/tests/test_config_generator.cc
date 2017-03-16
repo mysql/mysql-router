@@ -2020,3 +2020,16 @@ TEST_F(ConfigGeneratorTest, warn_no_ssl_true) {
   }
 }
 
+TEST_F(ConfigGeneratorTest, set_file_owner_no_user) {
+    ConfigGenerator config_gen;
+
+    std::map<std::string, std::string> empty_options;
+    ASSERT_NO_THROW (config_gen.set_file_owner(empty_options, "/tmp/somefile") );
+}
+
+TEST_F(ConfigGeneratorTest, set_file_owner_user_empty) {
+    ConfigGenerator config_gen;
+
+    std::map<std::string, std::string> bootstrap_options{{"user", ""}};
+    ASSERT_NO_THROW (config_gen.set_file_owner(bootstrap_options, "/tmp/somefile") );
+}
