@@ -193,12 +193,12 @@ void MySQLRouter::init(const vector<string>& arguments) {
     // Otherwise [s]he will end up with the files (config, log, etc.) owned
     // by the root user and not accessible by others, which is likely not what
     // was expected. The user still can use --user=root to force using superuser.
-    bool user_option = !this->bootstrap_options_["user"].empty();
+    bool user_option = this->bootstrap_options_.count("user") != 0 ;
     bool superuser = sys_user_operations_->geteuid() == 0;
 
     if (superuser && !user_option) {
       std::string msg("You are bootstraping as a superuser.\n"
-                      "This will make all the result files (config etc.) ptivately owned by the superuser.\n"
+                      "This will make all the result files (config etc.) privately owned by the superuser.\n"
                       "Please use --user=username option to specify the user that will be running the router.\n"
                       "Use --user=root if this really should be the superuser.");
 

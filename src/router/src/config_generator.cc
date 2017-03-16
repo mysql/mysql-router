@@ -1320,7 +1320,7 @@ void ConfigGenerator::set_file_owner(const std::map<std::string, std::string> &o
                                      const std::string &file_path)
 {
 #ifndef _WIN32
-  bool change_owner = options.find("user") != options.end();
+  bool change_owner = (options.count("user") != 0) && (!options.at("user").empty());
   if (change_owner) {
     auto username = options.at("user");
     auto user_info = check_user(username, true, sys_user_operations_);

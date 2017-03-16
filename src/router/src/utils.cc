@@ -754,7 +754,9 @@ struct passwd* check_user(const std::string& username,
                           SysUserOperationsBase* sys_user_operations)
 {
   assert(sys_user_operations != nullptr);
-  assert(!username.empty());
+  if (username.empty()) {
+      throw std::runtime_error("Empty user name in check_user() function.");
+  }
 
   if (must_be_root) {
     if (!check_if_root(username, sys_user_operations))
