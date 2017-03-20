@@ -357,7 +357,7 @@ void MySQLRouter::init_log() {
   if (!config.has_default("log_level"))
     config.set_default("log_level", mysql_harness::logging::kDefaultLogLevelName);
 
-  // register Registry object with DIM
+  // register Registry object with DIM  //TODO move this near main()
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
   dim.set_LoggingRegistry(
     []() {
@@ -473,12 +473,15 @@ void MySQLRouter::start() {
   init_keyring(config);
 
   try {
+    // get logger directory
     auto log_file = loader_->get_log_file();
-    std::string log_path(log_file.str());
+    std::string log_path(log_file.str()); // log_path = /path/to/file.log
     size_t pos;
     pos = log_path.find_last_of('/');
     if (pos != std::string::npos)
-      log_path.erase(pos);
+      log_path.erase(pos);                // log_path = /path/to
+
+    // PM 2017.03.07: TODO shouldn't throw here. See older code
     if (mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
       throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
     std::cout << "Logging to " << log_file << std::endl;

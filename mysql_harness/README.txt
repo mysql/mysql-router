@@ -122,7 +122,7 @@ example in `data/main.conf`:
 
 The configuration file contain information about all the plugins that
 should be loaded when starting and configuration options for each
-plugin.  The default section contain configuration options available
+plugin.  The default section contains configuration options available
 in to all plugins.
 
 To run the harness, just provide the configuration file as the only
@@ -141,6 +141,10 @@ Typically, the harness will then load plugins from the directory
 
 Writing Plugins
 ---------------
+
+NOTE: This chapter quickly outlines the basic concepts, there is also
+      more in-depth information available at the beginning of loader.h,
+      which you will probably want to read to gain further insight.
 
 All available plugins are in the `plugins/` directory. There is one
 directory for each plugin and it is assumed that it contain a
@@ -180,7 +184,7 @@ Similar to the harness, each plugin have two types of files:
 
 ### Application Information Structure ###
 
-The application information structure contain some basic fields
+The application information structure contains some basic fields
 providing information to the plugin. Currently these fields are
 provided:
 
@@ -194,13 +198,32 @@ provided:
     };
 
 
+### Configuration Section Information Structure ###
+
+Configuration section object (class `ConfigSection`) carries configuration
+information specific to a particular plugin instance. It reflects
+information provided in router configuration file for one specific
+configuration section. Only parts relevant to configuration retrieval are
+listed below, the actual class carries additional methods and fields:
+
+    class ConfigSection {
+     public:
+      ConfigSection& operator=(const ConfigSection&) = delete;
+      std::string    get(const std::string& option) const;
+
+     public:
+      const std::string name;
+      const std::string key;
+    };
+
+
 ### Plugin Structure ###
 
 To define a new plugin, you have to create an instance of the
 `Plugin` structure in your plugin similar to this:
 
     #include <mysql/harness/plugin.h>
-    
+
     static const char* requires[] = {
       "magic (>>1.0)",
     };
@@ -219,35 +242,120 @@ To define a new plugin, you have to create an instance of the
       0,
       NULL,
 
+      // pointers to API functions, can be NULL if not implemented
       init,
       deinit,
       start,
+      stop,
     };
 
 
 ### Initialization and Cleanup ###
 
 After the plugin is loaded, the `init()` function is called for all
-plugins with a pointer to the harness (as defined above) as the only
-argument.
+plugins with a pointer to the function call environment object (not to be
+confused with application environment passed from the shell) as the only argument.
 
 The `init()` functions are called in dependency order so that all
 `init()` functions in required plugins are called before the `init()`
 function in the plugin itself.
 
 Before the harness exits, it will call the `deinit()` function with a
-pointer to the harness as the only argument.
+pointer to environment object as the only argument.
 
 
-### Starting the Plugin ###
+### Starting and Stopping the Plugin ###
 
 After all the plugins have been successfully initialized, a thread
-will be created for each plugins that have a `start()` function
+will be created for each plugin that has a `start()` function
 defined.
 
-The start function will be called with a pointer to the harness as the
-only parameter. When all the plugins return from their `start()`
-functions, the harness will perform cleanup and exit.
+#### Overview ####
+
+The `start()` function will be called with a pointer to environment object
+as the only parameter. When all the plugins return from their `start()`
+functions, the harness will perform cleanup and exit. If plugin
+provides a `stop()` function, it will also be called at that time.
+
+IMPORTANT: `start()` function runs in a different thread than `stop()`
+function. By the time `stop()` runs, depending on the circumstances,
+`start()` thread may or may not exist.
+
+#### Shutdown Provision ####
+It is typical to implement start function in such a way that it will
+"persist" (i.e. it will run some forever-loop processing requests
+rather than exit briefly after being called). In such case, Harness
+must have a way to terminate it during shutdown operation. This is
+accomplished by providing a `is_running()` function, that polls harness
+state. This function should be routinely called from plugin's `start()`
+function to determine if it should shut down. Typically, `start()`
+would be implemented more-or-less like so:
+
+    void start()
+    {
+      // run-once code
+
+      while (is_running())
+      {
+        // forever-loop code
+      }
+
+      // clean-up code
+    }
+
+There is also an alternative blocking function available, `wait_for_stop()`,
+should that be better suited for your plugin. Instead of quickly returning
+a boolean flag, it will block until Harness initiates shut down. It is
+functionally equivalent to:
+
+    while (is_running())
+    {
+      // sleep a little or break on timeout
+    }
+
+When entering shutdown mode, Harness will notify all plugins to shut down
+via mechanism described above. It is also possible for plugins to exit on
+their own, whether due to error or intended behavior. In some designs,
+`start()` function might need to be able to set the flag returned by
+`is_running()` to false. For such cases, `clear_running()` flag is provided,
+which will do exactly that.
+
+IMPORTANT! Please note that all 3 functions described above (`is_running()`,
+`wait_for_stop()` and `clear_running()`) can only be called from a thread
+running `start()` function. If your plugins spawns more threads, these
+functions CANNOT be called from them.
+
+### Returning Success/Failure from Plugin Function ###
+
+Harness expects all four plugin functions (`init(), `start()`, `stop()` and
+`deinit()`) to notify it in case of an error. This is done via function:
+
+    set_error(PluginFuncEnv* env, ErrorType error, const char* format, ...);
+
+Calling this function flags that the function has failed, and passes the
+error type and string back to Harness. The converse is also true: not
+calling this function prior to exiting the function implies success.
+This distinction is important, because Harness may take certain actions
+based on the status returned by each function.
+
+IMPORTANT! Throwing exceptions from these functions is not supported.
+If your plugin uses exceptions internally, that is fine, but please
+ensure they are handled before reaching the Harness-Plugin boundary.
+
+
+### Threading Concerns ###
+
+For each plugin (independent of other plugins):
+Of the 4 plugin functions, `init()` runs first. It is guaranteed that
+it will exit before `start()` and `stop()` are called. `start()` and
+`stop()` can be called in parallel to each other, in any order, with
+their lifetimes possibly overlapping. They are guaranteed to both have
+exited before `deinit()` is called.
+
+If any of the 4 plugin functions spawn any additional threads, Harness
+makes no provisions for interacting with them in any way: calling
+Harness functions from them is not supported in particular; also such
+threads should exit before their parent function finishes running.
 
 
 License

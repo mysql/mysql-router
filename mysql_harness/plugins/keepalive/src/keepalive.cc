@@ -36,8 +36,8 @@
 #include "mysql/harness/plugin.h"
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
+using mysql_harness::PluginFuncEnv;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 using mysql_harness::logging::log_info;
@@ -49,16 +49,13 @@ namespace {
 const int kInterval = 60;  // in seconds
 const int kRuns = 0;  // 0 means for ever
 
-const AppInfo *app_info;
-
 }
 
-static int init(const AppInfo *info) {
-  app_info = info;
-  return 0;
+static void init(PluginFuncEnv*) {
 }
 
-static void start(const ConfigSection *section) {
+static void start(PluginFuncEnv* env) {
+  const ConfigSection* section = get_config_section(env);
   int interval = kInterval;
   try {
     interval = std::stoi(section->get("interval"));
@@ -85,7 +82,8 @@ static void start(const ConfigSection *section) {
 
   for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
     log_info(name.c_str());
-    std::this_thread::sleep_for(std::chrono::seconds(interval));
+    if (wait_for_stop(env, static_cast<uint32_t>(interval * 1000)))
+      break;
   }
 }
 

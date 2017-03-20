@@ -32,12 +32,7 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Loader
 
-void Loader::start() {
-  for (auto& name : available())
-    load(name.first, name.second);
-  init_all();
-  start_all();
-}
+void Loader::platform_specific_init() {}
 
 ////////////////////////////////////////////////////////////////
 // class Loader::PluginInfo::Impl

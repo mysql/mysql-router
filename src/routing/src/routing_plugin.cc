@@ -96,68 +96,82 @@ void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_
   validate_socket_info(err_prefix, section, config);
 }
 
-static int init(const mysql_harness::AppInfo *info) {
-  if (info->config != nullptr) {
-    bool have_metadata_cache = false;
-    bool need_metadata_cache = false;
-    std::vector<TCPAddress> bind_addresses;
-    for (const mysql_harness::ConfigSection* &section: info->config->sections()) {
-      if (section->name == kSectionName) {
-        string err_prefix = mysqlrouter::string_format("in [%s%s%s]: ", section->name.c_str(),
-                                                       section->key.empty() ? "" : ":",
-                                                       section->key.c_str());
-        // Check the configuration
-        RoutingPluginConfig config(section);                // throws std::invalid_argument
-        validate_socket_info(err_prefix, section, config);  // throws std::invalid_argument
+static void init(mysql_harness::PluginFuncEnv* env) {
+  const mysql_harness::AppInfo* info = get_app_info(env);
 
-        // ensure that TCP port is unique
-        if (config.bind_address.port) {
+  try {
+    if (info->config != nullptr) {
+      bool have_metadata_cache = false;
+      bool need_metadata_cache = false;
+      std::vector<TCPAddress> bind_addresses;
+      for (const mysql_harness::ConfigSection* section: info->config->sections()) {
+        if (section->name == kSectionName) {
+          string err_prefix = mysqlrouter::string_format("in [%s%s%s]: ", section->name.c_str(),
+                                                         section->key.empty() ? "" : ":",
+                                                         section->key.c_str());
+          // Check the configuration
+          RoutingPluginConfig config(section);                // throws std::invalid_argument
+          validate_socket_info(err_prefix, section, config);  // throws std::invalid_argument
 
-          const TCPAddress& config_addr = config.bind_address;
+          // ensure that TCP port is unique
+          if (config.bind_address.port) {
 
-          // Check uniqueness of bind_address and port, using IP address
-          std::vector<TCPAddress>::iterator found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
-          if (found_addr != bind_addresses.end()) {
-            throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
-                                          config.bind_address.str() + "'");
-          }
-          // Check ADDR_ANY binding on same port
-          else if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
-            found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
-              return config.bind_address.port == addr.port;
-            });
+            const TCPAddress& config_addr = config.bind_address;
+
+            // Check uniqueness of bind_address and port, using IP address
+            std::vector<TCPAddress>::iterator found_addr = std::find(bind_addresses.begin(), bind_addresses.end(), config.bind_address);
             if (found_addr != bind_addresses.end()) {
-              throw std::invalid_argument(
-                  err_prefix + "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+              throw std::invalid_argument(err_prefix + "duplicate IP or name found in bind_address '" +
+                                            config.bind_address.str() + "'");
             }
+            // Check ADDR_ANY binding on same port
+            else if (config_addr.addr == "0.0.0.0" || config_addr.addr == "::") {
+              found_addr = std::find_if(bind_addresses.begin(), bind_addresses.end(), [&config](TCPAddress &addr) {
+                return config.bind_address.port == addr.port;
+              });
+              if (found_addr != bind_addresses.end()) {
+                throw std::invalid_argument(
+                    err_prefix + "duplicate IP or name found in bind_address '" + config.bind_address.str() + "'");
+              }
+            }
+            bind_addresses.push_back(config.bind_address);
           }
-          bind_addresses.push_back(config.bind_address);
-        }
 
-        // We check if we need special plugins based on URI
-        try {
-          auto uri = URI(config.destinations);
-          if (uri.scheme == "metadata-cache") {
-            need_metadata_cache = true;
+          // We check if we need special plugins based on URI
+          try {
+            auto uri = URI(config.destinations);
+            if (uri.scheme == "metadata-cache") {
+              need_metadata_cache = true;
+            }
+          } catch (URIError) {
+            // No URI, no extra plugin needed
           }
-        } catch (URIError) {
-          // No URI, no extra plugin needed
+        } else if (section->name == "metadata_cache") {
+          have_metadata_cache = true;
         }
-      } else if (section->name == "metadata_cache") {
-        have_metadata_cache = true;
+      }
+
+      if (need_metadata_cache && !have_metadata_cache) {
+        throw std::invalid_argument("Routing needs Metadata Cache, but no none "
+                                    "was found in configuration.");
       }
     }
-
-    if (need_metadata_cache && !have_metadata_cache) {
-      throw std::invalid_argument("Routing needs Metadata Cache, but no none "
-                                  "was found in configuration.");
-    }
+    g_app_info = info;
+  } catch (const std::invalid_argument& exc) {
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+  } catch (const std::exception& exc) {
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+  } catch (...) {
+    log_error("Unexpected exception");  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
-  g_app_info = info;
-  return 0;
 }
 
-static void start(const ConfigSection *section) {
+static void start(mysql_harness::PluginFuncEnv* env) {
+  const mysql_harness::ConfigSection* section = get_config_section(env);
+
   string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
@@ -179,12 +193,16 @@ static void start(const ConfigSection *section) {
     } catch (URIError) {
       r.set_destinations_from_csv(config.destinations);
     }
-    r.start();
+    r.start(env);
   } catch (const std::invalid_argument &exc) {
-    log_error(exc.what());
-    return;
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
-    log_error("%s: %s", name.c_str(), exc.what());
+    log_error("%s: %s", name.c_str(), exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kRuntimeError, "%s: %s", name.c_str(), exc.what());
+  } catch (...) {
+    log_error("Unexpected exception");  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }
 

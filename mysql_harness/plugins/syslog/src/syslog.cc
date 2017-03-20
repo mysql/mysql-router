@@ -54,17 +54,16 @@ class SyslogHandler final : public mysql_harness::logging::Handler {
 std::shared_ptr<SyslogHandler> g_syslog_handler =
     std::make_shared<SyslogHandler>();
 
-static int init(const AppInfo* info) {
+static void init(mysql_harness::PluginFuncEnv* env) {
+  const AppInfo* info = get_app_info(env);
   using mysql_harness::logging::register_handler;
 
   g_syslog_handler->open(info->program);
   register_handler(SyslogHandler::kDefaultName, g_syslog_handler);
-  return 0;
 }
 
-static int deinit(const AppInfo*) {
+static void deinit(mysql_harness::PluginFuncEnv*) {
   g_syslog_handler->close();
-  return 0;
 }
 
 extern "C" {

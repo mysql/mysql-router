@@ -173,7 +173,7 @@ extern "C" {
  * functions that pick up the log domain defined for the module.
  */
 
-inline void log_error(const char* fmt, ...) {
+static inline void log_error(const char* fmt, ...) {
   extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
@@ -181,7 +181,7 @@ inline void log_error(const char* fmt, ...) {
   va_end(ap);
 }
 
-inline void log_warning(const char* fmt, ...) {
+static inline void log_warning(const char* fmt, ...) {
   extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
@@ -189,7 +189,7 @@ inline void log_warning(const char* fmt, ...) {
   va_end(ap);
 }
 
-inline void log_info(const char* fmt, ...) {
+static inline void log_info(const char* fmt, ...) {
   extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
@@ -197,7 +197,7 @@ inline void log_info(const char* fmt, ...) {
   va_end(ap);
 }
 
-inline void log_debug(const char* fmt, ...) {
+static inline void log_debug(const char* fmt, ...) {
   extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);

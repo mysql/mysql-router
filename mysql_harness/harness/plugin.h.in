@@ -18,14 +18,167 @@
 #ifndef MYSQL_HARNESS_PLUGIN_INCLUDED
 #define MYSQL_HARNESS_PLUGIN_INCLUDED
 
+#include "harness_export.h"
+
 #include <cstdlib>
 #include <cstdint>
 
 namespace mysql_harness {
 
 /* Forward declarations */
+struct AppInfo;
 class Config;
 class ConfigSection;
+class PluginFuncEnv;
+
+/** @defgroup Harness_API Harness API
+ *
+ * Harness API provides a set of functions that can be called from 4 plugin
+ * functions (`start()`, `stop()`, `init()`, `deinit()`). Each call requires
+ * `PluginFuncEnv*` as first argument - this is an opaque pointer that is passed
+ * to plugin function in its argument list.
+ *
+ * @note Not all API functions can be called from all plugin functions. See
+ * description of each function for details.
+ *
+ * @{
+ */
+
+/**
+ * This is a list of pre-defined error types, which can be used in
+ * set_error() API call. Select the one that best-describes your situation.
+ * As a rule of thumb, use one of kConfig* if the error occurs due to
+ * configuration issue, or kRuntimeError otherwise.
+ *
+ * Since plugin functions are not allowed to throw, it is recommended to
+ * surround your plugin function code with try/catch blocks, and catching
+ * (in addition to any specific exceptions) all exceptions
+ * (using the "catch (...) { .. }" block). In this catch block, using
+ * kUndefinedError is recommended.
+ *
+ * @note There is another enum missing from table below (kNoError),
+ * it is internal to MySQL Router, DO NOT USE it in your plugin.
+ */
+enum HARNESS_EXPORT ErrorType {
+  // internal to MySQL Router project, DO NOT USE THIS in your plugin
+  kNoError = 0,             // uninitialized error value
+
+  // API
+  kRuntimeError = 1,        /**< runtime error */
+  kConfigInvalidArgument,   /**< configuration error */
+  kConfigSyntaxError,       /**< configuration syntax error */
+  kUndefinedError,          /**< typically set from plugin's general safeguard
+                                 ('catch (...) {..}' block) */
+};
+
+/** @brief Returns error to Harness
+ *
+ * Function callable from: `init()`, `start()`, `stop()`, `deinit()`
+ *
+ * Plugin functions cannot throw nor return a value. To communicate failure,
+ * this function should be called.
+ *
+ * Calling this function not only passes the error type and string back to
+ * Harness, but also implies that the function has failed. The converse is also
+ * true: not calling this function prior to exiting the function implies
+ * success.  This distinction is important, because Harness may take certain
+ * actions based on the status returned by each function.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @param error_type One of the pre-defined error codes
+ * @param message Error message to be passed back (it will be logged).
+ * It can be NULL, but it's recommended to provide a meaningful message.
+ */
+void HARNESS_EXPORT set_error(mysql_harness::PluginFuncEnv* env,
+                    mysql_harness::ErrorType error_type,
+                    const char* fmt, ...) noexcept;
+
+/** @brief Checks whether plugin shutdown was requested
+ *
+ * Function callable from: `start()`
+ *
+ * Since plugin is running in its own thread (inside its `start()` function),
+ * it needs to be notified when Harness wants it to shut down.  Harness
+ * provides two notification mechanisms: blocking and non-blocking. The plugin
+ * developer can choose the one that is most convenient.
+ *
+ * This is the non-blocking version. It should be regularly polled by `start()`,
+ * and upon returning false, `start()` should shut down the plugin and exit.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @return "running" flag. If true, `start()` may continue running, if false,
+ * `start()` should shut down
+ */
+bool HARNESS_EXPORT is_running(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Blocks until shutdown is requested (or optionally timeout)
+ *
+ * Function callable from: `start()`
+ *
+ * Since plugin is running in its own thread (inside its `start()` function),
+ * it needs to be notified when Harness wants it to shut down.  Harness
+ * provides two notification mechanisms: blocking and non-blocking. The plugin
+ * developer can choose the one that is most convenient.
+ *
+ * This is the blocking version. It is a responsive and efficient functional
+ * equivalent of:
+ * @code
+ *
+ *   while (is_running(env)) {
+ *     // sleep a little bit or break on timeout
+ *   }
+ *
+ * @endcode
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @param milliseconds Timeout in milliseconds, 0 = wait forever
+ * @return true if stop was requested, false on timeout
+ */
+bool HARNESS_EXPORT wait_for_stop(const mysql_harness::PluginFuncEnv* env,
+                                  uint32_t milliseconds) noexcept;
+
+/** @brief Clears "running flag" to induce plugin shutdown
+ *
+ * Function callable from: `start()`
+ *
+ * There may be occassions when the plugin needs to request its own shutdown
+ * (typically after it detects an error). In such case, this function should
+ * be called - it will set the "running" flag to false. Subsequent calls to
+ * is_running() and wait_for_stop() will reflect this new setting.
+ *
+ * @note This only sets "running" flag for the plugin that calls this. Other
+ * plugins have their own "running" flags, which means they are unaffected.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ */
+
+void HARNESS_EXPORT clear_running(mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Retrieves information from Harness
+ *
+ * function callable from: `init()`, `deinit()`
+ *
+ * This function returns an AppInfo object, which provides further plugin environment
+ * information.
+ *
+ * @param env Pointer to env object passed to plugin function
+ * @return Pointer to AppInfo object
+ */
+const HARNESS_EXPORT AppInfo* get_app_info(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Retrieves information from Harness
+ *
+ * function callable from: `start()`, `stop()`
+ *
+ * This function returns a ConfigSection object, which provides further
+ * plugin environment information.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @return Pointer to ConfigSection object
+ */
+const HARNESS_EXPORT ConfigSection* get_config_section(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/**@}*/
+
 
 
 /**
@@ -239,11 +392,16 @@ struct Plugin {
    * their @c init() function called before this modules init
    * function.
    *
-   * @param info Pointer to information about harness this module was
-   * loaded into.
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_app_info(env)
+   * will provide information about harness this module was loaded into.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
    */
 
-  int (*init)(const AppInfo* info);
+  void (*init)(PluginFuncEnv* env); // not allowed to throw!
 
 
   /**
@@ -256,10 +414,16 @@ struct Plugin {
    * module are called after the `deinit` function of this module
    * have exited.
    *
-   * @param info Pointer to information about the harness this module
-   * was loaded into.
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_app_info(env)
+   * will provide information about harness this module was loaded into.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
    */
-  int (*deinit)(const AppInfo* info);
+
+  void (*deinit)(PluginFuncEnv* env); // not allowed to throw!
 
 
   /**
@@ -269,26 +433,56 @@ struct Plugin {
    * thread and the start function will be called. The start functions
    * of different plugins are called in an arbitrary order, so no
    * expectations on the start order should be made.
+   * This function must respect harness' notification to stop running,
+   * and exit when notified. It shall regularly poll a "running" flag
+   * exposed by harness (see is_running() and wait_for_stop()), it may
+   * also clear this flag via clear_running() if it needs to.
    *
-   * @param section Pointer to the section that is being started. You
-   * can find both the name and the key in this class.
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_config_section(
+   * env) will provide pointer to the section that is being started.
+   * You can find both the name and the key in this section object.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
    */
 
-  void (*start)(const ConfigSection* section);
+  void (*start)(PluginFuncEnv* env);  // not allowed to throw!
 
 
   /**
-   * Module thread stop function.
+   * Module thread stop (notification) function.
    *
-   * If this field is non-NULL, the plugin can handle forced stop. The
-   * stop functions of different plugins are called in an arbitrary
-   * order, so no expectations on the stop order should be made.
+   * This function is called when stopping start(). Since start() runs
+   * in a different thread, no assumptions should be made on whether
+   * stop() runs before, during or after start() exits. Also, the
+   * stop() functions of different plugins are called in an arbitrary
+   * order, so no expectations on stop() calling order should be made.
    *
-   * @param section Pointer to the section that is being stopped. You
-   * can find both the name and the key in this class.
+   * @note this function does not cause the plugin running start() to
+   * exit - harness uses another mechanism to facilitate that. Instead,
+   * this function is called *in addition* to stopping the start() function,
+   * as a courtesy notification call, should that be useful.
+   *
+   * @note unlike start(), which runs in its own thread, stop() runs in
+   * harness' thread
+   *
+   * @note under certain circumstances, `stop()` may overlap execution
+   * with `start()`, or even be called before `start()`. stop() must be
+   * able to deal with all such cases.
+   *
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_config_section(
+   * env) will provide pointer to the section that is being started.
+   * You can find both the name and the key in this section object.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
    */
 
-  void (*stop)(const ConfigSection* section);
+  void (*stop)(PluginFuncEnv* env); // not allowed to throw!
 };
 
 
@@ -303,7 +497,7 @@ struct Plugin {
  * @see Plugin
  */
 
-const uint32_t PLUGIN_ABI_VERSION = 0x0101;
+const uint32_t PLUGIN_ABI_VERSION = 0x0200;
 
 /**
  * Default architecture descriptor.

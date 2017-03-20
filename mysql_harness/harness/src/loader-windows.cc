@@ -30,15 +30,10 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Loader
 
-void Loader::start() {
+void Loader::platform_specific_init() {
   std::string plugin_path = config_.get_default("plugin_folder");
   SetDllDirectory(plugin_path.c_str());
-  for (auto& name : available())
-    load(name.first, name.second);
-  init_all();
-  start_all();
 }
-
 
 ////////////////////////////////////////////////////////////////
 // class Loader::PluginInfo::Impl

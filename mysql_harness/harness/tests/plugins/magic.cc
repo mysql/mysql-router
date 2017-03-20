@@ -27,6 +27,7 @@
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
+using mysql_harness::PluginFuncEnv;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 using mysql_harness::bad_option;
@@ -42,9 +43,8 @@ using mysql_harness::logging::log_info;
 const AppInfo* g_info;
 const ConfigSection* g_section;
 
-static int init(const AppInfo* info) {
-  g_info = info;
-  return 0;
+static void init(PluginFuncEnv* env) {
+  g_info = get_app_info(env);
 }
 
 extern "C" void MAGIC_API do_magic() {
@@ -53,10 +53,12 @@ extern "C" void MAGIC_API do_magic() {
   log_info("%s", message.c_str());
 }
 
-static void start(const ConfigSection* section) {
+static void start(PluginFuncEnv* env) {
+  const ConfigSection* section = get_config_section(env);
   try {
-    if (section->get("suki") == "bad")
-      throw bad_suki("The suki was bad, please throw away");
+    if (section->has("suki") && section->get("suki") == "bad") {
+      set_error(env, mysql_harness::kRuntimeError, "The suki was bad, please throw away");
+    }
   } catch (bad_option&) {}
 
   if (section->has("do_magic"))

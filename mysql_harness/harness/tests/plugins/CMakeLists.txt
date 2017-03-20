@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,3 +27,16 @@ add_harness_plugin(example NO_INSTALL
   DESTINATION_SUFFIX harness
   SOURCES example.cc
   REQUIRES magic)
+add_harness_plugin(lifecycle NO_INSTALL
+  DESTINATION_SUFFIX harness
+  INTERFACE include
+  SOURCES lifecycle.cc
+)
+add_harness_plugin(lifecycle2 NO_INSTALL
+  DESTINATION_SUFFIX harness
+  INTERFACE include
+  SOURCES lifecycle2.cc)
+add_harness_plugin(lifecycle3 NO_INSTALL
+  DESTINATION_SUFFIX harness
+  INTERFACE include
+  SOURCES lifecycle3.cc)

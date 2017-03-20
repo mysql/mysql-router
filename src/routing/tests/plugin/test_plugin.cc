@@ -32,11 +32,14 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/logging/logging.h"
+#include "test/helpers.h"
 #include "mysql_routing.h"
 #include "plugin_config.h"
 #include "router_test_helpers.h"
@@ -56,10 +59,6 @@ using mysql_harness::get_strerror;
 // define what is available in routing_plugin.cc
 extern mysql_harness::Plugin harness_plugin_routing;
 extern const mysql_harness::AppInfo *g_app_info;
-
-int init(const mysql_harness::AppInfo *info);
-
-void start(const mysql_harness::ConfigSection *section);
 
 string g_cwd;
 Path g_origin;
@@ -157,7 +156,7 @@ protected:
 };
 
 TEST_F(RoutingPluginTests, PluginObject) {
-  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0101U);
+  ASSERT_EQ(harness_plugin_routing.abi_version, 0x0200U);
   ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
   ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
@@ -179,8 +178,9 @@ TEST_F(RoutingPluginTests, InitAppInfo) {
       nullptr
   };
 
-  int res = harness_plugin_routing.init(&test_app_info);
-  ASSERT_EQ(res, 0);
+  mysql_harness::PluginFuncEnv env(&test_app_info, nullptr);
+  harness_plugin_routing.init(&env);
+  ASSERT_TRUE(env.exit_ok());
 
   ASSERT_THAT(g_app_info, Not(IsNull()));
   ASSERT_THAT(program.c_str(), StrEq(g_app_info->program));
@@ -244,7 +244,7 @@ TEST_F(RoutingPluginTests, ListeningUnixSocket) {
   mysql_harness::ConfigSection& section = cfg.add("routing", "test_route");
   section.add("destinations", "localhost:1234");
   section.add("mode", "read-only");
-  section.add("socket", "./socket");
+  section.add("socket", "./socket");  // if this test fails, check if you don't have this file hanging around
 
   EXPECT_NO_THROW({
     RoutingPluginConfig config(&section);
@@ -258,7 +258,7 @@ TEST_F(RoutingPluginTests, ListeningBothSockets) {
   section.add("destinations", "localhost:1234");
   section.add("mode", "read-only");
   section.add("bind_address", "127.0.0.1:15508");
-  section.add("socket", "./socket");
+  section.add("socket", "./socket");  // if this test fails, check if you don't have this file hanging around
 
   EXPECT_NO_THROW({
     RoutingPluginConfig config(&section);
@@ -280,7 +280,8 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithoutTcp) {
   EXPECT_NO_THROW({
     mysql_harness::AppInfo info;
     info.config = &cfg;
-    harness_plugin_routing.init(&info);
+    mysql_harness::PluginFuncEnv env(&info, nullptr);
+    harness_plugin_routing.init(&env);
   });
 }
 
@@ -300,7 +301,8 @@ TEST_F(RoutingPluginTests, TwoUnixSocketsWithTcp) {
   EXPECT_NO_THROW({
     mysql_harness::AppInfo info;
     info.config = &cfg;
-    harness_plugin_routing.init(&info);
+    mysql_harness::PluginFuncEnv env(&info, nullptr);
+    harness_plugin_routing.init(&env);
   });
 }
 
@@ -374,7 +376,14 @@ TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
   try {
     mysql_harness::AppInfo info;
     info.config = &cfg;
-    harness_plugin_routing.init(&info);
+    mysql_harness::PluginFuncEnv env(&info, nullptr);
+    harness_plugin_routing.init(&env);
+
+    std::exception_ptr e;
+    std::tie(std::ignore, e) = env.pop_error();
+    if (e)
+      std::rethrow_exception(e);
+
     FAIL() << "Expected std::invalid_argument to be thrown";
   } catch (const std::invalid_argument& e) {
     EXPECT_STREQ("in [routing:test_route2]: duplicate IP or name found in bind_address '127.0.0.1:15508'", e.what());
@@ -544,6 +553,7 @@ TEST_F(RoutingPluginTests, InvalidProtocolName) {
 }
 
 int main(int argc, char *argv[]) {
+  init_log();
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();

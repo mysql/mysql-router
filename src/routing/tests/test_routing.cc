@@ -20,6 +20,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysql_routing.h"
 #include "common.h"
+#include "mysql/harness/loader.h"
 #include "routing_mocks.h"
 #include "protocol/classic_protocol.h"
 #include "test/helpers.h"
@@ -187,7 +188,7 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
   ASSERT_EQ(-1, res);
 }
 
-#ifndef _WIN32  // [HERE_1]
+#ifndef _WIN32  // [_HERE_]
 
 class MockServer {
 public:
@@ -251,6 +252,7 @@ public:
   }
 
   void runloop() {
+    mysql_harness::rename_thread("runloop()");
     while (!stop_ && (max_expected_accepts_ == 0 || num_accepts_ < max_expected_accepts_)) {
       int sock_client;
       struct sockaddr_in6 client_addr;
@@ -265,6 +267,7 @@ public:
   }
 
   void new_client(int sock) {
+    mysql_harness::rename_thread("new_client()");
     num_connections_++;
     char buf[3];
     // block until we receive the bye msg
@@ -331,6 +334,8 @@ static bool call_until(std::function<bool ()> f, int timeout = 2) {
 
 // Bug#24841281 NOT ABLE TO CONNECT ANY CLIENTS WHEN ROUTER IS CONFIGURED WITH SOCKETS OPTION
 TEST_F(RoutingTests, bug_24841281) {
+  mysql_harness::rename_thread("TEST_F()");
+
   const uint16_t server_port = 4422;
   const uint16_t router_port = 4444;
 
@@ -347,7 +352,8 @@ TEST_F(RoutingTests, bug_24841281) {
                routing::kDefaultClientConnectTimeout,
                routing::kDefaultNetBufferLength);
   routing.set_destinations_from_csv("127.0.0.1:"+std::to_string(server_port));
-  std::thread thd(&MySQLRouting::start, &routing);
+  mysql_harness::PluginFuncEnv env(nullptr, nullptr, true);
+  std::thread thd(&MySQLRouting::start, &routing, &env);
 
   // set the number of accepts that the server should expect for before stopping
 #ifdef _WIN32
@@ -430,7 +436,7 @@ TEST_F(RoutingTests, bug_24841281) {
   call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 0; });
   EXPECT_EQ(0, routing.info_active_routes_.load());
 #endif
-  routing.stop();
+  env.clear_running();  // shut down MySQLRouting
   server.stop();
   thd.join();
 }
@@ -528,7 +534,7 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   }
 }
 
-#endif // #ifndef _WIN32 [HERE_1]
+#endif // #ifndef _WIN32 [_HERE_]
 
 TEST_F(RoutingTests, make_thread_name) {
   // config name must begin with "routing" (name of the plugin passed from configuration file)

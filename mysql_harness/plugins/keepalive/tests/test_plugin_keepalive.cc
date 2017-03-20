@@ -34,6 +34,7 @@
 // Standard include files
 #include <iostream>
 #include <fstream>
+#include <climits>
 
 using std::cout;
 using std::endl;
@@ -98,13 +99,20 @@ TEST_F(KeepalivePluginTest, CheckLog) {
     lines.push_back(line);
   }
 
+  auto find_line = [&lines](unsigned start_line, const char* needle) -> unsigned {
+    for (unsigned i = start_line; i < lines.size(); i++)
+      if (lines[i].find(needle) != std::string::npos)
+        return i;
+    return UINT_MAX;
+  };
+
   ASSERT_GE(lines.size(), 4U);
-  EXPECT_NE(std::string::npos,
-            lines.at(0).find("keepalive started with interval 1") );
-  EXPECT_NE(std::string::npos, lines.at(1).find("2 time(s)") );
-  EXPECT_NE(std::string::npos, lines.at(2).find("keepalive") );
-  EXPECT_NE(std::string::npos, lines.at(3).find("INFO") );
-  EXPECT_NE(std::string::npos, lines.at(3).find("keepalive") );
+  unsigned start_line = 0;
+  EXPECT_NE(UINT_MAX, start_line = find_line(start_line, "keepalive started with interval 1"));
+  EXPECT_NE(UINT_MAX, start_line = find_line(start_line, "2 time(s)"));
+  EXPECT_NE(UINT_MAX, start_line = find_line(start_line, "keepalive"));
+  EXPECT_NE(UINT_MAX, start_line = find_line(start_line, "INFO"));
+  EXPECT_NE(UINT_MAX, start_line = find_line(start_line, "keepalive"));
 }
 
 int main(int argc, char *argv[]) {

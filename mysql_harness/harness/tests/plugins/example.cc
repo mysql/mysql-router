@@ -28,8 +28,8 @@
 #endif
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
+using mysql_harness::PluginFuncEnv;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 using mysql_harness::logging::log_info;
@@ -56,38 +56,36 @@ static const char* requires[] = {
   "magic (>>1.0)",
 };
 
-static int init(const AppInfo*);
-static int deinit(const AppInfo*);
-static void start(const ConfigSection*);
+static void init(PluginFuncEnv*);
+static void deinit(PluginFuncEnv*);
+static void start(PluginFuncEnv*);
 
 extern "C" {
   Plugin EXAMPLE_API harness_plugin_example = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "An example plugin",
-  VERSION_NUMBER(1, 0, 0),
-  sizeof(requires) / sizeof(*requires),
-  requires,
-  0,
-  nullptr,
-  init,
-  deinit,
-  start,    // start
-  nullptr,  // stop
-};
+    PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
+    "An example plugin",
+    VERSION_NUMBER(1, 0, 0),
+    sizeof(requires) / sizeof(*requires),
+    requires,
+    0,
+    nullptr,  // conflicts
+    init,     // init
+    deinit,   // deinit
+    start,    // start
+    nullptr,  // stop
+  };
 
 }
 
-static int init(const AppInfo*) {
+static void init(PluginFuncEnv*) {
   do_magic();
-  return 0;
 }
 
-static int deinit(const AppInfo*) {
-  return 0;
+static void deinit(PluginFuncEnv*) {
 }
 
-static void start(const ConfigSection*) {
+static void start(PluginFuncEnv*) {
   for (int x = 0 ; x < 10 ; ++x) {
     log_info("example", "<count: %d>", x);
 #ifndef _WIN32
@@ -97,3 +95,4 @@ static void start(const ConfigSection*) {
 #endif
   }
 }
+

@@ -35,6 +35,7 @@
 #include "plugin_config.h"
 #include "utils.h"
 #include "mysqlrouter/routing.h"
+namespace mysql_harness { class PluginFuncEnv; }
 
 #include <array>
 #include <atomic>
@@ -109,7 +110,7 @@ class MySQLRouting {
 public:
   /** @brief Default constructor
    *
-   * @param mode access mode
+   * @param mode access mode, RO or RW
    * @param port TCP port for listening for incoming connections
    * @param protocol protocol for the routing
    * @param bind_address bind_address Bind to particular IP address
@@ -119,7 +120,7 @@ public:
    * @param destination_connect_timeout Timeout trying to connect destination server
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
-   * @param net_buffer_length length of the network buffer
+   * @param net_buffer_length send/receive buffer size
    * @param socket_operations object handling the operations on network sockets
    */
   MySQLRouting(routing::AccessMode mode, uint16_t port,
@@ -143,20 +144,7 @@ public:
    * Throws std::runtime_error on errors.
    *
    */
-  void start();
-
-  /** @brief Asks the service to stop
-   *
-   */
-  void stop();
-
-  /** @brief Returns whether the service is stopping
-   *
-   * @return a bool
-   */
-  bool stopping() {
-    return stopping_.load();
-  }
+  void start(mysql_harness::PluginFuncEnv* env);
 
   /** @brief Sets the destinations from URI
    *
@@ -273,7 +261,7 @@ private:
    */
   void routing_select_thread(int client, const sockaddr_storage &client_addr) noexcept;
 
-  void start_acceptor();
+  void start_acceptor(mysql_harness::PluginFuncEnv* env);
 
   /** @brief return a short string suitable to be used as a thread name
    * @param config_name configuration name (e.g: "routing", "routing:test_default_x_ro", etc)
@@ -316,8 +304,6 @@ private:
   int service_named_socket_;
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
-  /** @brief Whether we were asked to stop */
-  std::atomic<bool> stopping_;
   /** @brief Number of active routes */
   std::atomic<uint16_t> info_active_routes_;
   /** @brief Number of handled routes */

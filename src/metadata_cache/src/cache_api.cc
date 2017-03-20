@@ -59,6 +59,14 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
 }
 
 /**
+ * Teardown the metadata cache
+ */
+void cache_stop() noexcept {
+  if (g_metadata_cache) // might be NULL if cache_init() failed very early
+    g_metadata_cache->stop();
+}
+
+/**
  * Lookup the servers that belong to the given replicaset.
  *
  * @param replicaset_name The name of the replicaset whose servers need

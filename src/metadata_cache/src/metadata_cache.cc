@@ -58,13 +58,6 @@ MetadataCache::MetadataCache(
 }
 
 /**
- * Stop the refresh thread.
- */
-MetadataCache::~MetadataCache() {
-  stop();
-}
-
-/**
  * Connect to the metadata servers and refresh the metadata information in the
  * cache.
  */
@@ -79,7 +72,7 @@ void MetadataCache::start() {
       // loses the primary server.. in that case, we refresh every 1s
       // until we detect a new one was elected
       unsigned int seconds_waited = 0;
-      while (seconds_waited < ttl_) {
+      while (seconds_waited < ttl_ && !terminate_) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         seconds_waited++;
         {
@@ -96,7 +89,7 @@ void MetadataCache::start() {
 /**
  * Stop the refresh thread.
  */
-void MetadataCache::stop() {
+void MetadataCache::stop() noexcept {
   terminate_ = true;
   if (refresh_thread_.joinable()) {
     refresh_thread_.join();

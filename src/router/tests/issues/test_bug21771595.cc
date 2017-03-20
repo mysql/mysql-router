@@ -89,9 +89,12 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
   //   3 - erase this test, because it's meaningless
   try {
     r.start();
+    FAIL() << "Should throw";
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
       "option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument exception";
   }
 #else
   // This is the correct test, but fails, because it doesn't match production code behavior
@@ -119,9 +122,12 @@ TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
   //   3 - erase this test, because it's meaningless
   try {
     r.start();
+    FAIL() << "Should throw";
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), StrEq(
-      "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid TCP port: impossible port number)"));
+      "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid url: invalid port: impossible port number)"));
+  } catch (...) {
+    FAIL() << "Expected std::invalid_argument exception";
   }
 #else
   // This is the correct test, but fails, because it doesn't match production code behavior

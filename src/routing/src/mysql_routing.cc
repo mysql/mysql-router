@@ -27,6 +27,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "mysql/harness/plugin.h"
 #include "plugin_config.h"
 #include "protocol/protocol.h"
 
@@ -102,7 +103,6 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
       bind_named_socket_(named_socket),
       service_tcp_(0),
       service_named_socket_(0),
-      stopping_(false),
       info_active_routes_(0),
       info_handled_routes_(0),
       socket_operations_(socket_operations),
@@ -339,14 +339,14 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
 #endif
 }
 
-void MySQLRouting::start() {
+void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
 
   mysql_harness::rename_thread(make_thread_name(name, "RtM").c_str());  // "Rt main" would be too long :(
   if (bind_address_.port > 0) {
     try {
       setup_tcp_service();
     } catch (const runtime_error &exc) {
-      stop();
+      clear_running(env);
       throw runtime_error(
           string_format("Setting up TCP service using %s: %s", bind_address_.str().c_str(), exc.what()));
     }
@@ -358,7 +358,7 @@ void MySQLRouting::start() {
     try {
       setup_named_socket_service();
     } catch (const runtime_error &exc) {
-      stop();
+      clear_running(env);
       throw runtime_error(
           string_format("Setting up named socket service '%s': %s", bind_named_socket_.c_str(), exc.what()));
     }
@@ -368,7 +368,7 @@ void MySQLRouting::start() {
 #endif
   if (bind_address_.port > 0 || bind_named_socket_.is_set()) {
     //XXX this thread seems unnecessary, since we block on it right after anyway
-    thread_acceptor_ = std::thread(&MySQLRouting::start_acceptor, this);
+    thread_acceptor_ = std::thread(&MySQLRouting::start_acceptor, this, env);
     if (thread_acceptor_.joinable()) {
       thread_acceptor_.join();
     }
@@ -381,7 +381,7 @@ void MySQLRouting::start() {
   }
 }
 
-void MySQLRouting::start_acceptor() {
+void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
 
   int sock_client;
@@ -402,7 +402,7 @@ void MySQLRouting::start_acceptor() {
   fd_set readfds;
   fd_set errfds;
   struct timeval timeout_val;
-  while (!stopping()) {
+  while (is_running(env)) {
     // Reset on each loop
     FD_ZERO(&readfds);
     FD_ZERO(&errfds);
@@ -482,12 +482,8 @@ void MySQLRouting::start_acceptor() {
 
       std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
-  } // while (!stopping())
+  } // while (is_running(env))
   log_info("[%s] stopped", name.c_str());
-}
-
-void MySQLRouting::stop() {
-  stopping_.store(true);
 }
 
 void MySQLRouting::setup_tcp_service() {

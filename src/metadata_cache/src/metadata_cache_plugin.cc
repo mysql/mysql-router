@@ -37,7 +37,7 @@ using mysqlrouter::TCPAddress;
 using std::string;
 IMPORT_LOG_FUNCTIONS()
 
-const mysql_harness::AppInfo *g_app_info;
+static const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
@@ -48,17 +48,17 @@ static const char *kKeyringAttributePassword = "password";
  *
  * @return 0 if the configuration was read successfully.
  */
-static int init(const mysql_harness::AppInfo *info) {
-  g_app_info = info;
+static void init(mysql_harness::PluginFuncEnv* env) {
+  g_app_info = get_app_info(env);
   // If a valid configuration object was found.
-  if (info && info->config) {
+  if (g_app_info && g_app_info->config) {
     // if a valid metadata_cache section was found in the router
     // configuration.
-    if (info->config->get(kSectionName).empty()) {
-      throw std::invalid_argument("[metadata_cache] section is empty");
+    if (g_app_info->config->get(kSectionName).empty()) {
+      log_error("[metadata_cache] section is empty");  // TODO remove after Loader starts logging
+      set_error(env, mysql_harness::kConfigInvalidArgument, "[metadata_cache] section is empty");
     }
   }
-  return 0;
 }
 
 static std::string get_option(const mysql_harness::ConfigSection *section,
@@ -90,8 +90,11 @@ static mysqlrouter::SSLOptions make_ssl_options(
  *
  * @param section An object encapsulating the metadata cache information.
  */
-static void start(const mysql_harness::ConfigSection *section) {
- try {
+static void start(mysql_harness::PluginFuncEnv* env) {
+    const mysql_harness::ConfigSection* section = get_config_section(env);
+
+  // launch metadata cache
+  try {
     MetadataCachePluginConfig config(section);
     unsigned int ttl{config.ttl};
     string metadata_cluster{config.metadata_cluster};
@@ -121,11 +124,22 @@ static void start(const mysql_harness::ConfigSection *section) {
                                make_ssl_options(section),
                                metadata_cluster);
   } catch (const std::runtime_error &exc) { // metadata_cache::metadata_error inherits from runtime_error
-    log_error(exc.what());
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+    clear_running(env);
   } catch (const std::invalid_argument &exc) {
-    log_error(exc.what());
-    return;
+    log_error("%s", exc.what());  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+    clear_running(env);
+  } catch (...) {
+    log_error("Unexpected exception");  // TODO remove after Loader starts logging
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
+    clear_running(env);
   }
+
+  // keep it running until Harness tells us to shut down
+  wait_for_stop(env, 0);
+  metadata_cache::cache_stop();
 }
 
 extern "C" {

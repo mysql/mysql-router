@@ -63,7 +63,7 @@ public:
                                  1,
                                  kDefaultTTL) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::cache_init(bootstrap_server_vector, kDefaultMetadataUser,
                                kDefaultMetadataPassword, kDefaultTTL, mysqlrouter::SSLOptions(),
@@ -91,6 +91,10 @@ public:
        */
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+  }
+
+  void TearDown() override {
+    metadata_cache::cache_stop();
   }
 };
 

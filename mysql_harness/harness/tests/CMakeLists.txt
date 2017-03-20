@@ -57,6 +57,7 @@ if(ENABLE_HARNESS_PROGRAM)
 endif()
 
 add_harness_test(TestLoader SOURCES test_loader.cc)
+add_harness_test(TestLoaderLifecycle SOURCES test_loader_lifecycle.cc)
 add_harness_test(TestLogger SOURCES test_logging.cc)
 
 add_harness_test(TestDesignator SOURCES test_designator.cc)

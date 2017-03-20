@@ -26,6 +26,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "test/helpers.h"
+#include "mysql/harness/loader.h"
 
 #include <fstream>
 #include <string>
@@ -165,7 +166,7 @@ TEST_F(Bug21962350, QuarantineServerNonExisting) {
   d.add(servers[1]);
   d.add(servers[2]);
 
-  ASSERT_DEATH(d.add_to_quarantine(static_cast<size_t>(999)), ".*(index < size()).*");
+  ASSERT_DEBUG_DEATH(d.add_to_quarantine(static_cast<size_t>(999)), ".*(index < size()).*");
   exp = 0;
   ASSERT_EQ(exp, d.size_quarantine());
 }

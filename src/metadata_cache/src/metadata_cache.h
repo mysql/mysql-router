@@ -49,9 +49,6 @@ public:
                 unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
                 const std::string &cluster_name);
 
-  /** @brief Destructor */
-  ~MetadataCache();
-
   /** @brief Starts the Metadata Cache
    *
    * Starts the Metadata Cache and launch thread.
@@ -62,7 +59,7 @@ public:
    *
    * Stops the Metadata Cache and the launch thread.
    */
-  void stop();
+  void stop() noexcept;
 
   /** @brief Returns list of managed servers in a replicaset
    *

@@ -17,7 +17,7 @@
 
 #include "mysql/harness/plugin.h"
 
-using mysql_harness::AppInfo;
+using mysql_harness::PluginFuncEnv;
 using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
@@ -28,12 +28,10 @@ static const char* requires[] = {
   "magic (>>1.2.3)",
 };
 
-static int init(const AppInfo*) {
-  return 0;
+static void init(PluginFuncEnv*) {
 }
 
-static int deinit(const AppInfo*) {
-  return 0;
+static void deinit(PluginFuncEnv*) {
 }
 
 #if defined(_MSC_VER) && defined(bad_two_EXPORTS)

@@ -15,8 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/loader.h"
+// must have this first, before #includes that rely on it
+#include <gtest/gtest_prod.h>
 
+#include "mysql/harness/loader.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
 
@@ -130,6 +132,28 @@ TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
 }
 
+//TODO: this test is fixed in WL#10822
+#if 0
+TEST(TestStart, StartLogger) {
+  std::map<std::string, std::string> params;
+  params["program"] = "harness";
+  params["prefix"] = g_here.c_str();
+
+  Loader loader("harness", params);
+  loader.read(g_here.join("data/tests-start-2.cfg"));
+  loader.load_all();
+
+  loader.setup_logging();
+
+  std::exception_ptr eptr = loader.init_all();
+  ASSERT_FALSE(eptr);
+
+  // Check that all plugins have a module registered with the logger.
+  auto loggers = get_logger_names();
+  EXPECT_THAT(loggers, UnorderedElementsAre("main", "magic"));
+}
+#endif
+
 TEST(TestStart, StartFailure) {
   std::map<std::string, std::string> params;
   params["program"] = "harness";
@@ -139,8 +163,8 @@ TEST(TestStart, StartFailure) {
   loader.read(g_here.join("data/tests-start-1.cfg"));
   try {
     loader.start();
-  }
-  catch (const std::runtime_error& exc) {
+    FAIL() << "start() should throw std::runtime_error";
+  } catch (const std::runtime_error& exc) {
     EXPECT_STREQ("The suki was bad, please throw away", exc.what());
     return;
   }
@@ -158,6 +182,7 @@ INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
+  init_log();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

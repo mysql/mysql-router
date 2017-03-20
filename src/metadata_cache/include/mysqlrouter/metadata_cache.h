@@ -185,6 +185,11 @@ void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstr
                 const std::string &user, const std::string &password,
                 unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name);
 
+/**
+ * Teardown the metadata cache
+ */
+void METADATA_API cache_stop() noexcept;
+
 /** @brief Returns list of managed server in a HA replicaset
  *
  * Returns a list of MySQL servers managed by the topology for the given

@@ -74,7 +74,7 @@ TEST_F(PluginsConfigTest, OnePluginLoaded) {
   auto cmd_result = cmd_exec(cmd, true);
 
   EXPECT_EQ(0, cmd_result.exit_code);
-  EXPECT_TRUE(cmd_result.output.empty());
+  ASSERT_THAT(cmd_result.output, Not(HasSubstr("MySQL Router not configured to load or start any plugin. Exiting.")));
 }
 
 TEST_F(PluginsConfigTest, TwoMetadadaCacheSections) {
