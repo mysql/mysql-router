@@ -42,11 +42,11 @@
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
 Version:       @PROJECT_VERSION_TEXT@
-Release:       @RPM_EXTRA_VERSION@%{?commercial:.1}%{?dist}
+Release:       1%{?commercial:.1}%{?dist}
 License:       @ORACLE_COPYRIGHT@ Under %{?license_type} license as shown in the Description field.
 Group:         Applications/Databases
 URL:           https://dev.mysql.com/downloads/router/
-Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}@PROJECT_PACKAGE_EXTRAS@.tar.gz
+Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}.tar.gz
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
 Source3:       mysqlrouter.init
@@ -100,7 +100,7 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 
 %prep
-%setup -q -n %{name}-%{version}@PROJECT_PACKAGE_EXTRAS@
+%setup -q
 
 %build
 mkdir release && pushd release
