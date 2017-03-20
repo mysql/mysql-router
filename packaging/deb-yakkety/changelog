@@ -1,5 +1,5 @@
-mysql-router (2.1.2-rc-1ubuntu16.10) yakkety; urgency=low
+mysql-router (2.1.3-1ubuntu16.10) yakkety; urgency=low
 
   * initial version
 
- -- Andrzej Religa <andrzej.religa@oracle.com>  Thu, 10 Nov 2016 11:00:00 +0200
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Mon, 20 Mar 2017 10:36:55 +0200
