@@ -216,14 +216,18 @@ TEST_F(CheckLegal, Copyright) {
 
     while (std::getline(curr_file, line, '\n')) {
       if (line.find(prefix) != std::string::npos) {
+        copyright_found = true;  // some copyright found
 
         EXPECT_THAT(line, ::testing::ContainsRegex(needle)) << " in file: " << it.file.str();
 
         // match the needly again, but this time extract the copyright years.
         err_code = regexec(&re, line.c_str(), sizeof(m) / sizeof(regmatch_t), m, 0);
         if (err_code != 0) {
-          EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
-          EXPECT_EQ(err_code, 0) << re_err;
+          if (err_code != REG_NOMATCH) {
+            // REG_NOMATCH is handled by the ContainsRegex() already
+            EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
+            EXPECT_EQ(err_code, 0) << re_err;
+          }
           continue;
         }
 
@@ -245,8 +249,6 @@ TEST_F(CheckLegal, Copyright) {
         //
         // allow copyright years that are larger than the recorded history in git
         EXPECT_GE(std::stoi(copyright_end_year), it.year_last_commit) << " in file: " << it.file.str();
-
-        copyright_found = true;
         break;
       }
     }
