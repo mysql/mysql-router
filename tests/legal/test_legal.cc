@@ -30,6 +30,9 @@
 
 #include "gmock/gmock.h"
 
+#ifdef GTEST_USES_POSIX_RE
+#include <regex.h>
+#endif
 using mysql_harness::Path;
 
 struct GitInfo {
@@ -167,60 +170,93 @@ class CheckLegal : public ::testing::Test {
     }
 };
 
+/* test if the all files that are in git have the proper copyright line
+ *
+ * A proper copyright line is:
+ *
+ * - copyright years: if start year == end year, start year may be omitted
+ * - copyright start year: at least first git commit
+ * - copyright end year: at least last git commit
+ * - copyright line: fixed format
+ *
+ * The copyright years start before recorded history in git as the files
+ * may come from another source. Similar to end date as git author-date
+ * may contain too old date.
+ */
 TEST_F(CheckLegal, Copyright) {
   SKIP_GIT_TESTS(g_skip_git_tests)
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
-  std::vector<std::string> problems;
+#ifdef GTEST_USES_POSIX_RE
+  // gtest uses either simple-re or posix-re. Only the posix-re supports captures
+  // which allows to extract the dates easily.
+  //
+  // if gtest uses posix-re, we can use posix-re directly too.
+  const char *prefix = "Copyright (c)";
+  std::string needle;
+  needle = "Copyright \\(c\\) (([0-9]{4}), )?";  // m[1] and m[2]
+  needle += "([0-9]{4}), ";                      // m[3]
+  needle += "Oracle and/or its affiliates. All rights reserved.";
+
+  // extract the years
+  regex_t re;
+  char re_err[1024];
+  regmatch_t m[4];
+  int err_code = regcomp(&re, needle.c_str(), REG_EXTENDED);
+  if (err_code != 0) {
+    EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
+    ASSERT_EQ(err_code, 0) << re_err;
+  }
 
   for (auto &it: g_git_tracked_files) {
     std::ifstream curr_file(it.file.str());
 
     std::string line;
-    std::string needle;
-    std::string problem;
-    bool found = false;
+    bool copyright_found = false;
 
     while (std::getline(curr_file, line, '\n')) {
-      problem = "";
-      if (line.find("Copyright (c)") != std::string::npos
-          && ends_with(line, "Oracle and/or its affiliates. All rights reserved.")) {
-        found = true;
-        // Check first year of first commit is in the copyright
-        needle = " " + std::to_string(it.year_first_commit) + ",";
-        if (line.find(needle) == std::string::npos) {
-          problem = std::string("First commit year ") + std::to_string(it.year_first_commit)
-                    + std::string(" not present");
-        } else if (it.year_first_commit != it.year_last_commit) {
-          // Then check modification year
-          needle = std::to_string(it.year_last_commit) + ",";
-          if (line.find(needle) == std::string::npos) {
-            problem = std::string("Last modification year ") + std::to_string(it.year_last_commit) +
-                      std::string(" not present");
-          }
+      if (line.find(prefix) != std::string::npos) {
+
+        EXPECT_THAT(line, ::testing::ContainsRegex(needle)) << " in file: " << it.file.str();
+
+        // match the needly again, but this time extract the copyright years.
+        err_code = regexec(&re, line.c_str(), sizeof(m) / sizeof(regmatch_t), m, 0);
+        if (err_code != 0) {
+          EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
+          EXPECT_EQ(err_code, 0) << re_err;
+          continue;
         }
+
+        // check that the start copyright year is less or equal to what we have a commit for
+        //
+        // allow copyright years that are less than the recorded history in git
+        ASSERT_GT(m[3].rm_so, 0) << m[3].rm_so;
+        std::string copyright_end_year = line.substr(m[3].rm_so, m[3].rm_eo - m[3].rm_so);
+
+        if (m[2].rm_so != -1) {
+          std::string copyright_start_year = line.substr(m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+          EXPECT_LE(std::stoi(copyright_start_year), it.year_first_commit) << " in file: " << it.file.str();
+        } else {
+          // no start-year in copyright.
+          EXPECT_LE(std::stoi(copyright_end_year), it.year_first_commit) << " in file: " << it.file.str();
+        }
+
+        // copyright end year has to at least the one of the last commit
+        //
+        // allow copyright years that are larger than the recorded history in git
+        EXPECT_GE(std::stoi(copyright_end_year), it.year_last_commit) << " in file: " << it.file.str();
+
+        copyright_found = true;
         break;
       }
     }
     curr_file.close();
 
-    if (!found) {
-      problem = "No copyright statement";
-    }
-
-    if (!problem.empty()) {
-      std::string tmp = it.file.str();
-      tmp.erase(0, g_source_dir.str().size() + 1);
-      problems.push_back(tmp + ": " + problem);
-    }
+    EXPECT_TRUE(copyright_found) << it.file.str() << ": No copyright found";
   }
 
-  if (!problems.empty()) {
-    std::string tmp{"\nCopyright issues in " + g_source_dir.str() + ":\n"};
-    std::ostringstream ostr;
-    std::copy(problems.begin(), problems.end(), std::ostream_iterator<std::string>(ostr, "\n"));
-    EXPECT_TRUE(problems.empty()) << tmp << ostr.str();
-  }
+  regfree(&re);
+#endif
 }
 
 TEST_F(CheckLegal, GPLLicense) {
@@ -266,18 +302,14 @@ TEST_F(CheckLegal, GPLLicense) {
 }
 
 int main(int argc, char *argv[]) {
-  g_origin = Path(argv[0]).dirname();
-  try {
-    g_source_dir = get_cmake_source_dir();
-  } catch (const std::runtime_error &exc) {
-    g_skip_git_tests = true;
-  }
-
-  if (g_source_dir.is_set() && !Path(g_source_dir).join(".git").is_directory()) {
-    g_skip_git_tests = true;
-  }
-
   ::testing::InitGoogleTest(&argc, argv);
+
+  g_origin = Path(argv[0]).dirname();
+  g_source_dir = get_cmake_source_dir();
+
+  EXPECT_TRUE(g_source_dir.is_set());
+  EXPECT_TRUE(Path(g_source_dir).join(".git").is_directory());
+
   return RUN_ALL_TESTS();
 }
 
