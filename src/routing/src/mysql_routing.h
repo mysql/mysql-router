@@ -109,16 +109,18 @@ class MySQLRouting {
 public:
   /** @brief Default constructor
    *
+   * @param mode access mode
    * @param port TCP port for listening for incoming connections
-   * @param protocol_name name of the protocol for the routing
-   * @param optional bind_address bind_address Bind to particular IP address
-   * @param optional named_socket Bind to Unix socket/Windows named pipe
-   * @param optional route Name of connection routing (can be empty string)
-   * @param optional max_connections Maximum allowed active connections
-   * @param optional destination_connect_timeout Timeout trying to connect destination server
-   * @param optional max_connect_errors Maximum connect or handshake errors per host
-   * @param optional connect_timeout Timeout waiting for handshake response
-   * @param optional socket_operations object handling the operations on network sockets
+   * @param protocol protocol for the routing
+   * @param bind_address bind_address Bind to particular IP address
+   * @param named_socket Bind to Unix socket/Windows named pipe
+   * @param route_name Name of connection routing (can be empty string)
+   * @param max_connections Maximum allowed active connections
+   * @param destination_connect_timeout Timeout trying to connect destination server
+   * @param max_connect_errors Maximum connect or handshake errors per host
+   * @param connect_timeout Timeout waiting for handshake response
+   * @param net_buffer_length length of the network buffer
+   * @param socket_operations object handling the operations on network sockets
    */
   MySQLRouting(routing::AccessMode mode, uint16_t port,
                const Protocol::Type protocol,
@@ -268,7 +270,6 @@ private:
    *
    * @param client socket descriptor fo the client connection
    * @param client_addr IP address as sockaddr_storage struct
-   * @param timeout timeout in seconds
    */
   void routing_select_thread(int client, const sockaddr_storage &client_addr) noexcept;
 

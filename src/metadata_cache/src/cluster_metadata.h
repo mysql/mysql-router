@@ -54,7 +54,7 @@ class METADATA_API ClusterMetadata : public MetaData {
    * @param ssl_options SSL related options to use for MySQL connections
    */
   ClusterMetadata(const std::string &user, const std::string &password,
-                  int connection_timeout, int /*connection_attempts*/,
+                  int connection_timeout, int connection_attempts,
                   unsigned int ttl,
                   const mysqlrouter::SSLOptions &ssl_options);
 

@@ -49,6 +49,9 @@ public:
    */
   RoutingPluginConfig(const mysql_harness::ConfigSection *section);
 
+  /**
+   * @param option option to get
+   */
   std::string get_default(const std::string &option);
 
   bool is_required(const std::string &option);

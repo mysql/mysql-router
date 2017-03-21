@@ -42,7 +42,7 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
 
   /** @overload
    *
-   * @param sequence_id MySQL Packet number
+   * @param buffer bytes of the error packet
    */
   ErrorPacket(const std::vector<uint8_t> &buffer) : ErrorPacket(buffer, 0) { }
 
@@ -51,8 +51,8 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
   /** @overload
    *
    * @param sequence_id MySQL Packet number
-   * @param error_code Error code provided to MySQL client
-   * @param error_msg Error message provided to MySQL client
+   * @param err_code Error code provided to MySQL client
+   * @param err_msg Error message provided to MySQL client
    * @param sql_state SQL State used in error message
    * @param capabilities Server/Client capability flags (default 0)
    */

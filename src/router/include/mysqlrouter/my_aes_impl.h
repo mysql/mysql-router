@@ -15,10 +15,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-/**
-  @file mysys_ssl/my_aes_impl.h
-*/
-
 /** Maximum supported key length */
 #define MAX_AES_KEY_LENGTH 256
 

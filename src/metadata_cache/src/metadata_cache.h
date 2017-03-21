@@ -91,6 +91,7 @@ public:
    * To be called when the master of a single-master replicaset is down and
    * we want to wait until one becomes elected.
    *
+   * @param replicaset_name name of the replicaset
    * @param timeout - amount of time to wait for a failover, in seconds
    * @return true if a primary member exists
    */

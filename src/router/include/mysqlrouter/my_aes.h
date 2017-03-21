@@ -18,7 +18,7 @@
 
 
 /**
-  @file include/my_aes.h
+  @file src/router/include/mysqlrouter/my_aes.h
   Wrapper to give simple interface for MySQL to AES standard encryption.
 */
 

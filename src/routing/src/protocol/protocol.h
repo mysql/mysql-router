@@ -53,6 +53,7 @@ public:
   /** @brief Factory method creating protocol object for handling the routing code that is protocol-specific
    *
    * @param type type of the protocol for which the handler should be created
+   * @param socket_operations socket operations
    *
    * @returns pointer to the created object
    */

@@ -108,7 +108,7 @@ private:
    *
    * Throws URIError on errors.
    *
-   * @param string URI to use
+   * @param uri URI to use
    */
   void init_from_uri(const std::string uri);
 

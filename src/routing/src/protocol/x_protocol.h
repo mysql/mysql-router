@@ -50,7 +50,7 @@ public:
    * @param curr_pktnr Pointer to storage for sequence id of packet
    * @param handshake_done Whether handshake phase is finished or not
    * @param report_bytes_read Pointer to storage to report bytes read
-   * @param from server true if the message sender is the server, false
+   * @param from_server true if the message sender is the server, false
    *                    if it is a client
    *
    * @return 0 on success; -1 on error

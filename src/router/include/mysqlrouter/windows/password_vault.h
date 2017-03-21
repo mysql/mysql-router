@@ -28,7 +28,7 @@ class PasswordVault {
   /** @brief Create an instance of the vault.
    *
    * On creation the vault cache is initialized with the contents of the vault
-   * file at C:\Users\<current user>\AppData\Roaming\MySQL\MySQL Router\mysql_router_user_data.dat.
+   * file at %APPDATA%/MySQL/MySQL Router/mysql_router_user_data.dat.
    * The passwords are stored in the cache in cleartext.
    */
   PasswordVault();
@@ -74,7 +74,7 @@ class PasswordVault {
   /** @brief Stores the vault cache into persistent storage in encrypted form.
    *
    * The vault location in persistent storage is 
-   * C:\Users\<current user>\AppData\Roaming\MySQL\MySQL Router\mysql_router_user_data.dat.
+   * %APPDATA%/MySQL/MySQL Router/mysql_router_user_data.dat.
    */
   void store_passwords();
 

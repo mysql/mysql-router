@@ -69,8 +69,7 @@ public:
    *
    * Adds a destination using the given address and port number.
    *
-   * @param address IP or name
-   * @param port Port number
+   * @param dest destination address
    */
   virtual void add(const mysqlrouter::TCPAddress dest);
 
@@ -176,7 +175,7 @@ protected:
    * Uses the given index to check whether the destination is
    * quarantined.
    *
-   * @param size_t index of the destination to check
+   * @param index index of the destination to check
    * @return True if destination is quarantined
    */
   virtual bool is_quarantined(const size_t index) {
@@ -225,7 +224,7 @@ protected:
    *
    * @param addr information of the server we connect with
    * @param connect_timeout number of seconds waiting for connection
-   * @param log whether to log errors or not
+   * @param log_errors whether to log errors or not
    * @return a socket descriptor
    */
   virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, int connect_timeout, bool log_errors = true);

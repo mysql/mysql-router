@@ -52,6 +52,9 @@ public:
         metadata_cluster(get_option_string(section, "metadata_cluster"))
         { }
 
+  /**
+   * @param option name of the option
+   */
   std::string get_default(const std::string &option);
   bool is_required(const std::string &option);
 

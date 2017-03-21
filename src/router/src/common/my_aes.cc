@@ -13,10 +13,6 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  @file mysys_ssl/my_aes.cc
-*/
-
 #include "config.h"
 #include "my_aes.h"
 #include "my_aes_impl.h"
