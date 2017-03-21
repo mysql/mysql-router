@@ -44,7 +44,6 @@ struct GitInfo {
 Path g_origin;
 Path g_source_dir;
 std::vector<GitInfo> g_git_tracked_files;
-bool g_skip_git_tests = false;
 
 const std::vector<std::string> kLicenseSnippets{
     "This program is free software; you can redistribute it",
@@ -57,7 +56,7 @@ const std::vector<std::string> kLicenseSnippets{
 
 // Ignored file extensions
 const std::vector<std::string> kIgnoredExtensions{
-    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf", ".ini",
+    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf", ".ini", ".swp",
 };
 
 const std::vector<std::string> kIgnoredFileNames{
@@ -158,11 +157,54 @@ void prepare_git_tracked_files() {
   }
 }
 
+void prepare_all_files() {
+  if (!g_git_tracked_files.empty()) {
+    return;
+  }
+  // Get all files in the source repository
+  std::ostringstream os_cmd;
+#ifdef _WIN32
+  os_cmd << "dir /b /s /a:-d";  // dump all files (no directories)
+#else
+  os_cmd << "find . -type f";
+#endif
+  auto result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
+  std::istringstream cmd_output(result.output);
+  std::string tracked_file;
+
+  while (std::getline(cmd_output, tracked_file, '\n')) {
+#ifdef _WIN32
+    // path is already absolute
+    Path real_path(tracked_file);
+#else
+    // make path absolute
+    Path tmp_path(g_source_dir);
+    tmp_path.append(tracked_file);
+    Path real_path = tmp_path.real_path();
+#endif
+    if (!real_path.is_set()) {
+      std::cerr << "realpath failed for " << tracked_file << ": " << strerror(errno) << std::endl;
+      continue;
+    }
+    tracked_file = real_path.str();
+    if (!is_ignored(tracked_file)) {
+      g_git_tracked_files.push_back(GitInfo{
+          Path(tracked_file),
+          -1,
+          -1
+      });
+    }
+  }
+}
+
+
 class CheckLegal : public ::testing::Test {
   protected:
     virtual void SetUp() {
-      if (!g_skip_git_tests) {
+      if (Path(g_source_dir).join(".git").is_directory()) {
         prepare_git_tracked_files();
+      } else {
+        prepare_all_files();
       }
     }
 
@@ -184,7 +226,6 @@ class CheckLegal : public ::testing::Test {
  * may contain too old date.
  */
 TEST_F(CheckLegal, Copyright) {
-  SKIP_GIT_TESTS(g_skip_git_tests)
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
 #ifdef GTEST_USES_POSIX_RE
@@ -228,7 +269,12 @@ TEST_F(CheckLegal, Copyright) {
             EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
             EXPECT_EQ(err_code, 0) << re_err;
           }
-          continue;
+          break;
+        }
+
+        if (it.year_first_commit == -1 && it.year_last_commit == -1) {
+          // break early, in case we don't have any git history.
+          break;
         }
 
         // check that the start copyright year is less or equal to what we have a commit for
@@ -262,7 +308,6 @@ TEST_F(CheckLegal, Copyright) {
 }
 
 TEST_F(CheckLegal, GPLLicense) {
-  SKIP_GIT_TESTS(g_skip_git_tests)
   ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
 
   std::vector<Path> extra_ignored{
@@ -310,7 +355,6 @@ int main(int argc, char *argv[]) {
   g_source_dir = get_cmake_source_dir();
 
   EXPECT_TRUE(g_source_dir.is_set());
-  EXPECT_TRUE(Path(g_source_dir).join(".git").is_directory());
 
   return RUN_ALL_TESTS();
 }
