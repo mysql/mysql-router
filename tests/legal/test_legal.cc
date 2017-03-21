@@ -172,6 +172,15 @@ void prepare_all_files() {
   std::istringstream cmd_output(result.output);
   std::string tracked_file;
 
+  // if CMAKE_BINARY_DIR is set, check if it isn't inside CMAKE_SOURCE_DIR
+  // if yes, ignore files that are inside CMAKE_BINARY_DIR
+  const char *cmake_binary_dir = std::getenv("CMAKE_BINARY_DIR");
+  std::string binary_real_path;
+  if (cmake_binary_dir != nullptr) {
+    Path binary_dir(cmake_binary_dir);
+    binary_real_path = binary_dir.real_path().str();
+  }
+
   while (std::getline(cmd_output, tracked_file, '\n')) {
 #ifdef _WIN32
     // path is already absolute
@@ -187,13 +196,19 @@ void prepare_all_files() {
       continue;
     }
     tracked_file = real_path.str();
-    if (!is_ignored(tracked_file)) {
-      g_git_tracked_files.push_back(GitInfo{
-          Path(tracked_file),
-          -1,
-          -1
-      });
-    }
+
+    if (is_ignored(tracked_file)) continue;
+
+    // ignore all files that start with the release folder
+    if (cmake_binary_dir != nullptr &&
+        tracked_file.size() > binary_real_path.size() &&
+        tracked_file.compare(0, binary_real_path.size(), binary_real_path) == 0) continue;
+
+    g_git_tracked_files.push_back(GitInfo{
+        Path(tracked_file),
+        -1,
+        -1
+    });
   }
 }
 
