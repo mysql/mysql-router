@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,6 +52,9 @@ public:
         metadata_cluster(get_option_string(section, "metadata_cluster"))
         { }
 
+  /**
+   * @param option name of the option
+   */
   std::string get_default(const std::string &option);
   bool is_required(const std::string &option);
 

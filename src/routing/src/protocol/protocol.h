@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -53,6 +53,7 @@ public:
   /** @brief Factory method creating protocol object for handling the routing code that is protocol-specific
    *
    * @param type type of the protocol for which the handler should be created
+   * @param socket_operations socket operations
    *
    * @returns pointer to the created object
    */

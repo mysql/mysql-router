@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ public:
    * @param curr_pktnr Pointer to storage for sequence id of packet
    * @param handshake_done Whether handshake phase is finished or not
    * @param report_bytes_read Pointer to storage to report bytes read
-   * @param from server true if the message sender is the server, false
+   * @param from_server true if the message sender is the server, false
    *                    if it is a client
    *
    * @return 0 on success; -1 on error

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@ set_target_properties(routertest_helpers PROPERTIES
   INCLUDE_DIRECTORIES
     "${CMAKE_SOURCE_DIR}/tests/helpers/;${CMAKE_SOURCE_DIR}/mysql_harness/harness/include;${CMAKE_BINARY_DIR}/harness;${CMAKE_BINARY_DIR}/include;"
 )
+
+IF(NOT GPL)
+  ADD_DEFINITIONS(-DHAVE_LICENSE_COMMERCIAL)
+ENDIF()
 
 foreach(test_dir legal tools)
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})

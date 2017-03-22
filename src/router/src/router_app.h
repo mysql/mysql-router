@@ -94,6 +94,7 @@ public:
    *
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
+   * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments
 #ifndef _WIN32
@@ -116,6 +117,7 @@ public:
    *
    * @param argc number of arguments
    * @param argv pointer to first command line argument
+   * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const int argc, char** argv
 #ifndef _WIN32

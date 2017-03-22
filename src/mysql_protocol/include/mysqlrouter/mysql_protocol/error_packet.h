@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
 
   /** @overload
    *
-   * @param sequence_id MySQL Packet number
+   * @param buffer bytes of the error packet
    */
   ErrorPacket(const std::vector<uint8_t> &buffer) : ErrorPacket(buffer, 0) { }
 
@@ -51,8 +51,8 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
   /** @overload
    *
    * @param sequence_id MySQL Packet number
-   * @param error_code Error code provided to MySQL client
-   * @param error_msg Error message provided to MySQL client
+   * @param err_code Error code provided to MySQL client
+   * @param err_msg Error message provided to MySQL client
    * @param sql_state SQL State used in error message
    * @param capabilities Server/Client capability flags (default 0)
    */

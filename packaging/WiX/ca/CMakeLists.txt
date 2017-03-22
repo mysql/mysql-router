@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,12 +30,13 @@ ELSE()
   MESSAGE(FATAL_ERROR "Unknown VS version")
 ENDIF()
 
+
 # Installed directory layout
-IF(IS_DIRECTORY ${WIX_DIR}/../SDK/${WIX_MSVC_DIR})
+IF(IS_DIRECTORY "${WIX_DIR}/../SDK/${WIX_MSVC_DIR}")
   SET(WIX_MSVC_DIR "${WIX_DIR}/../SDK/${WIX_MSVC_DIR}")
   INCLUDE_DIRECTORIES(${WIX_MSVC_DIR}/inc)
 # Unzipped directory layout
-ELSEIF(IS_DIRECTORY ${WIX_DIR}/SDK/${WIX_MSVC_DIR})
+ELSEIF(IS_DIRECTORY "${WIX_DIR}/SDK/${WIX_MSVC_DIR}")
   SET(WIX_MSVC_DIR "${WIX_DIR}/SDK/${WIX_MSVC_DIR}")
   INCLUDE_DIRECTORIES(${WIX_DIR}/SDK/inc)
 ELSE()

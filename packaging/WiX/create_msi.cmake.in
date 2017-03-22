@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -362,21 +362,26 @@ ENDIF()
 
 FILE(REMOVE mysql_router.wixobj)
 EXECUTE_PROCESS(
- COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_router.wxs ${EXTRA_CANDLE_ARGS}
+ COMMAND "${CANDLE_EXECUTABLE}" -nologo -v -ext WixUtilExtension  mysql_router.wxs ${EXTRA_CANDLE_ARGS}
  RESULT_VARIABLE CANDLE_RESULT
+ OUTPUT_VARIABLE CANDLE_OUTPUT
+ ERROR_VARIABLE CANDLE_OUTPUT
 )
 
 IF(CANDLE_RESULT)
-  MESSAGE(FATAL_ERROR "ERROR: can't run candle")
+	MESSAGE(FATAL_ERROR "ERROR: can't run ${CANDLE_EXECUTABLE}: ${CANDLE_RESULT} ${CANDLE_OUTPUT}")
 ENDIF()
 
 EXECUTE_PROCESS(
- COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension -ext WixUtilExtension
+ COMMAND "${LIGHT_EXECUTABLE}" -ext WixUIExtension -ext WixUtilExtension
+  -v -nologo
   mysql_router.wixobj  -out  ${CMAKE_BINARY_DIR}/${CPACK_PACKAGE_FILE_NAME}.msi
   ${EXTRA_LIGHT_ARGS}
  RESULT_VARIABLE LIGHT_RESULT
+ OUTPUT_VARIABLE LIGHT_OUTPUT
+ ERROR_VARIABLE LIGHT_OUTPUT
 )
 
 IF(LIGHT_RESULT)
-  MESSAGE(FATAL_ERROR "ERROR: can't run light")
+	MESSAGE(FATAL_ERROR "ERROR: can't run ${LIGHT_EXECUTABLE}: ${LIGHT_RESULT} ${LIGHT_OUTPUT}")
 ENDIF()
