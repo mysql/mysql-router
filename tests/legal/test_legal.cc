@@ -241,7 +241,10 @@ class CheckLegal : public ::testing::Test {
  * may contain too old date.
  */
 TEST_F(CheckLegal, Copyright) {
-  ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
+  if (g_git_tracked_files.size() == 0) {
+    std::cout << "[ SKIPPED  ] couldn't determine source files from CMAKE_SOURCE_DIR and CMAKE_BINARY_DIR" << std::endl;
+    return;
+  }
 
 #ifdef GTEST_USES_POSIX_RE
   // gtest uses either simple-re or posix-re. Only the posix-re supports captures
@@ -295,11 +298,16 @@ TEST_F(CheckLegal, Copyright) {
         // check that the start copyright year is less or equal to what we have a commit for
         //
         // allow copyright years that are less than the recorded history in git
-        ASSERT_GT(m[3].rm_so, 0) << m[3].rm_so;
-        std::string copyright_end_year = line.substr(m[3].rm_so, m[3].rm_eo - m[3].rm_so);
+        ASSERT_GE(m[3].rm_so, 0) << m[3].rm_so;
+        ASSERT_GE(m[3].rm_eo, 0) << m[3].rm_eo;
+        ASSERT_GT(m[3].rm_eo, m[3].rm_so) << m[3].rm_so << " < " << m[3].rm_eo;
+        std::string copyright_end_year = line.substr(static_cast<size_t>(m[3].rm_so), static_cast<size_t>(m[3].rm_eo - m[3].rm_so));
 
         if (m[2].rm_so != -1) {
-          std::string copyright_start_year = line.substr(m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+          ASSERT_GE(m[2].rm_so, 0) << m[2].rm_so;
+          ASSERT_GE(m[2].rm_eo, 0) << m[2].rm_eo;
+          ASSERT_GT(m[2].rm_eo, m[2].rm_so) << m[2].rm_so << " < " << m[2].rm_eo;
+          std::string copyright_start_year = line.substr(static_cast<size_t>(m[2].rm_so), static_cast<size_t>(m[2].rm_eo - m[2].rm_so));
           EXPECT_LE(std::stoi(copyright_start_year), it.year_first_commit) << " in file: " << it.file.str();
         } else {
           // no start-year in copyright.
@@ -323,7 +331,14 @@ TEST_F(CheckLegal, Copyright) {
 }
 
 TEST_F(CheckLegal, GPLLicense) {
-  ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
+#ifdef HAVE_LICENSE_COMMERCIAL
+  std::cout << "[ SKIPPED  ] commerical build, not checking for GPL license headers" << std::endl;
+  return;
+#else
+  if (g_git_tracked_files.size() == 0) {
+    std::cout << "[ SKIPPED  ] couldn't determine source files from CMAKE_SOURCE_DIR and CMAKE_BINARY_DIR" << std::endl;
+    return;
+  }
 
   std::vector<Path> extra_ignored{
       Path("README.txt"),
@@ -361,6 +376,7 @@ TEST_F(CheckLegal, GPLLicense) {
     }
     EXPECT_TRUE(problem.empty()) << "Problem in " << it.file << ": " << problem;
   }
+#endif
 }
 
 int main(int argc, char *argv[]) {
