@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,9 @@
 #include <sstream>
 #include <string>
 #include <thread>
+
+
+using std::string;
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
@@ -69,9 +72,8 @@ static const std::map<std::string, Level> map_level_str = {
     {level_str[4], LVL_DEBUG},
 };
 
-static std::atomic<FILE*> g_log_file(stdout);
-static std::atomic<int> g_log_level(LVL_DEBUG);
-static std::atomic<bool> g_log_file_open(false);
+static std::atomic<FILE*> g_log_file;
+static std::atomic<int> g_log_level;
 
 static int init(const AppInfo* info) {
   g_log_level = LVL_INFO;  // Default log level is INFO
@@ -114,18 +116,14 @@ static int init(const AppInfo* info) {
       return 1;
     }
     g_log_file.store(fp, std::memory_order_release);
-    g_log_file_open.store(true);
   }
 
   return 0;
 }
 
 static int deinit(const AppInfo*) {
-  if (g_log_file_open.exchange(false)) {
-    assert(g_log_file.load());
-    return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
-  }
-  return 0;
+  assert(g_log_file.load());
+  return fclose(g_log_file.exchange(nullptr, std::memory_order_acq_rel));
 }
 
 static void log_message(Level level, const char* fmt, va_list ap) {
@@ -139,19 +137,16 @@ static void log_message(Level level, const char* fmt, va_list ap) {
   char time_buf[20];
   time_t now;
   time(&now);
-  struct tm local_tm;
-#ifndef _WIN32
-  localtime_r(&now, &local_tm);
-#else
-  localtime_s(&local_tm, &now);
-#endif
-  strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &local_tm);
+  strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
   // Get the thread ID
   std::stringstream ss;
-  ss << std::hex << std::noshowbase << std::this_thread::get_id();
+  ss << std::hex << std::this_thread::get_id();
 
   std::string thread_id = ss.str();
+  if (thread_id.at(1) == 'x') {
+    thread_id.erase(0, 2);
+  }
 
   // Emit a message on log file (or stdout).
   FILE *outfp = g_log_file.load(std::memory_order_consume);
