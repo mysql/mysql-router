@@ -22,6 +22,10 @@
 
 #include <string>
 
+namespace mysql_harness {
+
+namespace utility {
+
 bool matches_glob(const std::string& word, const std::string& pattern) {
   return PathMatchSpec(word.c_str(), pattern.c_str());
 }
@@ -50,3 +54,7 @@ std::string get_message_error(int errcode) {
   LocalFree(lpMsgBuf);
   return msgerr;
 }
+
+}  // namespace utility
+
+} // namespace mysql_harness

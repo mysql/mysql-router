@@ -22,6 +22,10 @@
 
 #include <string>
 
+namespace mysql_harness {
+
+namespace utility {
+
 bool matches_glob(const std::string& word, const std::string& pattern) {
   return (fnmatch(pattern.c_str(), word.c_str(), 0) == 0);
 }
@@ -29,3 +33,7 @@ bool matches_glob(const std::string& word, const std::string& pattern) {
 void sleep_seconds(unsigned int seconds) {
   sleep(seconds);
 }
+
+}  // namespace utility
+
+} // namespace mysql_harness

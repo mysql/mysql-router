@@ -26,6 +26,10 @@
 using std::string;
 using std::vector;
 
+namespace mysql_harness {
+
+namespace utility {
+
 string dirname(const string& path) {
   string::size_type pos = path.rfind('/');
   if (pos != string::npos)
@@ -115,3 +119,7 @@ std::string get_message_error(int errcode) {
   return std::string(strerror(errcode));
 }
 #endif
+
+}
+
+}

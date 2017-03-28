@@ -36,6 +36,7 @@
 
 using mysql_harness::Path;
 using mysql_harness::Loader;
+using mysql_harness::utility::strip_copy;
 
 static void
 print_usage_and_exit(const CmdArgHandler& handler,

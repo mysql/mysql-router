@@ -42,6 +42,11 @@
 using std::ostringstream;
 using std::shared_ptr;
 
+using mysql_harness::utility::find_range_first;
+using mysql_harness::utility::make_range;
+using mysql_harness::utility::matches_glob;
+using mysql_harness::utility::strip;
+
 namespace mysql_harness {
 
 static bool isident(const char ch) {

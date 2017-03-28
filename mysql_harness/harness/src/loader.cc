@@ -52,6 +52,10 @@
  * Plugin loader for loading and working with plugins.
  */
 
+using mysql_harness::utility::find_range_first;
+using mysql_harness::utility::make_range;
+using mysql_harness::utility::reverse;
+
 using std::ostringstream;
 
 namespace mysql_harness {

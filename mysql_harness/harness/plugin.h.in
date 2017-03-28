@@ -18,8 +18,8 @@
 #ifndef MYSQL_HARNESS_PLUGIN_INCLUDED
 #define MYSQL_HARNESS_PLUGIN_INCLUDED
 
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 namespace mysql_harness {
 

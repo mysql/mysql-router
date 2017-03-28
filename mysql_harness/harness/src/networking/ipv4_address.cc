@@ -33,6 +33,8 @@
 #include <cstring>
 #include <string>
 
+using mysql_harness::utility::get_message_error;
+
 namespace mysql_harness {
 
 IPv4Address::IPv4Address(const char *data) {
