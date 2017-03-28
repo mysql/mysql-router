@@ -52,17 +52,17 @@ function(ADD_HARNESS_PLUGIN NAME)
   set(_options NO_INSTALL)
   set(_single_value INTERFACE DESTINATION_SUFFIX)
   set(_multi_value SOURCES REQUIRES)
-  cmake_parse_arguments(ADD_HARNESS_PLUGIN
+  cmake_parse_arguments(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
-  if(ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS)
+  if(_option_UNPARSED_ARGUMENTS)
     message(AUTHOR_WARNING
-      "Unrecognized arguments: ${ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS}")
+      "Unrecognized arguments: ${_option_UNPARSED_ARGUMENTS}")
   endif()
 
   # Set default values
-  if(NOT ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX)
-    set(ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX ${HARNESS_NAME})
+  if(NOT _option_DESTINATION_SUFFIX)
+    set(_option_DESTINATION_SUFFIX ${HARNESS_NAME})
   endif()
 
   # Add the library and ensure that the name is good for the plugin
@@ -70,7 +70,7 @@ function(ADD_HARNESS_PLUGIN NAME)
   # intend to link against it, which is something that MODULE does not
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
-  add_library(${NAME} SHARED ${ADD_HARNESS_PLUGIN_SOURCES})
+  add_library(${NAME} SHARED ${_option_SOURCES})
   if(NOT WIN32)
     set_target_properties(${NAME} PROPERTIES
       PREFIX ""
@@ -80,19 +80,18 @@ function(ADD_HARNESS_PLUGIN NAME)
   # Declare the interface directory for this plugin, if present. It
   # will be used both when compiling the plugin as well as as for any
   # dependent targets.
-  if(ADD_HARNESS_PLUGIN_INTERFACE)
+  if(_option_INTERFACE)
     target_include_directories(${NAME}
-      PUBLIC ${ADD_HARNESS_PLUGIN_INTERFACE})
+      PUBLIC ${_option_INTERFACE})
     execute_process(
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${ADD_HARNESS_PLUGIN_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${_option_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
   endif()
 
   # Add a dependencies on interfaces for other plugins this plugin
   # requires.
   target_link_libraries(${NAME}
     PUBLIC harness-library
-    ${ADD_HARNESS_PLUGIN_REQUIRES})
-
+    ${_option_REQUIRES})
   # Need to be able to link plugins with each other
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${NAME} PROPERTIES
@@ -115,18 +114,18 @@ function(ADD_HARNESS_PLUGIN NAME)
 
   # Add install rules to install the interface header files and the
   # plugin correctly.
-  if(NOT ADD_HARNESS_PLUGIN_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
+  if(NOT _option_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
     if(WIN32)
       install(TARGETS ${NAME}
         RUNTIME DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
     else()
       install(TARGETS ${NAME}
-        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${_option_DESTINATION_SUFFIX})
     endif()
-    if(ADD_HARNESS_PLUGIN_INTERFACE)
-      file(GLOB interface_files ${ADD_HARNESS_PLUGIN_INTERFACE}/*.h)
+    if(_option_INTERFACE)
+      file(GLOB interface_files ${_option_INTERFACE}/*.h)
       install(FILES ${interface_files}
-        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${_option_DESTINATION_SUFFIX})
     endif()
   endif()
 endfunction(ADD_HARNESS_PLUGIN)
