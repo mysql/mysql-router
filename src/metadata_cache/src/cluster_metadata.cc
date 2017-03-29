@@ -41,10 +41,10 @@ using mysqlrouter::MySQLSession;
 using mysqlrouter::strtoi_checked;
 
 // FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("MC", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("MC", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("MC", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("MC", __VA_ARGS__)
+#define log_debug(...)    mysql_harness::logging::log_debug("metadata_cache", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("metadata_cache", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("metadata_cache", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("metadata_cache", __VA_ARGS__)
 
 /**
  * Return a string representation of the input character string.

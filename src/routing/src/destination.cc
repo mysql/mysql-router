@@ -38,10 +38,10 @@
 #endif
 
 // FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("Routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("Routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("Routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("Routing", __VA_ARGS__)
+#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
 
 using mysqlrouter::to_string;
 using mysqlrouter::TCPAddress;
