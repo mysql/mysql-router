@@ -19,7 +19,7 @@
 // Harness interface include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
 ////////////////////////////////////////

@@ -29,7 +29,8 @@ set(harness_source
   src/arg_handler.cc
   src/dim.cc
   src/filesystem-posix.cc
-  src/logger.cc src/logging.cc
+  src/logger.cc
+  src/logging_registry.cc
   src/random_generator.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
@@ -162,9 +163,6 @@ else()
     file(MAKE_DIRECTORY "${STAGE_DIR}/${conf}/lib/")
   endforeach()
 endif()
-
-# copy harness headers
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
 
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})

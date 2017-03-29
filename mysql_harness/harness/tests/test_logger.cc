@@ -21,7 +21,9 @@
 
 ////////////////////////////////////////
 // Internal interfaces
-#include "logging.h"
+#include "logger.h"
+#include "loader.h"
+#include "logging_registry.h"
 
 ////////////////////////////////////////
 // Third-party include files
@@ -38,10 +40,13 @@ using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::Logger;
 using mysql_harness::logging::Record;
 using mysql_harness::logging::StreamHandler;
+using mysql_harness::logging::create_logger;
 using mysql_harness::logging::log_debug;
 using mysql_harness::logging::log_error;
 using mysql_harness::logging::log_info;
 using mysql_harness::logging::log_warning;
+using mysql_harness::logging::remove_logger;
+
 
 using testing::EndsWith;
 using testing::Eq;

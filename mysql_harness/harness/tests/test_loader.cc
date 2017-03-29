@@ -19,10 +19,10 @@
 
 #include "exception.h"
 #include "mysql/harness/filesystem.h"
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
-#include "logging.h"  // Access to internal registry
+#include "logger.h"  // Access to internal registry
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -55,6 +55,7 @@ using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::bad_section;
 using mysql_harness::logging::Logger;
+using mysql_harness::logging::get_logger_names;
 
 using testing::UnorderedElementsAre;
 

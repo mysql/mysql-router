@@ -18,7 +18,7 @@
 #include "magic.h"
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
 #include <cstdlib>
