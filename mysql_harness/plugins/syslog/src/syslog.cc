@@ -16,7 +16,8 @@
 */
 
 #include "logger.h"
-#include "plugin.h"
+#include "mysql/harness/plugin.h"
+
 
 #include <cstdarg>
 

@@ -34,7 +34,6 @@ set(ROUTING_PLUGIN_SOURCE_FILES
 )
 
 set(include_dirs
-  ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
   ${CMAKE_SOURCE_DIR}/src/router/include
   ${CMAKE_SOURCE_DIR}/src/routing/include
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
@@ -70,7 +69,7 @@ link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 # The Plugin
 add_harness_plugin(routing
         SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
-        REQUIRES logger mysql_protocol x_protocol metadata_cache)
+        REQUIRES mysql_protocol x_protocol metadata_cache)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 if(MSVC)

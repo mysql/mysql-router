@@ -88,6 +88,8 @@ private:
   std::streambuf *orig_cout_;
 };
 
+//FIXME this might no longer be needed with the new logger
+#if 0
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
 // TODO: might want to move it to some common helper function and make it available to all tests
 TEST_F(Bug21962350, InitLogger) {
@@ -107,6 +109,7 @@ TEST_F(Bug21962350, InitLogger) {
   // init logger
   logger.init(&info);
 }
+#endif
 
 TEST_F(Bug21962350, AddToQuarantine) {
   size_t exp;

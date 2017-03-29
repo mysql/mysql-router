@@ -21,19 +21,27 @@
 
 #include <fstream>
 
+namespace mysql_harness {
+
+namespace logging {
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void log_error(const char *fmt, ...);
-void log_warning(const char *fmt, ...);
-void log_info(const char *fmt, ...);
-void log_debug(const char *fmt, ...);
+void log_error(const char* name, const char *fmt, ...);
+void log_warning(const char* name, const char *fmt, ...);
+void log_info(const char* name, const char *fmt, ...);
+void log_debug(const char* name, const char *fmt, ...);
 
 void set_log_fd(FILE *fp);
 
 #ifdef __cplusplus
 }
 #endif
+
+}  // namespace logging
+
+}  // namespace mysql_harness
 
 #endif // ROUTING_TESTS_HELPER_LOGGER_INCLUDED

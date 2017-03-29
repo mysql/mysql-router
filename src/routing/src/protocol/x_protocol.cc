@@ -29,6 +29,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 using ProtobufMessage = google::protobuf::Message;
 
+// FIXME
+#define log_debug(...)    mysql_harness::logging::log_debug("Routing", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("Routing", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("Routing", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("Routing", __VA_ARGS__)
+
 constexpr size_t kMessageHeaderSize = 5;
 
 static bool send_message(const std::string &log_prefix,

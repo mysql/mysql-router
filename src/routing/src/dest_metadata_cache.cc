@@ -42,6 +42,12 @@ using std::chrono::seconds;
 using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
 
+// FIXME
+#define log_debug(...)    mysql_harness::logging::log_debug("Routing", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("Routing", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("Routing", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("Routing", __VA_ARGS__)
+
 // if client wants a primary and there's none, we can wait up to this amount of
 // seconds until giving up and disconnecting the client
 // TODO: possibly this should be made into a configurable option

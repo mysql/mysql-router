@@ -74,6 +74,12 @@ using mysqlrouter::URIQuery;
 using mysqlrouter::TCPAddress;
 using mysqlrouter::is_valid_socket_name;
 
+// FIXME
+#define log_debug(...)    mysql_harness::logging::log_debug("Routing", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("Routing", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("Routing", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("Routing", __VA_ARGS__)
+
 static int kListenQueueSize = 1024;
 
 static const char *kDefaultReplicaSetName = "default";

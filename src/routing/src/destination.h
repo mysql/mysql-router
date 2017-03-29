@@ -149,7 +149,8 @@ public:
     if (!quarantine_thread_.joinable()) {
       quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
     } else {
-      log_debug("Tried to restart quarantine thread");
+//FIXME move start() to .cc and then uncomment this
+//    log_debug("Tried to restart quarantine thread");
     }
   }
 

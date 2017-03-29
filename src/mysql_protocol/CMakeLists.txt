@@ -26,7 +26,7 @@ set(include_dirs
 
 add_harness_plugin(mysql_protocol
   SOURCES ${SOURCE_FILES}
-  REQUIRES router_lib logger)
+  REQUIRES router_lib)
 target_include_directories(mysql_protocol PRIVATE ${include_dirs})
 
 file(GLOB mysqlv10_headers include/mysqlrouter/*.h)

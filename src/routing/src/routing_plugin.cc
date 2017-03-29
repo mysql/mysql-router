@@ -34,6 +34,12 @@ using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using std::string;
 
+// FIXME
+#define log_debug(...)    mysql_harness::logging::log_debug("Routing", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("Routing", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("Routing", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("Routing", __VA_ARGS__)
+
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
 

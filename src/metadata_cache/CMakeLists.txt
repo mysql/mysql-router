@@ -34,7 +34,7 @@ add_harness_plugin(metadata_cache SOURCES
   src/metadata_cache_plugin.cc
   src/plugin_config.cc
   ${METADATA_CACHE_SOURCES}
-  REQUIRES logger router_lib)
+  REQUIRES router_lib)
 
 target_link_libraries(metadata_cache PRIVATE ${MySQL_LIBRARIES})
 file(GLOB metadata_cache_headers include/mysqlrouter/*.h)

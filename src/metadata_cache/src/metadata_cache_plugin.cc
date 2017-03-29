@@ -44,6 +44,12 @@ static const char *kRoutingRequires[] = {
     "logger",
 };
 
+// FIXME
+#define log_debug(...)    mysql_harness::logging::log_debug("MC", __VA_ARGS__)
+#define log_info(...)     mysql_harness::logging::log_info("MC", __VA_ARGS__)
+#define log_warning(...)  mysql_harness::logging::log_warning("MC", __VA_ARGS__)
+#define log_error(...)    mysql_harness::logging::log_error("MC", __VA_ARGS__)
+
 /**
  * Load the metadata cache configuration from the router config file.
  *
