@@ -46,6 +46,7 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::logging::log_info;
 
 // Keep symbols with external linkage away from global scope so that
 // they do not clash with other symbols.
@@ -83,20 +84,16 @@ static void start(const ConfigSection *section) {
     name += " " + section->key;
   }
 
-  log_info("%s started with interval %d", name.c_str(), interval);
+  log_info("keepalive", "%s started with interval %d", name.c_str(), interval);
   if (runs) {
-    log_info("%s will run %d time(s)", name.c_str(), runs);
+    log_info("keepalive", "%s will run %d time(s)", name.c_str(), runs);
   }
 
   for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
-    log_info(name.c_str());
+    log_info("keepalive", name.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(interval));
   }
 }
-
-static const char *requires[] = {
-  "logger",
-};
 
 #if defined(_MSC_VER) && defined(keepalive_EXPORTS)
 /* We are building this library */
@@ -111,7 +108,7 @@ Plugin DLLEXPORT keepalive = {
   ARCHITECTURE_DESCRIPTOR,
   "Keepalive Plugin",
   VERSION_NUMBER(0, 0, 1),
-  sizeof(requires)/sizeof(*requires), requires,
+  0, nullptr,
   0, nullptr,  // conflicts
   init,        // init
   nullptr,     // deinit

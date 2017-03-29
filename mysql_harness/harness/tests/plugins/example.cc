@@ -32,6 +32,7 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::logging::log_info;
 
 #ifdef WIN32
 #  define EXAMPLE_IMPORT __declspec(dllimport)
@@ -41,7 +42,6 @@ using mysql_harness::Plugin;
 
 extern "C" {
   extern void EXAMPLE_IMPORT do_magic();
-  extern void EXAMPLE_IMPORT log_info(const char *, ...);
 }
 
 
@@ -60,7 +60,6 @@ using mysql_harness::Plugin;
 
 static const char* requires[] = {
   "magic (>>1.0)",
-  "logger",
 };
 
 static int init(const AppInfo*);
@@ -96,7 +95,7 @@ static int deinit(const AppInfo*) {
 
 static void start(const ConfigSection*) {
   for (int x = 0 ; x < 10 ; ++x) {
-    log_info("<count: %d>", x);
+    log_info("example", "<count: %d>", x);
 #ifndef _WIN32
     sleep(1);
 #else

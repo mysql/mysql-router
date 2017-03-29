@@ -15,8 +15,7 @@
 
 add_harness_plugin(keepalive
   INTERFACE include
-  SOURCES src/keepalive.cc
-  REQUIRES logger)
+  SOURCES src/keepalive.cc)
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

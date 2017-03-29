@@ -28,6 +28,8 @@ set(harness_source
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/dim.cc
+  src/filesystem-posix.cc
+  src/logger.cc src/logging.cc
   src/random_generator.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
@@ -163,8 +165,6 @@ endif()
 
 # copy harness headers
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
-
-add_harness_plugin(logger INTERFACE include SOURCES src/logger.cc)
 
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})

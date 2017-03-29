@@ -19,7 +19,10 @@
 
 #include "exception.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/logger.h"
 #include "mysql/harness/plugin.h"
+
+#include "logging.h"  // Access to internal registry
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -32,6 +35,7 @@
 
 ////////////////////////////////////////
 // Third-party include files
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ////////////////////////////////////////
@@ -50,6 +54,9 @@ using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::bad_section;
+using mysql_harness::logging::Logger;
+
+using testing::UnorderedElementsAre;
 
 Path g_here;
 
@@ -81,7 +88,7 @@ class LoaderReadTest : public LoaderTest {
 
 TEST_P(LoaderReadTest, Available) {
   auto lst = loader->available();
-  EXPECT_EQ(6U, lst.size());
+  EXPECT_EQ(5U, lst.size());
 
   EXPECT_SECTION_AVAILABLE("example", loader);
   EXPECT_SECTION_AVAILABLE("magic", loader);
@@ -123,6 +130,20 @@ INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
+}
+
+TEST(TestStart, StartLogger) {
+  std::map<std::string, std::string> params;
+  params["program"] = "harness";
+  params["prefix"] = g_here.c_str();
+
+  Loader loader("harness", params);
+  loader.read(g_here.join("data/tests-start-2.cfg"));
+  ASSERT_NO_THROW(loader.start());
+
+  // Check that all plugins have a module registered with the logger.
+  auto loggers = get_logger_names();
+  EXPECT_THAT(loggers, UnorderedElementsAre("magic"));
 }
 
 TEST(TestStart, StartFailure) {

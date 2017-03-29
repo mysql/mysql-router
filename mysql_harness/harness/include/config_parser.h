@@ -459,6 +459,6 @@ class HARNESS_EXPORT Config {
   unsigned int flags_;
 };
 
-}
+}  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_CONFIG_PARSER_INCLUDED */

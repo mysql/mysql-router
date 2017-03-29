@@ -187,6 +187,7 @@ find_range_first(const Map& assoc,
                           assoc.lower_bound(make_pair(first, SType())));
 }
 
+
 std::string dirname(const std::string& path);
 std::string basename(const std::string& path);
 
@@ -194,7 +195,6 @@ std::string basename(const std::string& path);
  * Remove starting and trailing delimiters from string.
  */
 void strip(std::string* str, const char* chars = " \t\n\r\f\v");
-
 std::string strip_copy(std::string str, const char* chars = " \t\n\r\f\v");
 std::string string_format(const char* format, ...);
 std::vector<std::string> wrap_string(const std::string& to_wrap,
@@ -242,7 +242,7 @@ void serial_comma(std::ostream& out, InputIt start, InputIt finish,
   }
 }
 
-}
+}  // namespace utility
 
-}
+} // namespace mysql_harness
 #endif /* MYSQL_HARNESS_UTILITIES_INCLUDED */

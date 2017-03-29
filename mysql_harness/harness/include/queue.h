@@ -47,7 +47,7 @@ template <class T, class... Args> unique_ptr<T> make_unique(Args&&... args) {
 
 #endif
 
-}
+}  // namespace std
 
 namespace mysql_harness {
 
@@ -259,6 +259,6 @@ class queue {
   mutable std::mutex tail_mtx_;
 };
 
-}
+}  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_QUEUE_INCLUDED */

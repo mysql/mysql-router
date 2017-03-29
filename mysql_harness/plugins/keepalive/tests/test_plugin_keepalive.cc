@@ -19,6 +19,7 @@
 // Harness interface include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logger.h"
 #include "mysql/harness/plugin.h"
 
 ////////////////////////////////////////
@@ -72,21 +73,21 @@ class KeepalivePluginTest : public ::testing::Test {
 
 TEST_F(KeepalivePluginTest, Available) {
   auto lst = loader->available();
-  EXPECT_EQ(2U, lst.size());
+  EXPECT_EQ(1U, lst.size());
 
   EXPECT_SECTION_AVAILABLE("keepalive", loader);
-  EXPECT_SECTION_AVAILABLE("logger", loader);
 }
 
 TEST_F(KeepalivePluginTest, CheckLog) {
-  const auto log_file = loader->get_log_file();
+  auto logging_folder = g_here.join("/var/log/keepalive");
+  const auto log_file = Path::make_path(logging_folder, "harness", "log");
 
   // Make sure log file is empty
   std::fstream fs;
   fs.open(log_file.str(), std::fstream::trunc | std::ofstream::out);
   fs.close();
 
-  loader->start();
+  ASSERT_NO_THROW(loader->start());
 
   std::ifstream ifs_log(log_file.str());
   std::string line;
@@ -94,6 +95,8 @@ TEST_F(KeepalivePluginTest, CheckLog) {
   while (std::getline(ifs_log, line)) {
     lines.push_back(line);
   }
+
+  ASSERT_GE(lines.size(), 4U);
   EXPECT_NE(std::string::npos,
             lines.at(0).find("keepalive started with interval 1") );
   EXPECT_NE(std::string::npos, lines.at(1).find("2 time(s)") );

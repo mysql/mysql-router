@@ -129,6 +129,7 @@ TEST(TestFilesystem, TestDirectory) {
       g_here.join("data/tests-good-1.cfg"),
       g_here.join("data/tests-good-2.cfg"),
       g_here.join("data/tests-start-1.cfg"),
+      g_here.join("data/tests-start-2.cfg"),
       g_here.join("data/magic-alt.cfg"),
     };
 

@@ -22,6 +22,7 @@
 #include "designator.h"
 #include "exception.h"
 #include "filesystem.h"
+#include "mysql/harness/logger.h"
 #include "mysql/harness/plugin.h"
 #include "utilities.h"
 
@@ -30,6 +31,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdarg>
 #include <exception>
 #include <map>
 #include <queue>
@@ -40,23 +42,201 @@
 #include <thread>
 #include <vector>
 
-/**
- * @defgroup Loader Plugin loader
- *
- * Plugin loader for loading and working with plugins.
- */
+#include <dlfcn.h>
+#include <unistd.h>
 
-/**
- * @defgroup Loader Plugin loader
- *
- * Plugin loader for loading and working with plugins.
- */
+using mysql_harness::logging::FileHandler;
+using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::Logger;
+using mysql_harness::logging::Record;
+using mysql_harness::logging::Handler;
+using mysql_harness::logging::StreamHandler;
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
 using mysql_harness::utility::reverse;
+using mysql_harness::utility::serial_comma;
+
+using mysql_harness::Path;
+using mysql_harness::Config;
 
 using std::ostringstream;
+
+static std::map<std::string, LogLevel> levels{
+  {"fatal", LogLevel::kFatal},
+  {"error", LogLevel::kError},
+  {"warning", LogLevel::kWarning},
+  {"info", LogLevel::kInfo},
+  {"debug", LogLevel::kDebug},
+};
+
+////////////////////////////////////////////////////////////////
+// Internal functions to handle logger registry.
+
+static std::map<std::string, Logger> g_loggers;
+
+static Path g_log_file;
+
+void create_logger(const std::string& name) {
+  auto result = g_loggers.emplace(name, Logger(name));
+  if (result.second == false)
+    throw std::logic_error("Duplicate logger for section '" + name + "'");
+}
+
+void remove_logger(const std::string& name) {
+  if (g_loggers.erase(name) == 0)
+    throw std::logic_error("Removing non-existant logger '" + name + "'");
+}
+
+std::list<std::string> get_logger_names() {
+  std::list<std::string> result;
+  for (auto&& entry : g_loggers)
+    result.push_back(entry.second.get_name());
+  return result;
+}
+
+void setup_logging(const std::string& program,
+                   const std::string& logging_folder,
+                   const Config& config,
+                   const std::list<std::string>& modules) {
+  // Before initializing, but after all modules are loaded, we set up
+  // the logging subsystem and create one logger for each loaded
+  // plugin.
+  for (auto&& module : modules)
+    create_logger(module);
+
+  if (!config.has_default("log_level")) {
+    // If there is no log level defined, we set it to the default.
+    set_log_level(LogLevel::kInfo);
+  } else {
+    // We set the log level for all modules to whatever is defined in
+    // the default section.
+    auto level_value = config.get_default("log_level");
+    std::transform(level_value.begin(), level_value.end(),
+                   level_value.begin(), ::toupper);
+
+    try {
+      set_log_level(levels.at(level_value));
+    } catch (std::out_of_range& exc) {
+      std::stringstream buffer;
+
+      buffer << "Log level '" << level_value
+             << "' is not valid. Valid values are: ";
+
+      // Print the entries using a serial comma
+      std::vector<std::string> alternatives;
+      for (auto&& entry : levels)
+        alternatives.push_back(entry.first);
+      serial_comma(buffer, alternatives.begin(), alternatives.end());
+
+      throw std::invalid_argument(buffer.str());
+    }
+  }
+
+  if (logging_folder.empty()) {
+    // Register the console as the handler if there is no log file.
+    register_handler(std::make_shared<StreamHandler>(std::cerr));
+  } else {
+    // Register a file log handler
+    g_log_file = Path::make_path(logging_folder, program, "log");
+    register_handler(std::make_shared<FileHandler>(g_log_file));
+  }
+}
+
+void teardown_logging() {
+  for (auto&& entry : g_loggers)
+    remove_logger(entry.second.get_name());
+}
+
+template <LogLevel level>
+void log_message(const char* module, const char* fmt, va_list ap) {
+  assert(level <= LogLevel::kDebug);
+
+  try {
+    // Find the logger for the module
+    auto logger = g_loggers.at(module);
+
+    // Build the message
+    char message[256];
+    vsnprintf(message, sizeof(message), fmt, ap);
+
+    // Build the record for the handler.
+    time_t now;
+    time(&now);
+    Record record{level, getpid(), now, module, message};
+
+    // Pass the record to the correct logger. The record should be
+    // passed to only one logger since otherwise the handler can get
+    // multiple calls, resulting in multiple log records.
+    logger.handle(record);
+  } catch (std::out_of_range& exc) {
+    throw std::logic_error("Module '" + std::string(module) +
+                           "' not registered");
+  }
+}
+
+////////////////////////////////////////////////////////////////
+// Logging functions for use by plugins.
+
+namespace mysql_harness {
+
+namespace logging {
+
+void set_log_level(LogLevel level) {
+  for (auto&& entry : g_loggers)
+    entry.second.set_level(level);
+}
+
+const Path& get_log_file() {
+  return g_log_file;
+}
+
+void register_handler(std::shared_ptr<Handler> handler) {
+  for (auto&& entry : g_loggers)
+    entry.second.add_handler(handler);
+}
+
+void log_error(const char* module, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  log_message<LogLevel::kError>(module, fmt, args);
+  va_end(args);
+}
+
+
+void log_warning(const char* module, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  log_message<LogLevel::kWarning>(module, fmt, args);
+  va_end(args);
+}
+
+
+void log_info(const char* module, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  log_message<LogLevel::kInfo>(module, fmt, args);
+  va_end(args);
+}
+
+
+void log_debug(const char* module, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  log_message<LogLevel::kDebug>(module, fmt, args);
+  va_end(args);
+}
+
+}  // namespace logging
+
+}  // namespace mysql_harness
+
+
+/**
+ * @defgroup Loader Plugin loader
+ *
+ * Plugin loader for loading and working with plugins.
+ */
 
 namespace mysql_harness {
 
@@ -103,7 +283,11 @@ void LoaderConfig::fill_and_check() {
 }
 
 Loader::~Loader() {
-  //TODO(Mats) We need to do a proper unload here, keeping refcounts in mind.
+  // FIXME PM (after Harness merge):
+  // These were brought in during Harness merge. They should be removed in
+  // upcoming Lifecycle patch, which already calls these elsewhere.
+  stop_all();
+  deinit_all();
 }
 
 // We use RTLD_LAZY when opening the file. This will make function
@@ -235,6 +419,13 @@ void Loader::init_all() {
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
 
+  // The order list contain all the module names, so we use it
+  // here. However, the order of the modules is not important.
+//FIXME PM: I think the above needs to be changed to clarify that
+//the order is not important FOR THIS CALL (it matters a lot to
+//init_all() and deinit_all()
+  setup_logging(program_, logging_folder_, config_, order_);
+
   for (const std::string& plugin_key : reverse(order_)) {
     PluginInfo &info = plugins_.at(plugin_key);
     if (info.plugin->init && info.plugin->init(&appinfo_))
@@ -294,12 +485,18 @@ void Loader::start_all() {
 }
 
 void Loader::stop_all() {
+  // FIXME PM (after Harness merge):
+  // Mats added the try/catch around this for(). I'm not sure why he didn't
+  // add some assert(0) in the catch block though, but just left it empty.
+  // Perhaps it should be added.
   for (auto&& section : config_.sections()) {
-    PluginInfo& plugin = plugins_.at(section->name);
-    void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
-    if (fptr) {
-      fptr(section);
-    }
+    try {
+      PluginInfo& plugin = plugins_.at(section->name);
+      void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
+      if (fptr) {
+        fptr(section);
+      }
+    } catch (std::out_of_range& exc) {}
   }
 }
 
@@ -309,6 +506,8 @@ void Loader::deinit_all() {
     if (info.plugin->deinit)
       info.plugin->deinit(&appinfo_);
   }
+
+  teardown_logging();
 }
 
 bool Loader::topsort() {

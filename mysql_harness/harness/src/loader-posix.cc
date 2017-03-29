@@ -54,7 +54,7 @@ class Loader::PluginInfo::Impl {
 Loader::PluginInfo::Impl::Impl(const std::string& plugin_folder,
                                const std::string& library_name)
   : path(Path::make_path(plugin_folder, library_name, "so")),
-    handle(dlopen(path.c_str(), RTLD_LAZY | RTLD_GLOBAL)) {
+    handle(dlopen(path.c_str(), RTLD_NOW)) {
   if (handle == nullptr)
     throw bad_plugin(dlerror());
 }

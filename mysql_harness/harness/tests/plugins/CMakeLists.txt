@@ -22,9 +22,8 @@ add_harness_plugin(bad_two NO_INSTALL
 add_harness_plugin(magic NO_INSTALL
   DESTINATION_SUFFIX harness
   INTERFACE include
-  SOURCES magic.cc
-  REQUIRES logger)
+  SOURCES magic.cc)
 add_harness_plugin(example NO_INSTALL
   DESTINATION_SUFFIX harness
   SOURCES example.cc
-  REQUIRES magic logger)
+  REQUIRES magic)
