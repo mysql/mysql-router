@@ -43,9 +43,7 @@ using std::string;
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
 
-const char *kRoutingRequires[1] = {
-    "logger",
-};
+const char *kRoutingRequires[1] = {};
 
 static void validate_socket_info(const std::string& err_prefix,
                                  const mysql_harness::ConfigSection* section,

@@ -75,7 +75,6 @@ Debian-based 64-bit distributions.
         │       └── mysqlrouter
         │           ├── metadata_cache.so
         │           ├── keepalive.so
-        │           ├── logger.so
         │           └── routing.so
         ├── bin
         │   └── mysqlrouter

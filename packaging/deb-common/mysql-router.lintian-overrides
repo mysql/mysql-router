@@ -22,7 +22,6 @@ mysql-router: maintainer-script-ignores-errors postinst
 # We need the RPATH defined in Plugins
 mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/metadata_cache.so lib/x86_64-linux-gnu/mysqlrouter
 mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/keepalive.so /usr/lib/mysqlrouter
-mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/logger.so /usr/lib/mysqlrouter
 mysql-router: binary-or-shlib-defines-rpath usr/lib/x86_64-linux-gnu/mysqlrouter/routing.so lib/x86_64-linux-gnu/mysqlrouter
 
 # Documentation is online

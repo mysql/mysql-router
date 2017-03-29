@@ -61,7 +61,6 @@ protected:
       ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
       ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
       ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
-      ofs_config << "[logger]" << "\n\n";
       ofs_config.close();
     }
   }

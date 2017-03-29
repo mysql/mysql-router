@@ -938,8 +938,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
 
   const std::string metadata_key = metadata_cluster;
   cfp << "\n"
-      << "[logger]\n"
-      << "level = INFO\n"
+      << "log_level = INFO\n"
       << "\n"
       << "[metadata_cache:" << metadata_key << "]\n"
       << "router_id=" << router_id << "\n"

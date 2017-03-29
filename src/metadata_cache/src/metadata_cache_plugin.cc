@@ -40,10 +40,6 @@ const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
-static const char *kRoutingRequires[] = {
-    "logger",
-};
-
 // FIXME
 #define log_debug(...)    mysql_harness::logging::log_debug("MC", __VA_ARGS__)
 #define log_info(...)     mysql_harness::logging::log_info("MC", __VA_ARGS__)
@@ -144,7 +140,7 @@ mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+    0, NULL,                                      // Requires
     0, NULL,                                      // Conflicts
     init,
     NULL,

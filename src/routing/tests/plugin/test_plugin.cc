@@ -157,6 +157,7 @@ protected:
   std::string cmd;
 };
 
+//FIXME logger.so no longer exists
 TEST_F(RoutingPluginTests, PluginConstants) {
   // Check number of required plugins
   ASSERT_EQ(1UL, sizeof(kRoutingRequires) / sizeof(*kRoutingRequires));
@@ -164,6 +165,7 @@ TEST_F(RoutingPluginTests, PluginConstants) {
   ASSERT_THAT(kRoutingRequires[0], StrEq("logger"));
 }
 
+//FIXME logger.so no longer exists
 TEST_F(RoutingPluginTests, PluginObject) {
   ASSERT_EQ(harness_plugin_routing.abi_version, 0x0101U);
   ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
