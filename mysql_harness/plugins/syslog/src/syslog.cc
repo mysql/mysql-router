@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "logging.h"
-#include "plugin.h"
+#include "mysql/harness/logging.h"
+#include "mysql/harness/plugin.h"
 
 #include <cstdarg>
 

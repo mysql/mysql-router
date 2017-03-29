@@ -15,17 +15,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 ////////////////////////////////////////
 // Package include files
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+
+#include "logger.h"
+#include "logging_registry.h"
 #include "designator.h"
 #include "exception.h"
-#include "filesystem.h"
-#include "logger.h"
-#include "plugin.h"
 #include "utilities.h"
-#include "logging_registry.h"
 
 ////////////////////////////////////////
 // Standard include files

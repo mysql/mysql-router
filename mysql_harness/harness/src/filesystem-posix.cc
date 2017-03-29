@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,28 +15,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "filesystem.h"
-#include "common.h"
+#include "mysql/harness/filesystem.h"
 
 #include <cassert>
 #include <sstream>
 #include <stdexcept>
 
-#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fnmatch.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-/* checks if GCC version is at least MAJOR.MINOR */
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#define GNUC_REQ(MAJOR_VER, MINOR_VER)  \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((MAJOR_VER) << 16) + (MINOR_VER))
-#else
-#define GNUC_REQ(MAJOR_VER, MINOR_VER) 0
-#endif
 
 #if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 # error "This file expects POSIX.1-2001 or later"
@@ -59,26 +49,6 @@ namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
-
-// readdir_r() is depracated in the latest libc versions instead readdir()
-// is to be used  but in the older versions  readdir() is still not thread
-// safe and we need the compatibility with both
-static int readdir_safe(DIR *dirp,
-                        struct dirent *entry,
-                        struct dirent **result) {
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-  int res = readdir_r(dirp, entry, result);
-
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic pop
-#endif
-
-  return res;
-}
 
 const char * const Path::directory_separator = "/";
 const char * const Path::root_directory = "/";
@@ -155,26 +125,26 @@ class Directory::DirectoryIterator::State {
   }
 
   DIR *dirp_;
-  struct dirent *entry_;
+  struct dirent entry_;
   const string pattern_;
   struct dirent *result_;
 };
 
+
 Directory::DirectoryIterator::State::State()
-  : dirp_(nullptr), entry_(nullptr), pattern_(""), result_(nullptr) {}
+  : dirp_(nullptr), pattern_(""), result_(nullptr) {}
 
 
 Directory::DirectoryIterator::State::State(const Path& path,
                                            const string& pattern)
-    : dirp_(opendir(path.c_str())), pattern_(pattern) {
-  // in Solaris, dirent is NOT large enough to hold a directory name, so we need to
-  // ensure there's extra space for it
-  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
-  result_ = entry_;
-
+    : dirp_(opendir(path.c_str())), pattern_(pattern), result_(&entry_) {
   if (dirp_ == nullptr) {
     ostringstream buffer;
-    buffer << "Failed to open path " << path << " - " << get_strerror(errno);
+    char buf[256];
+    if (strerror_r(errno, buf, sizeof(buf)) != 0)
+      buffer << "Failed to open path " << path << " - " << errno;
+    else
+      buffer << "Failed to open path " << path << " - " << buf;
     throw runtime_error(buffer.str());
   }
 
@@ -187,8 +157,6 @@ Directory::DirectoryIterator::State::~State() {
   // work. For example, BSD systems do not always support this.
   if (dirp_ != nullptr)
     closedir(dirp_);
-  if (entry_)
-    free(entry_);
 }
 
 
@@ -201,10 +169,13 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_safe(dirp_, entry_, &result_)) {
+    if (int error = readdir_r(dirp_, &entry_, &result_)) {
       ostringstream buffer;
-
-      buffer << "Failed to read directory entry - " << get_strerror(error);
+      char msg[256];
+      if (strerror_r(error, msg, sizeof(msg)))
+        buffer << "strerror_r failed: " << errno;
+      else
+        buffer << "Failed to read directory entry - " << msg;
       throw std::runtime_error(buffer.str());
     }
 
@@ -229,7 +200,11 @@ void Directory::DirectoryIterator::State::fill_result() {
       break;
     } else {
       ostringstream buffer;
-      buffer << "Match failed - " << get_strerror(error);
+      char msg[256];
+      if (strerror_r(error, msg, sizeof(msg)))
+        buffer << "strerror_r failed: " << errno;
+      else
+        buffer << "Match failed - " << msg;
       throw std::runtime_error(buffer.str());
     }
   }

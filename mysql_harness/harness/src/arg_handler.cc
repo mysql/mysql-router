@@ -15,7 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "arg_handler.h"
+#include "mysql/harness/arg_handler.h"
+
 #include "utilities.h"
 
 #include <algorithm>

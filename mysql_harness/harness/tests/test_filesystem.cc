@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 ////////////////////////////////////////
 // Test system include files

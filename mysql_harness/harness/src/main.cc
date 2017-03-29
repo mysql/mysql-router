@@ -24,8 +24,9 @@
  * support for extension life-cycles.
  */
 
-#include "arg_handler.h"
-#include "loader.h"
+#include "mysql/harness/arg_handler.h"
+#include "mysql/harness/loader.h"
+
 #include "utilities.h"
 
 #include <algorithm>

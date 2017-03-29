@@ -14,10 +14,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "config_parser.h"
-#include "logger.h"
 #include "logging_registry.h"
+
+#include "mysql/harness/config_parser.h"
+
 #include "utilities.h"
+#include "logger.h"
 
 #include <algorithm>
 #include <cassert>

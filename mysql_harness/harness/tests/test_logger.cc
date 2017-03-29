@@ -17,12 +17,13 @@
 
 #include "logger.h"
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 ////////////////////////////////////////
 // Internal interfaces
+#include "mysql/harness/loader.h"
+
 #include "logger.h"
-#include "loader.h"
 #include "logging_registry.h"
 
 ////////////////////////////////////////

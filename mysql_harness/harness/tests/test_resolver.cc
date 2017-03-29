@@ -15,9 +15,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "networking/ip_address.h"
-#include "networking/ipv4_address.h"
-#include "networking/resolver.h"
+#include "mysql/harness/networking/ip_address.h"
+#include "mysql/harness/networking/ipv4_address.h"
+#include "mysql/harness/networking/resolver.h"
 
 ////////////////////////////////////////
 // Test system include files

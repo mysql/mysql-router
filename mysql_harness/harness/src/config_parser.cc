@@ -26,9 +26,10 @@
  * features to provide more flexible configuration of the harness.
  */
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
+
 #include "utilities.h"
 
 #include <algorithm>

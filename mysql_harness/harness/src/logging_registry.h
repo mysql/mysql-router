@@ -17,7 +17,8 @@
 #ifndef MYSQL_HARNESS_LOGGER_REGISTRY_INCLUDED
 #define MYSQL_HARNESS_LOGGER_REGISTRY_INCLUDED
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/config_parser.h"
 
 namespace mysql_harness {
 

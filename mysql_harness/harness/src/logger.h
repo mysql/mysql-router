@@ -21,7 +21,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/logging.h"
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #include <fstream>
 #include <memory>

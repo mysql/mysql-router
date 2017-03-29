@@ -17,12 +17,13 @@
 
 #include "mysql/harness/loader.h"
 
-#include "exception.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
-#include "logger.h"  // Access to internal registry
+#include "exception.h"
+#include "logging_registry.h"  // Access to internal registry
+#include "logger.h"
 #include "utilities.h"
 
 ////////////////////////////////////////

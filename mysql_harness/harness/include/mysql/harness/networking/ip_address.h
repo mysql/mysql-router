@@ -18,8 +18,8 @@
 #ifndef MYSQL_HARNESS_NETWORKING_IP_ADDRESS_INCLUDED
 #define MYSQL_HARNESS_NETWORKING_IP_ADDRESS_INCLUDED
 
-#include "networking/ipv4_address.h"
-#include "networking/ipv6_address.h"
+#include "mysql/harness/networking/ipv4_address.h"
+#include "mysql/harness/networking/ipv6_address.h"
 
 #include <ostream>
 #include <string>
