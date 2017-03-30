@@ -32,6 +32,7 @@
 #include <map>
 #include <sstream>
 #include <cstdarg>
+#include <mutex>
 
 
 using mysql_harness::Path;
@@ -40,6 +41,7 @@ using mysql_harness::logging::Logger;
 using mysql_harness::logging::Record;
 using mysql_harness::utility::serial_comma;
 
+std::mutex g_loggers_mutex;
 static std::map<std::string, Logger> g_loggers;
 
 static Path g_log_file;
@@ -57,17 +59,24 @@ namespace mysql_harness {
 namespace logging {
 
 void create_logger(const std::string& name, LogLevel level) {
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
   auto result = g_loggers.emplace(name, Logger(name, level));
   if (result.second == false)
     throw std::logic_error("Duplicate logger for section '" + name + "'");
 }
 
-void remove_logger(const std::string& name) {
+void remove_logger(const std::string& name, std::unique_lock<std::mutex>&) {
   if (g_loggers.erase(name) == 0)
     throw std::logic_error("Removing non-existant logger '" + name + "'");
 }
 
+void remove_logger(const std::string& name) {
+  std::unique_lock<std::mutex> lock(g_loggers_mutex);
+  remove_logger(name, lock);
+}
+
 std::list<std::string> get_logger_names() {
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
   std::list<std::string> result;
   for (auto&& entry : g_loggers)
     result.push_back(entry.second.get_name());
@@ -116,8 +125,9 @@ void setup(const std::string& program,
 }
 
 void teardown() {
+  std::unique_lock<std::mutex> lock(g_loggers_mutex);
   for (auto&& entry : g_loggers)
-    remove_logger(entry.second.get_name());
+    remove_logger(entry.second.get_name(), lock);
 }
 
 }  // namespace logging
@@ -135,6 +145,7 @@ void log_message(const char* module, const char* fmt, va_list ap) {
   assert(level <= LogLevel::kDebug);
 
   try {
+    std::lock_guard<std::mutex> lock(g_loggers_mutex);
     // Find the logger for the module
     auto logger = g_loggers.at(module);
 
@@ -164,6 +175,7 @@ namespace mysql_harness {
 namespace logging {
 
 void set_log_level(LogLevel level) {
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
   for (auto&& entry : g_loggers)
     entry.second.set_level(level);
 }
@@ -173,11 +185,13 @@ const Path& get_log_file() {
 }
 
 void register_handler(std::shared_ptr<Handler> handler) {
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
   for (auto&& entry : g_loggers)
     entry.second.add_handler(handler);
 }
 
 void unregister_handler(std::shared_ptr<Handler> handler) {
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
   for (auto&& entry : g_loggers)
     entry.second.remove_handler(handler);
 }

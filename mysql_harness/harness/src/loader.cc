@@ -48,17 +48,9 @@
 #  include <unistd.h>
 #endif
 
-using mysql_harness::logging::FileHandler;
-using mysql_harness::logging::LogLevel;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::Record;
-using mysql_harness::logging::Handler;
-using mysql_harness::logging::StreamHandler;
-
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
 using mysql_harness::utility::reverse;
-using mysql_harness::utility::serial_comma;
 
 using mysql_harness::Path;
 using mysql_harness::Config;
@@ -122,13 +114,6 @@ Loader::~Loader() {
   stop_all();
   deinit_all();
 }
-
-// We use RTLD_LAZY when opening the file. This will make function
-// references not be resolve until they are actually used. All
-// interfaces between plugins and the harness have to be as functions.
-//
-// In addition, we use RTLD_GLOBAL to expose the plugin's symbols to
-// other plugins.
 
 Plugin* Loader::load_from(const std::string& plugin_name,
                           const std::string& library_name) {

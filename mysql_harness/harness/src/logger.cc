@@ -26,15 +26,9 @@
 #include "mysql/harness/plugin.h"
 
 #include <algorithm>
-#include <atomic>
-#include <atomic>
-#include <cassert>
 #include <cerrno>
-#include <cstdarg>
 #include <cstring>
 #include <fstream>
-#include <iostream>
-#include <map>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -43,12 +37,6 @@
 #  include <unistd.h>
 #endif
 
-using std::string;
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::Plugin;
 using mysql_harness::Path;
 
 #if defined(_MSC_VER) && defined(logger_EXPORTS)
@@ -122,8 +110,9 @@ FileHandler::FileHandler(const Path& path, LogLevel level)
       fstream_(path.str(), ofstream::app) {
   if (fstream_.fail()) {
     ostringstream buffer;
-    buffer << "Failed to open " << path
-           << ": " << strerror(errno);
+    char buf[1024];
+    strerror_r(errno, buf, sizeof(buf));
+    buffer << "Failed to open " << path << ": " << buf;
     throw std::runtime_error(buffer.str());
   }
 }

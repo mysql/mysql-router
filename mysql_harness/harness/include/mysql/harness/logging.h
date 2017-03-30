@@ -111,8 +111,7 @@ const char* const kDefaultLogLevelName = "warning";
  * Log record containing information collected by the logging
  * system.
  *
- * The log record is passed to the handlers together with the format
- * string and the arguments.
+ * The log record is passed to the handlers together with message.
  */
 struct Record {
   LogLevel level;
@@ -141,8 +140,6 @@ class Handler {
   LogLevel get_level() const { return level_; }
 
  protected:
-  // ??? Does this reall have to be a member function and does it ???
-  // ??? belong to the handler ???
   std::string format(const Record& record) const;
 
   explicit Handler(LogLevel level);

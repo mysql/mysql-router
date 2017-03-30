@@ -23,12 +23,8 @@
 
 #include "mysql/harness/filesystem.h"
 
-#include <fstream>
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
-#include <list>
 
 namespace mysql_harness {
 
