@@ -46,7 +46,7 @@
       ADD_FAILURE() << "Expected exception of type " #exc << " but got another\n";\
     }
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 /** @brief Returns the CMake source root folder
  *

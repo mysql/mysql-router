@@ -20,9 +20,9 @@
  *
  */
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 #include "destination.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 
@@ -43,7 +43,6 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "config_parser.h"
 #include "helper_logger.h"
 
 extern "C" { extern mysql_harness::Plugin LOGGER_API logger; }  // defined in logger.cc

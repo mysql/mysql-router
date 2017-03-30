@@ -18,7 +18,7 @@
 #ifndef MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED
 #define MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #include <memory>
 

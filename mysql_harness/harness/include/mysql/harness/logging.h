@@ -269,9 +269,9 @@ extern "C" {
 #endif
 
 /*
- * Declare the implementation log function and define an inline
- * function that pick up the log domain defined for the module. This
- * will define a function that is namespace-aware.
+ * Declare the implementation log functions and define inline
+ * functions that pick up the log domain defined for the module.
+ * These functions are namespace-aware.
  */
 #define MAKE_LOG_FUNC(LEVEL)                                    \
   inline void log_##LEVEL(const char* fmt, ...) {    \
@@ -297,5 +297,14 @@ MAKE_LOG_FUNC(debug)
 }  // namespace logging
 
 }  // namespace mysql_harness
+
+/**
+ * convenience macro to avoid common boilerplate
+ */
+#define IMPORT_LOG_FUNCTIONS() \
+using mysql_harness::logging::log_error;    \
+using mysql_harness::logging::log_warning;  \
+using mysql_harness::logging::log_info;     \
+using mysql_harness::logging::log_debug;
 
 #endif // MYSQL_HARNESS_LOGGING_INCLUDED

@@ -16,6 +16,7 @@
 */
 
 #include "dest_first_available.h"
+#include "mysql/harness/logging.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -24,11 +25,7 @@
 #  include <ws2tcpip.h>
 #endif
 
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
   // Say for example, that we have three servers: A, B and C.

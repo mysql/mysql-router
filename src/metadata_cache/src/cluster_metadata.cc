@@ -18,7 +18,7 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
@@ -39,12 +39,7 @@
 
 using mysqlrouter::MySQLSession;
 using mysqlrouter::strtoi_checked;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("metadata_cache", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("metadata_cache", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("metadata_cache", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("metadata_cache", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 /**
  * Return a string representation of the input character string.

@@ -19,8 +19,8 @@
 #include "mysql_routing.h"
 #include "utils.h"
 
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/logging.h"
+#include "mysql/harness/config_parser.h"
 
 #include <atomic>
 #include <iostream>
@@ -33,12 +33,7 @@ using mysqlrouter::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using std::string;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";

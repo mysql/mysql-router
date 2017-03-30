@@ -39,7 +39,7 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 
 #include "mysql_routing.h"
 

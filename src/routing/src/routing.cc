@@ -18,7 +18,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "config.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "utils.h"
 
 #include <cstring>
@@ -39,15 +39,10 @@
 # include <ws2tcpip.h>
 #endif
 
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("metadata_cache", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("metadata_cache", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("metadata_cache", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("metadata_cache", __VA_ARGS__)
-
 using mysqlrouter::to_string;
 using mysqlrouter::string_format;
 using mysqlrouter::TCPAddress;
+IMPORT_LOG_FUNCTIONS()
 
 namespace routing {
 

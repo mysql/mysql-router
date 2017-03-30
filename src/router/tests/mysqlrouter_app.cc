@@ -17,8 +17,8 @@
 
 #define UNIT_TESTS  // used in router_app.h
 #include "config.h"
-#include "config_parser.h"
-#include "loader.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/loader.h"
 #include "router_app.h"
 
 //ignore GMock warnings

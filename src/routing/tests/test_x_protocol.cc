@@ -21,7 +21,7 @@
 #include <memory>
 #include <google/protobuf/io/coded_stream.h>
 
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "protocol/x_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"

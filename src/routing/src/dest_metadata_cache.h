@@ -25,7 +25,7 @@
 #include <thread>
 
 #include "mysqlrouter/datatypes.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 
 class DestMetadataCacheGroup final : public RouteDestination {
 public:

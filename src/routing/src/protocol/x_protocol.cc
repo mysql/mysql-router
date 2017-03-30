@@ -16,7 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "common.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "x_protocol.h"
 #include "../utils.h"
 #include "mysqlrouter/routing.h"
@@ -28,12 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cassert>
 
 using ProtobufMessage = google::protobuf::Message;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 constexpr size_t kMessageHeaderSize = 5;
 

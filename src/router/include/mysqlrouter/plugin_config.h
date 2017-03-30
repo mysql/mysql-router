@@ -20,7 +20,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 

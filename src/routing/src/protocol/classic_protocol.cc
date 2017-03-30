@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "classic_protocol.h"
 
 #include "common.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "../utils.h"
@@ -26,12 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstring>
 
 using mysql_harness::get_strerror;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 bool ClassicProtocol::on_block_client_host(int server, const std::string &log_prefix) {
   auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");

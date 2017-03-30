@@ -31,8 +31,9 @@
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "protocol/protocol.h"
+IMPORT_LOG_FUNCTIONS()
 
 /** @class RouteDestination
  * @brief Manage destinations for a Connection Routing
@@ -149,8 +150,7 @@ public:
     if (!quarantine_thread_.joinable()) {
       quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
     } else {
-//FIXME move start() to .cc and then uncomment this
-//    log_debug("Tried to restart quarantine thread");
+      log_debug("Tried to restart quarantine thread");
     }
   }
 

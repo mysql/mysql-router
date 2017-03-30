@@ -20,7 +20,7 @@
 
 #include "cluster_metadata.h"
 #include "config_generator.h"
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 #include "dim.h"
 #include "gtest_consoleoutput.h"
 #include "mysql_session_replayer.h"

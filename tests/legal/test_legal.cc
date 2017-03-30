@@ -19,7 +19,7 @@
 
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #include <algorithm>
 #include <cstdlib>

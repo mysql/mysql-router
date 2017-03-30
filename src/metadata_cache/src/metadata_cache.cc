@@ -17,17 +17,14 @@
 
 #include "common.h"
 #include "metadata_cache.h"
+#include "mysql/harness/logging.h"
 
 #include <cassert>
 #include <vector>
 #include <memory>
 #include <cmath>  // fabs()
 
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("metadata_cache", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("metadata_cache", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("metadata_cache", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("metadata_cache", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 /**
  * Initialize a connection to the MySQL Metadata server.

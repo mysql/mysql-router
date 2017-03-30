@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "protocol/classic_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"

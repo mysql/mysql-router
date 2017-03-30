@@ -30,7 +30,7 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 
 using mysqlrouter::to_string;
 using std::out_of_range;
@@ -41,12 +41,7 @@ using std::chrono::seconds;
 
 using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("routing", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("routing", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("routing", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("routing", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 // if client wants a primary and there's none, we can wait up to this amount of
 // seconds until giving up and disconnecting the client

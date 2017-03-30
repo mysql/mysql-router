@@ -16,7 +16,7 @@
 */
 
 #include "group_replication_metadata.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "metadata.h"
 #include "mysqlrouter/mysql_session.h"
 
@@ -27,12 +27,7 @@
 #include <sstream>
 
 using mysqlrouter::MySQLSession;
-
-// FIXME
-#define log_debug(...)    mysql_harness::logging::log_debug("metadata_cache", __VA_ARGS__)
-#define log_info(...)     mysql_harness::logging::log_info("metadata_cache", __VA_ARGS__)
-#define log_warning(...)  mysql_harness::logging::log_warning("metadata_cache", __VA_ARGS__)
-#define log_error(...)    mysql_harness::logging::log_error("metadata_cache", __VA_ARGS__)
+IMPORT_LOG_FUNCTIONS()
 
 // throws metadata_cache::metadata_error
 static std::string find_group_replication_primary_member(MySQLSession& connection) {
