@@ -43,8 +43,10 @@
 #include <thread>
 #include <vector>
 
-#include <dlfcn.h>
-#include <unistd.h>
+#ifndef _WINDOWS
+#  include <dlfcn.h>
+#  include <unistd.h>
+#endif
 
 using mysql_harness::logging::FileHandler;
 using mysql_harness::logging::LogLevel;

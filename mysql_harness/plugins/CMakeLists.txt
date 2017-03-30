@@ -17,8 +17,10 @@ include_directories(${CMAKE_BINARY_DIR}/include)
 
 file(GLOB subdirs RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*)
 foreach(dir ${subdirs})
-  if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir}/CMakeLists.txt)
-    message(STATUS "Building plugin ${dir}")
-    add_subdirectory(${dir})
+  if(NOT(dir STREQUAL "syslog") OR NOT WIN32)  # skip syslog for windows
+    if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir}/CMakeLists.txt)
+      message(STATUS "Building plugin ${dir}")
+      add_subdirectory(${dir})
+    endif()
   endif()
 endforeach()

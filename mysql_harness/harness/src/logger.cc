@@ -37,10 +37,11 @@
 #include <map>
 #include <sstream>
 #include <string>
-#include <sys/types.h>
 #include <thread>
-#include <unistd.h>
-
+#ifndef _WINDOWS
+#  include <sys/types.h>
+#  include <unistd.h>
+#endif
 
 using std::string;
 

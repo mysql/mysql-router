@@ -17,6 +17,11 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
+#ifdef _WINDOWS
+#  define NOMINMAX
+#  define getpid GetCurrentProcessId
+#endif
+
 #include "logger.h"
 
 #include "mysql/harness/filesystem.h"
@@ -86,9 +91,10 @@ TEST_F(LoggingTest, StreamHandler) {
   std::stringstream buffer;
   logger.add_handler(std::make_shared<StreamHandler>(buffer));
 
-  ASSERT_THAT(buffer.tellp(), Eq(0));
+  // A bunch of casts to int for tellp to avoid C2666 in MSVC
+  ASSERT_THAT((int)buffer.tellp(), Eq(0));
   logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
-  EXPECT_THAT(buffer.tellp(), Gt(0));
+  EXPECT_THAT((int)buffer.tellp(), Gt(0));
   EXPECT_THAT(buffer.str(), StartsWith("1970-01-01 01:00:00 my_module INFO"));
   EXPECT_THAT(buffer.str(), EndsWith("Message\n"));
 }
@@ -138,7 +144,7 @@ TEST_F(LoggingTest, Messages) {
       const std::string& message, LogLevel level,
       const std::string& level_str) {
     buffer.str("");
-    ASSERT_THAT(buffer.tellp(), Eq(0));
+    ASSERT_THAT((int)buffer.tellp(), Eq(0));
 
     Record record{level, pid, now, "my_module", message};
     logger.handle(record);
@@ -182,7 +188,7 @@ TEST_P(LogLevelTest, Level) {
   // make sure that something is printed.
   for (int lvl = 0 ; lvl < min_level + 1 ; ++lvl) {
     buffer.str("");
-    ASSERT_THAT(buffer.tellp(), Eq(0));
+    ASSERT_THAT((int)buffer.tellp(), Eq(0));
     logger.handle(Record{
         static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
     auto output = buffer.str();
@@ -193,7 +199,7 @@ TEST_P(LogLevelTest, Level) {
   // that nothing is printed.
   for (int lvl = min_level + 1 ; lvl < max_level ; ++lvl) {
     buffer.str("");
-    ASSERT_THAT(buffer.tellp(), Eq(0));
+    ASSERT_THAT((int)buffer.tellp(), Eq(0));
     logger.handle(Record{
         static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
     auto output = buffer.str();
@@ -236,14 +242,14 @@ void expect_no_log(void (*func)(const char*, ...), std::stringstream& buffer) {
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.
   buffer.str("");
-  ASSERT_THAT(buffer.tellp(), Eq(0));
+  ASSERT_THAT((int)buffer.tellp(), Eq(0));
 
   // Write a simple message with a variable
   const int x = 3;
   func("Just a test of %d", x);
 
   // Log should be empty
-  EXPECT_THAT(buffer.tellp(), Eq(0));
+  EXPECT_THAT((int)buffer.tellp(), Eq(0));
 }
 
 void expect_log(void (*func)(const char*, ...),
@@ -251,7 +257,7 @@ void expect_log(void (*func)(const char*, ...),
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.
   buffer.str("");
-  ASSERT_THAT(buffer.tellp(), Eq(0));
+  ASSERT_THAT((int)buffer.tellp(), Eq(0));
 
   // Write a simple message with a variable
   const int x = 3;

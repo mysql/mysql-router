@@ -30,8 +30,10 @@
 #include <string>
 #include <cstdarg>
 
-#include <sys/types.h>
-#include <unistd.h>
+#ifndef _WINDOWS
+#  include <sys/types.h>
+#  include <unistd.h>
+#endif
 
 #ifdef _MSC_VER
 #  ifdef logger_EXPORTS
@@ -43,6 +45,11 @@
 #  endif
 #else
 #  define LOGGER_API
+#endif
+
+#ifdef _WINDOWS
+#  include <windows.h>
+#  define pid_t DWORD
 #endif
 
 namespace mysql_harness {
@@ -270,8 +277,8 @@ extern "C" {
  * will define a function that is namespace-aware.
  */
 #define MAKE_LOG_FUNC(LEVEL)                                    \
-  inline void LOGGER_API log_##LEVEL(const char* fmt, ...) {    \
-    extern void LOGGER_API _vlog_##LEVEL(const char* name,      \
+  inline void log_##LEVEL(const char* fmt, ...) {    \
+    extern void _vlog_##LEVEL(const char* name,      \
                                          const char *fmt,       \
                                          va_list ap);           \
     va_list ap;                                                 \

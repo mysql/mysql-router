@@ -14,6 +14,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef _WINDOWS
+#  include <windows.h>
+#  define getpid GetCurrentProcessId
+#endif
+
 #include "logging_registry.h"
 
 #include "mysql/harness/config_parser.h"
@@ -27,6 +32,7 @@
 #include <map>
 #include <sstream>
 #include <cstdarg>
+
 
 using mysql_harness::Path;
 using mysql_harness::logging::LogLevel;
@@ -176,6 +182,11 @@ void unregister_handler(std::shared_ptr<Handler> handler) {
     entry.second.remove_handler(handler);
 }
 
+
+extern "C" void LOGGER_API _vlog_error(const char* module, const char *fmt, va_list args);
+extern "C" void LOGGER_API _vlog_warning(const char* module, const char *fmt, va_list args);
+extern "C" void LOGGER_API _vlog_info(const char* module, const char *fmt, va_list args);
+extern "C" void LOGGER_API _vlog_debug(const char* module, const char *fmt, va_list args);
 
 extern "C" void
 _vlog_error(const char* module, const char *fmt, va_list args) {
