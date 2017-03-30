@@ -173,38 +173,31 @@ void register_handler(std::shared_ptr<Handler> handler) {
 
 void unregister_handler(std::shared_ptr<Handler> handler) {
   for (auto&& entry : g_loggers)
-    entry.second.add_handler(handler);
+    entry.second.remove_handler(handler);
 }
 
-void log_error(const char* module, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
+
+extern "C" void
+_vlog_error(const char* module, const char *fmt, va_list args) {
   log_message<LogLevel::kError>(module, fmt, args);
-  va_end(args);
 }
 
 
-void log_warning(const char* module, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
+extern "C" void
+_vlog_warning(const char* module, const char *fmt, va_list args) {
   log_message<LogLevel::kWarning>(module, fmt, args);
-  va_end(args);
 }
 
 
-void log_info(const char* module, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
+extern "C" void
+_vlog_info(const char* module, const char *fmt, va_list args) {
   log_message<LogLevel::kInfo>(module, fmt, args);
-  va_end(args);
 }
 
 
-void log_debug(const char* module, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
+extern "C" void
+_vlog_debug(const char* module, const char *fmt, va_list args) {
   log_message<LogLevel::kDebug>(module, fmt, args);
-  va_end(args);
 }
 
 }  // namespace logging

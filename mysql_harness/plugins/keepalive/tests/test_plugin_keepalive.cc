@@ -53,6 +53,7 @@ class KeepalivePluginTest : public ::testing::Test {
     std::map<std::string, std::string> params;
     params["program"] = "harness";
     params["prefix"] = here.c_str();
+    params["log_level"] = "info";
 
     loader = new Loader("harness", params);
     loader->read(here.join("data/keepalive.cfg"));

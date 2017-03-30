@@ -17,6 +17,7 @@
 #                      location
 #
 # add_harness_plugin(name [NO_INSTALL]
+#                    LOG_DOMAIN domain
 #                    SOURCES file1 ...
 #                    INTERFACE directory
 #                    DESTINATION_SUFFIX string
@@ -35,6 +36,10 @@
 # directory, you have to set the target property
 # LIBRARY_OUTPUT_DIRECTORY yourself.
 #
+# If LOG_DOMAIN is given, it will be used as the log domain for the
+# plugin. If no LOG_DOMAIN is given, the log domain will be the name
+# of the plugin.
+#
 # If DESTINATION_SUFFIX is provided, it will be appended to the
 # destination for install commands. DESTINATION_SUFFIX is optional and
 # default to ${HARNESS_NAME}.
@@ -50,7 +55,7 @@
 
 function(ADD_HARNESS_PLUGIN NAME)
   set(_options NO_INSTALL)
-  set(_single_value INTERFACE DESTINATION_SUFFIX)
+  set(_single_value LOG_DOMAIN INTERFACE DESTINATION_SUFFIX)
   set(_multi_value SOURCES REQUIRES)
   cmake_parse_arguments(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
@@ -65,12 +70,20 @@ function(ADD_HARNESS_PLUGIN NAME)
     set(_option_DESTINATION_SUFFIX ${HARNESS_NAME})
   endif()
 
+  # Set the log domain to the name of the plugin unless an explicit
+  # log domain was given.
+  if(NOT _option_LOG_DOMAIN)
+    set(_option_LOG_DOMAIN "\"${NAME}\"")
+  endif()
+
   # Add the library and ensure that the name is good for the plugin
   # system (no "lib" before). We are using SHARED libraries since we
   # intend to link against it, which is something that MODULE does not
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
   add_library(${NAME} SHARED ${_option_SOURCES})
+  target_compile_definitions(${NAME} PRIVATE
+    MYSQL_ROUTER_LOG_DOMAIN=${_option_LOG_DOMAIN})
   if(NOT WIN32)
     set_target_properties(${NAME} PROPERTIES
       PREFIX ""

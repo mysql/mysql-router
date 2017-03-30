@@ -139,6 +139,12 @@ void Logger::add_handler(std::shared_ptr<Handler> handler) {
   handlers_.push_back(handler);
 }
 
+void Logger::remove_handler(std::shared_ptr<Handler> handler) {
+  auto it = std::find(handlers_.begin(), handlers_.end(), handler);
+  if (it != handlers_.end())
+    handlers_.erase(it);
+}
+
 void Logger::handle(const Record& record) {
   if (record.level <= level_) {
     for (auto&& handler : handlers_)

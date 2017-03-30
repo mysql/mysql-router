@@ -48,6 +48,7 @@ class Logger {
                   LogLevel level = kDefaultLogLevel);
 
   void add_handler(std::shared_ptr<Handler>);
+  void remove_handler(std::shared_ptr<Handler> handler);
   void handle(const Record& record);
 
   void set_level(LogLevel level) { level_ = level; }

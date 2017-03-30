@@ -28,6 +28,7 @@
 #include <fstream>
 #include <mutex>
 #include <string>
+#include <cstdarg>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -209,8 +210,12 @@ void set_log_level(const char* name, LogLevel level);
  *
  * This will register a handler for all plugins that have been
  * registered with the logging subsystem (normally all plugins that
- * have been loaded by `Loader`). For example, to register a custom
- * handler from a plugin, you would do the following:
+ * have been loaded by `Loader`).
+ *
+ * @param handler Shared pointer to dynamically allocated handler.
+ *
+ * For example, to register a custom handler from a plugin, you would
+ * do the following:
  *
  * @code
  * void init() {
@@ -220,7 +225,16 @@ void set_log_level(const char* name, LogLevel level);
  * }
  * @endcode
  */
-void register_handler(std::shared_ptr<Handler>);
+void register_handler(std::shared_ptr<Handler> handler);
+
+/**
+ * Unregister a handler.
+ *
+ * This will unregister a previously registered handler.
+ *
+ * @param handler Shared pointer to a previously allocated handler.
+ */
+void unregister_handler(std::shared_ptr<Handler> handler);
 
 /**
  * Log message for the domain.
@@ -240,18 +254,36 @@ void register_handler(std::shared_ptr<Handler>);
 extern "C" {
 #endif
 
-void LOGGER_API log_error(const char* name, const char *fmt, ...);
-void LOGGER_API log_warning(const char* name, const char *fmt, ...);
-void LOGGER_API log_info(const char* name, const char *fmt, ...);
-void LOGGER_API log_debug(const char* name, const char *fmt, ...);
+/**
+ * Pre-processor symbol containing the name of the log domain. If not
+ * defined explicitly when compiling, it will be the null point, which
+ * means that it logs to the top log domain.
+ */
 
-#ifdef WITH_DEBUG
-#define log_debug2(args) log_debug args
-#define log_debug3(args) log_debug args
-#else
-#define log_debug2(args) do {;} while (0)
-#define log_debug3(args) do {;} while (0)
+#ifndef MYSQL_ROUTER_LOG_DOMAIN
+#define MYSQL_ROUTER_LOG_DOMAIN nullptr
 #endif
+
+/*
+ * Declare the implementation log function and define an inline
+ * function that pick up the log domain defined for the module. This
+ * will define a function that is namespace-aware.
+ */
+#define MAKE_LOG_FUNC(LEVEL)                                    \
+  inline void LOGGER_API log_##LEVEL(const char* fmt, ...) {    \
+    extern void LOGGER_API _vlog_##LEVEL(const char* name,      \
+                                         const char *fmt,       \
+                                         va_list ap);           \
+    va_list ap;                                                 \
+    va_start(ap, fmt);                                          \
+    _vlog_##LEVEL(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);            \
+    va_end(ap);                                                 \
+  }
+
+MAKE_LOG_FUNC(error)
+MAKE_LOG_FUNC(warning)
+MAKE_LOG_FUNC(info)
+MAKE_LOG_FUNC(debug)
 /** @} */
 
 #ifdef __cplusplus

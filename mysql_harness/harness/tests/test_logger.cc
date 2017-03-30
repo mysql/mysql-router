@@ -15,6 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
+
 #include "logger.h"
 
 #include "mysql/harness/filesystem.h"
@@ -22,8 +24,6 @@
 ////////////////////////////////////////
 // Internal interfaces
 #include "mysql/harness/loader.h"
-
-#include "logger.h"
 #include "logging_registry.h"
 
 ////////////////////////////////////////
@@ -232,8 +232,7 @@ TEST(FunctionalTest, CreateRemove) {
   ASSERT_NO_THROW(remove_logger("my_first"));
 }
 
-void expect_no_log(void (*func)(const char*, const char*, ...),
-                   std::stringstream& buffer, const char* module) {
+void expect_no_log(void (*func)(const char*, ...), std::stringstream& buffer) {
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.
   buffer.str("");
@@ -241,15 +240,14 @@ void expect_no_log(void (*func)(const char*, const char*, ...),
 
   // Write a simple message with a variable
   const int x = 3;
-  func(module, "Just a test of %d", x);
+  func("Just a test of %d", x);
 
   // Log should be empty
   EXPECT_THAT(buffer.tellp(), Eq(0));
 }
 
-void expect_log(void (*func)(const char*, const char*, ...),
-                std::stringstream& buffer, const char* module,
-                const char* kind) {
+void expect_log(void (*func)(const char*, ...),
+                std::stringstream& buffer, const char* kind) {
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.
   buffer.str("");
@@ -257,7 +255,7 @@ void expect_log(void (*func)(const char*, const char*, ...),
 
   // Write a simple message with a variable
   const int x = 3;
-  func(module, "Just a test of %d", x);
+  func("Just a test of %d", x);
 
   auto log = buffer.str();
 
@@ -270,36 +268,44 @@ void expect_log(void (*func)(const char*, const char*, ...),
   // indication (e.g., ERROR or WARNING), and the module name.
   EXPECT_THAT(log, HasSubstr("Just a test of 3"));
   EXPECT_THAT(log, HasSubstr(kind));
-  EXPECT_THAT(log, HasSubstr(module));
+  EXPECT_THAT(log, HasSubstr(MYSQL_ROUTER_LOG_DOMAIN));
 }
 
 TEST(FunctionalTest, Handlers) {
   // The loader create these modules during start, so tests of the
   // logger that involve the loader are inside the loader unit
   // test. Here we instead call these functions directly.
-  ASSERT_NO_THROW(create_logger("my_first"));
-  ASSERT_NO_THROW(create_logger("my_second"));
+  ASSERT_NO_THROW(create_logger(MYSQL_ROUTER_LOG_DOMAIN));
 
   std::stringstream buffer;
-  register_handler(std::make_shared<StreamHandler>(buffer));
+  auto handler = std::make_shared<StreamHandler>(buffer);
+  register_handler(handler);
 
   set_log_level(LogLevel::kDebug);
-  expect_log(log_error, buffer, "my_first", "ERROR");
-  expect_log(log_warning, buffer, "my_first", "WARNING");
-  expect_log(log_info, buffer, "my_first", "INFO");
-  expect_log(log_debug, buffer, "my_first", "DEBUG");
+  expect_log(log_error, buffer, "ERROR");
+  expect_log(log_warning, buffer, "WARNING");
+  expect_log(log_info, buffer, "INFO");
+  expect_log(log_debug, buffer, "DEBUG");
 
   set_log_level(LogLevel::kError);
-  expect_log(log_error, buffer, "my_first", "ERROR");
-  expect_no_log(log_warning, buffer, "my_first");
-  expect_no_log(log_info, buffer, "my_first");
-  expect_no_log(log_debug, buffer, "my_first");
+  expect_log(log_error, buffer, "ERROR");
+  expect_no_log(log_warning, buffer);
+  expect_no_log(log_info, buffer);
+  expect_no_log(log_debug, buffer);
 
   set_log_level(LogLevel::kWarning);
-  expect_log(log_error, buffer, "my_first", "ERROR");
-  expect_log(log_warning, buffer, "my_first", "WARNING");
-  expect_no_log(log_info, buffer, "my_first");
-  expect_no_log(log_debug, buffer, "my_first");
+  expect_log(log_error, buffer, "ERROR");
+  expect_log(log_warning, buffer, "WARNING");
+  expect_no_log(log_info, buffer);
+  expect_no_log(log_debug, buffer);
+
+  // Check that nothing is logged when the handler is unregistered.
+  unregister_handler(handler);
+  set_log_level(LogLevel::kNotSet);
+  expect_no_log(log_error, buffer);
+  expect_no_log(log_warning, buffer);
+  expect_no_log(log_info, buffer);
+  expect_no_log(log_debug, buffer);
 }
 
 int main(int argc, char *argv[]) {

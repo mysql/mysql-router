@@ -84,13 +84,13 @@ static void start(const ConfigSection *section) {
     name += " " + section->key;
   }
 
-  log_info("keepalive", "%s started with interval %d", name.c_str(), interval);
+  log_info("%s started with interval %d", name.c_str(), interval);
   if (runs) {
-    log_info("keepalive", "%s will run %d time(s)", name.c_str(), runs);
+    log_info("%s will run %d time(s)", name.c_str(), runs);
   }
 
   for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
-    log_info("keepalive", name.c_str());
+    log_info(name.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(interval));
   }
 }
