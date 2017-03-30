@@ -17,7 +17,7 @@
 
 #include "keyring/keyring_manager.h"
 #include "keyring/keyring_file.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 #include "common.h"
 #include "dim.h"
 #include "my_aes.h"
