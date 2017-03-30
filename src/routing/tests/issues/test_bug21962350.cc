@@ -22,6 +22,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "destination.h"
+#include "mysql/harness/loader.h" // mysql_harness::setup_logging(), FIXME probably will get moved
 #include "mysql/harness/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
@@ -44,8 +45,6 @@
 #endif
 
 #include "helper_logger.h"
-
-extern "C" { extern mysql_harness::Plugin LOGGER_API logger; }  // defined in logger.cc
 
 using mysqlrouter::TCPAddress;
 using mysqlrouter::to_string;
@@ -87,28 +86,14 @@ private:
   std::streambuf *orig_cout_;
 };
 
-//FIXME this might no longer be needed with the new logger
-#if 0
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
 // TODO: might want to move it to some common helper function and make it available to all tests
 TEST_F(Bug21962350, InitLogger) {
-
-  // set log level in Config
   mysql_harness::Config config;
-  config.add("logger");
-  mysql_harness::Config::SectionList sections = config.get("logger");
-  mysql_harness::ConfigSection*       section = sections.front();
-  section->set("level", "DEBUG");
-
-  // package Config inside of AppInfo
-  mysql_harness::AppInfo info;
-  memset(&info, 0, sizeof(info)); // set to all-NULL
-  info.config = &config;
-
-  // init logger
-  logger.init(&info);
+  config.set_default("log_level", "debug");
+  std::list<std::string> log_domains{"", "metadata_cache", "routing"};
+  mysql_harness::setup_logging("", "", config, log_domains);
 }
-#endif
 
 TEST_F(Bug21962350, AddToQuarantine) {
   size_t exp;

@@ -442,4 +442,12 @@ void Loader::add_logger(const std::string& default_level) {
 void Loader::add_logger(const std::string&) {}
 #endif
 
+//FIXME we need to move this to a better place, or think of another way of making this accessible to tests
+void setup_logging(const std::string& program,
+                   const std::string& logging_folder,
+                   const Config& config,
+                   const std::list<std::string>& modules) {
+  mysql_harness::logging::setup(program, logging_folder, config, modules);
+}
+
 } // namespace mysql_harness

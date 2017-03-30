@@ -57,6 +57,13 @@ protected:
   }
 };
 
+void init_log() {
+  mysql_harness::Config config;
+  config.set_default("log_level", "debug");
+  std::list<std::string> log_domains{"", "metadata_cache", "routing"};
+  mysql_harness::setup_logging("", "", config, log_domains);
+}
+
 TEST_F(TestBlockClients, BlockClientHost) {
   unsigned long long max_connect_errors = 2;
   unsigned int client_connect_timeout = 2;
@@ -133,5 +140,7 @@ int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
+
+  init_log();
   return RUN_ALL_TESTS();
 }

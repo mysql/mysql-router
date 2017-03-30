@@ -113,7 +113,14 @@ void setup(const std::string& program,
   // Register the console as the handler if the logging folder is
   // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {
+// FIXME decide which we want:
+// Mats' new logger logs to cerr
+// Up until now we logged to cout
+#if 0
     register_handler(std::make_shared<StreamHandler>(std::cerr));
+#else
+    register_handler(std::make_shared<StreamHandler>(std::cout));
+#endif
   } else {
     g_log_file = Path::make_path(logging_folder, program, "log");
     register_handler(std::make_shared<FileHandler>(g_log_file));
@@ -139,7 +146,8 @@ void log_message(LogLevel level, const char* module, const char* fmt, va_list ap
   assert(level <= LogLevel::kDebug);
 
 // FIXME mod Mats' code to make it unittestable
-  if (!module[0])
+  if (!module[0] &&         // this will often be the case when running unit tests (the name got initialised to "" due to lack of proper #define?  TODO: research this)
+      !g_loggers.count("")) // but some unit tests that care about log output will define a logger for ""
     return;
 
   try {

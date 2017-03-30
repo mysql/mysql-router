@@ -157,22 +157,9 @@ protected:
   std::string cmd;
 };
 
-//FIXME logger.so no longer exists
-#if 0
-TEST_F(RoutingPluginTests, PluginConstants) {
-  // Check number of required plugins
-  ASSERT_EQ(1UL, sizeof(kRoutingRequires) / sizeof(*kRoutingRequires));
-  // Check the required plugins
-  ASSERT_THAT(kRoutingRequires[0], StrEq("logger"));
-}
-#endif
-
-//FIXME logger.so no longer exists
 TEST_F(RoutingPluginTests, PluginObject) {
   ASSERT_EQ(harness_plugin_routing.abi_version, 0x0101U);
   ASSERT_EQ(harness_plugin_routing.plugin_version, static_cast<uint32_t>(VERSION_NUMBER(0, 0, 1)));
-  ASSERT_EQ(harness_plugin_routing.requires_length, 1U);
-  ASSERT_THAT(harness_plugin_routing.requires[0], StrEq("logger"));
   ASSERT_EQ(harness_plugin_routing.conflicts_length, 0U);
   ASSERT_THAT(harness_plugin_routing.conflicts, IsNull());
   ASSERT_THAT(harness_plugin_routing.deinit, IsNull());

@@ -21,6 +21,7 @@
 
 #include "logger.h"
 
+#include "common.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
@@ -109,11 +110,17 @@ FileHandler::FileHandler(const Path& path, LogLevel level)
     : StreamHandler(fstream_, level),
       fstream_(path.str(), ofstream::app) {
   if (fstream_.fail()) {
+//FIXME remove disabled
+#if 0
     ostringstream buffer;
     char buf[1024];
     strerror_r(errno, buf, sizeof(buf));
     buffer << "Failed to open " << path << ": " << buf;
     throw std::runtime_error(buffer.str());
+#else
+    throw std::runtime_error("Failed to open " + path.str() + ": " +
+                             get_strerror(errno));
+#endif
   }
 }
 
