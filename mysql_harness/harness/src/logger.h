@@ -45,7 +45,7 @@ namespace logging {
 class Logger {
  public:
   explicit Logger(const std::string& subsystem,
-                  LogLevel level = LogLevel::kWarning);
+                  LogLevel level = kDefaultLogLevel);
 
   void add_handler(std::shared_ptr<Handler>);
   void handle(const Record& record);

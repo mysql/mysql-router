@@ -50,8 +50,8 @@ namespace mysql_harness {
 
 namespace logging {
 
-void create_logger(const std::string& name) {
-  auto result = g_loggers.emplace(name, Logger(name));
+void create_logger(const std::string& name, LogLevel level) {
+  auto result = g_loggers.emplace(name, Logger(name, level));
   if (result.second == false)
     throw std::logic_error("Duplicate logger for section '" + name + "'");
 }
@@ -75,42 +75,35 @@ void setup(const std::string& program,
   // Before initializing, but after all modules are loaded, we set up
   // the logging subsystem and create one logger for each loaded
   // plugin.
-  for (auto&& module : modules)
-    create_logger(module);
 
-  if (!config.has_default("log_level")) {
-    // If there is no log level defined, we set it to the default.
-    set_log_level(LogLevel::kInfo);
-  } else {
-    // We set the log level for all modules to whatever is defined in
-    // the default section.
-    auto level_value = config.get_default("log_level");
-    std::transform(level_value.begin(), level_value.end(),
-                   level_value.begin(), ::toupper);
+  // We get the default log level from the configuration.
+  auto level_name = config.get_default("log_level");
+  std::transform(level_name.begin(), level_name.end(),
+                 level_name.begin(), ::tolower);
+  try {
+    // Create a logger for each module in the logging registry.
+    auto level = levels.at(level_name);
+    for (auto&& module : modules)
+      create_logger(module, level);
+  } catch (std::out_of_range& exc) {
+    std::stringstream buffer;
 
-    try {
-      set_log_level(levels.at(level_value));
-    } catch (std::out_of_range& exc) {
-      std::stringstream buffer;
+    buffer << "Log level '" << level_name
+           << "' is not valid. Valid values are: ";
 
-      buffer << "Log level '" << level_value
-             << "' is not valid. Valid values are: ";
-
-      // Print the entries using a serial comma
-      std::vector<std::string> alternatives;
-      for (auto&& entry : levels)
-        alternatives.push_back(entry.first);
-      serial_comma(buffer, alternatives.begin(), alternatives.end());
-
-      throw std::invalid_argument(buffer.str());
-    }
+    // Print the entries using a serial comma
+    std::vector<std::string> alternatives;
+    for (auto&& entry : levels)
+      alternatives.push_back(entry.first);
+    serial_comma(buffer, alternatives.begin(), alternatives.end());
+    throw std::invalid_argument(buffer.str());
   }
 
+  // Register the console as the handler if the logging folder is
+  // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {
-    // Register the console as the handler if there is no log file.
     register_handler(std::make_shared<StreamHandler>(std::cerr));
   } else {
-    // Register a file log handler
     g_log_file = Path::make_path(logging_folder, program, "log");
     register_handler(std::make_shared<FileHandler>(g_log_file));
   }
@@ -174,6 +167,11 @@ const Path& get_log_file() {
 }
 
 void register_handler(std::shared_ptr<Handler> handler) {
+  for (auto&& entry : g_loggers)
+    entry.second.add_handler(handler);
+}
+
+void unregister_handler(std::shared_ptr<Handler> handler) {
   for (auto&& entry : g_loggers)
     entry.second.add_handler(handler);
 }

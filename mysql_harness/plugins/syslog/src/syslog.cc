@@ -26,9 +26,12 @@ using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::logging::LogLevel;
 
-class SyslogHandler : public mysql_harness::logging::Handler {
+class SyslogHandler final : public mysql_harness::logging::Handler {
  public:
+  SyslogHandler(LogLevel level = LogLevel::kNotSet)
+      : mysql_harness::logging::Handler(level) {}
   ~SyslogHandler() { close(); }
 
   void open(const std::string& ident) {

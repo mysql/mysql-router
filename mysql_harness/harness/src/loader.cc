@@ -247,8 +247,15 @@ void Loader::setup_info() {
 }
 
 void Loader::init_all() {
+  using mysql_harness::logging::kDefaultLogLevelName;
+
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
+
+  // If there is no log level defined, we set it to the default log
+  // level.
+  if (!config_.has_default("log_level"))
+    config_.set_default("log_level", kDefaultLogLevelName);
 
 //FIXME PM: I think the above needs to be changed to clarify that
 //the order is not important FOR THIS CALL (it matters a lot to

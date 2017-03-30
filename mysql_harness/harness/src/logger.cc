@@ -71,6 +71,8 @@ namespace logging {
 ////////////////////////////////////////////////////////////////
 // class Handler
 
+Handler::Handler(LogLevel level) : level_(level) {}
+
 // Log format is:
 // <date> <time> <plugin> <level> [<thread>] <message>
 
@@ -88,7 +90,7 @@ std::string Handler::format(const Record& record) const {
   // output is truncated if the total length exceeds the buffer size.
   char buffer[512];
   snprintf(buffer, sizeof(buffer), "%-19s %s %s [%s] %s",
-           time_buf, record.module.c_str(),
+           time_buf, record.domain.c_str(),
            level_str[static_cast<int>(record.level)],
            ss.str().c_str(), record.message.c_str());
 
@@ -103,7 +105,8 @@ void Handler::handle(const Record& record) {
 ////////////////////////////////////////////////////////////////
 // class StreamHandler
 
-StreamHandler::StreamHandler(std::ostream& out) : stream_(out) {}
+StreamHandler::StreamHandler(std::ostream& out, LogLevel level)
+    : Handler(level), stream_(out) {}
 
 void StreamHandler::do_log(const Record& record) {
   std::lock_guard<std::mutex> lock(stream_mutex_);
@@ -113,8 +116,9 @@ void StreamHandler::do_log(const Record& record) {
 ////////////////////////////////////////////////////////////////
 // class FileHandler
 
-FileHandler::FileHandler(const Path& path)
-    : StreamHandler(fstream_), fstream_(path.str(), ofstream::app) {
+FileHandler::FileHandler(const Path& path, LogLevel level)
+    : StreamHandler(fstream_, level),
+      fstream_(path.str(), ofstream::app) {
   if (fstream_.fail()) {
     ostringstream buffer;
     buffer << "Failed to open " << path
@@ -138,7 +142,8 @@ void Logger::add_handler(std::shared_ptr<Handler> handler) {
 void Logger::handle(const Record& record) {
   if (record.level <= level_) {
     for (auto&& handler : handlers_)
-      handler->handle(record);
+      if (record.level <= handler->get_level())
+        handler->handle(record);
   }
 }
 

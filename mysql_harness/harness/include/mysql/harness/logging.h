@@ -48,13 +48,56 @@ namespace mysql_harness {
 
 namespace logging {
 
+/**
+ * Log level values.
+ *
+ * Log levels are ordered numerically from most important (lowest
+ * value) to least important (highest value).
+ */
 enum class LogLevel {
-  kFatal,  // Fatal errors: logged before the harness terminate
+  /** Fatal failure. Router usually exits after logging this. */
+  kFatal,
+
+  /**
+   * Error message. indicate that something is not working properly and
+   * actions need to be taken. However, the router continue
+   * operating but the particular thread issuing the error message
+   * might terminate.
+   */
   kError,
+
+  /**
+   * Warning message. Indicate a potential problem that could require
+   * actions, but does not cause a problem for the continous operation
+   * of the router.
+   */
   kWarning,
+
+  /**
+   * Informational message. Information that can be useful to check
+   * the behaviour of the router during normal operation.
+   */
   kInfo,
-  kDebug
+
+  /**
+   * Debug message. Message contain internal details that can be
+   * useful for debugging problematic situations, especially regarding
+   * the router itself.
+   */
+  kDebug,
+
+  kNotSet  // Always higher than all other log messages
 };
+
+/**
+ * Default log level used by the router.
+ */
+const LogLevel kDefaultLogLevel = LogLevel::kWarning;
+
+/**
+ * Log level name for the default log level used by the router.
+ */
+const char* const kDefaultLogLevelName = "warning";
 
 /**
  * Log record containing information collected by the logging
@@ -67,7 +110,7 @@ struct Record {
   LogLevel level;
   pid_t process_id;
   time_t created;
-  std::string module;
+  std::string domain;
   std::string message;
 };
 
@@ -86,10 +129,15 @@ class Handler {
 
   void handle(const Record& record);
 
+  void set_level(LogLevel level) { level_ = level; }
+  LogLevel get_level() const { return level_; }
+
  protected:
   // ??? Does this reall have to be a member function and does it ???
   // ??? belong to the handler ???
   std::string format(const Record& record) const;
+
+  explicit Handler(LogLevel level);
 
  private:
   /**
@@ -103,6 +151,11 @@ class Handler {
    * @param record Record containing information about the message.
    */
   virtual void do_log(const Record& record) = 0;
+
+  /**
+   * Log level set for the handler.
+   */
+  LogLevel level_;
 };
 
 /**
@@ -116,7 +169,8 @@ class Handler {
  */
 class StreamHandler : public Handler {
  public:
-  explicit StreamHandler(std::ostream&);
+  explicit StreamHandler(std::ostream& stream,
+                         LogLevel level = LogLevel::kNotSet);
 
  protected:
   std::ostream& stream_;
@@ -137,7 +191,7 @@ class StreamHandler : public Handler {
  */
 class FileHandler : public StreamHandler {
  public:
-  explicit FileHandler(const Path& path);
+  explicit FileHandler(const Path& path, LogLevel level = LogLevel::kNotSet);
   ~FileHandler();
 
  private:
@@ -169,15 +223,15 @@ void set_log_level(const char* name, LogLevel level);
 void register_handler(std::shared_ptr<Handler>);
 
 /**
- * Log message for the named module.
+ * Log message for the domain.
  *
  * This will log an error, warning, informational, or debug message
- * for the given module. The module have to be be registered before
+ * for the given domain. The domain have to be be registered before
  * anything is being logged. The `Loader` uses the plugin name as the
- * module name, so normally you should provide the plugin name as the
+ * domain name, so normally you should provide the plugin name as the
  * first argument to this function.
  *
- * @param name Module name to use.
+ * @param name Domain name to use when logging message.
  *
  * @param fmt `printf`-style format string, with arguments following.
  */

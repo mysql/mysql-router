@@ -49,12 +49,17 @@ using mysql_harness::logging::log_warning;
 using mysql_harness::logging::remove_logger;
 
 
+using testing::Combine;
 using testing::EndsWith;
 using testing::Eq;
 using testing::Ge;
 using testing::Gt;
 using testing::HasSubstr;
 using testing::StartsWith;
+using testing::Test;
+using testing::Values;
+using testing::ValuesIn;
+using testing::WithParamInterface;
 
 Path g_here;
 
@@ -69,12 +74,12 @@ TEST(TestBasic, Setup) {
   EXPECT_EQ(logger.get_level(), LogLevel::kDebug);
 }
 
-class LoggingTest : public ::testing::Test {
+class LoggingTest : public Test {
  public:
   // Here we are just testing that messages are written and in the
-  // right format, so we use Debug log level, which will print all
+  // right format. We use kNotSet log level, which will print all
   // messages.
-  Logger logger{"my_module", LogLevel::kDebug};
+  Logger logger{"my_module", LogLevel::kNotSet};
 };
 
 TEST_F(LoggingTest, StreamHandler) {
@@ -148,53 +153,62 @@ TEST_F(LoggingTest, Messages) {
   check_message("Bugs galore", LogLevel::kDebug, " DEBUG ");
 }
 
+class LogLevelTest
+    : public LoggingTest,
+      public WithParamInterface<std::tuple<LogLevel, LogLevel>> {};
+
 // Check that messages are not emitted when the level is set higher.
-TEST_F(LoggingTest, Level) {
+TEST_P(LogLevelTest, Level) {
+  LogLevel logger_level = std::get<0>(GetParam());
+  LogLevel handler_level = std::get<1>(GetParam());
+
   std::stringstream buffer;
-  logger.add_handler(std::make_shared<StreamHandler>(buffer));
+  logger.add_handler(std::make_shared<StreamHandler>(buffer, handler_level));
 
   time_t now;
   time(&now);
 
   auto pid = getpid();
 
-  auto check_level = [this, &buffer, now, pid](LogLevel level) {
-    // Set the log level of the logger.
-    logger.set_level(level);
+  // Set the log level of the logger.
+  logger.set_level(logger_level);
 
-    // Some handy shorthands for the levels as integers.
-    const int limit_level = static_cast<int>(level) + 1;
-    const int max_level = static_cast<int>(LogLevel::kDebug);
+  // Some handy shorthands for the levels as integers.
+  const int min_level = std::min(static_cast<int>(logger_level),
+                                 static_cast<int>(handler_level));
+  const int max_level = static_cast<int>(LogLevel::kNotSet);
 
-    // Loop over all levels below or equal to the provided level and
-    // make sure that something is printed.
-    for (int lvl = 0 ; lvl < limit_level ; ++lvl) {
-      buffer.str("");
-      ASSERT_THAT(buffer.tellp(), Eq(0));
-      logger.handle(Record{
-          static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
-      auto output = buffer.str();
-      EXPECT_THAT(output.size(), Gt(0));
-    }
+  // Loop over all levels below or equal to the provided level and
+  // make sure that something is printed.
+  for (int lvl = 0 ; lvl < min_level + 1 ; ++lvl) {
+    buffer.str("");
+    ASSERT_THAT(buffer.tellp(), Eq(0));
+    logger.handle(Record{
+        static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
+    auto output = buffer.str();
+    EXPECT_THAT(output.size(), Gt(0));
+  }
 
-    // Loop over all levels above the provided level and make sure
-    // that nothing is printed.
-    for (int lvl = limit_level ; lvl <= max_level ; ++lvl) {
-      buffer.str("");
-      ASSERT_THAT(buffer.tellp(), Eq(0));
-      logger.handle(Record{
-          static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
-      auto output = buffer.str();
-      EXPECT_THAT(output.size(), Eq(0));
-    }
-  };
+  // Loop over all levels above the provided level and make sure
+  // that nothing is printed.
+  for (int lvl = min_level + 1 ; lvl < max_level ; ++lvl) {
+    buffer.str("");
+    ASSERT_THAT(buffer.tellp(), Eq(0));
+    logger.handle(Record{
+        static_cast<LogLevel>(lvl), pid, now, "my_module", "Some message"});
+    auto output = buffer.str();
+    EXPECT_THAT(output.size(), Eq(0));
+  }
 
-  check_level(LogLevel::kFatal);
-  check_level(LogLevel::kError);
-  check_level(LogLevel::kWarning);
-  check_level(LogLevel::kInfo);
-  check_level(LogLevel::kDebug);
 }
+
+const LogLevel all_levels[]{
+  LogLevel::kFatal, LogLevel::kError, LogLevel::kWarning, LogLevel::kInfo,
+  LogLevel::kDebug
+};
+
+INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
+                        Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
 
 ////////////////////////////////////////////////////////////////
 // Tests of the functional interface to the logger.

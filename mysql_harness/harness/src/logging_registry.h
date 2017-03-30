@@ -17,6 +17,7 @@
 #ifndef MYSQL_HARNESS_LOGGER_REGISTRY_INCLUDED
 #define MYSQL_HARNESS_LOGGER_REGISTRY_INCLUDED
 
+#include "mysql/harness/logging.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/config_parser.h"
 
@@ -30,8 +31,10 @@ const mysql_harness::Path& get_log_file();
  * Create a logger in the internal registry.
  *
  * @param name Module name for the logger.
+ * @param level Log level for logger.
  */
-void create_logger(const std::string& name);
+void create_logger(const std::string& name,
+                   LogLevel level = LogLevel::kNotSet);
 
 /**
  * Remove a named logger from the internal registry.
