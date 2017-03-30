@@ -439,7 +439,6 @@ TEST(TestConfig, ConfigReadBasic) {
   EXPECT_EQ(file_config, stream_config);
 }
 
-
 // Here we test that reads of configuration entries overwrite previous
 // read entries.
 TEST(TestConfig, ConfigReadOverwrite) {

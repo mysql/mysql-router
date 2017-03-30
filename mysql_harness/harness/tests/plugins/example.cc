@@ -52,12 +52,6 @@ extern "C" {
 #  define EXAMPLE_API
 #endif
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
-using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::Plugin;
-
 static const char* requires[] = {
   "magic (>>1.0)",
 };
@@ -103,18 +97,3 @@ static void start(const ConfigSection*) {
 #endif
   }
 }
-
-Plugin example_plugin = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "An example plugin",
-  VERSION_NUMBER(1,0,0),
-  sizeof(requires)/sizeof(*requires),
-  requires,
-  0,
-  nullptr,  // conflicts
-  init,     // init
-  deinit,   // deinit
-  start,    // start
-  nullptr,  // stop
-};

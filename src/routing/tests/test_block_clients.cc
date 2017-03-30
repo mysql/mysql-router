@@ -23,10 +23,6 @@
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
 #include "../../router/src/router_app.h"
-#include "config_parser.h"
-#include "mysql/harness/plugin.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/routing.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
 

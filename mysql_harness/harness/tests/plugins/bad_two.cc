@@ -22,11 +22,6 @@ using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 
-using mysql_harness::AppInfo;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-
 static const char* requires[] = {
   // Magic plugin is version 1.2.3, so version does not match and this
   // should fail to load.
