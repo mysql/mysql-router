@@ -54,6 +54,12 @@ static std::map<std::string, LogLevel> levels{
   {"debug", LogLevel::kDebug},
 };
 
+static void remove_logger(const std::string& name,
+                          std::unique_lock<std::mutex>&) {
+  if (g_loggers.erase(name) == 0)
+    throw std::logic_error("Removing non-existant logger '" + name + "'");
+}
+
 namespace mysql_harness {
 
 namespace logging {
@@ -65,14 +71,9 @@ void create_logger(const std::string& name, LogLevel level) {
     throw std::logic_error("Duplicate logger for section '" + name + "'");
 }
 
-void remove_logger(const std::string& name, std::unique_lock<std::mutex>&) {
-  if (g_loggers.erase(name) == 0)
-    throw std::logic_error("Removing non-existant logger '" + name + "'");
-}
-
 void remove_logger(const std::string& name) {
   std::unique_lock<std::mutex> lock(g_loggers_mutex);
-  remove_logger(name, lock);
+  ::remove_logger(name, lock);
 }
 
 std::list<std::string> get_logger_names() {
@@ -127,7 +128,7 @@ void setup(const std::string& program,
 void teardown() {
   std::unique_lock<std::mutex> lock(g_loggers_mutex);
   for (auto&& entry : g_loggers)
-    remove_logger(entry.second.get_name(), lock);
+    ::remove_logger(entry.second.get_name(), lock);
 }
 
 }  // namespace logging
