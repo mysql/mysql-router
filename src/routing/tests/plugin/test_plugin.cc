@@ -56,7 +56,7 @@ using mysql_harness::get_strerror;
 // define what is available in routing_plugin.cc
 extern mysql_harness::Plugin harness_plugin_routing;
 extern const mysql_harness::AppInfo *g_app_info;
-extern const char *kRoutingRequires[1];
+//FIXME extern const char *kRoutingRequires[1];
 
 int init(const mysql_harness::AppInfo *info);
 
@@ -158,12 +158,14 @@ protected:
 };
 
 //FIXME logger.so no longer exists
+#if 0
 TEST_F(RoutingPluginTests, PluginConstants) {
   // Check number of required plugins
   ASSERT_EQ(1UL, sizeof(kRoutingRequires) / sizeof(*kRoutingRequires));
   // Check the required plugins
   ASSERT_THAT(kRoutingRequires[0], StrEq("logger"));
 }
+#endif
 
 //FIXME logger.so no longer exists
 TEST_F(RoutingPluginTests, PluginObject) {

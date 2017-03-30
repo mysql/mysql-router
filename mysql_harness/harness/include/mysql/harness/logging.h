@@ -264,8 +264,13 @@ extern "C" {
  * means that it logs to the top log domain.
  */
 
+// FIXME mod Mats' code to make it unittestable
 #ifndef MYSQL_ROUTER_LOG_DOMAIN
+#if 0
 #define MYSQL_ROUTER_LOG_DOMAIN nullptr
+#else
+#define MYSQL_ROUTER_LOG_DOMAIN ""
+#endif
 #endif
 
 /*
@@ -273,21 +278,39 @@ extern "C" {
  * functions that pick up the log domain defined for the module.
  * These functions are namespace-aware.
  */
-#define MAKE_LOG_FUNC(LEVEL)                                    \
-  inline void log_##LEVEL(const char* fmt, ...) {    \
-    extern void _vlog_##LEVEL(const char* name,      \
-                                         const char *fmt,       \
-                                         va_list ap);           \
-    va_list ap;                                                 \
-    va_start(ap, fmt);                                          \
-    _vlog_##LEVEL(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);            \
-    va_end(ap);                                                 \
-  }
 
-MAKE_LOG_FUNC(error)
-MAKE_LOG_FUNC(warning)
-MAKE_LOG_FUNC(info)
-MAKE_LOG_FUNC(debug)
+inline void log_error(const char* fmt, ...) {
+  extern void _vlog_error(const char* name, const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  _vlog_error(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
+inline void log_warning(const char* fmt, ...) {
+  extern void _vlog_warning(const char* name, const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  _vlog_warning(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
+inline void log_info(const char* fmt, ...) {
+  extern void _vlog_info(const char* name, const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  _vlog_info(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
+inline void log_debug(const char* fmt, ...) {
+  extern void _vlog_debug(const char* name, const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  _vlog_debug(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
 /** @} */
 
 #ifdef __cplusplus

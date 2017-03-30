@@ -275,6 +275,13 @@ class HARNESS_EXPORT Loader {
   bool visit(const std::string& name, std::map<std::string, Status>* seen,
              std::list<std::string>* order);
 
+// FIXME mod Mats' code to make it unittestable
+  /**
+   * Setup and teardown of logging facility.
+   */
+  void setup_logging();
+  void teardown_logging();
+
   /**
    * Plugin information for managing a plugin.
    *

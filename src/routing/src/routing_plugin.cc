@@ -38,8 +38,6 @@ IMPORT_LOG_FUNCTIONS()
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
 
-const char *kRoutingRequires[1] = {};
-
 static void validate_socket_info(const std::string& err_prefix,
                                  const mysql_harness::ConfigSection* section,
                                  const RoutingPluginConfig& config) {
@@ -196,7 +194,7 @@ extern "C" {
       mysql_harness::ARCHITECTURE_DESCRIPTOR,
       "Routing MySQL connections between MySQL clients/connectors and servers",
       VERSION_NUMBER(0, 0, 1),
-      sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+      0, nullptr, // requires
       0, nullptr, // Conflicts
       init,       // init
       nullptr,    // deinit

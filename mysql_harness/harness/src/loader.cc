@@ -233,6 +233,8 @@ void Loader::setup_info() {
   appinfo_.program = program_.c_str();
 }
 
+// FIXME mod Mats' code to make it unittestable
+#if 0
 void Loader::init_all() {
   using mysql_harness::logging::kDefaultLogLevelName;
 
@@ -257,6 +259,36 @@ void Loader::init_all() {
       throw std::runtime_error("Plugin init failed");
   }
 }
+#else
+void Loader::setup_logging() {
+  using mysql_harness::logging::kDefaultLogLevelName;
+
+  // If there is no log level defined, we set it to the default log
+  // level.
+  if (!config_.has_default("log_level"))
+    config_.set_default("log_level", kDefaultLogLevelName);
+
+//FIXME PM: I think the above needs to be changed to clarify that
+//the order is not important FOR THIS CALL (it matters a lot to
+//init_all() and deinit_all()
+  // The order list contain all the module names, so we use it
+  // here. However, the order of the modules is not important.
+  mysql_harness::logging::setup(program_, logging_folder_, config_, order_);
+}
+
+void Loader::init_all() {
+  if (!topsort())
+    throw std::logic_error("Circular dependencies in plugins");
+
+  setup_logging();
+
+  for (const std::string& plugin_key : reverse(order_)) {
+    PluginInfo &info = plugins_.at(plugin_key);
+    if (info.plugin->init && info.plugin->init(&appinfo_))
+      throw std::runtime_error("Plugin init failed");
+  }
+}
+#endif
 
 void Loader::start_all() {
   // Start all the threads
@@ -325,6 +357,8 @@ void Loader::stop_all() {
   }
 }
 
+// FIXME mod Mats' code to make it unittestable
+#if 0
 void Loader::deinit_all() {
   for (auto& name : order_) {
     PluginInfo& info = plugins_.at(name);
@@ -334,6 +368,21 @@ void Loader::deinit_all() {
 
   mysql_harness::logging::teardown();
 }
+#else
+void Loader::teardown_logging() {
+  mysql_harness::logging::teardown();
+}
+
+void Loader::deinit_all() {
+  for (auto& name : order_) {
+    PluginInfo& info = plugins_.at(name);
+    if (info.plugin->deinit)
+      info.plugin->deinit(&appinfo_);
+  }
+
+  teardown_logging();
+}
+#endif
 
 bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
@@ -380,6 +429,8 @@ bool Loader::visit(const std::string& designator,
   return true;
 }
 
+//FIXME erase add_logger()
+#if 0
 void Loader::add_logger(const std::string& default_level) {
   if (!config_.has("logger")) {
     auto&& section = config_.add("logger");
@@ -387,5 +438,8 @@ void Loader::add_logger(const std::string& default_level) {
     section.add("level", default_level);
   }
 }
+#else
+void Loader::add_logger(const std::string&) {}
+#endif
 
 } // namespace mysql_harness

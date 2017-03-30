@@ -135,11 +135,15 @@ void teardown() {
 
 namespace {
 
-template <LogLevel level>
-void log_message(const char* module, const char* fmt, va_list ap) {
+void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
   assert(level <= LogLevel::kDebug);
 
+// FIXME mod Mats' code to make it unittestable
+  if (!module[0])
+    return;
+
   try {
+// FIXME: we hold this lock very very very long here.
     std::lock_guard<std::mutex> lock(g_loggers_mutex);
     // Find the logger for the module
     auto logger = g_loggers.at(module);
@@ -158,8 +162,15 @@ void log_message(const char* module, const char* fmt, va_list ap) {
     // multiple calls, resulting in multiple log records.
     logger.handle(record);
   } catch (std::out_of_range& exc) {
+// FIXME think about what to do with this
+// pro leaving it: unless user sets log level to warning or error, you'll find out right away if you have this problem
+// pro erasing it: - log_error() is frequently called as part of error handling.  When it throws, we introduce another problem.  It's sort of like throwing in a destructor.
+//                 - how do you properly code your application to catch this exception?  try-catch inside of catch (error handling) and everywhere else?  global try-catch in main()?
+//                 - when this throws, it will probably down the router.  Good idea?
+#if 0
     throw std::logic_error("Module '" + std::string(module) +
                            "' not registered");
+#endif
   }
 }
 
@@ -199,25 +210,25 @@ extern "C" void LOGGER_API _vlog_debug(const char* module, const char *fmt, va_l
 
 extern "C" void
 _vlog_error(const char* module, const char *fmt, va_list args) {
-  log_message<LogLevel::kError>(module, fmt, args);
+  log_message(LogLevel::kError, module, fmt, args);
 }
 
 
 extern "C" void
 _vlog_warning(const char* module, const char *fmt, va_list args) {
-  log_message<LogLevel::kWarning>(module, fmt, args);
+  log_message(LogLevel::kWarning, module, fmt, args);
 }
 
 
 extern "C" void
 _vlog_info(const char* module, const char *fmt, va_list args) {
-  log_message<LogLevel::kInfo>(module, fmt, args);
+  log_message(LogLevel::kInfo, module, fmt, args);
 }
 
 
 extern "C" void
 _vlog_debug(const char* module, const char *fmt, va_list args) {
-  log_message<LogLevel::kDebug>(module, fmt, args);
+  log_message(LogLevel::kDebug, module, fmt, args);
 }
 
 }  // namespace logging

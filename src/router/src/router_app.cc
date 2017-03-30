@@ -382,7 +382,7 @@ void MySQLRouter::start() {
   loader_->add_logger("INFO");
 
   std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
-  if (plugins.size() < 2) {
+  if (!plugins.size()) {
     std::cout << "MySQL Router not configured to load or start any plugin. Exiting." << std::endl;
     return;
   }
