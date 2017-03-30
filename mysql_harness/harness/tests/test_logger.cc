@@ -23,8 +23,8 @@
 #endif
 
 #include "logger.h"
-
 #include "mysql/harness/filesystem.h"
+#include "include/magic.h"
 
 ////////////////////////////////////////
 // Internal interfaces
@@ -33,8 +33,10 @@
 
 ////////////////////////////////////////
 // Third-party include files
+MYSQL_HARNESS_DISABLE_WARNINGS()
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+MYSQL_HARNESS_ENABLE_WARNINGS()
 
 ////////////////////////////////////////
 // Standard include files

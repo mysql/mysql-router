@@ -54,12 +54,6 @@ static std::map<std::string, LogLevel> levels{
   {"debug", LogLevel::kDebug},
 };
 
-static void remove_logger(const std::string& name,
-                          std::unique_lock<std::mutex>&) {
-  if (g_loggers.erase(name) == 0)
-    throw std::logic_error("Removing non-existant logger '" + name + "'");
-}
-
 namespace mysql_harness {
 
 namespace logging {
@@ -72,14 +66,15 @@ void create_logger(const std::string& name, LogLevel level) {
 }
 
 void remove_logger(const std::string& name) {
-  std::unique_lock<std::mutex> lock(g_loggers_mutex);
-  ::remove_logger(name, lock);
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
+  if (g_loggers.erase(name) == 0)
+    throw std::logic_error("Removing non-existant logger '" + name + "'");
 }
 
 std::list<std::string> get_logger_names() {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
   std::list<std::string> result;
-  for (auto&& entry : g_loggers)
+  for (auto& entry : g_loggers)
     result.push_back(entry.second.get_name());
   return result;
 }
@@ -99,7 +94,7 @@ void setup(const std::string& program,
   try {
     // Create a logger for each module in the logging registry.
     auto level = levels.at(level_name);
-    for (auto&& module : modules)
+    for (auto& module : modules)
       create_logger(module, level);
   } catch (std::out_of_range& exc) {
     std::stringstream buffer;
@@ -109,7 +104,7 @@ void setup(const std::string& program,
 
     // Print the entries using a serial comma
     std::vector<std::string> alternatives;
-    for (auto&& entry : levels)
+    for (auto& entry : levels)
       alternatives.push_back(entry.first);
     serial_comma(buffer, alternatives.begin(), alternatives.end());
     throw std::invalid_argument(buffer.str());
@@ -126,9 +121,8 @@ void setup(const std::string& program,
 }
 
 void teardown() {
-  std::unique_lock<std::mutex> lock(g_loggers_mutex);
-  for (auto&& entry : g_loggers)
-    ::remove_logger(entry.second.get_name(), lock);
+  std::lock_guard<std::mutex> lock(g_loggers_mutex);
+  g_loggers.clear();
 }
 
 }  // namespace logging
@@ -177,7 +171,7 @@ namespace logging {
 
 void set_log_level(LogLevel level) {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
-  for (auto&& entry : g_loggers)
+  for (auto& entry : g_loggers)
     entry.second.set_level(level);
 }
 
@@ -187,13 +181,13 @@ const Path& get_log_file() {
 
 void register_handler(std::shared_ptr<Handler> handler) {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
-  for (auto&& entry : g_loggers)
+  for (auto& entry : g_loggers)
     entry.second.add_handler(handler);
 }
 
 void unregister_handler(std::shared_ptr<Handler> handler) {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
-  for (auto&& entry : g_loggers)
+  for (auto& entry : g_loggers)
     entry.second.remove_handler(handler);
 }
 
