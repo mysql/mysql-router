@@ -265,7 +265,8 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
       ELSE()
 	      MAKE_WIX_IDENTIFIER("${rel}" id)
         FILE(TO_NATIVE_PATH ${f} f_native)
-        IF("${rel}" MATCHES "lib/harness-library.dll")
+        IF("${rel}" MATCHES "lib/harness-library.dll" OR
+           "${rel}" MATCHES "bin/libeay32.dll" OR "${rel}" MATCHES "bin/ssleay32.dll")
           # ignore /lib version of harness-library (it is on bin folder already)
           # so is not installed twice.
         ELSE()
