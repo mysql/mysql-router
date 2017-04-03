@@ -20,9 +20,11 @@
 
 #include "mysql/harness/networking/ipv4_address.h"
 #include "mysql/harness/networking/ipv6_address.h"
+#include "harness_export.h"
 
 #include <ostream>
 #include <string>
+
 
 namespace mysql_harness {
 
@@ -42,7 +44,7 @@ namespace mysql_harness {
  * @endcode
  *
  */
-class IPAddress {
+class HARNESS_EXPORT IPAddress {
  public:
   /**
    * Constructs a new IPAddress object as IPv4 and initialized
@@ -175,6 +177,7 @@ class IPAddress {
    *
    * @return true if IP addresses are equal
    */
+  HARNESS_EXPORT
   friend bool operator==(const IPAddress &a, const IPAddress &b);
 
   /**
@@ -182,6 +185,7 @@ class IPAddress {
    *
    * @return true if IP addresses are not equal
    */
+  HARNESS_EXPORT
   friend bool operator!=(const IPAddress &a, const IPAddress &b) {
     return !(a == b);
   }
@@ -189,6 +193,7 @@ class IPAddress {
   /**
    * Overload stream insertion operator
    */
+  HARNESS_EXPORT
   friend std::ostream &operator<<(std::ostream &out, const IPAddress &address) {
     out << address.str();
     return out;

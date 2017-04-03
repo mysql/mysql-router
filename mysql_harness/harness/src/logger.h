@@ -18,9 +18,9 @@
 #ifndef MYSQL_HARNESS_LOGGER_INCLUDED
 #define MYSQL_HARNESS_LOGGER_INCLUDED
 
+#include "harness_export.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/logging.h"
-
 #include "mysql/harness/filesystem.h"
 
 #include <memory>
@@ -38,7 +38,7 @@ namespace logging {
  * module or subsystem. You can add handlers to a logger which will
  * then be used for all logging to that subsystem.
  */
-class Logger {
+class HARNESS_EXPORT Logger {
  public:
   explicit Logger(const std::string& subsystem,
                   LogLevel level = kDefaultLogLevel);

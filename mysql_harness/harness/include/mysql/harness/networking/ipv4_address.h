@@ -18,6 +18,8 @@
 #ifndef MYSQL_HARNESS_NETWORKING_IPV4_ADDRESS_INCLUDED
 #define MYSQL_HARNESS_NETWORKING_IPV4_ADDRESS_INCLUDED
 
+#include "harness_export.h"
+
 #include <array>
 #include <iostream>
 #include <string>
@@ -51,7 +53,7 @@ namespace mysql_harness {
  * when using both IPv4 and IPv6.
  *
  */
-class IPv4Address {
+class HARNESS_EXPORT IPv4Address {
  public:
   /**
    * Constructs a new IPv4Address object leaving the internal structure

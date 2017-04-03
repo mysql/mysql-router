@@ -24,6 +24,7 @@
 #define MYSQL_HARNESS_LOGGING_INCLUDED
 
 #include "filesystem.h"
+#include "harness_export.h"
 
 #include <fstream>
 #include <mutex>
@@ -131,7 +132,7 @@ struct Record {
  * the record, and exception can be thrown that will be caught by
  * the harness.
  */
-class Handler {
+class HARNESS_EXPORT Handler {
  public:
   virtual ~Handler() = default;
 
@@ -173,7 +174,7 @@ class Handler {
  * logger.add_handler(StreamHandler(std::clog));
  * @endcode
  */
-class StreamHandler : public Handler {
+class HARNESS_EXPORT StreamHandler : public Handler {
  public:
   explicit StreamHandler(std::ostream& stream,
                          LogLevel level = LogLevel::kNotSet);
@@ -195,7 +196,7 @@ class StreamHandler : public Handler {
  * logger.add_handler(FileHandler("/var/log/router.log"));
  * @endcode
  */
-class FileHandler : public StreamHandler {
+class HARNESS_EXPORT FileHandler : public StreamHandler {
  public:
   explicit FileHandler(const Path& path, LogLevel level = LogLevel::kNotSet);
   ~FileHandler();
@@ -205,9 +206,11 @@ class FileHandler : public StreamHandler {
 };
 
 /** Set log level for all registered loggers. */
+HARNESS_EXPORT
 void set_log_level(LogLevel level);
 
 /** Set log level for the named logger. */
+HARNESS_EXPORT
 void set_log_level(const char* name, LogLevel level);
 
 /**
@@ -230,6 +233,7 @@ void set_log_level(const char* name, LogLevel level);
  * }
  * @endcode
  */
+HARNESS_EXPORT
 void register_handler(std::shared_ptr<Handler> handler);
 
 /**
@@ -239,6 +243,7 @@ void register_handler(std::shared_ptr<Handler> handler);
  *
  * @param handler Shared pointer to a previously allocated handler.
  */
+HARNESS_EXPORT
 void unregister_handler(std::shared_ptr<Handler> handler);
 
 /**

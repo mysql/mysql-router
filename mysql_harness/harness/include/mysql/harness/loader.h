@@ -356,10 +356,11 @@ class HARNESS_EXPORT Loader {
 };
 
 //FIXME we need to move this to a better place, or think of another way of making this accessible to tests
-void HARNESS_EXPORT setup_logging(const std::string& program,
-                                  const std::string& logging_folder,
-                                  const Config& config,
-                                  const std::list<std::string>& modules);
+HARNESS_EXPORT
+void setup_logging(const std::string& program,
+                   const std::string& logging_folder,
+                   const Config& config,
+                   const std::list<std::string>& modules);
 
 } // namespace mysql_harness
 

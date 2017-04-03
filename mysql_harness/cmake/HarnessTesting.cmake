@@ -25,8 +25,7 @@ function(ADD_HARNESS_TEST NAME)
     add_dependencies(${NAME} ${ADD_HARNESS_TEST_REQUIRES})
   endif()
   target_link_libraries(${NAME}
-    PRIVATE harness-archive test-helpers ${TEST_LIBRARIES})
-  target_compile_definitions(${NAME} PRIVATE -DHARNESS_STATIC_DEFINE)
+    PUBLIC harness-library test-helpers ${TEST_LIBRARIES})
   add_test(${NAME} ${NAME})
 endfunction()
 

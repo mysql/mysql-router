@@ -21,4 +21,4 @@ target_include_directories(test-helpers
   PUBLIC ../harness/include
   PUBLIC ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(test-helpers
-  PUBLIC ${TEST_LIBRARIES} harness-archive)
+  PUBLIC ${TEST_LIBRARIES} harness-library)

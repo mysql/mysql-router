@@ -195,6 +195,7 @@ std::string basename(const std::string& path);
  * Remove starting and trailing delimiters from string.
  */
 void strip(std::string* str, const char* chars = " \t\n\r\f\v");
+HARNESS_EXPORT
 std::string strip_copy(std::string str, const char* chars = " \t\n\r\f\v");
 std::string string_format(const char* format, ...);
 std::vector<std::string> wrap_string(const std::string& to_wrap,

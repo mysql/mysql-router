@@ -20,11 +20,13 @@
 #include "mysql/harness/logging.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/config_parser.h"
+#include "harness_export.h"
 
 namespace mysql_harness {
 
 namespace logging {
 
+HARNESS_EXPORT
 const mysql_harness::Path& get_log_file();
 
 /**
@@ -33,6 +35,7 @@ const mysql_harness::Path& get_log_file();
  * @param name Module name for the logger.
  * @param level Log level for logger.
  */
+HARNESS_EXPORT
 void create_logger(const std::string& name,
                    LogLevel level = LogLevel::kNotSet);
 
@@ -41,19 +44,23 @@ void create_logger(const std::string& name,
  *
  * @param name Module name for the logger.
  */
+HARNESS_EXPORT
 void remove_logger(const std::string& name);
 
 
+HARNESS_EXPORT
 void setup(const std::string& program,
            const std::string& logging_folder,
            const mysql_harness::Config& config,
            const std::list<std::string>& modules);
 
+HARNESS_EXPORT
 void teardown();
 
 /**
  * Get the logger names from the internal registry.
  */
+HARNESS_EXPORT
 std::list<std::string> get_logger_names();
 
 }  // namespace logging

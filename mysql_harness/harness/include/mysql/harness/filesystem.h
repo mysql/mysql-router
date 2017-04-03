@@ -88,7 +88,7 @@ class HARNESS_EXPORT Path {
     TYPE_UNKNOWN,
   };
 
-  friend std::ostream& operator<<(std::ostream& out, FileType type);
+  friend HARNESS_EXPORT std::ostream& operator<<(std::ostream& out, FileType type);
 
  /**
    * Construct a path
