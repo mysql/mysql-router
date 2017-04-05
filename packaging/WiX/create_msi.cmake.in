@@ -267,8 +267,7 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
         FILE(TO_NATIVE_PATH ${f} f_native)
         IF("${rel}" MATCHES "lib/harness-library.dll" OR "${rel}" MATCHES ".ilk" OR
            "${rel}" MATCHES "lib/bad_one.dll" OR "${rel}" MATCHES "lib/bad_two.dll" OR
-           "${rel}" MATCHES "lib/example.dll" OR "${rel}" MATCHES "lib/magic.dll" OR
-           "${rel}" MATCHES "bin/libeay32.dll" OR "${rel}" MATCHES "bin/ssleay32.dll")
+           "${rel}" MATCHES "lib/example.dll" OR "${rel}" MATCHES "lib/magic.dll")
           # ignore /lib version of harness-library (it is on bin folder already)
           # also ignore .ilk files and a bunch of DLLs that are useful for testing only.
         ELSE()
