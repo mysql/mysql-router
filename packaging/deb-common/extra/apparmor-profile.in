@@ -2,7 +2,7 @@
 
 #include <tunables/global>
 
-/usr/sbin/mysqld {
+/usr/bin/mysqlrouter {
   #include <abstractions/base>
   #include <abstractions/nameservice>
   #include <abstractions/user-tmp>
