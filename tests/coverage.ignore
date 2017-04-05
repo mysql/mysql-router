@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,20 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-find_package(Doxygen)
+# This file lists directories or files to ignore when reporting
+# coverage %. An extra step will remove them from the coverage data.
+# You may list individual files or (more typically) directories.
+# Do not use shell wildcards and such, they will not work.
 
-if (DOXYGEN_FOUND)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/doc)
 
-  configure_file(doc/doxygen.cfg.in ${CMAKE_BINARY_DIR}/doc/doxygen.cfg @ONLY)
-
-  foreach(f router_footer.html router_header.html router_doxygen.css)
-    file(COPY ${CMAKE_SOURCE_DIR}/doc/${f} DESTINATION ${CMAKE_BINARY_DIR}/doc)
-  endforeach()
-
-  add_custom_target(doc ${DOXYGEN_EXECUTABLE} doc/doxygen.cfg
-    COMMAND pwd
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generate MySQL Router developer documentation"
-    VERBATIM)
-endif()

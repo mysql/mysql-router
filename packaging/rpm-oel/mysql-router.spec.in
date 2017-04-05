@@ -31,7 +31,7 @@
 %if 0%{?commercial}
 %global license_type    Commercial
 %global product_suffix  -commercial
-%global project_edition "-DPROJECT_EDITION=\"Commercial\""
+%global project_edition -DPROJECT_EDITION=Commercial -DGPL=no
 %else
 %global license_type    GPLv2
 %endif

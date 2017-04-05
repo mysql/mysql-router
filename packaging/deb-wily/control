@@ -7,13 +7,12 @@ Homepage: http://www.mysql.com/
 Build-Depends: cmake,
  debhelper (>= 9.0.0),
  dh-apparmor,
- fakeroot, lsb-release,
- python
+ fakeroot, lsb-release
 
 Package: mysql-router
 Architecture: any
 Pre-Depends: debconf, adduser
-Depends: ${misc:Depends}, ${shlibs:Depends}, apparmor
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: MySQL Router
  The MySQL(TM) Router software delivers a fast, multi-threaded way of
  routing connections from MySQL Clients to MySQL Servers. MySQL is a

@@ -27,12 +27,7 @@
  * Initialize a connection to the MySQL Metadata server.
  *
  * @param bootstrap_servers The servers that store the metadata.
- * @param user The user name used to authenticate to the metadata server.
- * @param password The password used to authenticate to the metadata server.
- * @param metadata_connection_timeout The time after which a connection to the
- *                                  metadata server should timeout.
- * @param connection_attempts The number of times a connection to metadata must
- *                            be attempted, when a connection attempt fails.
+ * @param cluster_metadata metadata of the cluster
  * @param ttl The TTL of the cached data.
  * @param ssl_options SSL related options for connection
  * @param cluster The name of the desired cluster in the metadata server

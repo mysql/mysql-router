@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -137,6 +137,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * In MySQL packets, integrals are stored using little-endian format.
    *
    * @param position Position where to start reading
+   * @param length size of the integer to parse
    * @return integer type
    */
   template<typename Type, typename = std::enable_if<std::is_integral<Type>::value>>
@@ -222,7 +223,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * Packs and adds an integral to the given buffer.
    *
    * @param value Integral to add to the packet
-   * @param size Size of the integral (default: size of integral)
+   * @param length Size of the integral (default: size of integral)
    *
    */
   template<class T, typename = std::enable_if<std::is_integral<T>::value>>

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -252,7 +252,7 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
     IF(NOT IS_DIRECTORY ${f})
       FILE(RELATIVE_PATH rel ${topdir} ${f})
       SET(TO_EXCLUDE)
-      IF(rel MATCHES "\\.pdb$")
+      IF(rel MATCHES "\\.pdb$" OR rel MATCHES "\\.conf$" OR rel MATCHES "\\.ini$")
         SET(TO_EXCLUDE TRUE)
       ELSE()
         LIST(FIND EXCLUDE_FILES ${rel} RES)
@@ -265,9 +265,12 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
       ELSE()
 	      MAKE_WIX_IDENTIFIER("${rel}" id)
         FILE(TO_NATIVE_PATH ${f} f_native)
-        IF("${rel}" MATCHES "lib/harness-library.dll")
+        IF("${rel}" MATCHES "lib/harness-library.dll" OR "${rel}" MATCHES ".ilk" OR
+           "${rel}" MATCHES "lib/bad_one.dll" OR "${rel}" MATCHES "lib/bad_two.dll" OR
+           "${rel}" MATCHES "lib/example.dll" OR "${rel}" MATCHES "lib/magic.dll" OR
+           "${rel}" MATCHES "bin/libeay32.dll" OR "${rel}" MATCHES "bin/ssleay32.dll")
           # ignore /lib version of harness-library (it is on bin folder already)
-          # so is not installed twice.
+          # also ignore .ilk files and a bunch of DLLs that are useful for testing only.
         ELSE()
 	        GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
       	  # According to MSDN each DLL or EXE should be in the own component
@@ -362,21 +365,26 @@ ENDIF()
 
 FILE(REMOVE mysql_router.wixobj)
 EXECUTE_PROCESS(
- COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_router.wxs ${EXTRA_CANDLE_ARGS}
+ COMMAND "${CANDLE_EXECUTABLE}" -nologo -v -ext WixUtilExtension  mysql_router.wxs ${EXTRA_CANDLE_ARGS}
  RESULT_VARIABLE CANDLE_RESULT
+ OUTPUT_VARIABLE CANDLE_OUTPUT
+ ERROR_VARIABLE CANDLE_OUTPUT
 )
 
 IF(CANDLE_RESULT)
-  MESSAGE(FATAL_ERROR "ERROR: can't run candle")
+	MESSAGE(FATAL_ERROR "ERROR: can't run ${CANDLE_EXECUTABLE}: ${CANDLE_RESULT} ${CANDLE_OUTPUT}")
 ENDIF()
 
 EXECUTE_PROCESS(
- COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension -ext WixUtilExtension
+ COMMAND "${LIGHT_EXECUTABLE}" -ext WixUIExtension -ext WixUtilExtension
+  -v -nologo
   mysql_router.wixobj  -out  ${CMAKE_BINARY_DIR}/${CPACK_PACKAGE_FILE_NAME}.msi
   ${EXTRA_LIGHT_ARGS}
  RESULT_VARIABLE LIGHT_RESULT
+ OUTPUT_VARIABLE LIGHT_OUTPUT
+ ERROR_VARIABLE LIGHT_OUTPUT
 )
 
 IF(LIGHT_RESULT)
-  MESSAGE(FATAL_ERROR "ERROR: can't run light")
+	MESSAGE(FATAL_ERROR "ERROR: can't run ${LIGHT_EXECUTABLE}: ${LIGHT_RESULT} ${LIGHT_OUTPUT}")
 ENDIF()

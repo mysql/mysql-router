@@ -30,6 +30,9 @@
 
 #include "gmock/gmock.h"
 
+#ifdef GTEST_USES_POSIX_RE
+#include <regex.h>
+#endif
 using mysql_harness::Path;
 
 struct GitInfo {
@@ -41,7 +44,6 @@ struct GitInfo {
 Path g_origin;
 Path g_source_dir;
 std::vector<GitInfo> g_git_tracked_files;
-bool g_skip_git_tests = false;
 
 const std::vector<std::string> kLicenseSnippets{
     "This program is free software; you can redistribute it",
@@ -54,7 +56,7 @@ const std::vector<std::string> kLicenseSnippets{
 
 // Ignored file extensions
 const std::vector<std::string> kIgnoredExtensions{
-    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf",
+    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf", ".ini", ".swp",
 };
 
 const std::vector<std::string> kIgnoredFileNames{
@@ -155,11 +157,69 @@ void prepare_git_tracked_files() {
   }
 }
 
+void prepare_all_files() {
+  if (!g_git_tracked_files.empty()) {
+    return;
+  }
+  // Get all files in the source repository
+  std::ostringstream os_cmd;
+#ifdef _WIN32
+  os_cmd << "dir /b /s /a:-d";  // dump all files (no directories)
+#else
+  os_cmd << "find . -type f";
+#endif
+  auto result = cmd_exec(os_cmd.str(), false, g_source_dir.str());
+  std::istringstream cmd_output(result.output);
+  std::string tracked_file;
+
+  // if CMAKE_BINARY_DIR is set, check if it isn't inside CMAKE_SOURCE_DIR
+  // if yes, ignore files that are inside CMAKE_BINARY_DIR
+  const char *cmake_binary_dir = std::getenv("CMAKE_BINARY_DIR");
+  std::string binary_real_path;
+  if (cmake_binary_dir != nullptr) {
+    Path binary_dir(cmake_binary_dir);
+    binary_real_path = binary_dir.real_path().str();
+  }
+
+  while (std::getline(cmd_output, tracked_file, '\n')) {
+#ifdef _WIN32
+    // path is already absolute
+    Path real_path(tracked_file);
+#else
+    // make path absolute
+    Path tmp_path(g_source_dir);
+    tmp_path.append(tracked_file);
+    Path real_path = tmp_path.real_path();
+#endif
+    if (!real_path.is_set()) {
+      std::cerr << "realpath failed for " << tracked_file << ": " << strerror(errno) << std::endl;
+      continue;
+    }
+    tracked_file = real_path.str();
+
+    if (is_ignored(tracked_file)) continue;
+
+    // ignore all files that start with the release folder
+    if (cmake_binary_dir != nullptr &&
+        tracked_file.size() > binary_real_path.size() &&
+        tracked_file.compare(0, binary_real_path.size(), binary_real_path) == 0) continue;
+
+    g_git_tracked_files.push_back(GitInfo{
+        Path(tracked_file),
+        -1,
+        -1
+    });
+  }
+}
+
+
 class CheckLegal : public ::testing::Test {
   protected:
     virtual void SetUp() {
-      if (!g_skip_git_tests) {
+      if (Path(g_source_dir).join(".git").is_directory()) {
         prepare_git_tracked_files();
+      } else {
+        prepare_all_files();
       }
     }
 
@@ -167,65 +227,118 @@ class CheckLegal : public ::testing::Test {
     }
 };
 
+/* test if the all files that are in git have the proper copyright line
+ *
+ * A proper copyright line is:
+ *
+ * - copyright years: if start year == end year, start year may be omitted
+ * - copyright start year: at least first git commit
+ * - copyright end year: at least last git commit
+ * - copyright line: fixed format
+ *
+ * The copyright years start before recorded history in git as the files
+ * may come from another source. Similar to end date as git author-date
+ * may contain too old date.
+ */
 TEST_F(CheckLegal, Copyright) {
-  SKIP_GIT_TESTS(g_skip_git_tests)
-  ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
+  if (g_git_tracked_files.size() == 0) {
+    std::cout << "[ SKIPPED  ] couldn't determine source files from CMAKE_SOURCE_DIR and CMAKE_BINARY_DIR" << std::endl;
+    return;
+  }
 
-  std::vector<std::string> problems;
+#ifdef GTEST_USES_POSIX_RE
+  // gtest uses either simple-re or posix-re. Only the posix-re supports captures
+  // which allows to extract the dates easily.
+  //
+  // if gtest uses posix-re, we can use posix-re directly too.
+  const char *prefix = "Copyright (c)";
+  std::string needle;
+  needle = "Copyright \\(c\\) (([0-9]{4}), )?";  // m[1] and m[2]
+  needle += "([0-9]{4}), ";                      // m[3]
+  needle += "Oracle and/or its affiliates. All rights reserved.";
+
+  // extract the years
+  regex_t re;
+  char re_err[1024];
+  regmatch_t m[4];
+  int err_code = regcomp(&re, needle.c_str(), REG_EXTENDED);
+  if (err_code != 0) {
+    EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
+    ASSERT_EQ(err_code, 0) << re_err;
+  }
 
   for (auto &it: g_git_tracked_files) {
     std::ifstream curr_file(it.file.str());
 
     std::string line;
-    std::string needle;
-    std::string problem;
-    bool found = false;
+    bool copyright_found = false;
 
     while (std::getline(curr_file, line, '\n')) {
-      problem = "";
-      if (line.find("Copyright (c)") != std::string::npos
-          && ends_with(line, "Oracle and/or its affiliates. All rights reserved.")) {
-        found = true;
-        // Check first year of first commit is in the copyright
-        needle = " " + std::to_string(it.year_first_commit) + ",";
-        if (line.find(needle) == std::string::npos) {
-          problem = std::string("First commit year ") + std::to_string(it.year_first_commit)
-                    + std::string(" not present");
-        } else if (it.year_first_commit != it.year_last_commit) {
-          // Then check modification year
-          needle = std::to_string(it.year_last_commit) + ",";
-          if (line.find(needle) == std::string::npos) {
-            problem = std::string("Last modification year ") + std::to_string(it.year_last_commit) +
-                      std::string(" not present");
+      if (line.find(prefix) != std::string::npos) {
+        copyright_found = true;  // some copyright found
+
+        EXPECT_THAT(line, ::testing::ContainsRegex(needle)) << " in file: " << it.file.str();
+
+        // match the needly again, but this time extract the copyright years.
+        err_code = regexec(&re, line.c_str(), sizeof(m) / sizeof(regmatch_t), m, 0);
+        if (err_code != 0) {
+          if (err_code != REG_NOMATCH) {
+            // REG_NOMATCH is handled by the ContainsRegex() already
+            EXPECT_LE(regerror(err_code, &re, re_err, sizeof(re_err)), sizeof(re_err));
+            EXPECT_EQ(err_code, 0) << re_err;
           }
+          break;
         }
+
+        if (it.year_first_commit == -1 && it.year_last_commit == -1) {
+          // break early, in case we don't have any git history.
+          break;
+        }
+
+        // check that the start copyright year is less or equal to what we have a commit for
+        //
+        // allow copyright years that are less than the recorded history in git
+        ASSERT_GE(m[3].rm_so, 0) << m[3].rm_so;
+        ASSERT_GE(m[3].rm_eo, 0) << m[3].rm_eo;
+        ASSERT_GT(m[3].rm_eo, m[3].rm_so) << m[3].rm_so << " < " << m[3].rm_eo;
+        std::string copyright_end_year = line.substr(static_cast<size_t>(m[3].rm_so), static_cast<size_t>(m[3].rm_eo - m[3].rm_so));
+
+        if (m[2].rm_so != -1) {
+          ASSERT_GE(m[2].rm_so, 0) << m[2].rm_so;
+          ASSERT_GE(m[2].rm_eo, 0) << m[2].rm_eo;
+          ASSERT_GT(m[2].rm_eo, m[2].rm_so) << m[2].rm_so << " < " << m[2].rm_eo;
+          std::string copyright_start_year = line.substr(static_cast<size_t>(m[2].rm_so), static_cast<size_t>(m[2].rm_eo - m[2].rm_so));
+          EXPECT_LE(std::stoi(copyright_start_year), it.year_first_commit) << " in file: " << it.file.str();
+        } else {
+          // no start-year in copyright.
+          EXPECT_LE(std::stoi(copyright_end_year), it.year_first_commit) << " in file: " << it.file.str();
+        }
+
+        // copyright end year has to at least the one of the last commit
+        //
+        // allow copyright years that are larger than the recorded history in git
+        EXPECT_GE(std::stoi(copyright_end_year), it.year_last_commit) << " in file: " << it.file.str();
         break;
       }
     }
     curr_file.close();
 
-    if (!found) {
-      problem = "No copyright statement";
-    }
-
-    if (!problem.empty()) {
-      std::string tmp = it.file.str();
-      tmp.erase(0, g_source_dir.str().size() + 1);
-      problems.push_back(tmp + ": " + problem);
-    }
+    EXPECT_TRUE(copyright_found) << it.file.str() << ": No copyright found";
   }
 
-  if (!problems.empty()) {
-    std::string tmp{"\nCopyright issues in " + g_source_dir.str() + ":\n"};
-    std::ostringstream ostr;
-    std::copy(problems.begin(), problems.end(), std::ostream_iterator<std::string>(ostr, "\n"));
-    EXPECT_TRUE(problems.empty()) << tmp << ostr.str();
-  }
+  regfree(&re);
+#endif
 }
 
 TEST_F(CheckLegal, GPLLicense) {
-  SKIP_GIT_TESTS(g_skip_git_tests)
-  ASSERT_THAT(g_git_tracked_files.size(), ::testing::Gt(static_cast<size_t>(0)));
+#ifdef HAVE_LICENSE_COMMERCIAL
+  std::cout << "[ SKIPPED  ] commerical build, not checking for GPL license headers" << std::endl;
+  return;
+#else
+  if (g_git_tracked_files.size() == 0) {
+    std::cout << "[ SKIPPED  ] couldn't determine source files from CMAKE_SOURCE_DIR and CMAKE_BINARY_DIR" << std::endl;
+    return;
+  }
 
   std::vector<Path> extra_ignored{
       Path("README.txt"),
@@ -263,21 +376,17 @@ TEST_F(CheckLegal, GPLLicense) {
     }
     EXPECT_TRUE(problem.empty()) << "Problem in " << it.file << ": " << problem;
   }
+#endif
 }
 
 int main(int argc, char *argv[]) {
-  g_origin = Path(argv[0]).dirname();
-  try {
-    g_source_dir = get_cmake_source_dir();
-  } catch (const std::runtime_error &exc) {
-    g_skip_git_tests = true;
-  }
-
-  if (g_source_dir.is_set() && !Path(g_source_dir).join(".git").is_directory()) {
-    g_skip_git_tests = true;
-  }
-
   ::testing::InitGoogleTest(&argc, argv);
+
+  g_origin = Path(argv[0]).dirname();
+  g_source_dir = get_cmake_source_dir();
+
+  EXPECT_TRUE(g_source_dir.is_set());
+
   return RUN_ALL_TESTS();
 }
 

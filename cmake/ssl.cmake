@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -263,22 +263,21 @@ ENDMACRO()
 # NOTE: Using dlls will likely crash in malloc/free,
 #       see INSTALL.W32 which comes with the openssl sources.
 # So we should be linking static versions of the libraries.
-MACRO (COPY_OPENSSL_DLLS target_name)
+MACRO (COPY_OPENSSL_DLLS target_name out_dir)
   IF (WIN32 AND WITH_SSL_PATH)
     GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
     FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
     FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
     IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
-      ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
+      ADD_CUSTOM_COMMAND(TARGET ${target_name} PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
+          "${out_dir}/${CRYPTO_NAME}.dll"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
+          "${out_dir}/${OPENSSL_NAME}.dll"
         )
-      ADD_CUSTOM_TARGET(${target_name} ALL)
     ENDIF()
   ENDIF()
 ENDMACRO()

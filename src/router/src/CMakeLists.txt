@@ -110,6 +110,8 @@ if(WIN32)
   install(FILES "${MYSQL_DLL}/${MYSQL_FILE}" DESTINATION bin)
 endif()
 
+COPY_OPENSSL_DLLS(${MYSQL_ROUTER_TARGET} $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(${MYSQL_ROUTER_TARGET} PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")

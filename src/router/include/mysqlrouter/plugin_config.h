@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,14 +52,13 @@ public:
   using defaults_map = std::map<std::string, std::string>;
 
   /** @brief Constructor
-   *
-   * @param section from configuration file provided as ConfigSection
    */
   BasePluginConfig() { }
 
   /** @brief Gets value of given option as string
    *
    * @param section Instance of ConfigSection
+   * @param option name of the option
    * @return Option value as std::string
    */
   std::string get_option_string(const mysql_harness::ConfigSection *section, const std::string &option);
@@ -83,7 +82,7 @@ protected:
    * Gets the default value of the given option. If no default option
    * is available, an empty string is returned.
    *
-   * @param string option
+   * @param option name of the option
    * @return default value for given option as std::string
    */
   virtual std::string get_default(const std::string &option) = 0;
@@ -125,6 +124,7 @@ protected:
    * @param section Instance of ConfigSection
    * @param option Option name in section
    * @param min_value Minimum value
+   * @param max_value Maximum value
    * @return mysqlrouter::TCPAddress
    */
   template<typename T>
@@ -164,6 +164,7 @@ protected:
    * @param section Instance of ConfigSection
    * @param option Option name in section
    * @param require_port Whether a TCP port is required
+   * @param default_port default port
    * @return mysqlrouter::TCPAddress
    */
   TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const std::string &option,

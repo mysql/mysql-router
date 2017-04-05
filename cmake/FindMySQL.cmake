@@ -38,19 +38,19 @@ if(WIN32)
     STRING(TOLOWER ${MYSQL_BUILD} MYSQL_BUILD)
     set(MySQL_LIBRARY_PATHS
       ${WITH_MYSQL}/lib
-      $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+      "$ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib"
     )
   else()
     set(MySQL_LIBRARY_PATHS
       ${WITH_MYSQL}/lib
       ${WITH_MYSQL}/lib/debug
-      $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib
+      "$ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/lib"
     )
   endif()
 
   set(MySQL_INCLUDE_PATHS
     ${WITH_MYSQL}/include
-    $ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/include
+    "$ENV{${PROGRAMFILES_VAR}}/MySQL/MySQL Server*/include"
   )
 else()
   set(WITH_MYSQL "/usr/local/mysql" CACHE PATH "Installation path of MySQL Client Libraries")
