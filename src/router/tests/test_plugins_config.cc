@@ -64,7 +64,6 @@ TEST_F(PluginsConfigTest, NoPluginLoaded) {
   ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
 }
 
-//FIXME logger.so no longer exists
 TEST_F(PluginsConfigTest, OnlyOnePluginLoaded) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);

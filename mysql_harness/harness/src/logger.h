@@ -43,6 +43,10 @@ class HARNESS_EXPORT Logger {
   explicit Logger(const std::string& subsystem,
                   LogLevel level = kDefaultLogLevel);
 
+  // such null object is useless, however we need the ability to create an
+  // object and populate it later inside of guarded scope (e.g: std::lock_guard)
+  Logger() : level_(LogLevel::kNotSet) {}
+
   void add_handler(std::shared_ptr<Handler>);
   void remove_handler(std::shared_ptr<Handler> handler);
   void handle(const Record& record);

@@ -17,6 +17,7 @@
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
+#include "helper_logger.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -56,13 +57,6 @@ protected:
     ConsoleOutputTest::SetUp();
   }
 };
-
-void init_log() {
-  mysql_harness::Config config;
-  config.set_default("log_level", "debug");
-  std::list<std::string> log_domains{"", "metadata_cache", "routing"};
-  mysql_harness::setup_logging("", "", config, log_domains);
-}
 
 TEST_F(TestBlockClients, BlockClientHost) {
   unsigned long long max_connect_errors = 2;

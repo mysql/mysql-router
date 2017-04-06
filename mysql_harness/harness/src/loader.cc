@@ -108,7 +108,7 @@ void LoaderConfig::fill_and_check() {
 }
 
 Loader::~Loader() {
-  // FIXME PM (after Harness merge):
+  // TODO PM (after Harness merge):
   // These were brought in during Harness merge. They should be removed in
   // upcoming Lifecycle patch, which already calls these elsewhere.
   stop_all();
@@ -233,49 +233,6 @@ void Loader::setup_info() {
   appinfo_.program = program_.c_str();
 }
 
-// FIXME mod Mats' code to make it unittestable
-#if 0
-void Loader::init_all() {
-  using mysql_harness::logging::kDefaultLogLevelName;
-
-  if (!topsort())
-    throw std::logic_error("Circular dependencies in plugins");
-
-  // If there is no log level defined, we set it to the default log
-  // level.
-  if (!config_.has_default("log_level"))
-    config_.set_default("log_level", kDefaultLogLevelName);
-
-//FIXME PM: I think the above needs to be changed to clarify that
-//the order is not important FOR THIS CALL (it matters a lot to
-//init_all() and deinit_all()
-  // The order list contain all the module names, so we use it
-  // here. However, the order of the modules is not important.
-  mysql_harness::logging::setup(program_, logging_folder_, config_, order_);
-
-  for (const std::string& plugin_key : reverse(order_)) {
-    PluginInfo &info = plugins_.at(plugin_key);
-    if (info.plugin->init && info.plugin->init(&appinfo_))
-      throw std::runtime_error("Plugin init failed");
-  }
-}
-#else
-void Loader::setup_logging() {
-  using mysql_harness::logging::kDefaultLogLevelName;
-
-  // If there is no log level defined, we set it to the default log
-  // level.
-  if (!config_.has_default("log_level"))
-    config_.set_default("log_level", kDefaultLogLevelName);
-
-//FIXME PM: I think the above needs to be changed to clarify that
-//the order is not important FOR THIS CALL (it matters a lot to
-//init_all() and deinit_all()
-  // The order list contain all the module names, so we use it
-  // here. However, the order of the modules is not important.
-  mysql_harness::logging::setup(program_, logging_folder_, config_, order_);
-}
-
 void Loader::init_all() {
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
@@ -288,7 +245,6 @@ void Loader::init_all() {
       throw std::runtime_error("Plugin init failed");
   }
 }
-#endif
 
 void Loader::start_all() {
   // Start all the threads
@@ -342,10 +298,10 @@ void Loader::start_all() {
 }
 
 void Loader::stop_all() {
-  // FIXME PM (after Harness merge):
-  // Mats added the try/catch around this for(). I'm not sure why he didn't
+  // PM: Mats added the try/catch inside this for(). I'm not sure why he didn't
   // add some assert(0) in the catch block though, but just left it empty.
   // Perhaps it should be added.
+
   for (auto&& section : config_.sections()) {
     try {
       PluginInfo& plugin = plugins_.at(section->name);
@@ -357,22 +313,6 @@ void Loader::stop_all() {
   }
 }
 
-// FIXME mod Mats' code to make it unittestable
-#if 0
-void Loader::deinit_all() {
-  for (auto& name : order_) {
-    PluginInfo& info = plugins_.at(name);
-    if (info.plugin->deinit)
-      info.plugin->deinit(&appinfo_);
-  }
-
-  mysql_harness::logging::teardown();
-}
-#else
-void Loader::teardown_logging() {
-  mysql_harness::logging::teardown();
-}
-
 void Loader::deinit_all() {
   for (auto& name : order_) {
     PluginInfo& info = plugins_.at(name);
@@ -382,7 +322,23 @@ void Loader::deinit_all() {
 
   teardown_logging();
 }
-#endif
+
+void Loader::setup_logging() {
+  using mysql_harness::logging::kDefaultLogLevelName;
+
+  // If there is no log level defined, we set it to the default log
+  // level.
+  if (!config_.has_default("log_level"))
+    config_.set_default("log_level", kDefaultLogLevelName);
+
+  // The order list contains all the module names, so we use it here.
+  // However, the order of the modules is not important in this case.
+  mysql_harness::logging::setup(program_, logging_folder_, config_, order_);
+}
+
+void Loader::teardown_logging() {
+  mysql_harness::logging::teardown();
+}
 
 bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
@@ -427,27 +383,6 @@ bool Loader::visit(const std::string& designator,
     }
   }
   return true;
-}
-
-//FIXME erase add_logger()
-#if 0
-void Loader::add_logger(const std::string& default_level) {
-  if (!config_.has("logger")) {
-    auto&& section = config_.add("logger");
-    section.add("library", "logger");
-    section.add("level", default_level);
-  }
-}
-#else
-void Loader::add_logger(const std::string&) {}
-#endif
-
-//FIXME we need to move this to a better place, or think of another way of making this accessible to tests
-void setup_logging(const std::string& program,
-                   const std::string& logging_folder,
-                   const Config& config,
-                   const std::list<std::string>& modules) {
-  mysql_harness::logging::setup(program, logging_folder, config, modules);
 }
 
 } // namespace mysql_harness

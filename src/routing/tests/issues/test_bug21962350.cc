@@ -22,7 +22,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "destination.h"
-#include "mysql/harness/loader.h" // mysql_harness::setup_logging(), FIXME probably will get moved
+#include "helper_logger.h"
 #include "mysql/harness/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
@@ -87,12 +87,8 @@ private:
 };
 
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
-// TODO: might want to move it to some common helper function and make it available to all tests
 TEST_F(Bug21962350, InitLogger) {
-  mysql_harness::Config config;
-  config.set_default("log_level", "debug");
-  std::list<std::string> log_domains{"", "metadata_cache", "routing"};
-  mysql_harness::setup_logging("", "", config, log_domains);
+  init_log();
 }
 
 TEST_F(Bug21962350, AddToQuarantine) {

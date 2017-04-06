@@ -270,13 +270,8 @@ extern "C" {
  * means that it logs to the top log domain.
  */
 
-// FIXME mod Mats' code to make it unittestable
 #ifndef MYSQL_ROUTER_LOG_DOMAIN
-#if 0
-#define MYSQL_ROUTER_LOG_DOMAIN nullptr
-#else
 #define MYSQL_ROUTER_LOG_DOMAIN ""
-#endif
 #endif
 
 /*

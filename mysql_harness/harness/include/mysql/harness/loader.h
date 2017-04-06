@@ -242,13 +242,6 @@ class HARNESS_EXPORT Loader {
   }
 
   /**
-   * Add a configuration section
-   *
-   * @param section ConfigSection instance to add.
-   */
-  void add_logger(const std::string& default_level);
-
-  /**
    * Get reference to configuration object.
    */
   LoaderConfig &get_config() { return config_; }
@@ -275,7 +268,6 @@ class HARNESS_EXPORT Loader {
   bool visit(const std::string& name, std::map<std::string, Status>* seen,
              std::list<std::string>* order);
 
-// FIXME mod Mats' code to make it unittestable
   /**
    * Setup and teardown of logging facility.
    */
@@ -354,13 +346,6 @@ class HARNESS_EXPORT Loader {
   std::string program_;
   AppInfo appinfo_;
 };
-
-//FIXME we need to move this to a better place, or think of another way of making this accessible to tests
-HARNESS_EXPORT
-void setup_logging(const std::string& program,
-                   const std::string& logging_folder,
-                   const Config& config,
-                   const std::list<std::string>& modules);
 
 } // namespace mysql_harness
 

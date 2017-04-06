@@ -56,7 +56,6 @@ using mysql_harness::get_strerror;
 // define what is available in routing_plugin.cc
 extern mysql_harness::Plugin harness_plugin_routing;
 extern const mysql_harness::AppInfo *g_app_info;
-//FIXME extern const char *kRoutingRequires[1];
 
 int init(const mysql_harness::AppInfo *info);
 

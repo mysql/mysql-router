@@ -15,36 +15,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-//FIXME: this whole header should probably be erased
-
 #ifndef ROUTING_TESTS_HELPER_LOGGER_INCLUDED
 #define ROUTING_TESTS_HELPER_LOGGER_INCLUDED
 
-#include <fstream>
-
-namespace mysql_harness {
-
-namespace logging {
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if 0
-void log_error(const char* name, const char *fmt, ...);
-void log_warning(const char* name, const char *fmt, ...);
-void log_info(const char* name, const char *fmt, ...);
-void log_debug(const char* name, const char *fmt, ...);
-#endif
-
-void set_log_fd(FILE *fp);
-
-#ifdef __cplusplus
-}
-#endif
-
-}  // namespace logging
-
-}  // namespace mysql_harness
+void init_log();
 
 #endif // ROUTING_TESTS_HELPER_LOGGER_INCLUDED

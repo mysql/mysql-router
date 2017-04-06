@@ -46,7 +46,7 @@ static std::map<std::string, Logger> g_loggers;
 
 static Path g_log_file;
 
-static std::map<std::string, LogLevel> levels{
+static std::map<std::string, LogLevel> g_levels{
   {"fatal", LogLevel::kFatal},
   {"error", LogLevel::kError},
   {"warning", LogLevel::kWarning},
@@ -93,7 +93,7 @@ void setup(const std::string& program,
                  level_name.begin(), ::tolower);
   try {
     // Create a logger for each module in the logging registry.
-    auto level = levels.at(level_name);
+    auto level = g_levels.at(level_name);
     for (auto& module : modules)
       create_logger(module, level);
   } catch (std::out_of_range& exc) {
@@ -104,7 +104,7 @@ void setup(const std::string& program,
 
     // Print the entries using a serial comma
     std::vector<std::string> alternatives;
-    for (auto& entry : levels)
+    for (auto& entry : g_levels)
       alternatives.push_back(entry.first);
     serial_comma(buffer, alternatives.begin(), alternatives.end());
     throw std::invalid_argument(buffer.str());
@@ -145,41 +145,40 @@ namespace {
 void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
   assert(level <= LogLevel::kDebug);
 
-// FIXME mod Mats' code to make it unittestable
-  if (!module[0] &&         // this will often be the case when running unit tests (the name got initialised to "" due to lack of proper #define?  TODO: research this)
-      !g_loggers.count("")) // but some unit tests that care about log output will define a logger for ""
-    return;
-
+  // Find the logger for the module
+  // NOTE that we copy the logger. Even if some other thread removes this
+  //      logger from g_loggers, our call will still be valid, as our logger
+  //      object secured the necessary resources (via shared_ptr).
+  Logger logger;
   try {
-// FIXME: we hold this lock very very very long here.
     std::lock_guard<std::mutex> lock(g_loggers_mutex);
-    // Find the logger for the module
-    auto logger = g_loggers.at(module);
-
-    // Build the message
-    char message[256];
-    vsnprintf(message, sizeof(message), fmt, ap);
-
-    // Build the record for the handler.
-    time_t now;
-    time(&now);
-    Record record{level, getpid(), now, module, message};
-
-    // Pass the record to the correct logger. The record should be
-    // passed to only one logger since otherwise the handler can get
-    // multiple calls, resulting in multiple log records.
-    logger.handle(record);
+    logger = g_loggers.at(module);
   } catch (std::out_of_range& exc) {
-// FIXME think about what to do with this
-// pro leaving it: unless user sets log level to warning or error, you'll find out right away if you have this problem
-// pro erasing it: - log_error() is frequently called as part of error handling.  When it throws, we introduce another problem.  It's sort of like throwing in a destructor.
-//                 - how do you properly code your application to catch this exception?  try-catch inside of catch (error handling) and everywhere else?  global try-catch in main()?
-//                 - when this throws, it will probably down the router.  Good idea?
-#if 0
+  // FIXME think about what to do with this
+  // pro leaving it: unless user sets log level to warning or error, you'll find out right away if you have this problem
+  // pro erasing it: - log_error() is frequently called as part of error handling.  When it throws, we introduce another problem.  It's sort of like throwing in a destructor.
+  //                 - how do you properly code your application to catch this exception?  try-catch inside of catch (error handling) and everywhere else?  global try-catch in main()?
+  //                 - when this throws, it will probably down the router.  Good idea?
+  //                 - if we leave it, we must ensure that whatever catches this exception DOES NOT TRY TO LOG this error :)
+  #if 0
     throw std::logic_error("Module '" + std::string(module) +
                            "' not registered");
-#endif
+  #endif
   }
+
+  // Build the message
+  char message[256];
+  vsnprintf(message, sizeof(message), fmt, ap);
+
+  // Build the record for the handler.
+  time_t now;
+  time(&now);
+  Record record{level, getpid(), now, module, message};
+
+  // Pass the record to the correct logger. The record should be
+  // passed to only one logger since otherwise the handler can get
+  // multiple calls, resulting in multiple log records.
+  logger.handle(record);
 }
 
 }
