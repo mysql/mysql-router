@@ -116,7 +116,8 @@ void HARNESS_EXPORT rename_thread(const char thread_name[16]);
     MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wshadow") \
     MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wconversion") \
     MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wsign-compare") \
-    MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wunused-parameter")
+    MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wunused-parameter") \
+    MYSQL_HARNESS_PRAGMA(diagnostic ignored "-Wdeprecated-declarations")
 
   #define MYSQL_HARNESS_ENABLE_WARNINGS() MYSQL_HARNESS_PRAGMA(diagnostic pop)
 

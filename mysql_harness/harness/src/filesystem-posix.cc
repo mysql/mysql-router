@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "common.h"
 #include "mysql/harness/filesystem.h"
 
 #include <cassert>
@@ -27,6 +28,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 # error "This file expects POSIX.1-2001 or later"
@@ -125,19 +127,23 @@ class Directory::DirectoryIterator::State {
   }
 
   DIR *dirp_;
-  struct dirent entry_;
+  struct dirent *entry_;
   const string pattern_;
   struct dirent *result_;
 };
 
 
 Directory::DirectoryIterator::State::State()
-  : dirp_(nullptr), pattern_(""), result_(nullptr) {}
-
+  : dirp_(nullptr), entry_(nullptr), pattern_(""), result_(nullptr) {}
 
 Directory::DirectoryIterator::State::State(const Path& path,
                                            const string& pattern)
-    : dirp_(opendir(path.c_str())), pattern_(pattern), result_(&entry_) {
+    : dirp_(opendir(path.c_str())), pattern_(pattern) {
+  // in Solaris, dirent is NOT large enough to hold a directory name, so we need to
+  // ensure there's extra space for it
+  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
+  result_ = entry_;
+
   if (dirp_ == nullptr) {
     ostringstream buffer;
     char buf[256];
@@ -157,8 +163,9 @@ Directory::DirectoryIterator::State::~State() {
   // work. For example, BSD systems do not always support this.
   if (dirp_ != nullptr)
     closedir(dirp_);
+  if (entry_)
+    free(entry_);
 }
-
 
 void Directory::DirectoryIterator::State::fill_result() {
   // This is similar to scandir(2), but we do not use scandir(2) since
@@ -169,7 +176,13 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_r(dirp_, &entry_, &result_)) {
+    // new GCC doesn't like readdir_r(), and deprecates it in favor of
+    // readdir(). However, readdir() is not thread-safe on all platforms yet.
+    MYSQL_HARNESS_DISABLE_WARNINGS()
+    int error = readdir_r(dirp_, entry_, &result_);
+    MYSQL_HARNESS_ENABLE_WARNINGS()
+
+    if (error) {
       ostringstream buffer;
       char msg[256];
       if (strerror_r(error, msg, sizeof(msg)))
@@ -193,7 +206,7 @@ void Directory::DirectoryIterator::State::fill_result() {
       break;
 
     // Skip any entries that do not match the pattern
-    int error = fnmatch(pattern_.c_str(), result_->d_name, FNM_PATHNAME);
+    error = fnmatch(pattern_.c_str(), result_->d_name, FNM_PATHNAME);
     if (error == FNM_NOMATCH) {
       continue;
     } else if (error == 0) {
