@@ -53,9 +53,6 @@ do_start() {
     return 0
   fi
 
-  start="start-stop-daemon --start --pidfile $PID --exec $DAEMON"
-  $start --test -u mysqlrouter 1>/dev/null || retval=1
-
   if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
   then
     install -d -m 0750 -o mysqlrouter -g adm ${RUNTIMEDIR}
@@ -73,11 +70,19 @@ do_start() {
 
   install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}
 
-  /lib/init/apparmor-profile-load usr.bin.mysqlrouter
+  [ -x /lib/init/apparmor-profile-load ] && /lib/init/apparmor-profile-load usr.bin.mysqlrouter
 
-  $start -m -b --chuid mysqlrouter -- $DAEMON_OPTIONS 2>/dev/null || retval=2
+  start-stop-daemon --start \
+    --pidfile $PID \
+    --startas $DAEMON \
+    --oknodo \
+    --make-pidfile \
+    --background \
+    --chuid mysqlrouter \
+    -- $DAEMON_OPTIONS 2>/dev/null
+  retval=$?
 
-  case $? in
+  case $retval in
     0) log_end_msg 0 ;;
     1)
       log_warning_msg "already running"
@@ -99,14 +104,22 @@ do_stop() {
     return 0
   fi
 
-  start-stop-daemon --stop --quiet --retry=$STOP_RETRY --pidfile $PID --exec $DAEMON
+  start-stop-daemon --stop \
+    --pidfile $PID \
+    --startas $DAEMON \
+    --quiet \
+    --retry=$STOP_RETRY
   retval=$?
 
   case $retval in
-    0|1)
+    0)
       log_end_msg 0
       ;;
-    2) log_end_msg 1 ;;
+    1)
+      log_warning_msg "not running"
+      log_end_msg 255
+      ;;
+    *) log_end_msg 1 ;;
   esac
 
   return $retval
@@ -135,7 +148,4 @@ case "$1" in
   *)
     >2& echo "Usage: /etc/init.d/mysqlrouter {start|stop|status|restart|force-reload}"
     exit 3
-esac   
-        
-
-
+esac
