@@ -19,7 +19,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "router"
   ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
 
-ADD_TEST_DIR(issues MODULE issues)
+add_test_dir(issues MODULE issues)
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.conf ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
 if(WIN32)

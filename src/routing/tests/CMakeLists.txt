@@ -100,7 +100,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
   INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 
-ADD_TEST_DIR(issues MODULE issues
+add_test_dir(issues MODULE issues
   LIB_DEPENDS routing_tests routing_plugin_tests
   INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
 

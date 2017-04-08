@@ -56,7 +56,7 @@ ENDIF()
 
 foreach(test_dir legal tools)
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})
-        ADD_TEST_DIR(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
+        add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
     endif()
 endforeach()
 

@@ -43,7 +43,7 @@ foreach(dir etc;run;log;bin;lib)
   endif()
 endforeach()
 
-function(ADD_TEST_FILE FILE)
+function(add_test_file FILE)
   set(one_value_args MODULE LABEL ENVIRONMENT)
   set(multi_value_args LIB_DEPENDS INCLUDE_DIRS)
   cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
@@ -93,9 +93,9 @@ function(ADD_TEST_FILE FILE)
     message(ERROR "Unknown test type; file '${FILE}'")
   endif()
 
-endfunction(ADD_TEST_FILE)
+endfunction(add_test_file)
 
-function(ADD_TEST_DIR DIR_NAME)
+function(add_test_dir DIR_NAME)
   set(one_value_args MODULE ENVIRONMENT)
   set(multi_value_args LIB_DEPENDS INCLUDE_DIRS)
   cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
@@ -111,7 +111,7 @@ function(ADD_TEST_DIR DIR_NAME)
 
   foreach(test_file ${test_files})
     if(NOT ${test_file} MATCHES "^helper")
-      ADD_TEST_FILE(${abs_path}/${test_file}
+      add_test_file(${abs_path}/${test_file}
         MODULE ${TEST_MODULE}
         ENVIRONMENT ${TEST_ENVIRONMENT}
         LIB_DEPENDS ${TEST_LIB_DEPENDS}
@@ -120,4 +120,4 @@ function(ADD_TEST_DIR DIR_NAME)
     endif()
   endforeach(test_file)
 
-endfunction(ADD_TEST_DIR)
+endfunction(add_test_dir)
