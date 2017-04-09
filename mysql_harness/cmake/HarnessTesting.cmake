@@ -26,7 +26,13 @@ function(add_harness_test NAME)
   endif()
   target_link_libraries(${NAME}
     PUBLIC harness-library test-helpers ${TEST_LIBRARIES})
-  add_test(${NAME} ${NAME})
+  add_test(NAME ${NAME} COMMAND ${NAME})
+
+   if(WIN32)
+     set_tests_properties(${NAME} PROPERTIES
+       ENVIRONMENT
+         "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};PATH=${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\lib\;${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
+   endif()
 endfunction()
 
 
