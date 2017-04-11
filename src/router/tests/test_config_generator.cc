@@ -493,7 +493,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[DEFAULT]\n"
         "name=myrouter\n"
         "user=mysqlrouter\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"
@@ -545,7 +544,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
           "[DEFAULT]\n"
-          "\n"
           "log_level = INFO\n"
           "\n"
           "[metadata_cache:mycluster]\n"
@@ -600,7 +598,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"
@@ -658,7 +655,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"
@@ -710,7 +706,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     ASSERT_THAT(output.str(),
       Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"
@@ -771,7 +766,6 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         "[DEFAULT]\n"
         "name=myrouter\n"
         "user=mysqlrouter\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"
@@ -834,7 +828,6 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
     Eq("# File automatically generated during MySQL Router bootstrap\n"
         "[DEFAULT]\n"
         "name=myrouter\n"
-        "\n"
         "log_level = INFO\n"
         "\n"
         "[metadata_cache:mycluster]\n"

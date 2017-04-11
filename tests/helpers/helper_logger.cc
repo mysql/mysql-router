@@ -20,7 +20,7 @@
 void init_log() {
   mysql_harness::Config config;
   config.set_default("log_level", "debug");
-  std::list<std::string> log_domains{"", "metadata_cache", "routing"};
+  std::list<std::string> log_domains{"main"};
   mysql_harness::logging::setup("", "", config, log_domains);
 }
 

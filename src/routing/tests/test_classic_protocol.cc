@@ -22,6 +22,7 @@
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
 #include "mysql_routing.h"
+#include "helper_logger.h"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -303,6 +304,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 #endif
+  init_log();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

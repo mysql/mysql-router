@@ -937,8 +937,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
 
   const std::string metadata_key = metadata_cluster;
-  cfp << "\n"
-      << "log_level = INFO\n"
+  cfp << "log_level = INFO\n"
       << "\n"
       << "[metadata_cache:" << metadata_key << "]\n"
       << "router_id=" << router_id << "\n"

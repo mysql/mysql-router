@@ -21,6 +21,7 @@
  *
  */
 
+#include "helper_logger.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
 
@@ -75,6 +76,7 @@ TEST_F(Bug23857183, ConnectToServerWrongIpAndPort) {
 #endif
 
 int main(int argc, char *argv[]) {
+  init_log();
   init_windows_sockets();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

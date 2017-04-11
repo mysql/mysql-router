@@ -26,6 +26,7 @@
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
 #include "mysqlx.pb.h"
+#include "helper_logger.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -553,3 +554,10 @@ TEST_F(XProtocolTest, SendErrorWriteFail)
 
   ASSERT_FALSE(res);
 }
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+

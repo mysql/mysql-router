@@ -22,6 +22,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
 
+#define MYSQL_ROUTER_LOG_DOMAIN "main" // must precede #include "logger.h"
 #include "logger.h"
 #include "logging_registry.h"
 #include "designator.h"
@@ -64,6 +65,10 @@ using std::ostringstream;
  */
 
 namespace mysql_harness {
+
+namespace logging {
+extern const char kMainAppLogDomain[] = MYSQL_ROUTER_LOG_DOMAIN;
+}
 
 void LoaderConfig::fill_and_check() {
   // Set the default value of library for all sections that do not
@@ -335,9 +340,10 @@ void Loader::setup_logging() {
   if (!config_.has_default("log_level"))
     config_.set_default("log_level", kDefaultLogLevelName);
 
-  // The order list contains all the module names, so we use it here.
-  // However, the order of the modules is not important in this case.
-  mysql_harness::logging::setup(program_, logging_folder_, config_, order_);
+  // create loggers: 1 for each module (plugin) + 1 for main program
+  std::list<std::string> log_domains(order_); // order_ contains all the module names
+  log_domains.push_back(logging::kMainAppLogDomain);
+  mysql_harness::logging::setup(program_, logging_folder_, config_, log_domains);
 }
 
 void Loader::teardown_logging() {

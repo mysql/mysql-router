@@ -15,6 +15,7 @@
 */
 
 #ifdef _WINDOWS
+#  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #  define getpid GetCurrentProcessId
 #endif
@@ -60,6 +61,9 @@ static std::map<std::string, LogLevel> g_levels{
 namespace mysql_harness {
 
 namespace logging {
+
+// this is the MYSQL_ROUTER_LOG_DOMAIN of our main binary (Router)
+extern const char kMainAppLogDomain[];
 
 void create_logger(const std::string& name, LogLevel level) {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
@@ -116,18 +120,14 @@ void setup(const std::string& program,
   // Register the console as the handler if the logging folder is
   // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {
-// FIXME decide which we want:
-// Mats' new logger logs to cerr
-// Up until now we logged to cout
-#if 0
     register_handler(std::make_shared<StreamHandler>(std::cerr));
-#else
-    register_handler(std::make_shared<StreamHandler>(std::cout));
-#endif
   } else {
     g_log_file = Path::make_path(logging_folder, program, "log");
     register_handler(std::make_shared<FileHandler>(g_log_file));
   }
+
+  // ensure that we have at least 1 logger registered: the main app logger
+  harness_assert(g_loggers.count(kMainAppLogDomain));
 }
 
 void teardown() {
@@ -143,10 +143,26 @@ void teardown() {
 ////////////////////////////////////////////////////////////////
 // Logging functions for use by plugins.
 
-namespace {
+// We want to hide log_message(), because instead we want plugins to call
+// log_error(), log_warning(), etc. However, those functions must be inline
+// and are therefore defined in the header file - which means log_message()
+// must have external linkage. So to solve this visibility conflict, we declare
+// log_message() locally, inside of log_error(), log_warning(), etc.
+//
+// Normally, this would only leave us with having to define log_message() here.
+// However, since we are building a DLL/DSO with this file, and since VS only
+// allows __declspec(dllimport/dllexport) in function declarations, we must
+// provide both declaration and definition.
+extern "C" void LOGGER_API log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
 
-void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
+extern "C" void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
   harness_assert(level <= LogLevel::kDebug);
+
+  using mysql_harness::logging::kMainAppLogDomain;
+
+  // get timestamp
+  time_t now;
+  time(&now);
 
   // Find the logger for the module
   // NOTE that we copy the logger. Even if some other thread removes this
@@ -157,33 +173,35 @@ void log_message(LogLevel level, const char* module, const char* fmt, va_list ap
     std::lock_guard<std::mutex> lock(g_loggers_mutex);
     logger = g_loggers.at(module);
   } catch (std::out_of_range& exc) {
-  // FIXME think about what to do with this
-  // pro leaving it: unless user sets log level to warning or error, you'll find out right away if you have this problem
-  // pro erasing it: - log_error() is frequently called as part of error handling.  When it throws, we introduce another problem.  It's sort of like throwing in a destructor.
-  //                 - how do you properly code your application to catch this exception?  try-catch inside of catch (error handling) and everywhere else?  global try-catch in main()?
-  //                 - when this throws, it will probably down the router.  Good idea?
-  //                 - if we leave it, we must ensure that whatever catches this exception DOES NOT TRY TO LOG this error :)
-  #if 0
-    throw std::logic_error("Module '" + std::string(module) +
-                           "' not registered");
-  #endif
+    // Logger is not registered for this module (log domain), so log as main
+    // application domain instead
+    harness_assert(g_loggers.count(kMainAppLogDomain));
+    logger = g_loggers[kMainAppLogDomain];
+
+    // Complain that we're logging this elsewhere
+    char msg[mysql_harness::logging::kLogMessageMaxSize];
+    snprintf(msg, sizeof(msg),
+             "Module '%s' not registered with logger - "
+             "logging the following message as '%s' instead",
+             module, kMainAppLogDomain);
+    logger.handle({LogLevel::kError, getpid(), now, kMainAppLogDomain, msg});
+
+    // And switch log domain to main application domain for the original
+    // log message
+    module = kMainAppLogDomain;
   }
 
   // Build the message
-  char message[256];
+  char message[mysql_harness::logging::kLogMessageMaxSize];
   vsnprintf(message, sizeof(message), fmt, ap);
 
   // Build the record for the handler.
-  time_t now;
-  time(&now);
   Record record{level, getpid(), now, module, message};
 
   // Pass the record to the correct logger. The record should be
   // passed to only one logger since otherwise the handler can get
   // multiple calls, resulting in multiple log records.
   logger.handle(record);
-}
-
 }
 
 namespace mysql_harness {
@@ -210,35 +228,6 @@ void unregister_handler(std::shared_ptr<Handler> handler) {
   std::lock_guard<std::mutex> lock(g_loggers_mutex);
   for (auto& entry : g_loggers)
     entry.second.remove_handler(handler);
-}
-
-
-extern "C" void LOGGER_API _vlog_error(const char* module, const char *fmt, va_list args);
-extern "C" void LOGGER_API _vlog_warning(const char* module, const char *fmt, va_list args);
-extern "C" void LOGGER_API _vlog_info(const char* module, const char *fmt, va_list args);
-extern "C" void LOGGER_API _vlog_debug(const char* module, const char *fmt, va_list args);
-
-extern "C" void
-_vlog_error(const char* module, const char *fmt, va_list args) {
-  log_message(LogLevel::kError, module, fmt, args);
-}
-
-
-extern "C" void
-_vlog_warning(const char* module, const char *fmt, va_list args) {
-  log_message(LogLevel::kWarning, module, fmt, args);
-}
-
-
-extern "C" void
-_vlog_info(const char* module, const char *fmt, va_list args) {
-  log_message(LogLevel::kInfo, module, fmt, args);
-}
-
-
-extern "C" void
-_vlog_debug(const char* module, const char *fmt, va_list args) {
-  log_message(LogLevel::kDebug, module, fmt, args);
 }
 
 }  // namespace logging

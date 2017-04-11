@@ -145,7 +145,7 @@ TEST(TestStart, StartLogger) {
 
   // Check that all plugins have a module registered with the logger.
   auto loggers = get_logger_names();
-  EXPECT_THAT(loggers, UnorderedElementsAre("magic"));
+  EXPECT_THAT(loggers, UnorderedElementsAre("main", "magic"));
 }
 
 TEST(TestStart, StartFailure) {

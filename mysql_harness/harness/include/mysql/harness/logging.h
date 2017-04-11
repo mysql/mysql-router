@@ -59,6 +59,12 @@ namespace mysql_harness {
 namespace logging {
 
 /**
+ * Max message length that can be logged; if message is longer,
+ * it will be truncated to this length.
+ */
+const size_t kLogMessageMaxSize = 256;
+
+/**
  * Log level values.
  *
  * Log levels are ordered numerically from most important (lowest
@@ -277,38 +283,37 @@ extern "C" {
 /*
  * Declare the implementation log functions and define inline
  * functions that pick up the log domain defined for the module.
- * These functions are namespace-aware.
  */
 
 inline void log_error(const char* fmt, ...) {
-  extern void _vlog_error(const char* name, const char *fmt, va_list ap);
+  extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
-  _vlog_error(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  log_message(LogLevel::kError, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 
 inline void log_warning(const char* fmt, ...) {
-  extern void _vlog_warning(const char* name, const char *fmt, va_list ap);
+  extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
-  _vlog_warning(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  log_message(LogLevel::kWarning, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 
 inline void log_info(const char* fmt, ...) {
-  extern void _vlog_info(const char* name, const char *fmt, va_list ap);
+  extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
-  _vlog_info(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  log_message(LogLevel::kInfo, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 
 inline void log_debug(const char* fmt, ...) {
-  extern void _vlog_debug(const char* name, const char *fmt, va_list ap);
+  extern void log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
   va_list ap;
   va_start(ap, fmt);
-  _vlog_debug(MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  log_message(LogLevel::kDebug, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 

@@ -19,6 +19,7 @@
  * Tests the metadata cache plugin implementation.
  */
 
+#include "helper_logger.h"
 #include "mock_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/datatypes.h"
@@ -114,6 +115,7 @@ TEST_F(MetadataCachePluginTest, ValidReplicasetTest_1) {
 }
 
 int main(int argc, char *argv[]) {
+  init_log();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

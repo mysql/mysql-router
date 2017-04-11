@@ -71,6 +71,31 @@ using testing::WithParamInterface;
 
 Path g_here;
 
+TEST(FunctionalTest, LogFromUnregisteredModule) {
+  // This logger is the default logger, which is assumed to always exist
+  // (created in Loader::setup_logging()). If logging function is called from
+  // an unregistered log domain, it is redirected to this log, albeit with
+  // an error message preceding it.
+  ASSERT_NO_THROW(create_logger("main"));
+  set_log_level(LogLevel::kDebug);
+
+  std::stringstream buffer;
+  auto handler = std::make_shared<StreamHandler>(buffer);
+  register_handler(handler);
+
+  log_info("Test message from an unregistered module");
+  std::string log = buffer.str();
+
+  // log message should be something like (2 lines):
+  // 2017-04-12 14:05:31 main ERROR [7ffff7fd5780] Module 'my_domain' not registered with logger - logging the following message as 'main' instead
+  // 2017-04-12 14:05:31 main INFO [7ffff7fd5780] Test message from an unregistered module
+  EXPECT_NE(log.npos, log.find(" main ERROR"));
+  EXPECT_NE(log.npos, log.find(" Module 'my_domain' not registered with logger - logging the following message as 'main' instead\n"));
+  size_t first_endl = log.find('\n');
+  EXPECT_NE(log.npos, log.find(" main INFO", first_endl));
+  EXPECT_NE(log.npos, log.find(" Test message from an unregistered module\n", first_endl));
+}
+
 TEST(TestBasic, Setup) {
   // Test that creating a logger will give it a name and a default log
   // level.
@@ -281,8 +306,8 @@ void expect_log(void (*func)(const char*, ...),
 }
 
 TEST(FunctionalTest, Handlers) {
-  // The loader create these modules during start, so tests of the
-  // logger that involve the loader are inside the loader unit
+  // The loader creates these modules during start, so tests of the
+  // logger that involves the loader are inside the loader unit
   // test. Here we instead call these functions directly.
   ASSERT_NO_THROW(create_logger(MYSQL_ROUTER_LOG_DOMAIN));
 

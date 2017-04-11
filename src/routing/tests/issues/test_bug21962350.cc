@@ -69,12 +69,12 @@ public:
 class Bug21962350 : public ::testing::Test {
 protected:
   virtual void SetUp() {
-    orig_cout_ = std::cout.rdbuf(ssout.rdbuf());
+    orig_cerr_ = std::cerr.rdbuf(ssout.rdbuf());
   }
 
   virtual void TearDown() {
-    if (orig_cout_) {
-      std::cout.rdbuf(orig_cout_);
+    if (orig_cerr_) {
+      std::cerr.rdbuf(orig_cerr_);
     }
   }
 
@@ -83,7 +83,7 @@ protected:
   std::stringstream ssout;
 
 private:
-  std::streambuf *orig_cout_;
+  std::streambuf *orig_cerr_;
 };
 
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.

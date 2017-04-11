@@ -20,7 +20,7 @@
 //                   Also while at it, get_mysql_socket() should probably take TCPAddress by const reference
 
 #include "dest_first_available.h"
-
+#include "helper_logger.h"
 #include "routing_mocks.h"
 
 class FirstAvailableTest : public ::testing::Test {
@@ -167,3 +167,10 @@ TEST_F(FirstAvailableTest, StartWithAllDown) {
   ASSERT_EQ(dest().get_server_socket(0, &dummy), -1);
   ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 0); // no more servers
 }
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
