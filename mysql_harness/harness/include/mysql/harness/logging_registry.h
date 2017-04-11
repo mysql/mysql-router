@@ -26,6 +26,12 @@ namespace mysql_harness {
 
 namespace logging {
 
+/**
+ * Return filename of file into which application logs.
+ *
+ * @note If application is logging to console, it will return
+ * an empty string.
+ */
 HARNESS_EXPORT
 const mysql_harness::Path& get_log_file();
 
@@ -47,13 +53,29 @@ void create_logger(const std::string& name,
 HARNESS_EXPORT
 void remove_logger(const std::string& name);
 
-
+/**
+ * Initialize logging facility
+ *
+ * Initializes logging facility by registering all loggers/handlers and
+ * opening appropriate stream for logging. If `logging_folder` is empty,
+ * messages will be logged to console, otherwise, logfile will be used and
+ * its path and filename will be derived from `program` and `logging_folder`
+ * parameters.
+ *
+ * @param program Name of the main program (Router)
+ * @param logging_folder logging_folder provided in configuration file
+ * @param config Configuration items from configuration file
+ * @param modules List of plugin names loaded
+ */
 HARNESS_EXPORT
 void setup(const std::string& program,
            const std::string& logging_folder,
            const mysql_harness::Config& config,
            const std::list<std::string>& modules);
 
+/**
+ * Deinitialize logging facility
+ */
 HARNESS_EXPORT
 void teardown();
 

@@ -41,6 +41,9 @@ using mysql_harness::logging::Logger;
 using mysql_harness::logging::Record;
 using mysql_harness::utility::serial_comma;
 
+// TODO one day we'll improve this and move it to a common spot
+#define harness_assert(COND) if (!(COND)) abort();
+
 std::mutex g_loggers_mutex;
 static std::map<std::string, Logger> g_loggers;
 
@@ -143,7 +146,7 @@ void teardown() {
 namespace {
 
 void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
-  assert(level <= LogLevel::kDebug);
+  harness_assert(level <= LogLevel::kDebug);
 
   // Find the logger for the module
   // NOTE that we copy the logger. Even if some other thread removes this

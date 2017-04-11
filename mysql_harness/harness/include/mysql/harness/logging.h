@@ -266,7 +266,7 @@ extern "C" {
 
 /**
  * Pre-processor symbol containing the name of the log domain. If not
- * defined explicitly when compiling, it will be the null point, which
+ * defined explicitly when compiling, it will be an empty string, which
  * means that it logs to the top log domain.
  */
 

@@ -19,7 +19,6 @@
 #define MYSQL_HARNESS_QUEUE_INCLUDED
 
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <iostream>
 #include <memory>

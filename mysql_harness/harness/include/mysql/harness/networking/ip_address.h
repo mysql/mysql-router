@@ -38,7 +38,7 @@ namespace mysql_harness {
  *
  * @code
  * mysql_harness::IPAddress ip4("127.0.0.1");
- * mysql_harness::IPAddres ip6 = "::1";
+ * mysql_harness::IPAddress ip6 = "::1";
  *
  * std::cout << ip4 << " and " << ip6 << std::endl;
  * @endcode

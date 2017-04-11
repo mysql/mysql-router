@@ -298,10 +298,6 @@ void Loader::start_all() {
 }
 
 void Loader::stop_all() {
-  // PM: Mats added the try/catch inside this for(). I'm not sure why he didn't
-  // add some assert(0) in the catch block though, but just left it empty.
-  // Perhaps it should be added.
-
   for (auto&& section : config_.sections()) {
     try {
       PluginInfo& plugin = plugins_.at(section->name);
@@ -309,7 +305,15 @@ void Loader::stop_all() {
       if (fptr) {
         fptr(section);
       }
-    } catch (std::out_of_range& exc) {}
+    } catch (std::out_of_range& exc) {
+      // We do nothing here, because throwing would only make things worse.
+      // This would be analogous to throwing in a destructor. Keep in mind
+      // that this code runs during Loader teardown, which means:
+      // - Loader will not exist shortly after, so its errorous state doesn't
+      //   matter much
+      // - it already might be executing due to an error (such as missing
+      //   plugin for some config section - the exact case this try/catch traps)
+    }
   }
 }
 
