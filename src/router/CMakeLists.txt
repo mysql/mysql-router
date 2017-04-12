@@ -67,4 +67,17 @@ if(${INSTALL_LAYOUT} STREQUAL "DEFAULT" OR ${INSTALL_LAYOUT} STREQUAL "STANDALON
       WORLD_READ WORLD_EXECUTE
     )
   endforeach()
+  if(WIN32)
+    # In commercial ZIP packages we distribute the redistributable VC++ runtime
+    # But that can be done only in release builds (not debug).
+    # (Debug builds ZIP packages does not include it)
+   if((NOT GPL) AND INSTALL_LAYOUT STREQUAL "STANDALONE")
+     if(NOT(DMYSQL_BUILD STREQUAL "debug"))
+       message(STATUS "Gathering VC++ redistributable")
+       include(InstallRequiredSystemLibraries)
+     else()
+       message(WARNING "No VC++ runtime will be redistributed for Debug builds")
+     endif()
+    endif()
+  endif()
 endif()
