@@ -25,6 +25,7 @@
 #include "logger.h"
 #include "mysql/harness/filesystem.h"
 #include "include/magic.h"
+#include "common.h"
 
 ////////////////////////////////////////
 // Internal interfaces

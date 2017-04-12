@@ -25,30 +25,6 @@
 #include <memory>
 #include <mutex>
 
-namespace std {
-
-// test for C++14 (in MSVC, use _MSC_VER as __cplusplus in unreliable there)
-#if (!defined(_WIN32) && __cplusplus < 201402L) \
-  || (defined(_WIN32) && _MSC_VER < 1900)
-
-/**
- * Construct an object and wrap it in a unique pointer.
- *
- * @note It just overload the object constructor in the C++14
- * definition. There is no definition of array types here.
- *
- * @param T Type of the object to wrap.
- * @param args Argument pack for constructor of `T`.
- * @return An instance of `std::unique_ptr<T>`
- */
-template <class T, class... Args> unique_ptr<T> make_unique(Args&&... args) {
-  return typename std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-
-#endif
-
-}  // namespace std
-
 namespace mysql_harness {
 
 /**
