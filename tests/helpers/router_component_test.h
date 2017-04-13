@@ -1,0 +1,213 @@
+/*
+  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+#include "process_launcher.h"
+#include "router_test_helpers.h"
+
+#include <cstring>
+#include <sstream>
+#include <map>
+#include <streambuf>
+#include <vector>
+#ifndef _WIN32
+#include <unistd.h>
+#else
+typedef long ssize_t;
+#endif
+
+using mysql_harness::Path;
+
+/** @brief maximum number of parameters that can be passed to the launched process */
+const size_t MAX_PARAMS{30};
+
+/** @class RouterComponentTest
+ *
+ * Base class for the MySQLRouter component-like tests.
+ * Enables creating processes, intercepting their output, writing to input, etc.
+ *
+ **/
+class RouterComponentTest {
+ protected:
+
+  RouterComponentTest();
+
+  /** @class CommandHandle
+   *
+   * Object of this class gets return from launch_* method and can be
+   * use to manipulate launched process (get the output, exit code,
+   * inject input, etc.)
+   *
+   **/
+  class CommandHandle {
+   public:
+    /** @brief Checks if the process wrote the specified string to its output.
+     *
+     * @param str         Expected output string
+     * @param regex       True if str is a regex pattern
+     * @param timeout_ms  Timeout in milliseconds, to wait for the output
+     * @return Returns bool flag indicating if the specified string appeared
+     *                 in the process' output.
+     */
+    bool expect_output(const std::string& str,
+                       bool regex = false,
+                       unsigned timeout_ms = 1000);
+
+    /** @brief Returns the full output that was produced the process till moment
+     *         of calling this method.
+     */
+    std::string get_full_output() {
+      while (read_output(0)) {}
+      return execute_output_raw_;
+    }
+
+    /** @brief Register the response that should be written to the process' input descriptor
+     *         when the given string appears on it output while executing expect_output().
+     *
+     * @param query     string that should trigger writing the response
+     * @param response  string that should get written
+     */
+    void register_response(const std::string &query,
+                           const std::string &response) {
+      output_responses_[query] = response;
+    }
+
+    /** @brief Returns the exit code of the process.
+     *
+     *  If the process did not finish yet waits the given number of milliseconds.
+     *  If the timeout expired it throws runtime_error.
+     *  In case of failure it throws system_error.
+     *
+     * @param timeout_ms maximum amount of time to wait for the process to finish
+     * @returns exit code of the process
+     */
+    int exit_code(unsigned timeout_ms = 1000) {
+      return launcher_.wait(timeout_ms);
+    }
+
+
+   private:
+    CommandHandle(const std::string &app_cmd,
+                 const char **args,
+                 bool include_stderr):
+       launcher_(app_cmd.c_str(), args, include_stderr) {
+     launcher_.start();
+    }
+
+    bool output_contains(const std::string& str,
+                         bool regex = false) const;
+
+    bool read_output(unsigned timeout_ms);
+    void handle_output(const std::string &line);
+
+    ProcessLauncher launcher_; // <- this guy's destructor takes care about
+                               // killing the spawned process
+    std::string execute_output_raw_;
+    std::map<std::string, std::string> output_responses_;
+
+    friend class RouterComponentTest;
+  };
+
+  /** @brief Gtest class SetUp, prepares the testcase.
+   */
+  virtual void SetUp();
+
+  /** @brief Launches the MySQLRouter process.
+   *
+   * @param   params string containing command line parameters to pass to process
+   * @param   catch_stderr bool flag indicating if the process' error output stream
+   *                       should be included in the output caught from the process
+   * @param   with_sudo    bool flag indicating if the process' should be execute with
+   *                       sudo priviledges
+   *
+   * @returns handle to the launched proccess
+   */
+  CommandHandle launch_router(const std::string &params,
+                     bool catch_stderr = true,
+                     bool with_sudo = false);
+
+  /** @brief Launches the MySQLServerMock process.
+   *
+   * @param   json_file path to the json file containing expected queries definitions
+   * @param   port      number of the port where the mock server will accept the
+   *                    client connections
+   *
+   * @returns handle to the launched proccess
+   */
+  CommandHandle launch_mysql_server_mock(const std::string& json_file,
+                                         unsigned port);
+
+  /** @brief Removes non-empty directory recursively.
+   *
+   * @param dir name of the directory to remove
+   *
+   * @returns 0 on success, error code on failure
+   */
+  int purge_dir(const std::string& dir);
+
+  /** @brief Creates a temporary directory and returns it's path.
+   *
+   * It throws runtime_error exception if the operation failed.
+   *
+   * @param name  name to be used as a directory name (or part of the name
+   *              if random name is used (non-Windows)
+   *
+   * @returns path to the created directory
+   */
+  static std::string get_tmp_dir(const std::string &name = "router");
+
+  /** @brief Probes if the selected TCP port is accepting the connections.
+   *
+   * @param port          TCP port number to check
+   * @param timeout_msec  maximum timeout to wait for the port
+   * @param hostname      name/IP address of the network host to check
+   *
+   * @returns true if the selected port accepts connections, false otherwise
+   */
+  bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
+                           const std::string &hostname = "127.0.0.1");
+
+  /** @brief Gets path to the directory containing testing data
+   *         (conf files, json files).
+   */
+  Path &get_data_dir() {
+    return data_dir_;
+  }
+
+  std::string create_config_file(const std::string &content = "",
+                                 const std::string &directory = get_tmp_dir("conf"),
+                                 const std::string &name = "mysqlrouter.conf");
+
+  void set_origin(const Path &origin) {
+    origin_dir_ = origin;
+  }
+
+ private:
+  CommandHandle launch_command(const std::string &command,
+                               const std::string &params,
+                               bool catch_stderr);
+
+  void get_params(const std::string &command,
+                  const std::vector<std::string> &params_vec,
+                  const char* out_params[MAX_PARAMS]);
+
+  Path data_dir_;
+  Path origin_dir_;
+  Path stage_dir_;
+  Path plugin_dir_;
+  Path mysqlrouter_exec_;
+  Path mysqlserver_mock_exec_;
+};

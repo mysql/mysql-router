@@ -18,25 +18,35 @@ include_directories(helpers
   ${CMAKE_SOURCE_DIR}/src/router/include/mysqlrouter
   )
 
+set(helper_sources
+  helpers/router_test_helpers.cc
+  helpers/mysql_session_replayer.cc
+  helpers/process_launcher.cc
+  helpers/router_component_test.cc
+)
+
 if(WIN32)
-  add_library(routertest_helpers STATIC
-    helpers/cmd_exec-windows.cc
-    helpers/router_test_helpers.cc
-    helpers/mysql_session_replayer.cc
-  )
+  list(APPEND helper_sources helpers/cmd_exec-windows.cc)
+  add_library(routertest_helpers STATIC ${helper_sources})
 else()
-  add_library(routertest_helpers SHARED
-    helpers/cmd_exec.cc
-    helpers/router_test_helpers.cc
-    helpers/mysql_session_replayer.cc
-  )
+  list(APPEND helper_sources helpers/cmd_exec.cc)
+  add_library(routertest_helpers SHARED ${helper_sources})
 endif()
 
 target_link_libraries(routertest_helpers harness-library router_lib)
+
+set(helpers_include_dirs
+  ${CMAKE_SOURCE_DIR}/tests/helpers/
+  ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
+  ${CMAKE_BINARY_DIR}/harness
+  ${CMAKE_BINARY_DIR}/include
+  ${CMAKE_SOURCE_DIR}/mysql_harness/ext/gmock/include
+  ${CMAKE_SOURCE_DIR}/mysql_harness/ext/gtest/include
+  )
+
 set_target_properties(routertest_helpers PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
-  INCLUDE_DIRECTORIES
-    "${CMAKE_SOURCE_DIR}/tests/helpers/;${CMAKE_SOURCE_DIR}/mysql_harness/harness/include;${CMAKE_BINARY_DIR}/harness;${CMAKE_BINARY_DIR}/include;"
+  INCLUDE_DIRECTORIES "${helpers_include_dirs}"
 )
 
 IF(NOT GPL)
@@ -48,3 +58,6 @@ foreach(test_dir legal tools)
         ADD_TEST_DIR(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
     endif()
 endforeach()
+
+add_subdirectory(component)
+add_definitions(-DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

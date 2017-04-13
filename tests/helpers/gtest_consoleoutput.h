@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,6 +57,14 @@ protected:
 #else
     app_mysqlrouter->append("mysqlrouter");
 #endif
+    mysql_server_mock.reset(new Path(*stage_dir));
+    mysql_server_mock->append("bin");
+#ifdef _WIN32
+    mysql_server_mock->append("mysql_server_mock.exe");
+#else
+    mysql_server_mock->append("mysql_server_mock");
+#endif
+
     orig_cout_ = std::cout.rdbuf();
     std::cout.rdbuf(ssout.rdbuf());
   }
@@ -80,6 +88,7 @@ protected:
   std::unique_ptr<Path> plugin_dir;
   std::unique_ptr<Path> app_mysqlrouter;
   std::unique_ptr<Path> origin_dir;
+  std::unique_ptr<Path> mysql_server_mock;
 
   std::stringstream ssout;
   std::streambuf *orig_cout_;

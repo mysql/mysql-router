@@ -128,6 +128,21 @@ size_t read_bytes_with_timeout(int sockfd, void* buffer, size_t n_bytes, uint64_
 std::string get_last_error(int err_code);
 #endif
 
+/** @brief Checks if the given regex pattern can be found in the input string
+ *
+ *
+ * @param s       input string to check
+ * @param pattern regex pattern to look for
+ *
+ * @return true if the given pattern could be found, false otherwise
+ */
+bool pattern_found(const std::string &s,
+                   const std::string &pattern);
+
+/** @brief Returns last socket call error number.
+ */
+int get_socket_errno();
+
 /** @brief Initializes Windows sockets (no-op on other OSes)
  *
  * Exits program with error upon failure.

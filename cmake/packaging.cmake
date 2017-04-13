@@ -18,7 +18,7 @@ if(NOT WIN32)
   set(CPACK_PACKAGE_NAME "mysql-router")
 else()
   set(CPACK_PACKAGE_NAME "MySQL Router")
-endif()  
+endif()
 
 
 if(NOT GPL)
@@ -42,7 +42,7 @@ if(WIN32)
     set(CPACK_SYSTEM_NAME "windows-x86-32bit")
   endif()
   set(CPACK_PACKAGE_FILE_NAME "mysql-router${EXTRA_NAME_SUFFIX}-${CPACK_PACKAGE_VERSION}${PROJECT_PACKAGE_EXTRAS}-${CPACK_SYSTEM_NAME}")
-endif()  
+endif()
 
 #
 # Source Distribution
