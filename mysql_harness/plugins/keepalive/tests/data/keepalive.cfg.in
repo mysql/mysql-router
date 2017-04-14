@@ -8,9 +8,6 @@ runtime_folder = {prefix}/var/run/{program}
 config_folder = {prefix}/var/run/{program}
 data_folder = {prefix}/var/lib/{program}
 
-[logger]
-# library = logger
-
 [keepalive]
 interval = 1
 runs = 2

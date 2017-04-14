@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,9 +20,10 @@
  *
  */
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 #include "destination.h"
-#include "logger.h"
+#include "helper_logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 
@@ -43,10 +44,7 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "config_parser.h"
 #include "helper_logger.h"
-
-extern "C" { extern mysql_harness::Plugin LOGGER_API logger; }  // defined in logger.cc
 
 using mysqlrouter::TCPAddress;
 using mysqlrouter::to_string;
@@ -71,12 +69,12 @@ public:
 class Bug21962350 : public ::testing::Test {
 protected:
   virtual void SetUp() {
-    orig_cout_ = std::cout.rdbuf(ssout.rdbuf());
+    orig_cerr_ = std::cerr.rdbuf(ssout.rdbuf());
   }
 
   virtual void TearDown() {
-    if (orig_cout_) {
-      std::cout.rdbuf(orig_cout_);
+    if (orig_cerr_) {
+      std::cerr.rdbuf(orig_cerr_);
     }
   }
 
@@ -85,27 +83,12 @@ protected:
   std::stringstream ssout;
 
 private:
-  std::streambuf *orig_cout_;
+  std::streambuf *orig_cerr_;
 };
 
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
-// TODO: might want to move it to some common helper function and make it available to all tests
 TEST_F(Bug21962350, InitLogger) {
-
-  // set log level in Config
-  mysql_harness::Config config;
-  config.add("logger");
-  mysql_harness::Config::SectionList sections = config.get("logger");
-  mysql_harness::ConfigSection*       section = sections.front();
-  section->set("level", "DEBUG");
-
-  // package Config inside of AppInfo
-  mysql_harness::AppInfo info;
-  memset(&info, 0, sizeof(info)); // set to all-NULL
-  info.config = &config;
-
-  // init logger
-  logger.init(&info);
+  init_log();
 }
 
 TEST_F(Bug21962350, AddToQuarantine) {

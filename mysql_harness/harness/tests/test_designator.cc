@@ -32,6 +32,8 @@
 // Standard include files
 #include <iostream>
 
+using mysql_harness::utility::make_range;
+
 void check_desig(const std::string& input, const std::string& plugin) {
   Designator desig(input);
   EXPECT_EQ(plugin, desig.plugin);

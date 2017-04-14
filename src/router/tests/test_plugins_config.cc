@@ -64,23 +64,22 @@ TEST_F(PluginsConfigTest, NoPluginLoaded) {
   ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
 }
 
-TEST_F(PluginsConfigTest, OnlyLoggerLoaded) {
+TEST_F(PluginsConfigTest, OnePluginLoaded) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[logger]\n";
-  c << "library = logger\n\n";
+  c << "[magic]\n\n"; // any plugin would do
   c.close();
 
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_THAT(cmd_result.output, HasSubstr("MySQL Router not configured to load or start any plugin. Exiting."));
+  EXPECT_EQ(0, cmd_result.exit_code);
+  EXPECT_TRUE(cmd_result.output.empty());
 }
 
 TEST_F(PluginsConfigTest, TwoMetadadaCacheSections) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[logger]\n\n";
   c << "[metadata_cache:one]\n\n";
   c << "[metadata_cache:two]\n\n";
   c.close();
@@ -94,7 +93,6 @@ TEST_F(PluginsConfigTest, TwoMetadadaCacheSections) {
 TEST_F(PluginsConfigTest, SingleMetadataChacheSection) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[logger]\n\n";
   c << "[metadata_cache:one]\n\n";
   c.close();
 

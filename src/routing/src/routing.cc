@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "config.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "utils.h"
 
 #include <cstring>
@@ -42,6 +42,7 @@
 using mysqlrouter::to_string;
 using mysqlrouter::string_format;
 using mysqlrouter::TCPAddress;
+IMPORT_LOG_FUNCTIONS()
 
 namespace routing {
 

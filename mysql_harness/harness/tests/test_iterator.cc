@@ -32,6 +32,8 @@
 #include <iostream>
 #include <stdexcept>
 
+using mysql_harness::utility::make_range;
+
 TEST(TestIterator, TestIterator) {
   static const char* array[] = {
     "one", "two", "three",

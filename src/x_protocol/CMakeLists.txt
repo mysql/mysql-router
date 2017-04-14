@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ set(include_dirs
 link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 add_harness_plugin(x_protocol
   SOURCES ${SOURCE_FILES}
-  REQUIRES router_lib logger)
+  REQUIRES router_lib)
 target_include_directories(x_protocol PRIVATE ${include_dirs})
 
 target_link_libraries(x_protocol PUBLIC optimized ${PROTOBUF_LIBRARY} debug ${PROTOBUF_LIBRARY_DEBUG})

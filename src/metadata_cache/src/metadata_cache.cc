@@ -17,11 +17,14 @@
 
 #include "common.h"
 #include "metadata_cache.h"
+#include "mysql/harness/logging.h"
 
 #include <cassert>
 #include <vector>
 #include <memory>
 #include <cmath>  // fabs()
+
+IMPORT_LOG_FUNCTIONS()
 
 /**
  * Initialize a connection to the MySQL Metadata server.

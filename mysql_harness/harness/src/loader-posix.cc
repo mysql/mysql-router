@@ -15,10 +15,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
+
+#include "mysql/harness/filesystem.h"
 
 #include "exception.h"
-#include "filesystem.h"
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -54,7 +55,7 @@ class Loader::PluginInfo::Impl {
 Loader::PluginInfo::Impl::Impl(const std::string& plugin_folder,
                                const std::string& library_name)
   : path(Path::make_path(plugin_folder, library_name, "so")),
-    handle(dlopen(path.c_str(), RTLD_LAZY | RTLD_GLOBAL)) {
+    handle(dlopen(path.c_str(), RTLD_LOCAL | RTLD_NOW)) {
   if (handle == nullptr)
     throw bad_plugin(dlerror());
 }

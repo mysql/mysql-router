@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #include "mysql_routing.h"
 #include "utils.h"
 
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/logging.h"
+#include "mysql/harness/config_parser.h"
 
 #include <atomic>
 #include <iostream>
@@ -33,13 +33,10 @@ using mysqlrouter::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using std::string;
+IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "routing";
-
-const char *kRoutingRequires[1] = {
-    "logger",
-};
 
 static void validate_socket_info(const std::string& err_prefix,
                                  const mysql_harness::ConfigSection* section,
@@ -197,7 +194,7 @@ extern "C" {
       mysql_harness::ARCHITECTURE_DESCRIPTOR,
       "Routing MySQL connections between MySQL clients/connectors and servers",
       VERSION_NUMBER(0, 0, 1),
-      sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+      0, nullptr, // requires
       0, nullptr, // Conflicts
       init,       // init
       nullptr,    // deinit

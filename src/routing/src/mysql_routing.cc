@@ -21,7 +21,7 @@
 #include "common.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
@@ -73,6 +73,7 @@ using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 using mysqlrouter::TCPAddress;
 using mysqlrouter::is_valid_socket_name;
+IMPORT_LOG_FUNCTIONS()
 
 static int kListenQueueSize = 1024;
 

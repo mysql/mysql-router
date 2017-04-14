@@ -18,7 +18,7 @@
 #ifndef MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED
 #define MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #include <memory>
 
@@ -65,13 +65,13 @@ protected:
     mysql_server_mock->append("mysql_server_mock");
 #endif
 
-    orig_cout_ = std::cout.rdbuf();
-    std::cout.rdbuf(ssout.rdbuf());
+    orig_cerr_ = std::cerr.rdbuf();
+    std::cerr.rdbuf(ssout.rdbuf());
   }
 
   virtual void TearDown() {
-    if (orig_cout_) {
-      std::cout.rdbuf(orig_cout_);
+    if (orig_cerr_) {
+      std::cerr.rdbuf(orig_cerr_);
     }
   }
 
@@ -91,7 +91,7 @@ protected:
   std::unique_ptr<Path> mysql_server_mock;
 
   std::stringstream ssout;
-  std::streambuf *orig_cout_;
+  std::streambuf *orig_cerr_;
 };
 
 #endif // MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED

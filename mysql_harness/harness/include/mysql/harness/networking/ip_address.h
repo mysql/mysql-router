@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,11 +18,13 @@
 #ifndef MYSQL_HARNESS_NETWORKING_IP_ADDRESS_INCLUDED
 #define MYSQL_HARNESS_NETWORKING_IP_ADDRESS_INCLUDED
 
-#include "networking/ipv4_address.h"
-#include "networking/ipv6_address.h"
+#include "mysql/harness/networking/ipv4_address.h"
+#include "mysql/harness/networking/ipv6_address.h"
+#include "harness_export.h"
 
 #include <ostream>
 #include <string>
+
 
 namespace mysql_harness {
 
@@ -36,13 +38,13 @@ namespace mysql_harness {
  *
  * @code
  * mysql_harness::IPAddress ip4("127.0.0.1");
- * mysql_harness::IPAddres ip6 = "::1";
+ * mysql_harness::IPAddress ip6 = "::1";
  *
  * std::cout << ip4 << " and " << ip6 << std::endl;
  * @endcode
  *
  */
-class IPAddress {
+class HARNESS_EXPORT IPAddress {
  public:
   /**
    * Constructs a new IPAddress object as IPv4 and initialized
@@ -175,6 +177,7 @@ class IPAddress {
    *
    * @return true if IP addresses are equal
    */
+  HARNESS_EXPORT
   friend bool operator==(const IPAddress &a, const IPAddress &b);
 
   /**
@@ -182,6 +185,7 @@ class IPAddress {
    *
    * @return true if IP addresses are not equal
    */
+  HARNESS_EXPORT
   friend bool operator!=(const IPAddress &a, const IPAddress &b) {
     return !(a == b);
   }
@@ -189,6 +193,7 @@ class IPAddress {
   /**
    * Overload stream insertion operator
    */
+  HARNESS_EXPORT
   friend std::ostream &operator<<(std::ostream &out, const IPAddress &address) {
     out << address.str();
     return out;

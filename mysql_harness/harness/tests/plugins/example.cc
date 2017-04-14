@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
 #include <iostream>
@@ -32,6 +32,7 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::logging::log_info;
 
 #ifdef WIN32
 #  define EXAMPLE_IMPORT __declspec(dllimport)
@@ -41,7 +42,6 @@ using mysql_harness::Plugin;
 
 extern "C" {
   extern void EXAMPLE_IMPORT do_magic();
-  extern void EXAMPLE_IMPORT log_info(const char *, ...);
 }
 
 
@@ -52,15 +52,8 @@ extern "C" {
 #  define EXAMPLE_API
 #endif
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
-using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::Plugin;
-
 static const char* requires[] = {
   "magic (>>1.0)",
-  "logger",
 };
 
 static int init(const AppInfo*);
@@ -96,7 +89,7 @@ static int deinit(const AppInfo*) {
 
 static void start(const ConfigSection*) {
   for (int x = 0 ; x < 10 ; ++x) {
-    log_info("<count: %d>", x);
+    log_info("example", "<count: %d>", x);
 #ifndef _WIN32
     sleep(1);
 #else
@@ -104,18 +97,3 @@ static void start(const ConfigSection*) {
 #endif
   }
 }
-
-Plugin example_plugin = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "An example plugin",
-  VERSION_NUMBER(1,0,0),
-  sizeof(requires)/sizeof(*requires),
-  requires,
-  0,
-  nullptr,  // conflicts
-  init,     // init
-  deinit,   // deinit
-  start,    // start
-  nullptr,  // stop
-};

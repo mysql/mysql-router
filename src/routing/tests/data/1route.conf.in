@@ -6,7 +6,5 @@ plugin_folder = @ROUTER_STAGE_DIR@/lib/mysqlrouter
 runtime_folder = @ROUTER_STAGE_DIR@/run
 config_folder = @ROUTER_STAGE_DIR@/etc
 
-[logger]
-
 [routing]
 destination = @RUNNING_MYSQL_SERVER@

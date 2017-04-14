@@ -18,7 +18,7 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
@@ -39,6 +39,7 @@
 
 using mysqlrouter::MySQLSession;
 using mysqlrouter::strtoi_checked;
+IMPORT_LOG_FUNCTIONS()
 
 /**
  * Return a string representation of the input character string.

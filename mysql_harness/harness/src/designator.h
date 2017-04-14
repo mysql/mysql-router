@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "harness_export.h"
+
 /**
  * Class representing a version.
  *
@@ -97,7 +99,7 @@ class Version {
  * version ::= <number> "." <number> "." <number>
  */
 
-class Designator {
+class HARNESS_EXPORT Designator {
  public:
   explicit Designator(const std::string& str);
 

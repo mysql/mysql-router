@@ -18,10 +18,16 @@
 #ifndef MYSQL_HARNESS_UTILITIES_INCLUDED
 #define MYSQL_HARNESS_UTILITIES_INCLUDED
 
+#include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include "harness_export.h"
+
+namespace mysql_harness {
+
+namespace utility {
 
 /**
  * Class to turn C array into range.
@@ -88,7 +94,7 @@ class Range {
 
 template <class Type>
 Range<Type> make_range(Type* ptr, size_t length) {
-  return ::Range<Type>(ptr, length);
+  return Range<Type>(ptr, length);
 }
 
 
@@ -184,7 +190,12 @@ find_range_first(const Map& assoc,
 
 std::string dirname(const std::string& path);
 std::string basename(const std::string& path);
+
+/**
+ * Remove starting and trailing delimiters from string.
+ */
 void strip(std::string* str, const char* chars = " \t\n\r\f\v");
+HARNESS_EXPORT
 std::string strip_copy(std::string str, const char* chars = " \t\n\r\f\v");
 std::string string_format(const char* format, ...);
 std::vector<std::string> wrap_string(const std::string& to_wrap,
@@ -192,4 +203,47 @@ std::vector<std::string> wrap_string(const std::string& to_wrap,
 bool matches_glob(const std::string& word, const std::string& pattern);
 std::string get_message_error(int errcode);
 
+/**
+ * Emit a range of elements using the serial comma.
+ *
+ * This function can be used to output a range of elements using a
+ * serial comma (also known as the Oxford comma). To emit a list of
+ * the first five prime numbers as "The first five prime numbers are
+ * 2, 3, 5, 7, and 11":
+ *
+ * @code
+ * std::vector<int> primes{2, 3, 5, 7, 11};
+ * std::cout << "The first five prime numbers are ";
+ * serial_comma(std::cout, primes.begin(), primes.end());
+ * std::cout << std::endl;
+ * @endcode
+ *
+ * @param out Output stream
+ * @param start Input iterator to start of range.
+ * @param finish Input iterator to one-after-end of range.
+ * @param delim Delimiter to use. Defaults to "and".
+ */
+template <class InputIt>
+void serial_comma(std::ostream& out, InputIt start, InputIt finish,
+                  const std::string& delim = "and") {
+  auto elements = std::distance(start, finish);
+  if (elements == 1) {
+    out << *start;
+  } else if (elements == 2) {
+    out << *start++;
+    out << " " << delim << " " << *start;
+  } else {
+    while (elements-- > 0) {
+      out << *start++;
+      if (elements > 0)
+        out << ", ";
+      if (elements == 1)
+        out << delim << " ";
+    }
+  }
+}
+
+}  // namespace utility
+
+} // namespace mysql_harness
 #endif /* MYSQL_HARNESS_UTILITIES_INCLUDED */

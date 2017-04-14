@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
-#include "networking/ipv6_address.h"
+#include "mysql/harness/networking/ipv6_address.h"
+
 #include "utilities.h"
 
 #ifndef _WIN32

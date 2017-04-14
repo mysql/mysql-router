@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@
 #pragma clang diagnostic pop
 #endif
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 
 #include "mysql_routing.h"
 

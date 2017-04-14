@@ -28,6 +28,8 @@ set(harness_source
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/dim.cc
+  src/logger.cc
+  src/logging_registry.cc
   src/random_generator.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
@@ -64,7 +66,7 @@ endif()
 file(GLOB harness_headers include/*.h)
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql/harness
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_BINARY_DIR}/include
   ${MY_SSL_INCLUDE_DIRS})
@@ -160,9 +162,6 @@ else()
     file(MAKE_DIRECTORY "${STAGE_DIR}/${conf}/lib/")
   endforeach()
 endif()
-
-# copy harness headers
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
 
 install(FILES ${harness_headers}
   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})

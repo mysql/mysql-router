@@ -120,9 +120,6 @@ example in `data/main.conf`:
     [example]
     library = example
 
-    [logger]
-    library = logger
-
 The configuration file contain information about all the plugins that
 should be loaded when starting and configuration options for each
 plugin.  The default section contain configuration options available

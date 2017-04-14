@@ -16,7 +16,7 @@
 */
 
 #include "utils.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 #include "common.h"
 
 #include <algorithm>

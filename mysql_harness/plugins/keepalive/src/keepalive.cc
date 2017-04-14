@@ -32,7 +32,7 @@
 
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
@@ -40,12 +40,7 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::AppInfo;
-using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::Plugin;
+using mysql_harness::logging::log_info;
 
 // Keep symbols with external linkage away from global scope so that
 // they do not clash with other symbols.
@@ -94,10 +89,6 @@ static void start(const ConfigSection *section) {
   }
 }
 
-static const char *requires[] = {
-  "logger",
-};
-
 #if defined(_MSC_VER) && defined(keepalive_EXPORTS)
 /* We are building this library */
 #  define DLLEXPORT __declspec(dllexport)
@@ -111,7 +102,7 @@ Plugin DLLEXPORT keepalive = {
   ARCHITECTURE_DESCRIPTOR,
   "Keepalive Plugin",
   VERSION_NUMBER(0, 0, 1),
-  sizeof(requires)/sizeof(*requires), requires,
+  0, nullptr,
   0, nullptr,  // conflicts
   init,        // init
   nullptr,     // deinit

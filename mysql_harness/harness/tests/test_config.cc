@@ -424,8 +424,6 @@ TEST(TestConfig, ConfigReadBasic) {
      "config_folder = etc\n"
      "plugin_folder = var/lib\n"
      "runtime_folder = var/run\n"
-     "[logger]\n"
-     "library = logger\n"
      "[example]\n"
      "library = example\n"
      "[magic]\n"
@@ -440,7 +438,6 @@ TEST(TestConfig, ConfigReadBasic) {
   EXPECT_EQ(dir_config, stream_config);
   EXPECT_EQ(file_config, stream_config);
 }
-
 
 // Here we test that reads of configuration entries overwrite previous
 // read entries.
@@ -472,8 +469,6 @@ TEST(TestConfig, SectionRead) {
      "config_folder = etc\n"
      "plugin_folder = var/lib\n"
      "runtime_folder = var/run\n"
-     "[logger]\n"
-     "library = logger\n"
      "[empty]\n"
      "[example]\n"
      "library = magic\n"
@@ -485,7 +480,7 @@ TEST(TestConfig, SectionRead) {
 
   // Test that the sections command return the right sections
   EXPECT_THAT(section_names(config.sections()),
-              UnorderedElementsAreArray({"logger", "example", "empty"}));
+              UnorderedElementsAreArray({"example", "empty"}));
 
   // Test that options for a section is correct
   std::vector<std::pair<std::string, std::string>> expected_options{

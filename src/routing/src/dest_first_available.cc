@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "dest_first_available.h"
+#include "mysql/harness/logging.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -23,6 +24,8 @@
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #endif
+
+IMPORT_LOG_FUNCTIONS()
 
 int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
   // Say for example, that we have three servers: A, B and C.

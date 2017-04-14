@@ -22,11 +22,6 @@ using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 
-using mysql_harness::AppInfo;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-
 static const char* requires[] = {
   // This plugin do not exist
   "foobar",

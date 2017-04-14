@@ -20,7 +20,7 @@
  *
  */
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 
 ////////////////////////////////////////
 // Third-party include files

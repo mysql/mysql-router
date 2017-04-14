@@ -22,10 +22,11 @@
 #include <vector>
 
 #include "ip_address.h"
+#include "harness_export.h"
 
 namespace mysql_harness {
 
-class Resolver {
+class HARNESS_EXPORT Resolver {
  public:
   /**
    * Resolves the hostname to one or more IP addresses

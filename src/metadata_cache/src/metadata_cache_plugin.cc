@@ -29,20 +29,17 @@
 #include "keyring/keyring_manager.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
-#include "logger.h"
-#include "config_parser.h"
+#include "mysql/harness/logging.h"
+#include "mysql/harness/config_parser.h"
 
 using metadata_cache::LookupResult;
 using mysqlrouter::TCPAddress;
 using std::string;
+IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
-
-static const char *kRoutingRequires[] = {
-    "logger",
-};
 
 /**
  * Load the metadata cache configuration from the router config file.
@@ -138,7 +135,7 @@ mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(kRoutingRequires) / sizeof(*kRoutingRequires), kRoutingRequires, // Requires
+    0, NULL,                                      // Requires
     0, NULL,                                      // Conflicts
     init,
     NULL,

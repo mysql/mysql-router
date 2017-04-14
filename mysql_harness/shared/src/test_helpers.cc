@@ -17,7 +17,7 @@
 
 #include "test/helpers.h"
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 ::testing::AssertionResult
 AssertLoaderSectionAvailable(const char *loader_expr,

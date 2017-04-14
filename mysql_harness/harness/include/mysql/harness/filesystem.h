@@ -88,7 +88,7 @@ class HARNESS_EXPORT Path {
     TYPE_UNKNOWN,
   };
 
-  friend std::ostream& operator<<(std::ostream& out, FileType type);
+  friend HARNESS_EXPORT std::ostream& operator<<(std::ostream& out, FileType type);
 
  /**
    * Construct a path
@@ -258,6 +258,8 @@ class HARNESS_EXPORT Path {
    */
   static const char * const root_directory;
 
+  operator bool() const noexcept { return is_set(); }
+
  private:
   void validate_non_empty_path() const;
 
@@ -393,6 +395,6 @@ class HARNESS_EXPORT Directory : public Path {
   DirectoryIterator glob(const std::string& glob);
 };
 
-}
+}      // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_FILESYSTEM_INCLUDED */

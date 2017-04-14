@@ -21,8 +21,8 @@
 #include "mysqlrouter/uri.h"
 #include "common.h"
 #include "dim.h"
-#include "filesystem.h"
-#include "config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/config_parser.h"
 #include "common.h"
 #include "rapidjson/rapidjson.h"
 #include "random_generator.h"
@@ -937,9 +937,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
 
   const std::string metadata_key = metadata_cluster;
-  cfp << "\n"
-      << "[logger]\n"
-      << "level = INFO\n"
+  cfp << "log_level = INFO\n"
       << "\n"
       << "[metadata_cache:" << metadata_key << "]\n"
       << "router_id=" << router_id << "\n"

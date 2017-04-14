@@ -26,9 +26,9 @@
  * features to provide more flexible configuration of the harness.
  */
 
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 
-#include "filesystem.h"
 #include "utilities.h"
 
 #include <algorithm>
@@ -41,6 +41,10 @@
 
 using std::ostringstream;
 using std::shared_ptr;
+
+using mysql_harness::utility::find_range_first;
+using mysql_harness::utility::matches_glob;
+using mysql_harness::utility::strip;
 
 namespace mysql_harness {
 

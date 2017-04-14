@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #                      location
 #
 # add_harness_plugin(name [NO_INSTALL]
+#                    LOG_DOMAIN domain
 #                    SOURCES file1 ...
 #                    INTERFACE directory
 #                    DESTINATION_SUFFIX string
@@ -35,6 +36,10 @@
 # directory, you have to set the target property
 # LIBRARY_OUTPUT_DIRECTORY yourself.
 #
+# If LOG_DOMAIN is given, it will be used as the log domain for the
+# plugin. If no LOG_DOMAIN is given, the log domain will be the name
+# of the plugin.
+#
 # If DESTINATION_SUFFIX is provided, it will be appended to the
 # destination for install commands. DESTINATION_SUFFIX is optional and
 # default to ${HARNESS_NAME}.
@@ -48,21 +53,27 @@
 # that the plugin path need to be set at compile time and cannot be
 # changed after that.
 
-function(ADD_HARNESS_PLUGIN NAME)
+function(add_harness_plugin NAME)
   set(_options NO_INSTALL)
-  set(_single_value INTERFACE DESTINATION_SUFFIX)
+  set(_single_value LOG_DOMAIN INTERFACE DESTINATION_SUFFIX)
   set(_multi_value SOURCES REQUIRES)
-  cmake_parse_arguments(ADD_HARNESS_PLUGIN
+  cmake_parse_arguments(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
-  if(ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS)
+  if(_option_UNPARSED_ARGUMENTS)
     message(AUTHOR_WARNING
-      "Unrecognized arguments: ${ADD_HARNESS_PLUGIN_UNPARSED_ARGUMENTS}")
+      "Unrecognized arguments: ${_option_UNPARSED_ARGUMENTS}")
   endif()
 
   # Set default values
-  if(NOT ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX)
-    set(ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX ${HARNESS_NAME})
+  if(NOT _option_DESTINATION_SUFFIX)
+    set(_option_DESTINATION_SUFFIX ${HARNESS_NAME})
+  endif()
+
+  # Set the log domain to the name of the plugin unless an explicit
+  # log domain was given.
+  if(NOT _option_LOG_DOMAIN)
+    set(_option_LOG_DOMAIN "\"${NAME}\"")
   endif()
 
   # Add the library and ensure that the name is good for the plugin
@@ -70,7 +81,9 @@ function(ADD_HARNESS_PLUGIN NAME)
   # intend to link against it, which is something that MODULE does not
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
-  add_library(${NAME} SHARED ${ADD_HARNESS_PLUGIN_SOURCES})
+  add_library(${NAME} SHARED ${_option_SOURCES})
+  target_compile_definitions(${NAME} PRIVATE
+    MYSQL_ROUTER_LOG_DOMAIN=${_option_LOG_DOMAIN})
   if(NOT WIN32)
     set_target_properties(${NAME} PROPERTIES
       PREFIX ""
@@ -80,19 +93,18 @@ function(ADD_HARNESS_PLUGIN NAME)
   # Declare the interface directory for this plugin, if present. It
   # will be used both when compiling the plugin as well as as for any
   # dependent targets.
-  if(ADD_HARNESS_PLUGIN_INTERFACE)
+  if(_option_INTERFACE)
     target_include_directories(${NAME}
-      PUBLIC ${ADD_HARNESS_PLUGIN_INTERFACE})
+      PUBLIC ${_option_INTERFACE})
     execute_process(
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${ADD_HARNESS_PLUGIN_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${_option_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
   endif()
 
   # Add a dependencies on interfaces for other plugins this plugin
   # requires.
   target_link_libraries(${NAME}
     PUBLIC harness-library
-    ${ADD_HARNESS_PLUGIN_REQUIRES})
-
+    ${_option_REQUIRES})
   # Need to be able to link plugins with each other
   if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set_target_properties(${NAME} PROPERTIES
@@ -115,18 +127,18 @@ function(ADD_HARNESS_PLUGIN NAME)
 
   # Add install rules to install the interface header files and the
   # plugin correctly.
-  if(NOT ADD_HARNESS_PLUGIN_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
+  if(NOT _option_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
     if(WIN32)
       install(TARGETS ${NAME}
         RUNTIME DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
     else()
       install(TARGETS ${NAME}
-        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+        LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${_option_DESTINATION_SUFFIX})
     endif()
-    if(ADD_HARNESS_PLUGIN_INTERFACE)
-      file(GLOB interface_files ${ADD_HARNESS_PLUGIN_INTERFACE}/*.h)
+    if(_option_INTERFACE)
+      file(GLOB interface_files ${_option_INTERFACE}/*.h)
       install(FILES ${interface_files}
-        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${ADD_HARNESS_PLUGIN_DESTINATION_SUFFIX})
+        DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${_option_DESTINATION_SUFFIX})
     endif()
   endif()
-endfunction(ADD_HARNESS_PLUGIN)
+endfunction(add_harness_plugin)

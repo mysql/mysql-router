@@ -29,7 +29,7 @@
 #include "protocol/base_protocol.h"
 #include "config.h"
 #include "destination.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "plugin_config.h"

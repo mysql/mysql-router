@@ -31,8 +31,9 @@
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "protocol/protocol.h"
+IMPORT_LOG_FUNCTIONS()
 
 /** @class RouteDestination
  * @brief Manage destinations for a Connection Routing

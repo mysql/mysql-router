@@ -26,7 +26,7 @@
  */
 
 #include "config.h"
-#include "loader.h"
+#include "mysql/harness/loader.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysqlrouter/utils.h"
 

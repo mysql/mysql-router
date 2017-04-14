@@ -18,9 +18,9 @@
 #ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 #define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 
-#include "config_parser.h"
-#include "filesystem.h"
-#include "logger.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 

@@ -15,14 +15,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 ////////////////////////////////////////
 // Package include files
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+
+#define MYSQL_ROUTER_LOG_DOMAIN "main" // must precede #include "logger.h"
+#include "logger.h"
+#include "logging_registry.h"
 #include "designator.h"
 #include "exception.h"
-#include "filesystem.h"
-#include "mysql/harness/plugin.h"
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -40,21 +44,31 @@
 #include <thread>
 #include <vector>
 
-/**
- * @defgroup Loader Plugin loader
- *
- * Plugin loader for loading and working with plugins.
- */
+#ifndef _WINDOWS
+#  include <dlfcn.h>
+#  include <unistd.h>
+#endif
 
-/**
- * @defgroup Loader Plugin loader
- *
- * Plugin loader for loading and working with plugins.
- */
+using mysql_harness::utility::find_range_first;
+using mysql_harness::utility::make_range;
+using mysql_harness::utility::reverse;
+
+using mysql_harness::Path;
+using mysql_harness::Config;
 
 using std::ostringstream;
 
+/**
+ * @defgroup Loader Plugin loader
+ *
+ * Plugin loader for loading and working with plugins.
+ */
+
 namespace mysql_harness {
+
+namespace logging {
+extern const char kMainAppLogDomain[] = MYSQL_ROUTER_LOG_DOMAIN;
+}
 
 void LoaderConfig::fill_and_check() {
   // Set the default value of library for all sections that do not
@@ -99,15 +113,12 @@ void LoaderConfig::fill_and_check() {
 }
 
 Loader::~Loader() {
-  //TODO(Mats) We need to do a proper unload here, keeping refcounts in mind.
+  // TODO PM (after Harness merge):
+  // These were brought in during Harness merge. They should be removed in
+  // upcoming Lifecycle patch, which already calls these elsewhere.
+  stop_all();
+  deinit_all();
 }
-
-// We use RTLD_LAZY when opening the file. This will make function
-// references not be resolve until they are actually used. All
-// interfaces between plugins and the harness have to be as functions.
-//
-// In addition, we use RTLD_GLOBAL to expose the plugin's symbols to
-// other plugins.
 
 Plugin* Loader::load_from(const std::string& plugin_name,
                           const std::string& library_name) {
@@ -231,6 +242,8 @@ void Loader::init_all() {
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
 
+  setup_logging();
+
   for (const std::string& plugin_key : reverse(order_)) {
     PluginInfo &info = plugins_.at(plugin_key);
     if (info.plugin->init && info.plugin->init(&appinfo_))
@@ -291,10 +304,20 @@ void Loader::start_all() {
 
 void Loader::stop_all() {
   for (auto&& section : config_.sections()) {
-    PluginInfo& plugin = plugins_.at(section->name);
-    void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
-    if (fptr) {
-      fptr(section);
+    try {
+      PluginInfo& plugin = plugins_.at(section->name);
+      void (*fptr)(const ConfigSection*) = plugin.plugin->stop;
+      if (fptr) {
+        fptr(section);
+      }
+    } catch (std::out_of_range& exc) {
+      // We do nothing here, because throwing would only make things worse.
+      // This would be analogous to throwing in a destructor. Keep in mind
+      // that this code runs during Loader teardown, which means:
+      // - Loader will not exist shortly after, so its errorous state doesn't
+      //   matter much
+      // - it already might be executing due to an error (such as missing
+      //   plugin for some config section - the exact case this try/catch traps)
     }
   }
 }
@@ -305,6 +328,26 @@ void Loader::deinit_all() {
     if (info.plugin->deinit)
       info.plugin->deinit(&appinfo_);
   }
+
+  teardown_logging();
+}
+
+void Loader::setup_logging() {
+  using mysql_harness::logging::kDefaultLogLevelName;
+
+  // If there is no log level defined, we set it to the default log
+  // level.
+  if (!config_.has_default("log_level"))
+    config_.set_default("log_level", kDefaultLogLevelName);
+
+  // create loggers: 1 for each module (plugin) + 1 for main program
+  std::list<std::string> log_domains(order_); // order_ contains all the module names
+  log_domains.push_back(logging::kMainAppLogDomain);
+  mysql_harness::logging::setup(program_, logging_folder_, config_, log_domains);
+}
+
+void Loader::teardown_logging() {
+  mysql_harness::logging::teardown();
 }
 
 bool Loader::topsort() {
@@ -350,14 +393,6 @@ bool Loader::visit(const std::string& designator,
     }
   }
   return true;
-}
-
-void Loader::add_logger(const std::string& default_level) {
-  if (!config_.has("logger")) {
-    auto&& section = config_.add("logger");
-    section.add("library", "logger");
-    section.add("level", default_level);
-  }
 }
 
 } // namespace mysql_harness

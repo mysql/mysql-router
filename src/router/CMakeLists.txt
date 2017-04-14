@@ -15,7 +15,6 @@
 
 include_directories(
   include/
-  ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
 )
 
 add_subdirectory(src/)

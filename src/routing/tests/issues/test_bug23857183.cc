@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
  *
  */
 
+#include "helper_logger.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
 
@@ -75,6 +76,7 @@ TEST_F(Bug23857183, ConnectToServerWrongIpAndPort) {
 #endif
 
 int main(int argc, char *argv[]) {
+  init_log();
   init_windows_sockets();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

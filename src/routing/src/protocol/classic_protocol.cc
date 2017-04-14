@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "classic_protocol.h"
 
 #include "common.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "../utils.h"
@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cstring>
 
 using mysql_harness::get_strerror;
+IMPORT_LOG_FUNCTIONS()
 
 bool ClassicProtocol::on_block_client_host(int server, const std::string &log_prefix) {
   auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");

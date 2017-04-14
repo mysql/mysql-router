@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 */
 
 #include "group_replication_metadata.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "metadata.h"
 #include "mysqlrouter/mysql_session.h"
 
@@ -27,6 +27,7 @@
 #include <sstream>
 
 using mysqlrouter::MySQLSession;
+IMPORT_LOG_FUNCTIONS()
 
 // throws metadata_cache::metadata_error
 static std::string find_group_replication_primary_member(MySQLSession& connection) {

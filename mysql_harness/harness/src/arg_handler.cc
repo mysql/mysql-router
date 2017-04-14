@@ -15,7 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "arg_handler.h"
+#include "mysql/harness/arg_handler.h"
+
 #include "utilities.h"
 
 #include <algorithm>
@@ -29,6 +30,9 @@
 using std::string;
 using std::vector;
 using std::unique_ptr;
+
+using mysql_harness::utility::string_format;
+using mysql_harness::utility::wrap_string;
 
 #ifndef NDEBUG
 bool CmdArgHandler::debug_check_option_names(

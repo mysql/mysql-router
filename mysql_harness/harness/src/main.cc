@@ -24,8 +24,9 @@
  * support for extension life-cycles.
  */
 
-#include "arg_handler.h"
-#include "loader.h"
+#include "mysql/harness/arg_handler.h"
+#include "mysql/harness/loader.h"
+
 #include "utilities.h"
 
 #include <algorithm>
@@ -36,6 +37,8 @@
 
 using mysql_harness::Path;
 using mysql_harness::Loader;
+using mysql_harness::utility::strip_copy;
+using mysql_harness::utility::basename;
 
 static void
 print_usage_and_exit(const CmdArgHandler& handler,

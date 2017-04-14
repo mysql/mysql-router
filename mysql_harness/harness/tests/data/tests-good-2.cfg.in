@@ -5,9 +5,6 @@ runtime_folder = {prefix}/var/run/{program}
 config_folder = {prefix}/var/run/{program}
 data_folder = {prefix}/var/lib/{program}
 
-[logger]
-# No library necessary, default to the section name, that is "logger"
-
 [magic]
 message = It is some kind of magic
 

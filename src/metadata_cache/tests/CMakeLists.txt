@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@ set(METADATA_CACHE_TESTS_HELPER
 
 
 set(include_dirs
-  ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
@@ -41,10 +40,10 @@ set(include_dirs
 # already built as part of the test libraries.
 if(NOT WIN32)
   add_library(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-  target_link_libraries(metadata_cache_tests router_lib logger ${MySQL_LIBRARIES})
+  target_link_libraries(metadata_cache_tests router_lib ${MySQL_LIBRARIES})
 else()
   add_library(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
-  target_link_libraries(metadata_cache_tests router_lib logger metadata_cache ${MySQL_LIBRARIES})
+  target_link_libraries(metadata_cache_tests router_lib metadata_cache ${MySQL_LIBRARIES})
   target_compile_definitions(metadata_cache_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
   target_compile_definitions(metadata_cache_tests PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 endif()
@@ -60,7 +59,6 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              MODULE "metadata_cache"
              LIB_DEPENDS metadata_cache_tests
              INCLUDE_DIRS
-             ${CMAKE_SOURCE_DIR}/mysql_harness/plugins/logger/include
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
              ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper

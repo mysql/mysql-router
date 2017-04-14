@@ -15,28 +15,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "filesystem.h"
 #include "common.h"
+#include "mysql/harness/filesystem.h"
 
 #include <cassert>
 #include <sstream>
 #include <stdexcept>
 
-#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fnmatch.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-/* checks if GCC version is at least MAJOR.MINOR */
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#define GNUC_REQ(MAJOR_VER, MINOR_VER)  \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((MAJOR_VER) << 16) + (MINOR_VER))
-#else
-#define GNUC_REQ(MAJOR_VER, MINOR_VER) 0
-#endif
+#include <unistd.h>
 
 #if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
 # error "This file expects POSIX.1-2001 or later"
@@ -59,26 +51,6 @@ namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
-
-// readdir_r() is depracated in the latest libc versions instead readdir()
-// is to be used  but in the older versions  readdir() is still not thread
-// safe and we need the compatibility with both
-static int readdir_safe(DIR *dirp,
-                        struct dirent *entry,
-                        struct dirent **result) {
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-  int res = readdir_r(dirp, entry, result);
-
-#if defined(__clang__) || GNUC_REQ(4, 6)
-#  pragma GCC diagnostic pop
-#endif
-
-  return res;
-}
 
 const char * const Path::directory_separator = "/";
 const char * const Path::root_directory = "/";
@@ -160,9 +132,9 @@ class Directory::DirectoryIterator::State {
   struct dirent *result_;
 };
 
+
 Directory::DirectoryIterator::State::State()
   : dirp_(nullptr), entry_(nullptr), pattern_(""), result_(nullptr) {}
-
 
 Directory::DirectoryIterator::State::State(const Path& path,
                                            const string& pattern)
@@ -174,7 +146,11 @@ Directory::DirectoryIterator::State::State(const Path& path,
 
   if (dirp_ == nullptr) {
     ostringstream buffer;
-    buffer << "Failed to open path " << path << " - " << get_strerror(errno);
+    char buf[256];
+    if (strerror_r(errno, buf, sizeof(buf)) != 0)
+      buffer << "Failed to open path " << path << " - " << errno;
+    else
+      buffer << "Failed to open path " << path << " - " << buf;
     throw runtime_error(buffer.str());
   }
 
@@ -191,7 +167,6 @@ Directory::DirectoryIterator::State::~State() {
     free(entry_);
 }
 
-
 void Directory::DirectoryIterator::State::fill_result() {
   // This is similar to scandir(2), but we do not use scandir(2) since
   // we want to be thread-safe.
@@ -201,10 +176,19 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_safe(dirp_, entry_, &result_)) {
-      ostringstream buffer;
+    // new GCC doesn't like readdir_r(), and deprecates it in favor of
+    // readdir(). However, readdir() is not thread-safe on all platforms yet.
+    MYSQL_HARNESS_DISABLE_WARNINGS()
+    int error = readdir_r(dirp_, entry_, &result_);
+    MYSQL_HARNESS_ENABLE_WARNINGS()
 
-      buffer << "Failed to read directory entry - " << get_strerror(error);
+    if (error) {
+      ostringstream buffer;
+      char msg[256];
+      if (strerror_r(error, msg, sizeof(msg)))
+        buffer << "strerror_r failed: " << errno;
+      else
+        buffer << "Failed to read directory entry - " << msg;
       throw std::runtime_error(buffer.str());
     }
 
@@ -222,14 +206,18 @@ void Directory::DirectoryIterator::State::fill_result() {
       break;
 
     // Skip any entries that do not match the pattern
-    int error = fnmatch(pattern_.c_str(), result_->d_name, FNM_PATHNAME);
+    error = fnmatch(pattern_.c_str(), result_->d_name, FNM_PATHNAME);
     if (error == FNM_NOMATCH) {
       continue;
     } else if (error == 0) {
       break;
     } else {
       ostringstream buffer;
-      buffer << "Match failed - " << get_strerror(error);
+      char msg[256];
+      if (strerror_r(error, msg, sizeof(msg)))
+        buffer << "strerror_r failed: " << errno;
+      else
+        buffer << "Match failed - " << msg;
       throw std::runtime_error(buffer.str());
     }
   }

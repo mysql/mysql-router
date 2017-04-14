@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@
 #include <memory>
 #include <google/protobuf/io/coded_stream.h>
 
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "protocol/x_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
 #include "mysqlx.pb.h"
+#include "helper_logger.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -553,3 +554,10 @@ TEST_F(XProtocolTest, SendErrorWriteFail)
 
   ASSERT_FALSE(res);
 }
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+

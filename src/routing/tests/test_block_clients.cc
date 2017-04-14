@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,16 +17,13 @@
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
+#include "helper_logger.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
 #include "../../router/src/router_app.h"
-#include "config_parser.h"
-#include "mysql/harness/plugin.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/routing.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
 
@@ -137,5 +134,7 @@ int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
+
+  init_log();
   return RUN_ALL_TESTS();
 }

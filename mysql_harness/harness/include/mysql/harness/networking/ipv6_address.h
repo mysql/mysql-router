@@ -34,6 +34,8 @@
 #include <sstream>
 #include <string>
 
+#include "harness_export.h"
+
 namespace mysql_harness {
 
 /**
@@ -54,7 +56,7 @@ namespace mysql_harness {
  * when using both IPv4 and IPv6.
  *
  */
-class IPv6Address {
+class HARNESS_EXPORT IPv6Address {
  public:
   /**
    * Constructs a new IPv6Address object leaving the internal structure

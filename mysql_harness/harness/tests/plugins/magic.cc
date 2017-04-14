@@ -18,7 +18,7 @@
 #include "magic.h"
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logger.h"
+#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
 #include <cstdlib>
@@ -29,6 +29,8 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::bad_option;
+using mysql_harness::logging::log_info;
 
 #if defined(_MSC_VER) && defined(magic_EXPORTS)
 /* We are building this library */
@@ -52,8 +54,10 @@ extern "C" void MAGIC_API do_magic() {
 }
 
 static void start(const ConfigSection* section) {
-  if (section->get("suki") == "bad")
-    throw bad_suki("The suki was bad, please throw away");
+  try {
+    if (section->get("suki") == "bad")
+      throw bad_suki("The suki was bad, please throw away");
+  } catch (bad_option&) {}
 }
 
 extern "C" {

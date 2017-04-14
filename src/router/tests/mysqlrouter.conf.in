@@ -3,6 +3,4 @@ logging_folder = @ROUTER_STAGE_DIR@/log
 plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
 runtime_folder = @ROUTER_STAGE_DIR@/run
 config_folder = @ROUTER_STAGE_DIR@/etc
-
-[logger]
-library = logger
+log_level = INFO

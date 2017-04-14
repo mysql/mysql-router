@@ -24,7 +24,7 @@
 
 #include "dim.h"
 #include "router_app.h"
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 #include "random_generator.h"
 #include "router_test_helpers.h"
 #include "mysqlrouter/utils.h"

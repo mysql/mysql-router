@@ -21,6 +21,7 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
+#include "helper_logger.h"
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 
@@ -1294,4 +1295,10 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
   ClusterMetadata::ReplicaSetsByName rs = metadata.fetch_instances("replicaset-1");
   EXPECT_EQ(1u, rs.size());
   EXPECT_EQ(0u, rs.at("replicaset-1").members.size());
+}
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

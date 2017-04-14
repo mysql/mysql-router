@@ -20,7 +20,7 @@
 #include "mysqlrouter/routing.h"
 #include "mysql_routing.h"
 #include "common.h"
-
+#include "helper_logger.h"
 #include "routing_mocks.h"
 #include "protocol/classic_protocol.h"
 
@@ -558,3 +558,8 @@ TEST_F(RoutingTests, make_thread_name) {
   EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
 }
 
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

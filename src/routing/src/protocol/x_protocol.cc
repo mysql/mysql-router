@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "common.h"
-#include "logger.h"
+#include "mysql/harness/logging.h"
 #include "x_protocol.h"
 #include "../utils.h"
 #include "mysqlrouter/routing.h"
@@ -28,6 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <cassert>
 
 using ProtobufMessage = google::protobuf::Message;
+IMPORT_LOG_FUNCTIONS()
 
 constexpr size_t kMessageHeaderSize = 5;
 

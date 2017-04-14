@@ -21,7 +21,7 @@
 // Third-party headers
 #include "gtest/gtest.h"
 
-#include "loader.h"
+#include "mysql/harness/loader.h"
 
 // Standard headers
 #include <algorithm>

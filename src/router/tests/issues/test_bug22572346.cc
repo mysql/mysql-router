@@ -21,7 +21,7 @@
  */
 #include "gtest_consoleoutput.h"
 #include "router_app.h"
-#include "config_parser.h"
+#include "mysql/harness/config_parser.h"
 #include "router_test_helpers.h"
 
 #include <fstream>
@@ -53,7 +53,6 @@ protected:
       ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
       ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
       ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
-      ofs_config << "[logger]" << "\n\n";
       ofs_config.close();
     }
   }

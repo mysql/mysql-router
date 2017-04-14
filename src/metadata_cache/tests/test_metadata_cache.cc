@@ -20,15 +20,15 @@
  */
 
 #include "gtest/gtest_prod.h" // must be the first header
+#include "gmock/gmock.h"
+
 #include "cluster_metadata.h"
 #include "dim.h"
+#include "helper_logger.h"
 #include "metadata_cache.h"
 #include "metadata_factory.h"
 #include "mock_metadata.h"
 #include "mysql_session_replayer.h"
-
-#include "gmock/gmock.h"
-
 #include "mysqlrouter/datatypes.h"
 
 using metadata_cache::ManagedInstance;
@@ -205,5 +205,11 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   expect_sql_members();
   mc.refresh();
   expect_cluster_routable(mc); // lookup should see the cluster again
+}
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
 

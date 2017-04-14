@@ -242,13 +242,6 @@ class HARNESS_EXPORT Loader {
   }
 
   /**
-   * Add a configuration section
-   *
-   * @param section ConfigSection instance to add.
-   */
-  void add_logger(const std::string& default_level);
-
-  /**
    * Get reference to configuration object.
    */
   LoaderConfig &get_config() { return config_; }
@@ -274,6 +267,12 @@ class HARNESS_EXPORT Loader {
   bool topsort();
   bool visit(const std::string& name, std::map<std::string, Status>* seen,
              std::list<std::string>* order);
+
+  /**
+   * Setup and teardown of logging facility.
+   */
+  void setup_logging();
+  void teardown_logging();
 
   /**
    * Plugin information for managing a plugin.
