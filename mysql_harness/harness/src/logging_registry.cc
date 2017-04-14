@@ -127,7 +127,7 @@ void setup(const std::string& program,
   }
 
   // ensure that we have at least 1 logger registered: the main app logger
-  harness_assert(g_loggers.count(kMainAppLogDomain));
+  harness_assert(g_loggers.count(kMainAppLogDomain) > 0);
 }
 
 void teardown() {
@@ -175,7 +175,7 @@ extern "C" void log_message(LogLevel level, const char* module, const char* fmt,
   } catch (std::out_of_range& exc) {
     // Logger is not registered for this module (log domain), so log as main
     // application domain instead
-    harness_assert(g_loggers.count(kMainAppLogDomain));
+    harness_assert(g_loggers.count(kMainAppLogDomain) > 0);
     logger = g_loggers[kMainAppLogDomain];
 
     // Complain that we're logging this elsewhere

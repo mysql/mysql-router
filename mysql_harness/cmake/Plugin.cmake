@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 # that the plugin path need to be set at compile time and cannot be
 # changed after that.
 
-function(ADD_HARNESS_PLUGIN NAME)
+function(add_harness_plugin NAME)
   set(_options NO_INSTALL)
   set(_single_value LOG_DOMAIN INTERFACE DESTINATION_SUFFIX)
   set(_multi_value SOURCES REQUIRES)
@@ -141,4 +141,4 @@ function(ADD_HARNESS_PLUGIN NAME)
         DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${_option_DESTINATION_SUFFIX})
     endif()
   endif()
-endfunction(ADD_HARNESS_PLUGIN)
+endfunction(add_harness_plugin)
