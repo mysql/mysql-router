@@ -106,6 +106,7 @@ bool pattern_matching(const std::string &s,
     throw std::runtime_error("Error compiling regex pattern: " + pattern);
   }
   r = regexec(&regex, s.c_str(), 0, NULL, 0);
+  regfree(&regex);
   return (r == 0);
 #else
   std::regex regex(pattern);
