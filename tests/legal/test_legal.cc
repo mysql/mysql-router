@@ -79,6 +79,8 @@ const std::vector<Path> kIgnoredPaths{
     Path(".idea"),
     Path("build"),
     Path("ext"),
+    Path("tests/fuzzers/corpus/"),
+    Path("tests/fuzzers/README.txt"),
 };
 
 bool is_ignored_path(Path path, const std::vector<Path> ignored_paths) {

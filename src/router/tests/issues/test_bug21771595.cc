@@ -124,7 +124,7 @@ TEST_F(Bug21771595, AppExecMetadataCacheInvalidBindAddress) {
 
   //ASSERT_EQ(cmd_result.exit_code, 1);
   ASSERT_THAT(cmd_result.output, HasSubstr(
-  "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid url: invalid port: impossible port number)"));
+  "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid URI: invalid port: impossible port number"));
 }
 
 int main(int argc, char *argv[]) {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -144,7 +144,18 @@ string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigS
   }
 
   try {
-    auto uri = URI(value); // raises URIError when URI is invalid
+    // disable root-less paths like mailto:foo@example.org to stay
+    // backward compatible with
+    //
+    //   localhost:1234,localhost:1235
+    //
+    // which parse into:
+    //
+    //   scheme: localhost
+    //   path: 1234,localhost:1235
+    auto uri = URI(value, // raises URIError when URI is invalid
+        false  // allow_path_rootless
+        );
     if (uri.scheme == "metadata-cache") {
     } else {
       throw invalid_argument(

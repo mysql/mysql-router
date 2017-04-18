@@ -33,7 +33,7 @@ void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
                                    const std::string &password,
                                    int) {
   if (trace_) {
-    std::cout << "connect: " << user << ":" << password << "@" << host << ":" << port << "\n";
+    std::cout << "connect: " << user << ":" << password << "@" << host << ":" << port << std::endl;
   }
 
   // check if connect() is not expected to fail. Note that since we mostly just

@@ -48,3 +48,5 @@ foreach(test_dir legal tools)
         ADD_TEST_DIR(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
     endif()
 endforeach()
+
+add_subdirectory(fuzzers)
