@@ -135,6 +135,20 @@ static inline void set_signal_handlers() {
 #endif
 }
 
+// Check if the value is valid regular filename and if it is add to the vector,
+// if it is not throw an exception
+static void check_and_add_conf(std::vector<string> &configs,
+                               const std::string& value) throw(std::runtime_error) {
+  mysql_harness::Path cfg_file_path(value);
+  if (cfg_file_path.is_regular()) {
+    configs.push_back(cfg_file_path.real_path().str());
+  } else if (cfg_file_path.is_directory()) {
+    throw std::runtime_error(string_format("Expected configuration file, got directory name: %s", value.c_str()));
+  } else {
+    throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
+  }
+}
+
 MySQLRouter::MySQLRouter(const mysql_harness::Path& origin, const vector<string>& arguments
 #ifndef _WIN32
                          , SysUserOperationsBase *sys_user_operations
@@ -753,7 +767,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
-                          CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
+                          CmdOptionValueReq::required, "path", [this](const string &value)
+                          throw(std::runtime_error) {
 
         if (!config_files_.empty()) {
           throw std::runtime_error("Option -c/--config can only be used once; use -a/--extra-config instead.");
@@ -761,25 +776,15 @@ void MySQLRouter::prepare_command_options() noexcept {
 
         // When --config is used, no defaults shall be read
         default_config_files_.clear();
-
-        std::string abspath = mysql_harness::Path(value).real_path().str();
-        if (!abspath.empty()) {
-          config_files_.push_back(abspath);
-        } else {
-          throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
-        }
+        check_and_add_conf(config_files_, value);
       });
 
   arg_handler_.add_option(CmdOption::OptionNames({"-a", "--extra-config"}),
                           "Read this file after configuration files are read from either "
                               "default locations or from files specified by the --config option.",
-                          CmdOptionValueReq::required, "path", [this](const string &value) throw(std::runtime_error) {
-        std::string abspath = mysql_harness::Path(value).real_path().str();
-        if (!abspath.empty()) {
-          extra_config_files_.push_back(abspath);
-        } else {
-          throw std::runtime_error(string_format("Failed reading configuration file: %s", value.c_str()));
-        }
+                          CmdOptionValueReq::required, "path", [this](const string &value)
+                          throw(std::runtime_error) {
+        check_and_add_conf(extra_config_files_, value);
       });
 // These are additional Windows-specific options, added (at the time of writing) in check_service_operations().
 // Grep after '--install-service' and you shall find.
