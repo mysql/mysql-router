@@ -51,24 +51,22 @@ using mysqlrouter::MySQLSession;
 using mysqlrouter::MySQLInnoDBClusterMetadata;
 
 static std::string get_my_hostname() {
+  char buf[1024] = {0};
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
-  char hostname[1024] = {0};
-  if (gethostname(hostname, sizeof(hostname)) < 0) {
+  if (gethostname(buf, sizeof(buf)) < 0) {
     // log_error("Could not get hostname: %s", mysql_harness::get_message_error(msg);
     throw std::runtime_error("Could not get local hostname");
   }
-  return hostname;
-}
 #else
-  struct ifaddrs *ifa, *ifap;
-  char buf[INET6_ADDRSTRLEN] = {0};
+  struct ifaddrs *ifa = nullptr, *ifap;
   int ret = -1, family;
   socklen_t addrlen;
 
-  if (getifaddrs(&ifa) != 0 || !ifa) {
-    if (ifa)
-      freeifaddrs(ifa);
-    throw std::runtime_error("Could not get local host address: " + mysql_harness::get_strerror(errno));
+  std::shared_ptr<ifaddrs> ifa_deleter(nullptr, [&](void*){if (ifa) freeifaddrs(ifa);});
+  if ((ret = getifaddrs(&ifa)) != 0 || !ifa) {
+    throw std::runtime_error("Could not get local host address: " + mysql_harness::get_strerror(errno)
+                             + " (ret: " + std::to_string(ret)
+                             + ", errno: " + std::to_string(errno) + ")");
   }
   for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
     if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) || (!(ifap->ifa_flags & IFF_UP)))
@@ -88,15 +86,13 @@ static std::string get_my_hostname() {
         static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
   }
   if (ret != EAI_NONAME && ret != 0) {
-    if (ifa)
-      freeifaddrs(ifa);
-    throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret)));
+    throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret))
+                             + " (ret: " + std::to_string(ret)
+                             + ", errno: " + std::to_string(errno) + ")");
   }
-  if (ifa)
-    freeifaddrs(ifa);
+#endif
   return buf;
 }
-#endif
 
 
 static bool version_matches(const std::tuple<int,int,int> &required,
