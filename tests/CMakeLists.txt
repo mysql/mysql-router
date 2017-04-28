@@ -19,7 +19,6 @@ include_directories(helpers
   )
 
 set(helper_sources
-  helpers/helper_logger.cc
   helpers/router_test_helpers.cc
   helpers/mysql_session_replayer.cc
   helpers/process_launcher.cc

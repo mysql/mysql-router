@@ -18,12 +18,10 @@
 #include "mysql/harness/loader.h"
 
 #include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging.h"
 #include "mysql/harness/plugin.h"
 
+#include "dim.h"
 #include "exception.h"
-#include "logging_registry.h"  // Access to internal registry
-#include "logger.h"
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -55,8 +53,6 @@ using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::bad_section;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::get_logger_names;
 
 using testing::UnorderedElementsAre;
 
@@ -132,20 +128,6 @@ INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
 
 TEST_P(LoaderTest, BadSection) {
   EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
-}
-
-TEST(TestStart, StartLogger) {
-  std::map<std::string, std::string> params;
-  params["program"] = "harness";
-  params["prefix"] = g_here.c_str();
-
-  Loader loader("harness", params);
-  loader.read(g_here.join("data/tests-start-2.cfg"));
-  ASSERT_NO_THROW(loader.start());
-
-  // Check that all plugins have a module registered with the logger.
-  auto loggers = get_logger_names();
-  EXPECT_THAT(loggers, UnorderedElementsAre("main", "magic"));
 }
 
 TEST(TestStart, StartFailure) {

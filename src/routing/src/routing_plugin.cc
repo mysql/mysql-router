@@ -19,7 +19,7 @@
 #include "mysql_routing.h"
 #include "utils.h"
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/config_parser.h"
 
 #include <atomic>

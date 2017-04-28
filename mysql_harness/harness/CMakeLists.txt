@@ -28,8 +28,10 @@ set(harness_source
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/dim.cc
-  src/logger.cc
-  src/logging_registry.cc
+  src/logging/handler.cc
+  src/logging/logger.cc
+  src/logging/logging.cc
+  src/logging/registry.cc
   src/random_generator.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc

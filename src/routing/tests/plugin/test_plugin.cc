@@ -36,7 +36,7 @@
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
 #include "plugin_config.h"
 #include "router_test_helpers.h"

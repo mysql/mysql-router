@@ -21,10 +21,6 @@
 // Package include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
-
-#define MYSQL_ROUTER_LOG_DOMAIN "main" // must precede #include "logger.h"
-#include "logger.h"
-#include "logging_registry.h"
 #include "designator.h"
 #include "exception.h"
 #include "utilities.h"
@@ -65,10 +61,6 @@ using std::ostringstream;
  */
 
 namespace mysql_harness {
-
-namespace logging {
-extern const char kMainAppLogDomain[] = MYSQL_ROUTER_LOG_DOMAIN;
-}
 
 void LoaderConfig::fill_and_check() {
   // Set the default value of library for all sections that do not
@@ -242,8 +234,6 @@ void Loader::init_all() {
   if (!topsort())
     throw std::logic_error("Circular dependencies in plugins");
 
-  setup_logging();
-
   for (const std::string& plugin_key : reverse(order_)) {
     PluginInfo &info = plugins_.at(plugin_key);
     if (info.plugin->init && info.plugin->init(&appinfo_))
@@ -328,26 +318,6 @@ void Loader::deinit_all() {
     if (info.plugin->deinit)
       info.plugin->deinit(&appinfo_);
   }
-
-  teardown_logging();
-}
-
-void Loader::setup_logging() {
-  using mysql_harness::logging::kDefaultLogLevelName;
-
-  // If there is no log level defined, we set it to the default log
-  // level.
-  if (!config_.has_default("log_level"))
-    config_.set_default("log_level", kDefaultLogLevelName);
-
-  // create loggers: 1 for each module (plugin) + 1 for main program
-  std::list<std::string> log_domains(order_); // order_ contains all the module names
-  log_domains.push_back(logging::kMainAppLogDomain);
-  mysql_harness::logging::setup(program_, logging_folder_, config_, log_domains);
-}
-
-void Loader::teardown_logging() {
-  mysql_harness::logging::teardown();
 }
 
 bool Loader::topsort() {

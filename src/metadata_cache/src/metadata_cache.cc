@@ -17,7 +17,7 @@
 
 #include "common.h"
 #include "metadata_cache.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 #include <cassert>
 #include <vector>

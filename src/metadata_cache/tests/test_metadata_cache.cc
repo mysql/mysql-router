@@ -24,12 +24,12 @@
 
 #include "cluster_metadata.h"
 #include "dim.h"
-#include "helper_logger.h"
 #include "metadata_cache.h"
 #include "metadata_factory.h"
 #include "mock_metadata.h"
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/datatypes.h"
+#include "test/helpers.h"
 
 using metadata_cache::ManagedInstance;
 

@@ -16,7 +16,7 @@
 */
 
 #include "group_replication_metadata.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "metadata.h"
 #include "mysqlrouter/mysql_session.h"
 

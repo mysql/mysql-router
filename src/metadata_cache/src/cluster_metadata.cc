@@ -18,7 +18,7 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"

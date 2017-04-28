@@ -18,7 +18,7 @@
 #include "magic.h"
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
 #include <cstdlib>
@@ -58,6 +58,9 @@ static void start(const ConfigSection* section) {
     if (section->get("suki") == "bad")
       throw bad_suki("The suki was bad, please throw away");
   } catch (bad_option&) {}
+
+  if (section->has("do_magic"))
+    do_magic();
 }
 
 extern "C" {

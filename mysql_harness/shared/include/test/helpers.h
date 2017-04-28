@@ -100,4 +100,16 @@ AssertLoaderSectionAvailable(const char *loader_expr,
 #define EXPECT_SECTION_AVAILABLE(S, L)  \
   EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
 
+/**
+ * Init logger for unit tests
+ *
+ * Creates application ("main") logger, which will write all messages to the
+ * console. Almost all of our code relies on the fact of "main" logger being
+ * initialized, so it is necessary to provide one for unit tests. Also, some
+ * unit tests analyze log output, and expect that output to exist on stderr.
+ */
+void init_log(const std::list<std::string>& additional_log_domains = {},
+              const std::string& log_folder = "",
+              const std::string& log_filename = "");
+
 #endif /* MYSQL_HARNESS_HELPERS_INCLUDED */

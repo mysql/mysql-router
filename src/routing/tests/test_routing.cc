@@ -20,9 +20,9 @@
 #include "mysqlrouter/routing.h"
 #include "mysql_routing.h"
 #include "common.h"
-#include "helper_logger.h"
 #include "routing_mocks.h"
 #include "protocol/classic_protocol.h"
+#include "test/helpers.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN

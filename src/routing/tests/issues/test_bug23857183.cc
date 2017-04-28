@@ -21,9 +21,9 @@
  *
  */
 
-#include "helper_logger.h"
 #include "mysqlrouter/routing.h"
 #include "router_test_helpers.h"
+#include "test/helpers.h"
 
 #include "gmock/gmock.h"
 

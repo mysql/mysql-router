@@ -17,7 +17,7 @@
 
 #include "common.h"
 #include "destination.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"

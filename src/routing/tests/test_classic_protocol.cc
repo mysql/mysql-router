@@ -17,12 +17,12 @@
 
 #include <memory>
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "protocol/classic_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
 #include "mysql_routing.h"
-#include "helper_logger.h"
+#include "test/helpers.h"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"

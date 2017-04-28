@@ -21,9 +21,9 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "group_replication_metadata.h"
-#include "helper_logger.h"
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
+#include "test/helpers.h"
 
 #include <memory>
 #include <map>

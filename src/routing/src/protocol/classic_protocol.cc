@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "classic_protocol.h"
 
 #include "common.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "../utils.h"

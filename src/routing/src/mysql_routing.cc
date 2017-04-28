@@ -21,7 +21,7 @@
 #include "common.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"

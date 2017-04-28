@@ -16,7 +16,7 @@
 */
 
 #include "mysqlrouter/mysql_session.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 #include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <sstream>

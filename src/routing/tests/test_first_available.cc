@@ -20,8 +20,8 @@
 //                   Also while at it, get_mysql_socket() should probably take TCPAddress by const reference
 
 #include "dest_first_available.h"
-#include "helper_logger.h"
 #include "routing_mocks.h"
+#include "test/helpers.h"
 
 class FirstAvailableTest : public ::testing::Test {
 

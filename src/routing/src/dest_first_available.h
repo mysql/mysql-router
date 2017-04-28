@@ -21,7 +21,7 @@
 #include "destination.h"
 #include "mysqlrouter/routing.h"
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 class DestFirstAvailable final : public RouteDestination {
  public:

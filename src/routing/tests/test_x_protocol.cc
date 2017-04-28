@@ -21,12 +21,12 @@
 #include <memory>
 #include <google/protobuf/io/coded_stream.h>
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "protocol/x_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
 #include "mysqlx.pb.h"
-#include "helper_logger.h"
+#include "test/helpers.h"
 
 using ::testing::_;
 using ::testing::Return;

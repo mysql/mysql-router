@@ -30,7 +30,7 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 using mysqlrouter::to_string;
 using std::out_of_range;

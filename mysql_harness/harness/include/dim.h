@@ -196,6 +196,7 @@
 namespace mysqlrouter { class MySQLSession; }
 namespace mysqlrouter { class Ofstream; }
 namespace mysql_harness { class RandomGeneratorInterface; }
+namespace mysql_harness { namespace logging { class Registry; } }
 
 namespace mysql_harness {
 
@@ -217,6 +218,14 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
   // factory and deleter setters [step 2]
   ////////////////////////////////////////////////////////////////////////////////
+
+  // Logging Registry
+  void set_LoggingRegistry(const std::function<mysql_harness::logging::Registry*(void)>& factory,
+                           const std::function<void(mysql_harness::logging::Registry*)>& deleter
+                               = std::default_delete<mysql_harness::logging::Registry>()) {
+    factory_LoggingRegistry_ = factory;
+    deleter_LoggingRegistry_ = deleter;
+  }
 
   // MySQLSession
   void set_MySQLSession(const std::function<mysqlrouter::MySQLSession*(void)>& factory,
@@ -246,6 +255,9 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   // object getters [step 3]
   ////////////////////////////////////////////////////////////////////////////////
 
+  // Logging Registry
+  mysql_harness::logging::Registry& get_LoggingRegistry() const { return get_generic(factory_LoggingRegistry_, deleter_LoggingRegistry_); }
+
   // RandomGenerator
   mysql_harness::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
 
@@ -263,6 +275,10 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
   // factory and deleter functions [step 4]
   ////////////////////////////////////////////////////////////////////////////////
+
+  // Logging Registry
+  std::function<mysql_harness::logging::Registry*(void)> factory_LoggingRegistry_;
+  std::function<void(mysql_harness::logging::Registry*)> deleter_LoggingRegistry_;
 
   // MySQLSession
   std::function<mysqlrouter::MySQLSession*(void)> factory_MySQLSession_;

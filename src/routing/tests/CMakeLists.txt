@@ -91,18 +91,33 @@ endif()
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "routing"
-  LIB_DEPENDS routing_tests
-  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
+  LIB_DEPENDS routing_tests test-helpers
+  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   MODULE "routing"
-  LIB_DEPENDS routing_tests routing_plugin_tests
+  LIB_DEPENDS
+    routing_tests
+    routing_plugin_tests
+    test-helpers
   ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
-  INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
+  INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
+    ${CMAKE_SOURCE_DIR}/tests/helpers
+    ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
+  )
 
 add_test_dir(issues MODULE issues
-  LIB_DEPENDS routing_tests routing_plugin_tests
-  INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_SOURCE_DIR}/tests/helpers)
+  LIB_DEPENDS
+    routing_tests
+    routing_plugin_tests
+    test-helpers
+  INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
+    ${CMAKE_SOURCE_DIR}/tests/helpers
+    ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
+  )
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
 if(WIN32)

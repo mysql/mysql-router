@@ -29,7 +29,7 @@
 #include "keyring/keyring_manager.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/config_parser.h"
 
 using metadata_cache::LookupResult;

@@ -15,7 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/handler.h"
+#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 
 #include <cstdarg>
@@ -30,6 +31,8 @@ using mysql_harness::logging::LogLevel;
 
 class SyslogHandler final : public mysql_harness::logging::Handler {
  public:
+  static constexpr const char* kDefaultName = "syslog";
+
   SyslogHandler(LogLevel level = LogLevel::kNotSet)
       : mysql_harness::logging::Handler(level) {}
   ~SyslogHandler() { close(); }
@@ -55,7 +58,7 @@ static int init(const AppInfo* info) {
   using mysql_harness::logging::register_handler;
 
   g_syslog_handler->open(info->program);
-  register_handler(g_syslog_handler);
+  register_handler(SyslogHandler::kDefaultName, g_syslog_handler);
   return 0;
 }
 

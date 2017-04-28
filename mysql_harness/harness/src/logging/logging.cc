@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,12 +15,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/logging_registry.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
+#include "dim.h"
 
-void init_log() {
-  mysql_harness::Config config;
-  config.set_default("log_level", "debug");
-  std::list<std::string> log_domains{"main"};
-  mysql_harness::logging::setup("", "", config, log_domains);
-}
+namespace mysql_harness {
 
+namespace logging {
+
+}  // namespace logging
+
+}  // namespace mysql_harness
+// EMPTY NOW

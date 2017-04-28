@@ -16,7 +16,7 @@
 */
 
 #include "dest_first_available.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN

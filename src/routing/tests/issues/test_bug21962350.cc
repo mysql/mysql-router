@@ -22,10 +22,10 @@
 
 #include "mysql/harness/config_parser.h"
 #include "destination.h"
-#include "helper_logger.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
+#include "test/helpers.h"
 
 #include <fstream>
 #include <string>
@@ -43,8 +43,6 @@
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-
-#include "helper_logger.h"
 
 using mysqlrouter::TCPAddress;
 using mysqlrouter::to_string;

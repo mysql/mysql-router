@@ -19,7 +19,7 @@
 // Harness interface include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
 ////////////////////////////////////////
@@ -82,6 +82,7 @@ TEST_F(KeepalivePluginTest, Available) {
 TEST_F(KeepalivePluginTest, CheckLog) {
   auto logging_folder = g_here.join("/var/log/keepalive");
   const auto log_file = Path::make_path(logging_folder, "harness", "log");
+  init_log({"keepalive"}, loader->get_config().get_default("logging_folder"), "harness");
 
   // Make sure log file is empty
   std::fstream fs;

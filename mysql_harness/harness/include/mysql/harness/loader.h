@@ -269,12 +269,6 @@ class HARNESS_EXPORT Loader {
              std::list<std::string>* order);
 
   /**
-   * Setup and teardown of logging facility.
-   */
-  void setup_logging();
-  void teardown_logging();
-
-  /**
    * Plugin information for managing a plugin.
    *
    * This class represents the harness part of managing a plugin and

@@ -23,8 +23,8 @@
 #include "metadata_cache.h"
 #include "dim.h"
 #include "cluster_metadata.h"
-#include "helper_logger.h"
 #include "mysql_session_replayer.h"
+#include "test/helpers.h"
 
 #include "gmock/gmock.h"
 

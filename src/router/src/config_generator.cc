@@ -29,7 +29,7 @@
 #include "utils.h"
 #include "router_app.h"
 
-// #include "logger.h"
+// #include "mysql/harness/logging.h"
 #ifdef _WIN32
 #include <Windows.h>
 #define strcasecmp _stricmp

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
  * Module for implementing the Logger functionality.
  */
 
-#include "logger.h"
+#include "mysql/harness/logging/handler.h"
+#include "mysql/harness/logging/logging.h"
 
 #include "common.h"
 #include "mysql/harness/config_parser.h"
@@ -117,30 +118,8 @@ FileHandler::FileHandler(const Path& path, LogLevel level)
 
 FileHandler::~FileHandler() {}
 
-////////////////////////////////////////////////////////////////
-// class Logger
+} // namespace logging
 
-Logger::Logger(const std::string& name, LogLevel level)
-    : name_(name), level_(level) {}
 
-void Logger::add_handler(std::shared_ptr<Handler> handler) {
-  handlers_.push_back(handler);
-}
+} // mysql_harness
 
-void Logger::remove_handler(std::shared_ptr<Handler> handler) {
-  auto it = std::find(handlers_.begin(), handlers_.end(), handler);
-  if (it != handlers_.end())
-    handlers_.erase(it);
-}
-
-void Logger::handle(const Record& record) {
-  if (record.level <= level_) {
-    for (auto&& handler : handlers_)
-      if (record.level <= handler->get_level())
-        handler->handle(record);
-  }
-}
-
-}
-
-}

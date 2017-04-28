@@ -23,11 +23,12 @@
 #ifndef MYSQL_HARNESS_LOGGING_INCLUDED
 #define MYSQL_HARNESS_LOGGING_INCLUDED
 
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 #include "harness_export.h"
 
 #include <fstream>
 #include <mutex>
+#include <list>
 #include <string>
 #include <cstdarg>
 
@@ -63,6 +64,14 @@ namespace logging {
  * it will be truncated to this length.
  */
 const size_t kLogMessageMaxSize = 256;
+
+/**
+ * Special names reserved for "main" program logger. It will use one of the
+ * two handlers, depending on whether logging_folder is empty or not.
+ */
+constexpr char kMainLogger[] = "main";
+constexpr char kMainLogHandler[] = "main_log_handler";
+constexpr char kMainConsoleHandler[] = "main_console_handler";
 
 /**
  * Log level values.
@@ -129,128 +138,7 @@ struct Record {
   std::string message;
 };
 
-/**
- * Base class for log message handler.
- *
- * This class is used to implement a log message handler. You need
- * to implement the `do_log` primitive to process the log
- * record. If, for some reason, the implementation is unable to log
- * the record, and exception can be thrown that will be caught by
- * the harness.
- */
-class HARNESS_EXPORT Handler {
- public:
-  virtual ~Handler() = default;
 
-  void handle(const Record& record);
-
-  void set_level(LogLevel level) { level_ = level; }
-  LogLevel get_level() const { return level_; }
-
- protected:
-  std::string format(const Record& record) const;
-
-  explicit Handler(LogLevel level);
-
- private:
-  /**
-   * Log message handler primitive.
-   *
-   * This member function is implemented by subclasses to properly log
-   * a record wherever it need to be logged.  If it is not possible to
-   * log the message properly, an exception should be thrown and will
-   * be caught by the caller.
-   *
-   * @param record Record containing information about the message.
-   */
-  virtual void do_log(const Record& record) = 0;
-
-  /**
-   * Log level set for the handler.
-   */
-  LogLevel level_;
-};
-
-/**
- * Handler to write to an output stream.
- *
- * @code
- * Logger logger("my_module");
- * ...
- * logger.add_handler(StreamHandler(std::clog));
- * @endcode
- */
-class HARNESS_EXPORT StreamHandler : public Handler {
- public:
-  explicit StreamHandler(std::ostream& stream,
-                         LogLevel level = LogLevel::kNotSet);
-
- protected:
-  std::ostream& stream_;
-  std::mutex stream_mutex_;
-
- private:
-  void do_log(const Record& record) override;
-};
-
-/**
- * Handler that writes to a file.
- *
- * @code
- * Logger logger("my_module");
- * ...
- * logger.add_handler(FileHandler("/var/log/router.log"));
- * @endcode
- */
-class HARNESS_EXPORT FileHandler : public StreamHandler {
- public:
-  explicit FileHandler(const Path& path, LogLevel level = LogLevel::kNotSet);
-  ~FileHandler();
-
- private:
-  std::ofstream fstream_;
-};
-
-/** Set log level for all registered loggers. */
-HARNESS_EXPORT
-void set_log_level(LogLevel level);
-
-/** Set log level for the named logger. */
-HARNESS_EXPORT
-void set_log_level(const char* name, LogLevel level);
-
-/**
- * Register handler for all plugins.
- *
- * This will register a handler for all plugins that have been
- * registered with the logging subsystem (normally all plugins that
- * have been loaded by `Loader`).
- *
- * @param handler Shared pointer to dynamically allocated handler.
- *
- * For example, to register a custom handler from a plugin, you would
- * do the following:
- *
- * @code
- * void init() {
- *   ...
- *   register_handler(std::make_shared<MyHandler>(...));
- *   ...
- * }
- * @endcode
- */
-HARNESS_EXPORT
-void register_handler(std::shared_ptr<Handler> handler);
-
-/**
- * Unregister a handler.
- *
- * This will unregister a previously registered handler.
- *
- * @param handler Shared pointer to a previously allocated handler.
- */
-HARNESS_EXPORT
-void unregister_handler(std::shared_ptr<Handler> handler);
 
 /**
  * Log message for the domain.

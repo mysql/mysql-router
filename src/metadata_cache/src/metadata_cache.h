@@ -30,7 +30,7 @@
 #include <thread>
 #include <set>
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 
 class ClusterMetadata;
 

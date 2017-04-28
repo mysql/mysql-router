@@ -32,7 +32,7 @@
 
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;

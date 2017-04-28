@@ -17,7 +17,6 @@
 
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
-#include "helper_logger.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -26,6 +25,7 @@
 #include "../../router/src/router_app.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
+#include "test/helpers.h"
 
 #include <cstdio>
 #include <fstream>

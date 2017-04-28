@@ -57,12 +57,15 @@ target_include_directories(metadata_cache_tests PRIVATE ${include_dirs})
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
              MODULE "metadata_cache"
-             LIB_DEPENDS metadata_cache_tests
+             LIB_DEPENDS
+               metadata_cache_tests
+               test-helpers
              INCLUDE_DIRS
-             ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
-             ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
-             ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
-             ${CMAKE_SOURCE_DIR}/tests/helpers
+               ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
+               ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
+               ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
+               ${CMAKE_SOURCE_DIR}/tests/helpers
+               ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
 )
 
 target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)

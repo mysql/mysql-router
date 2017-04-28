@@ -19,10 +19,10 @@
  * Tests the metadata cache plugin implementation.
  */
 
-#include "helper_logger.h"
 #include "mock_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/datatypes.h"
+#include "test/helpers.h"
 
 #include <chrono>
 #include <vector>

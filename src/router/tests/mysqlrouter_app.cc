@@ -17,8 +17,10 @@
 
 #define UNIT_TESTS  // used in router_app.h
 #include "config.h"
+#include "dim.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/registry.h"
 #include "router_app.h"
 
 //ignore GMock warnings
@@ -28,6 +30,7 @@
 #endif
 
 #include "gmock/gmock.h"
+#include "gtest_consoleoutput.h"
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -101,6 +104,7 @@ class AppTest : public ::testing::Test {
 protected:
   virtual void SetUp() {
     stage_dir = g_stage_dir;
+
     orig_cout_ = std::cout.rdbuf();
     std::cout.rdbuf(ssout.rdbuf());
 #ifndef _WIN32
@@ -660,7 +664,56 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
   }
 }
 
-#endif
+#endif // #ifndef _WIN32
+
+class AppLoggerTest : public ConsoleOutputTest {
+ protected:
+  void SetUp() override {
+    set_origin(g_origin);
+    ConsoleOutputTest::SetUp();
+  }
+};
+
+TEST_F(AppLoggerTest, TestLogger) {
+
+  // create config file
+  Path config_path(g_origin.str());
+  config_path.append("test_mysqlrouter_app.conf");
+  std::ofstream ofs_config(config_path.str());
+  if (ofs_config.good()) {
+    ofs_config << "[DEFAULT]\n";
+    ofs_config << "logging_folder =\n";
+    ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
+    ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
+    ofs_config << "config_folder = " << stage_dir->str() << "\n";
+    ofs_config << "log_level = DEBUG\n";
+    ofs_config << "\n";
+    ofs_config << "[magic]\n";
+    ofs_config << "do_magic = yes\n";
+    ofs_config << "message = It is some kind of magic\n";
+    ofs_config.close();
+  } else {
+    throw std::runtime_error("Failed creating config file '" + config_path.str() + "'");
+  }
+
+  // run MySQLRouter
+  reset_ssout();
+  vector<string> argv = {"-c", config_path.c_str()};
+  MySQLRouter r(g_origin, argv);
+  ASSERT_NO_THROW(r.start());
+
+  // verify that all plugins have a module registered with the logger
+  auto loggers = mysql_harness::DIM::instance().get_LoggingRegistry().get_logger_names();
+  EXPECT_THAT(loggers, testing::UnorderedElementsAre(mysql_harness::logging::kMainLogger, "magic"));
+
+  // verify the log contains what we expect it to contain. We're looking for something like this:
+  // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Logging facility started
+  // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
+  EXPECT_THAT(ssout.str(), HasSubstr(" main DEBUG "));
+  EXPECT_THAT(ssout.str(), HasSubstr(" Logging facility started"));
+  EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
+  EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
+}
 
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();

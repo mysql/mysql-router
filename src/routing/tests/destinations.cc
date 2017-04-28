@@ -22,7 +22,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "mysql/harness/logging.h"
+#include "mysql/harness/logging/logging.h"
 #include "destination.h"
 
 #include "mysqlrouter/datatypes.h"
