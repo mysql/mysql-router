@@ -61,7 +61,7 @@ static void start(const ConfigSection* section) {
 }
 
 extern "C" {
-  Plugin MAGIC_API magic = {
+  Plugin MAGIC_API harness_plugin_magic = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "A magic plugin",

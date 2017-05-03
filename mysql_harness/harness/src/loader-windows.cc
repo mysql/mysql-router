@@ -95,19 +95,11 @@ Loader::PluginInfo::PluginInfo(const std::string& plugin_folder,
 
 void Loader::PluginInfo::load_plugin(const std::string& name) {
   assert(impl_->handle);
-  std::vector<std::string> alternatives{
-    name,
-    name + "_plugin",
-    "harness_plugin_" + name
-  };
 
   Plugin *plugin = nullptr;
-  for (auto&& symbol : alternatives) {
-    plugin = reinterpret_cast<Plugin*>(GetProcAddress(impl_->handle,
+  std::string symbol = "harness_plugin_" + name;
+  plugin = reinterpret_cast<Plugin*>(GetProcAddress(impl_->handle,
                                                       symbol.c_str()));
-    if (plugin)
-      break;
-  }
 
   if (plugin == nullptr) {
     std::ostringstream buffer;

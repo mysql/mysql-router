@@ -97,7 +97,7 @@ static void start(const ConfigSection *section) {
 #endif
 
 extern "C" {
-Plugin DLLEXPORT keepalive = {
+Plugin DLLEXPORT harness_plugin_keepalive = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
   "Keepalive Plugin",

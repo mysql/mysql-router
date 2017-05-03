@@ -43,7 +43,7 @@ static int deinit(const AppInfo*) {
 #endif
 
 extern "C" {
-  Plugin EXAMPLE_API bad_one = {
+  Plugin EXAMPLE_API harness_plugin_bad_one = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "A bad plugin",

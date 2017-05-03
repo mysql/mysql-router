@@ -61,7 +61,7 @@ static int deinit(const AppInfo*);
 static void start(const ConfigSection*);
 
 extern "C" {
-  Plugin EXAMPLE_API example = {
+  Plugin EXAMPLE_API harness_plugin_example = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
   "An example plugin",

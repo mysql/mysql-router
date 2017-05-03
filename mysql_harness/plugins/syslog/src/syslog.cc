@@ -64,15 +64,17 @@ static int deinit(const AppInfo*) {
   return 0;
 }
 
-Plugin syslog_plugin = {
-  PLUGIN_ABI_VERSION,
-  ARCHITECTURE_DESCRIPTOR,
-  "Logging using syslog",
-  VERSION_NUMBER(0, 0, 1),
-  0, nullptr,  // Requires
-  0, nullptr,  // Conflicts
-  init,
-  deinit,
-  nullptr,  // start
-  nullptr,  // stop
-};
+extern "C" {
+  Plugin harness_plugin_syslog = {
+    PLUGIN_ABI_VERSION,
+    ARCHITECTURE_DESCRIPTOR,
+    "Logging using syslog",
+    VERSION_NUMBER(0, 0, 1),
+    0, nullptr,  // Requires
+    0, nullptr,  // Conflicts
+    init,
+    deinit,
+    nullptr,  // start
+    nullptr,  // stop
+  };
+}
