@@ -89,16 +89,19 @@ Loader::PluginInfo::PluginInfo(const std::string& plugin_folder,
 void Loader::PluginInfo::load_plugin(const std::string& name) {
   assert(impl_->handle);
 
-  Plugin *plugin = nullptr;
-  std::string symbol = "harness_plugin_" + name;
-  plugin = reinterpret_cast<Plugin*>(dlsym(impl_->handle, symbol.c_str()));
+  dlerror();  // clear any previous errors
 
-  if (plugin == nullptr) {
+  std::string symbol = "harness_plugin_" + name;
+  Plugin* plugin = reinterpret_cast<Plugin*>(dlsym(impl_->handle, symbol.c_str()));
+
+  const char* error = dlerror();
+  if (error) {
     std::ostringstream buffer;
-    buffer << "symbol '" << name << "' not found in " << impl_->path;
+    buffer << "Loading plugin '" << name << "' failed: " << error;
     throw bad_plugin(buffer.str());
   }
+
   this->plugin = plugin;
 }
 
-}
+} // namespace mysql_harness
