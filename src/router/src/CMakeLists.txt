@@ -119,19 +119,6 @@ if(WIN32)
     ENDIF()
   ENDIF()
 
-  # For the commercial non-debug build we copy VS redistributable libraries
-  # to the bin directory so that these were included in the MSI (we need to ship those).
-  if ((NOT GPL) AND NOT(DMYSQL_BUILD STREQUAL "debug"))
-    include(InstallRequiredSystemLibraries)
-    message(STATUS "Copying VS redistributable files ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}")
-    foreach(runtime_lib ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
-      get_filename_component(runtime_lib_file ${runtime_lib} NAME)
-      add_custom_command(TARGET ${MYSQL_ROUTER_TARGET} PRE_BUILD
-                         COMMAND ${CMAKE_COMMAND} -E copy
-                         "${runtime_lib}" $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>/${runtime_lib_file})
-    endforeach(runtime_lib)
-  endif()
-
 endif()
 
 COPY_OPENSSL_DLLS(${MYSQL_ROUTER_TARGET} $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>)
