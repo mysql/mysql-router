@@ -30,7 +30,7 @@
        Keywords='Installer'
        Description="@PRODUCT_DESCRIPTION@"
        Manufacturer='@MANUFACTURER@'
-       InstallerVersion='200'
+       InstallerVersion='301'
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
@@ -63,25 +63,46 @@
     <InstallExecuteSequence>
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
-    
-    <Property Id="MSVC2015INSTALLED">
-     <RegistrySearch Id="MSVC2015RuntimeSearch" 
-        Root="HKLM"
-        Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
-        Type="raw"
-        Name="Version"  />
-    </Property>
 
-    
-    <?if NOT(%PROCESSOR_ARCHITECTURE = "x86") ?>
-       <Condition Message="Microsoft VC++ x64 Runtime 2015 needs to be installed">
-          <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
-       </Condition>
+    <!-- For commercial installer include the MSV runtime -->
+    <?if "@GPL@" = "no" ?>
+      <?if NOT("@Platform@" = "x86") ?>
+        <DirectoryRef Id="TARGETDIR">
+          <Merge Id="VCRedist" SourceFile="$(env.ProgramFiles)\Common Files\Merge Modules\Microsoft_VC140_CRT_x64.msm"
+           DiskId="1" Language="0"/>
+        </DirectoryRef>
+      <?endif?>
+      <?if "@Platform@" = "x86" ?>
+         <DirectoryRef Id="TARGETDIR">
+           <Merge Id="VCRedist" SourceFile="$(env.ProgramFiles)\Common Files\Merge Modules\Microsoft_VC140_CRT_x86.msm"
+            DiskId="1" Language="0"/>
+         </DirectoryRef>
+      <?endif?>
+      <Feature Id="VCRedist" Title="Visual C++ 14.0 Runtime" AllowAdvertise="no" Display="hidden" Level="1">
+        <MergeRef Id="VCRedist"/>
+      </Feature>
     <?endif?>
-    <?if %PROCESSOR_ARCHITECTURE = "x86" ?>
-       <Condition Message="Microsoft VC++ x86 Runtime 2015 needs to be installed">
+
+    <!-- For GPL installer check for the MSV runtime and fail if it's not there -->
+    <?if NOT("@GPL@" = "no") ?>
+      <Property Id="MSVC2015INSTALLED">
+        <RegistrySearch Id="MSVC2015RuntimeSearch"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
+          Type="raw"
+          Name="Version"  />
+      </Property>
+
+      <?if NOT(%PROCESSOR_ARCHITECTURE = "x86") ?>
+        <Condition Message="Microsoft VC++ x64 Runtime 2015 needs to be installed">
           <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
-       </Condition>
+        </Condition>
+      <?endif?>
+      <?if %PROCESSOR_ARCHITECTURE = "x86" ?>
+         <Condition Message="Microsoft VC++ x86 Runtime 2015 needs to be installed">
+            <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
+         </Condition>
+      <?endif?>
     <?endif?>
 
     <!-- Save/restore install location -->
