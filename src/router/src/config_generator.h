@@ -114,6 +114,10 @@ public:
 
     mysqlrouter::SSLOptions ssl_options;
   };
+
+  void set_file_owner(const std::map<std::string, std::string> &options,
+                      const std::string &owner); // throws std::runtime_error
+
 private:
   friend class MySQLInnoDBClusterMetadata;
 
@@ -166,9 +170,6 @@ private:
 
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);
-
-  void set_file_owner(const std::map<std::string, std::string> &options,
-                      const std::string &owner); // throws std::runtime_error
 private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
 

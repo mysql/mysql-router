@@ -869,6 +869,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
         std::cerr << "Cannot create directory " << default_keyring_file << ": " << get_strerror(errno) << "\n";
         throw std::runtime_error("Could not create keyring directory");
       } else {
+        // sets the directory owner for the --user if provided
+        config_gen.set_file_owner(bootstrap_options_, default_keyring_file);
         default_keyring_file = keyring_dir.real_path().str();
       }
     }
