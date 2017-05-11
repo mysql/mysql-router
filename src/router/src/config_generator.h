@@ -116,6 +116,10 @@ public:
 
     mysqlrouter::SSLOptions ssl_options;
   };
+
+  void set_file_owner(const std::map<std::string, std::string> &options,
+                      const std::string &owner); // throws std::runtime_error
+
 private:
   friend class MySQLInnoDBClusterMetadata;
 
@@ -168,9 +172,6 @@ private:
 
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);
-
-  void set_file_owner(const std::map<std::string, std::string> &options,
-                      const std::string &owner); // throws std::runtime_error
 private:
   // TODO refactoring: these 3 should be removed (replaced by DIM semantics)
   MySQLSession *mysql_;
