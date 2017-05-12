@@ -21,6 +21,7 @@
 
 #include "gtest/gtest_prod.h"
 #include "metadata_cache.h"
+#include "dim.h"
 #include "cluster_metadata.h"
 #include "mysql_session_replayer.h"
 
@@ -29,40 +30,6 @@
 #include "mysqlrouter/datatypes.h"
 
 using namespace metadata_cache;
-
-#if 0
-// TODO PM FIXME: nuke this and fix with DIM
-namespace {
-    using mysqlrouter::MySQLSession;
-
-  class MySQLSessionFactory {
-   public:
-    virtual std::shared_ptr<MySQLSession> create() const {
-      // custom deleter guarantees that memory will be freed HERE. Which means, it won't get freed in another DLL
-      return std::shared_ptr<MySQLSession>(new MySQLSession, [](MySQLSession* ptr) {
-        delete ptr;
-      });
-    }
-    virtual ~MySQLSessionFactory() {}
-  };
-
-}
-#endif
-#if 0 // TODO PM FIXME
-
-class TestSessionFactory : public MySQLSessionFactory {
-public:
-  TestSessionFactory(std::shared_ptr<mysqlrouter::MySQLSession> s) {
-    session = s;
-  }
-
-  virtual std::shared_ptr<mysqlrouter::MySQLSession> create() const {
-    return session;
-  }
-
-  std::shared_ptr<mysqlrouter::MySQLSession> session;
-};
-
 
 class FailoverTest : public ::testing::Test {
 public:
@@ -76,13 +43,19 @@ public:
   // per-test setup
   virtual void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10,
-        std::unique_ptr<MySQLSessionFactory>(new TestSessionFactory(session))));
+
+    // setup DI for MySQLSession
+    mysql_harness::DIM::instance().set_MySQLSession(
+      [this](){ return session.get(); }, // provide pointer to session
+      [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
+    );
+
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10, mysqlrouter::SSLOptions()));
   }
 
   void init_cache() {
     cache.reset(new MetadataCache({mysqlrouter::TCPAddress("localhost", 32275)},
-                                  cmeta, 10, "cluster-1"));
+                                  cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1"));
   }
 
 
@@ -270,5 +243,3 @@ TEST_F(FailoverTest, primary_failover) {
   EXPECT_EQ("uuid-server3", instances[2].mysql_server_uuid);
   EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
 }
-
-#endif
