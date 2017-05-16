@@ -13,9 +13,12 @@
   capability dac_override,
   capability setuid,
   capability setgid,
+  capability chown,
+  capability fowner,
 
 # Allow config access
-  /etc/mysqlrouter/** r,
+  /etc/mysqlrouter/** rw,
+  /var/lib/mysqlrouter/keyring rw,
 
 # Allow runtime files such as PID-file
   /var/run/mysqlrouter/mysqlrouter.pid rw,
