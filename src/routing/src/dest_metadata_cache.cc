@@ -109,47 +109,52 @@ void DestMetadataCacheGroup::init() {
 }
 
 int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
-retry:
-  try {
-    std::vector<std::string> server_ids;
-    auto available = get_available(&server_ids);
-    if (available.empty()) {
-      log_warning("No available %s servers found for '%s'",
-          routing_mode_ == RoutingMode::ReadWrite ? "RW" : "RO",
-          ha_replicaset_.c_str());
-      return -1;
-    }
-
-    // round-robin between available nodes
-    auto next_up = current_pos_;
-    if (next_up >= available.size()) {
-      next_up = 0;
-      current_pos_ = 0;
-    }
-    std::lock_guard<std::mutex> lock(mutex_update_);
-    ++current_pos_;
-    if (current_pos_ >= available.size()) {
-      current_pos_ = 0;
-    }
-
-    int fd = get_mysql_socket(available.at(next_up), connect_timeout);
-    if (fd < 0) {
-      // Signal that we can't connect to the instance
-      metadata_cache::mark_instance_reachability(server_ids.at(next_up),
-          metadata_cache::InstanceStatus::Unreachable);
-      // if we're looking for a primary member, wait for there to be at least one
-      if (routing_mode_ == RoutingMode::ReadWrite &&
-          metadata_cache::wait_primary_failover(ha_replicaset_,
-              kPrimaryFailoverTimeout)) {
-        log_info("Retrying connection for '%s' after possible failover",
-                 ha_replicaset_.c_str());
-        goto retry;
+  while (true) {
+    try {
+      std::vector<std::string> server_ids;
+      auto available = get_available(&server_ids);
+      if (available.empty()) {
+        log_warning("No available %s servers found for '%s'",
+            routing_mode_ == RoutingMode::ReadWrite ? "RW" : "RO",
+            ha_replicaset_.c_str());
+        return -1;
       }
+
+      size_t next_up = 0;
+      {
+        std::lock_guard<std::mutex> lock(mutex_update_);
+        // round-robin between available nodes
+        next_up = current_pos_;
+        if (next_up >= available.size()) {
+          next_up = 0;
+          current_pos_ = 0;
+        }
+        ++current_pos_;
+        if (current_pos_ >= available.size()) {
+          current_pos_ = 0;
+        }
+      }
+
+      int fd = get_mysql_socket(available.at(next_up), connect_timeout);
+      if (fd < 0) {
+        // Signal that we can't connect to the instance
+        metadata_cache::mark_instance_reachability(server_ids.at(next_up),
+            metadata_cache::InstanceStatus::Unreachable);
+        // if we're looking for a primary member, wait for there to be at least one
+        if (routing_mode_ == RoutingMode::ReadWrite &&
+            metadata_cache::wait_primary_failover(ha_replicaset_,
+                kPrimaryFailoverTimeout)) {
+          log_info("Retrying connection for '%s' after possible failover",
+                   ha_replicaset_.c_str());
+          continue; // retry
+        }
+      }
+      return fd;
+    } catch (std::runtime_error & re) {
+      log_error("Failed getting managed servers from the Metadata server: %s",
+                re.what());
+      break;
     }
-    return fd;
-  } catch (std::runtime_error & re) {
-    log_error("Failed getting managed servers from the Metadata server: %s",
-              re.what());
   }
 
   *error = errno;
