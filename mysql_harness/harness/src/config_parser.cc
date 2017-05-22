@@ -250,7 +250,7 @@ void Config::set_default(const std::string& option, const std::string& value) {
 }
 
 bool Config::is_reserved(const std::string& word) const {
-  auto match = [this, &word](const std::string& pattern) {
+  auto match = [&word](const std::string& pattern) {
     return matches_glob(word, pattern);
   };
 

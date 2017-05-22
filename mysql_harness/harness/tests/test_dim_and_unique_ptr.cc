@@ -476,7 +476,7 @@ TEST_F(DIMTest, singleton_dependency_cascade) {
     int n = 42;
     dim.set_Foo([this]()    { return new Foo(dim.get_Bar(), dim.get_Baz()); });
     dim.set_Bar([this, n]() { return new Bar(dim.get_Baz(), n);             });
-    dim.set_Baz([this]()    { return new Baz;                               });
+    dim.set_Baz([]()        { return new Baz;                               });
   }
 
   // should trigger creation of Foo, Bar and Baz

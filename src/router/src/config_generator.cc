@@ -819,7 +819,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
   bootstrap_servers = "";
   try {
     mysql_->query(query.str(),
-        [this, &metadata_cluster, &metadata_replicaset, &bootstrap_servers,
+        [&metadata_cluster, &metadata_replicaset, &bootstrap_servers,
           &multi_master]
           (const std::vector<const char*> &row)->bool {
       if (metadata_cluster == "") {
