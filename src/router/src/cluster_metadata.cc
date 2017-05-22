@@ -49,8 +49,9 @@ using mysqlrouter::strtoi_checked;
 using mysqlrouter::sqlstring;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::MySQLInnoDBClusterMetadata;
+using mysqlrouter::HostnameOperations;
 
-static std::string get_my_hostname() {
+std::string HostnameOperations::get_my_hostname() {
   char buf[1024] = {0};
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
   if (gethostname(buf, sizeof(buf)) < 0) {
@@ -92,6 +93,11 @@ static std::string get_my_hostname() {
   }
 #endif
   return buf;
+}
+
+HostnameOperations *HostnameOperations::instance() {
+  static HostnameOperations instance_;
+  return &instance_;
 }
 
 
@@ -297,7 +303,20 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
     //log_warning("router_id %u not in metadata", router_id);
     throw std::runtime_error("router_id "+std::to_string(router_id)+" not found in metadata");
   }
-  std::string hostname = get_my_hostname();
+
+  std::string hostname;
+  try {
+    hostname = hostname_operations_->get_my_hostname();
+  }
+  catch (const std::runtime_error& exc) {
+    // If we fail to get the hostname we continue with an empty value.
+    // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
+    // Currently the hostname in the metadata is not being used anyway.
+    std::cout << "WARNING: Failed calling get_my_hostname() with error: " << exc.what() << std::endl
+              << "Continuing with an empty hostname" << std::endl;
+    // TODO: also log when the logger is available here
+  }
+
   if ((*row)[1] && strcasecmp((*row)[1], hostname.c_str()) == 0) {
     return;
   }
@@ -306,7 +325,7 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
 
   // if the host doesn't match, we force a new router_id to be generated
   throw std::runtime_error("router_id " + std::to_string(router_id)
-      + " is associated with a different host ("+(*row)[1]+" vs "+hostname+")");
+      + " is associated with a different host ('"+(*row)[1]+"' vs '"+hostname+"')");
 }
 
 inline std::string str(const mysqlrouter::ConfigGenerator::Options::Endpoint &ep) {
@@ -341,7 +360,20 @@ void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
 uint32_t MySQLInnoDBClusterMetadata::register_router(
     const std::string &router_name, bool overwrite) {
   uint32_t host_id;
-  std::string hostname = get_my_hostname();
+  std::string hostname;
+  try {
+    hostname = hostname_operations_->get_my_hostname();
+  }
+  catch (const std::runtime_error& exc) {
+    // If we fail to get the hostname we continue with an empty value.
+    // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
+    // Currently the hostname in the metadata is not being used anyway.
+
+    std::cout << "WARNING: Failed calling get_my_hostname() with error: " << exc.what() << std::endl
+              << "Continuing with an empty hostname" << std::endl;
+    // TODO: also log when the logger is available here
+  }
+
   // check if the host already exists in the metadata schema and if so, get
   // our host_id.. if it doesn't, insert it and get the host_id
   sqlstring query("SELECT host_id, host_name, ip_address"
@@ -360,11 +392,11 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
       query << hostname << sqlstring::end;
       mysql_->execute(query);
       host_id = static_cast<uint32_t>(mysql_->last_insert_id());
-      // log_info("host_id for local host %s newly registered as %u",
+      // log_info("host_id for local host '%s' newly registered as '%u'",
       //        hostname.c_str(), host_id);
     } else {
       host_id = static_cast<uint32_t>(std::strtoul((*row)[0], NULL, 10));
-      // log_info("host_id for local host %s already registered as %u",
+      // log_info("host_id for local host '%s' already registered as '%u'",
       //        hostname.c_str(), host_id);
     }
   }
