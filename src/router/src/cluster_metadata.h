@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,10 +23,24 @@
 
 namespace mysqlrouter {
 
+class HostnameOperationsBase {
+public:
+  virtual std::string get_my_hostname() = 0;
+};
+
+class HostnameOperations: public HostnameOperationsBase {
+public:
+  virtual std::string get_my_hostname() override;
+  static HostnameOperations* instance();
+protected:
+  HostnameOperations() {}
+};
+
 class MySQLInnoDBClusterMetadata {
 public:
-  MySQLInnoDBClusterMetadata(MySQLSession *mysql)
-  : mysql_(mysql) {}
+  MySQLInnoDBClusterMetadata(MySQLSession *mysql,
+                             HostnameOperationsBase *hostname_operations = HostnameOperations::instance())
+  : mysql_(mysql), hostname_operations_(hostname_operations) {}
 
   void check_router_id(uint32_t router_id);
   uint32_t register_router(const std::string &router_name, bool overwrite);
@@ -34,6 +48,7 @@ public:
                           const ConfigGenerator::Options &options);
 private:
   MySQLSession *mysql_;
+  HostnameOperationsBase *hostname_operations_;
 };
 
 
