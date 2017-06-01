@@ -86,13 +86,17 @@ BOOL NTService::GetOS()
   @param szInternName   Name of service to run in this process.
   @param ServiceThread  pointer to the main programs entry function
                         when the service is started
+  @param fpReqAppShutdownCb  pointer to callback function to call after receiving
+                             shutdown signal from Service Controller
 */
 
 
-long NTService::Init(LPCSTR szInternName, void *ServiceThread)
+long NTService::Init(LPCSTR szInternName, void *ServiceThread, void (*fpReqAppShutdownCb)())
 {
 
   pService = this;
+
+  fpRequestApplicationShutdownCallback = fpReqAppShutdownCb;
 
   fpServiceThread = (THREAD_FC)ServiceThread;
   ServiceName = new char[lstrlen(szInternName)+1];
@@ -267,12 +271,9 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
   // wait for exit event
   WaitForSingleObject (pService->hExitEvent, INFINITE);
 
-  // wait for thread to exit
-  // currently there is no way to gracefully shutdown the router thread 
-  // so we just force-quit here.
-  // This should be uncommented when MYR-97 gets implemented.
-  //if (WaitForSingleObject (pService->hThreadHandle, INFINITE) == WAIT_TIMEOUT)
-  CloseHandle(pService->hThreadHandle);
+  // wait for Router main() thread to exit
+  if (WaitForSingleObject (pService->hThreadHandle, INFINITE) == WAIT_TIMEOUT)
+    CloseHandle(pService->hThreadHandle);
 
   pService->Exit(0);
   return;
@@ -315,6 +316,9 @@ BOOL NTService::StartService()
  -------------------------------------------------------------------------- */
 void NTService::StopService()
 {
+  // notify Loader to initiate shutdown
+  fpRequestApplicationShutdownCallback();
+
   bRunning=FALSE;
 
   // Set the event for application

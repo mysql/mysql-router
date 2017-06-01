@@ -58,12 +58,12 @@ IMPORT_LOG_FUNCTIONS()
 
 // need POSIX signals and threads to support signal handling (pthread_sigmask(),
 // sigaction() and friends). For platforms that do not have them (e.g. Windows),
-// signal handling is unsupported at this time.
+// a different mechanism is used instead (see proxy_main()).
 #if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L
-# define SIGNALS_SUPPORTED
+# define USE_POSIX_SIGNALS
 #endif
 
-#ifdef SIGNALS_SUPPORTED
+#ifdef USE_POSIX_SIGNALS
 # include <pthread.h>
 #endif
 
@@ -96,16 +96,18 @@ static const int kPluginExitCheckInterval = 100;  // milliseconds
 // when Router receives a signal to shut down, this flag is set
 static volatile sig_atomic_t g_shutdown_pending = 0;
 
-static void shutdown() {
+// called from sig_handler() on Unix,
+//        from NTService class and Ctrl+C handler on Windows
+void request_application_shutdown() {
   g_shutdown_pending = 1;
 }
 
 static void sig_handler(int signal) {
-#ifdef SIGNALS_SUPPORTED
+#ifdef USE_POSIX_SIGNALS
   switch (signal) {
     case SIGINT:
     case SIGTERM:
-      shutdown();
+      request_application_shutdown();
       break;
     default:
       break;
@@ -114,7 +116,7 @@ static void sig_handler(int signal) {
 }
 
 static void block_all_signals() {
-#ifdef SIGNALS_SUPPORTED
+#ifdef USE_POSIX_SIGNALS
   sigset_t ss;
   sigfillset(&ss);
   if (0 != pthread_sigmask(SIG_SETMASK, &ss, nullptr)) {
@@ -125,7 +127,7 @@ static void block_all_signals() {
 }
 
 static void set_signal_handlers() {
-#ifdef SIGNALS_SUPPORTED
+#ifdef USE_POSIX_SIGNALS
 
   // set up handlers
   {
@@ -447,16 +449,21 @@ Plugin* Loader::load_from(const std::string& plugin_name,
   // If all went well, we register the plugin and return a
   // pointer to it.
   plugins_.emplace(plugin_name, std::move(info));
+  log_debug("  plugin '%s' loaded ok", plugin_name.c_str());
   return plugin;
 }
 
 Plugin* Loader::load(const std::string& plugin_name, const std::string& key) {
+  log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
+
   ConfigSection& plugin = config_.get(plugin_name, key);
   const std::string& library_name = plugin.get("library");
   return load_from(plugin_name, library_name);
 }
 
 Plugin* Loader::load(const std::string& plugin_name) {
+  log_info("  plugin '%s' loading", plugin_name.c_str());
+
   Config::SectionList plugins = config_.get(plugin_name);
   if (plugins.size() > 1) {
     std::ostringstream buffer;
@@ -489,9 +496,7 @@ void Loader::start() {
 }
 
 void Loader::load_all() {
-  stage_ = Stage::Loading;
-  // TODO: once logger becomes available this early, uncomment below line
-  // log_info("Loading all plugins.");
+  log_info("Loading all plugins.");
 
   platform_specific_init();
   for (std::pair<const std::string&, std::string> name : available()) {
@@ -502,7 +507,6 @@ void Loader::load_all() {
 void Loader::unload_all() {
   // this stage has no implementation so far; however, we want to flag that we
   // reached this stage
-  stage_ = Stage::Unloading;
   log_info("Unloading all plugins.");
 }
 
@@ -639,7 +643,6 @@ static void call_plugin_function(PluginFuncEnv* env,
 
 // returns first exception triggered by init()
 std::exception_ptr Loader::init_all() {
-  stage_ = Stage::Initializing;
   log_info("Initializing all plugins.");
 
   if (!topsort())
@@ -677,7 +680,6 @@ std::exception_ptr Loader::init_all() {
 
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
-  stage_ = Stage::Starting;
   log_info("Starting all plugins.");
 
   // On Windows, this is a no-op, because we don't use signals on Windows
@@ -747,7 +749,6 @@ void Loader::start_all() {
 
 // returns first exception triggered by start() or stop()
 std::exception_ptr Loader::main_loop() {
-  stage_ = Stage::Running;
   log_info("Running.");
 
   // This function waits for all threads to finish. First thread that returns
@@ -834,7 +835,6 @@ std::exception_ptr Loader::main_loop() {
 std::exception_ptr Loader::stop_all() {
   // This function runs exactly once - it will be called even if all plugins
   // exit by themselves (thus there's nothing to stop).
-  stage_ = Stage::Stopping;
   log_info("Shutting down. Stopping all plugins.");
 
   // iterate over all plugin instances
@@ -870,7 +870,6 @@ std::exception_ptr Loader::stop_all() {
 
 // returns first exception triggered by deinit()
 std::exception_ptr Loader::deinit_all() {
-  stage_ = Stage::Deinitializing;
   log_info("Deinitializing all plugins.");
 
   // we could just reverse order_ and that would work too,
@@ -949,6 +948,7 @@ bool Loader::visit(const std::string& designator,
 // unit test access - DON'T USE IN PRODUCTION CODE!
 // (unfortunately we cannot guard this with #ifdef FRIEND_TEST)
 namespace unittest_backdoor {
+  HARNESS_EXPORT
   volatile sig_atomic_t& is_shutdown_pending() {
     return g_shutdown_pending;
   }

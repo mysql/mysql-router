@@ -693,7 +693,7 @@ class Path;
  * checks after reading the configuration file.
  */
 
-class LoaderConfig : public Config {
+class HARNESS_EXPORT LoaderConfig : public Config {
  public:
   template <class AssocT, class SeqT>
   explicit LoaderConfig(const AssocT& parameters,
@@ -805,6 +805,9 @@ class HARNESS_EXPORT Loader {
                   const AssocT& defaults = AssocT())
       : Loader(program, defaults, std::vector<std::string>()) {}
 
+  Loader(const Loader&) = delete;
+  Loader& operator=(const Loader&) = delete;
+
   /**
    * Destructor.
    *
@@ -813,7 +816,6 @@ class HARNESS_EXPORT Loader {
    */
 
   ~Loader();
-
 
   /**
    * Read a configuration entry.
@@ -1020,8 +1022,6 @@ class HARNESS_EXPORT Loader {
    */
   SessionList sessions_;
 
-  std::mutex done_mutex_; // FIXME PM: removing this line breaks build on VS2015u3, no idea why
-
   /**
    * Initialization order.
    */
@@ -1034,13 +1034,6 @@ class HARNESS_EXPORT Loader {
   std::string data_folder_;
   std::string program_;
   AppInfo appinfo_;
-
-  /**
-   * Flag that monitors lifecycle progress. Unused at the time of writing,
-   * might be used in the future to report status (or to synchronise tests
-   * with code tested in unit tests)
-   */
-  Stage stage_ = Stage::Unset;
 
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
@@ -1087,8 +1080,12 @@ class HARNESS_EXPORT Loader {
 
 } // namespace mysql_harness
 
+HARNESS_EXPORT
+void request_application_shutdown();
+
 #ifdef FRIEND_TEST
 namespace unittest_backdoor {
+  HARNESS_EXPORT
   volatile sig_atomic_t& is_shutdown_pending();
 }
 #endif

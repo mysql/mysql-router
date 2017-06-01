@@ -698,10 +698,12 @@ TEST_F(AppLoggerTest, TestLogger) {
   EXPECT_THAT(loggers, testing::UnorderedElementsAre(mysql_harness::logging::kMainLogger, "magic"));
 
   // verify the log contains what we expect it to contain. We're looking for something like this:
-  // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Logging facility started
+  // 2017-05-03 11:30:23 main INFO [7ffff7fd4780]
+  //
+  // ******** Router started ********
   // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-  EXPECT_THAT(ssout.str(), HasSubstr(" main DEBUG "));
-  EXPECT_THAT(ssout.str(), HasSubstr(" Logging facility started"));
+  EXPECT_THAT(ssout.str(), HasSubstr(" main INFO "));
+  EXPECT_THAT(ssout.str(), HasSubstr("\n\n******** Router started ********"));
   EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
   EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
 }

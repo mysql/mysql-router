@@ -389,7 +389,7 @@ void MySQLRouter::init_log() {
   }
 
   // and give it a first spin
-  log_debug("Logging facility started");
+  log_info("\n\n******** Router started ********");
 }
 
 void MySQLRouter::init_loader_and_read_config() {

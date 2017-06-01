@@ -16,6 +16,7 @@
 */
 
 #include "nt_servc.h"
+#include "mysql/harness/loader.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <iostream>
@@ -43,6 +44,7 @@ namespace {
   
   int router_service(void *p) {
     g_real_main(g_service.my_argc, g_service.my_argv);
+    g_service.Stop(); // signal NTService to exit its thread, so we can exit the process
     return 0;
   }
   
@@ -154,6 +156,24 @@ namespace {
     }
   }
 
+  BOOL CtrlC_handler(DWORD ctrl_type) {
+    if (ctrl_type == CTRL_C_EVENT) {
+      // user presed Ctrl+C
+      request_application_shutdown();
+      return TRUE;  // don't pass this event to further handlers
+    } else {
+      // some other event
+      return FALSE; // let the default Windows handler deal with it
+    }
+  }
+
+  void register_CtrlC_handler() {
+    if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE) CtrlC_handler, TRUE)) {
+      std::cerr << "Could not install Ctrl+C handler, exiting.\n";
+      exit(1);
+    }
+  }
+
 } // unnamed namespace
 
 int proxy_main(int (*real_main)(int,char**), int argc, char **argv) {
@@ -165,10 +185,15 @@ int proxy_main(int (*real_main)(int,char**), int argc, char **argv) {
       /* start the default service */
       g_windows_service = true;
       g_real_main = real_main;
-      g_service.Init(kRouterServiceName, (void*)router_service);
+
+      // blocks until one of following 2 functions are called:
+      // - g_service.Stop()        (called by us after main() finishes)
+      // - g_service.StopService() (triggered by OS due to outside event, such as termination request)
+      g_service.Init(kRouterServiceName, (void*)router_service, request_application_shutdown);
       break;
     } // fallthrough
-  case ServiceStatus::StartNormal:
+  case ServiceStatus::StartNormal:  // case when Router runs from "DOS" console
+    register_CtrlC_handler();
     g_service.SetRunning();
     result = real_main(argc, argv);
     break;

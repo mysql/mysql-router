@@ -73,8 +73,6 @@
 #include <thread>
 #include <vector>
 
-#ifndef _WIN32  // TODO: These tests can't run on Windows until signal handling is supported
-
 using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
@@ -207,9 +205,8 @@ class LifecycleTest : public BasicConsoleOutputTest {
       "config_folder  = {prefix}/var/run/{program}    \n"
       "data_folder    = {prefix}/../../../stage/lib/mysqlrouter\n"
 #else
-      // TODO these paths need fixing for Windows
       "logging_folder = \n"
-      "plugin_folder  = {prefix}/../../../../stage/Debug/lib\n"
+      "plugin_folder  = {prefix}/../../../../stage/" CMAKE_INTDIR "/lib\n"
       "runtime_folder = {prefix}/var/run\n"
       "config_folder  = {prefix}/etc\n"
       "data_folder    = {prefix}/var/lib\n"
@@ -289,7 +286,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
 void delayed_shutdown() {
   std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-  raise(SIGINT);
+  request_application_shutdown();
 }
 
 int time_diff(const ch::time_point<ch::steady_clock>& t0,
@@ -1603,7 +1600,8 @@ TEST_F(LifecycleTest, InitThrows) {
   init_test(config_text_, {true, false, false, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "init() should throw std::runtime_error";
   } catch (const std::runtime_error& e) {
     EXPECT_STREQ("lifecycle:all init(): I'm throwing!", e.what());
@@ -1623,7 +1621,8 @@ TEST_F(LifecycleTest, StartThrows) {
   init_test(config_text_, {false, true, false, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "start() should throw std::runtime_error";
   } catch (const std::runtime_error& e) {
     EXPECT_STREQ("lifecycle:instance1 start(): I'm throwing!", e.what());
@@ -1643,7 +1642,8 @@ TEST_F(LifecycleTest, StopThrows) {
   init_test(config_text_, {false, false, true, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "stop() should throw std::runtime_error";
   } catch (const std::runtime_error& e) {
     EXPECT_STREQ("lifecycle:instance1 stop(): I'm throwing!", e.what());
@@ -1663,7 +1663,8 @@ TEST_F(LifecycleTest, DeinitThrows) {
   init_test(config_text_, {false, false, false, true});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "deinit() should throw std::runtime_error";
   } catch (const std::runtime_error& e) {
     EXPECT_STREQ("lifecycle:all deinit(): I'm throwing!", e.what());
@@ -1686,7 +1687,8 @@ TEST_F(LifecycleTest, InitThrowsWeird) {
   init_test(config_text_, {true, false, false, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "init() should throw non-standard exception object";
   } catch (const std::runtime_error& e) {
     FAIL() << "init() should throw non-standard exception object";
@@ -1704,7 +1706,8 @@ TEST_F(LifecycleTest, StartThrowsWeird) {
   init_test(config_text_, {false, true, false, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "start() should throw non-standard exception object";
   } catch (const std::runtime_error& e) {
     FAIL() << "start() should throw non-standard exception object";
@@ -1722,7 +1725,8 @@ TEST_F(LifecycleTest, StopThrowsWeird) {
   init_test(config_text_, {false, false, true, false});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "stop() should throw non-standard exception object";
   } catch (const std::runtime_error& e) {
     FAIL() << "stop() should throw non-standard exception object";
@@ -1740,7 +1744,8 @@ TEST_F(LifecycleTest, DeinitThrowsWeird) {
   init_test(config_text_, {false, false, false, true});
 
   try {
-    loader_.run();
+    std::exception_ptr e = loader_.run();
+    if (e) std::rethrow_exception(e);
     FAIL() << "deinit() should throw non-standard exception object";
   } catch (const std::runtime_error& e) {
     FAIL() << "deinit() should throw non-standard exception object";
@@ -1756,70 +1761,6 @@ TEST_F(LifecycleTest, DeinitThrowsWeird) {
 #endif // #ifdef NDEBUG
 
 
-#if 0 //EXAMPLE, erase after
-void delayed_shutdown() {
-  std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-  raise(SIGINT);
-}
-
-void run_then_signal_shutdown(const std::function<void()>& l) {
-  ch::time_point<ch::steady_clock> t0 = ch::steady_clock::now();
-  std::thread(delayed_shutdown).detach();
-  l();
-  ch::time_point<ch::steady_clock> t1 = ch::steady_clock::now();
-  EXPECT_LE(kSleepShutdown, time_diff(t0, t1));
-}
-
-#endif
-
-//TODO mark with proper define for POSIX
-TEST_F(LifecycleTest, signal_1) {
-
-
-
-#if 0 //example code
-  config_text_ << "init   = exit           \n"
-               << "start  = exitonstop     \n"
-               << "stop   = exit           \n"
-               << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
-
-  EXPECT_EQ(loader_.init_all(), nullptr);
-            loader_.start_all();
-
-  const std::list<std::string> initialized = {"magic", "lifecycle3", "lifecycle"};
-  EXPECT_EQ(initialized, loader_.order_);
-
-  refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all init():EXIT."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:sleeping"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT"));
-
-  // signal shutdown after 10ms, main_loop() should block until then
-  run_then_signal_shutdown([&](){ EXPECT_EQ(loader_.main_loop(), nullptr); });
-
-  refresh_log();
-  EXPECT_EQ(1, count_in_log("Shutting down. Stopping all plugins."));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP:done"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT."));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(0, count_in_log("lifecycle:all deinit():EXIT."));
-
-  EXPECT_EQ(loader_.deinit_all(), nullptr);
-
-  refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:all deinit():EXIT."));
-#endif
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -1831,6 +1772,4 @@ int main(int argc, char *argv[])
 
   return res;
 }
-
-#endif // #ifndef _WIN32  // TODO: These tests can't run on Windows until signal handling is supported
 

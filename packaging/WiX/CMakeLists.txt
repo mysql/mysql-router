@@ -18,15 +18,16 @@ IF(NOT WIN32)
 ENDIF()
 
 # Installed directory layout
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin")
+SET(TMP "ProgramFiles(x86)")  # using this string directly in $ENV{} produces errors
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin" "$ENV{${TMP}}/WiX Toolset V3.10/bin")
 
 # Unzipped directory layout
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10")
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10" "$ENV{${TMP}}/WiX Toolset V3.10")
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)
     SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
-    MESSAGE(STATUS "Cannot find wix 3, installer project will not be generated")
+    MESSAGE(WARNING "Cannot find wix 3, installer project will not be generated")
   ENDIF()
   RETURN()
 ENDIF()

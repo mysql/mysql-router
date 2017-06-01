@@ -55,7 +55,7 @@ class NTService
     BOOL GetOS();       // returns TRUE if WinNT
     BOOL IsNT() { return bOsNT;}
     //init service entry point
-    long Init(LPCSTR szInternName,void *ServiceThread);
+    long Init(LPCSTR szInternName,void *ServiceThread, void (*fpReqAppShutdownCb)());
 
     //application shutdown event
     void SetShutdownEvent(HANDLE hEvent){ hShutdownEvent=hEvent; }
@@ -67,9 +67,11 @@ class NTService
                  LPCSTR szPassword=NULL);
     BOOL SeekStatus(LPCSTR szInternName, int OperationType);
     BOOL Remove(LPCSTR szInternName);
-    BOOL IsService(LPCSTR ServiceName);
-    BOOL got_service_option(char **argv, char *service_option);
     BOOL is_super_user();
+
+    //running
+    BOOL got_service_option(char **argv, char *service_option);
+    BOOL IsService(LPCSTR ServiceName);
 
     /*
       SetRunning() is to be called by the application
@@ -102,6 +104,7 @@ class NTService
     BOOL       bRunning;
     HANDLE     hThreadHandle;
     THREAD_FC  fpServiceThread;
+    void       (*fpRequestApplicationShutdownCallback)() = nullptr;
 
     void PauseService();
     void ResumeService();
