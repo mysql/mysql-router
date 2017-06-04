@@ -311,10 +311,11 @@ class LifecycleTest : public BasicConsoleOutputTest {
   }
 
   long count_in_log(const char* needle) {
-    return std::count_if(log_lines_.begin(), log_lines_.end(),
-        [needle](const std::string& line) -> bool {
-      return line.find(needle) != line.npos;
-    });
+    long cnt = 0;
+    for (const std::string& line : log_lines_)
+      if (line.find(needle) != line.npos)
+        cnt++;
+    return cnt;
   }
 
   const std::map<std::string, std::string> params_;
