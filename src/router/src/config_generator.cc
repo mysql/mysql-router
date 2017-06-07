@@ -388,6 +388,16 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   if (!path.exists()) {
     if (mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
       std::cerr << "Cannot create directory " << directory << ": " << get_strerror(errno) << "\n";
+#ifndef _WIN32
+      if (errno == EACCES || errno == EPERM) {
+        std::cerr << "This may be caused by insufficient rights or AppArmor settings.\n";
+        std::cerr << "If you have AppArmor enabled try adding full path to the output directory in the mysqlrouter profile file:\n";
+        std::cerr << "/etc/apparmor.d/usr.bin.mysqlrouter\n\n";
+        std::cerr << "Example:\n\n";
+        std::cerr << "  /path/to/your/output/dir rw,\n";
+        std::cerr << "  /path/to/your/output/dir/** rw,\n";
+      }
+#endif
       throw std::runtime_error("Could not create deployment directory");
     }
     auto_clean.add_directory_delete(directory, true);
