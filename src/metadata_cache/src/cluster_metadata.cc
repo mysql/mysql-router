@@ -101,7 +101,8 @@ bool ClusterMetadata::do_connect(MySQLSession& connection, const metadata_cache:
                                ssl_options_.cipher,
                                ssl_options_.ca, ssl_options_.capath,
                                ssl_options_.crl, ssl_options_.crlpath);
-    connection.connect(host, static_cast<unsigned int>(mi.port), user_, password_, connection_timeout_);
+    connection.connect(host, static_cast<unsigned int>(mi.port), user_, password_,
+        "" /* unix-socket */, "" /* default-schema */, connection_timeout_);
     return true;
   } catch (const MySQLSession::Error& e) {
     return false; // error is logged in calling function

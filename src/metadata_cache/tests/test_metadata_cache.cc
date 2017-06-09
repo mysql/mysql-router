@@ -185,22 +185,22 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to first metadata server
-  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin", "").then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
   mc.refresh();
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to all 3 metadata servers
-  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
-  m.expect_connect("127.0.0.1", 3001, "admin", "admin").then_error("some fake bad connection message", 66);
-  m.expect_connect("127.0.0.1", 3002, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin", "").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3001, "admin", "admin", "").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3002, "admin", "admin", "").then_error("some fake bad connection message", 66);
   mc.refresh();
   expect_cluster_not_routable(mc); // lookup should return nothing (all route paths should have been cleared)
 
   // refresh: fail connecting to first 2 metadata servers
-  m.expect_connect("127.0.0.1", 3000, "admin", "admin").then_error("some fake bad connection message", 66);
-  m.expect_connect("127.0.0.1", 3001, "admin", "admin").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3000, "admin", "admin", "").then_error("some fake bad connection message", 66);
+  m.expect_connect("127.0.0.1", 3001, "admin", "admin", "").then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
   mc.refresh();

@@ -69,7 +69,7 @@ TEST_F(Bug22572346, ConfigVarWithIllegalCharAtBeg) {
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
-      "option destinations in [routing:modeReadOnly] has an invalid destination address '{#mysqld1}:3306'");
+    "option destinations in [routing:modeReadOnly] has an invalid destination address '{#mysqld1}:3306'");
 }
 
 TEST_F(Bug22572346, ConfigVarWithIllegalCharInMid) {

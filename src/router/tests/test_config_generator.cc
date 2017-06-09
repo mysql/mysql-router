@@ -29,6 +29,7 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_test_helpers.h"
+#include "mysqlrouter/uri.h"
 
 #include <cstring>
 #include <fstream>
@@ -1940,4 +1941,146 @@ TEST_F(ConfigGeneratorTest, set_file_owner_user_empty) {
 
     std::map<std::string, std::string> bootstrap_options{{"user", ""}};
     ASSERT_NO_THROW (config_gen.set_file_owner(bootstrap_options, "/tmp/somefile") );
+}
+
+// bootstrap from URI/unix-socket/hostname checks
+const std::string kDefaultUsername = "root";
+const std::string kDefaultPassword = "";
+const std::string kEmptyUnixSocket = "";
+const uint16_t kDefaultMysqlPort = 0;
+
+// passing a unix-socket path to --bootstrap should raise a runtime_error
+TEST_F(ConfigGeneratorTest, bootstrap_from_unixsocket) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return kDefaultPassword; });
+
+  mock_mysql.expect_connect("", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  EXPECT_THROW({
+      config_gen.init("/tmp/mysql.sock", {});
+      },
+      std::runtime_error);
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_ipv6) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("::1", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  config_gen.init("[::1]", {});
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_ipv6_with_port) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("::1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  config_gen.init("[::1]:3306", {});
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_hostname) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("127.0.0.1", 0, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  config_gen.init("localhost", {});
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_hostname_with_port) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  config_gen.init("localhost:3306", {});
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_uri) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  config_gen.init("mysql://localhost:3306/", {});
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_from_uri_unixsocket) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("localhost", 3306, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  EXPECT_NO_THROW({
+      config_gen.init("mysql://localhost:3306/", {{"bootstrap_socket", "/tmp/mysql.sock"}});
+      });
+}
+
+// a invalid URI (port too large) should trigger a expection
+TEST_F(ConfigGeneratorTest, bootstrap_from_invalid_uri) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  EXPECT_THROW({
+      config_gen.init("mysql://localhost:330660/", {{"bootstrap_socket", "/tmp/mysql.sock"}});
+      },
+      std::runtime_error);
+}
+
+// if socket-name is specified, the hostname in the bootstrap-uri has to be 'localhost'
+TEST_F(ConfigGeneratorTest, bootstrap_fail_if_socket_and_hostname) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  EXPECT_THROW({
+      config_gen.init("somehost", {{"bootstrap_socket", "/tmp/mysql.sock"}});
+      },
+      std::runtime_error);
+}
+
+// if socket-name is specified and hostname is 'localhost' then  bootstrap should work
+TEST_F(ConfigGeneratorTest, bootstrap_if_socket_and_localhost) {
+  StrictMock<ReplayerWithMockSSL> mock_mysql;
+  set_mock_mysql(&mock_mysql);
+  mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
+
+  mock_mysql.expect_connect("localhost", 0, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+  common_pass_metadata_checks(mock_mysql);
+
+  ConfigGenerator config_gen;
+  EXPECT_NO_THROW({
+      config_gen.init("localhost", {{"bootstrap_socket", "/tmp/mysql.sock"}});
+      });
 }

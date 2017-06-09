@@ -593,6 +593,19 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->bootstrap_uri_ = server_url;
       });
 
+#ifndef _WIN32
+  arg_handler_.add_option(OptionNames({"--bootstrap-socket"}),
+                          "Bootstrap and configure Router via a Unix socket",
+                          CmdOptionValueReq::required, "socket_name",
+                          [this](const string &socket_name) {
+        if (socket_name.empty()) {
+            throw std::runtime_error("Invalid value for --bootstrap-socket option");
+        }
+
+        this->save_bootstrap_option_not_empty("--bootstrap-socket", "bootstrap_socket", socket_name);
+    });
+#endif
+
   arg_handler_.add_option(OptionNames({"-d", "--directory"}),
                           "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
                           CmdOptionValueReq::required, "directory",

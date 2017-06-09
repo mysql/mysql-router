@@ -75,6 +75,9 @@ public:
   bool operator==(const URI &u2) const;
   bool operator!=(const URI &u2) const;
 
+  /** return string representation of the URI */
+  std::string str() const;
+
   /** @brief overload */
   URI() : URI("") { };
 
@@ -126,6 +129,8 @@ std::ostream& operator<<(std::ostream &strm, const URI &uri);
 class URIParser {
 public:
   static URI parse(const std::string &uri, bool allow_path_rootless = true);
+  static URI parse_shorthand_uri(const std::string &uri, bool allow_path_rootless = true,
+      const std::string &default_scheme = "mysql");
 };
 
 

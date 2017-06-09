@@ -252,7 +252,7 @@ match_port(const string &s, size_t pos_start, size_t &pos_end, string &port) {
 }
 
 static bool
-match_reg_name(const string &s, size_t pos_start, size_t &pos_end, string &reg_name) {
+match_reg_name(const string &s, size_t pos_start, size_t &pos_end, string &reg_name, bool with_pct_encoded) {
   /* reg-name    = *( unreserved / pct-encoded / sub-delims )
    */
   bool made_progress;
@@ -268,11 +268,17 @@ match_reg_name(const string &s, size_t pos_start, size_t &pos_end, string &reg_n
       made_progress = true;
     }
 
-    string pct_enc;
-    if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
-      reg_name.append(pct_enc);
+    if (with_pct_encoded) {
+      string pct_enc;
+      if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
+        reg_name.append(pct_enc);
 
+        made_progress = true;
+      }
+    } else if (pos_matched < s.length() && s.at(pos_matched) == '%') {
+      reg_name += '%';
       made_progress = true;
+      pos_matched += 1;
     }
   } while (made_progress);
 
@@ -525,7 +531,7 @@ match_ipv6_8(const string &s, size_t pos_start,
 
 
 static bool
-match_ipv6_zoneid(const string &s, size_t pos_start, size_t &pos_end, string &zoneid) {
+match_ipv6_zoneid(const string &s, size_t pos_start, size_t &pos_end, string &zoneid, bool with_pct_encoded) {
   // zoneid       = unreserved / pct-encoded
 
   bool made_progress;
@@ -543,11 +549,18 @@ match_ipv6_zoneid(const string &s, size_t pos_start, size_t &pos_end, string &zo
       tmp.append(capture(s, pos_matched, match_len, pos_matched));
     }
 
-    string pct_enc;
-    if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
-      tmp.append(pct_enc);
+    if (with_pct_encoded) {
+      string pct_enc;
+      if (match_pct_encoded(s, pos_matched, pos_matched, pct_enc)) {
+        tmp.append(pct_enc);
 
-      made_progress = true;
+        made_progress = true;
+      }
+    } else if (s.at(pos_matched) == '%') {
+        tmp += '%';
+
+        made_progress = true;
+        pos_matched += 1;
     }
   } while(made_progress);
 
@@ -581,7 +594,7 @@ match_ipv6(const string &s, size_t pos_start, size_t &pos_end, string &ipv6_addr
 }
 
 static bool
-match_ip_literal(const string &s, size_t pos_start, size_t &pos_end, string &ip_literal) {
+match_ip_literal(const string &s, size_t pos_start, size_t &pos_end, string &ip_literal, bool with_pct_encoded) {
   // IP-literal = "[" ( IPv6address / IPv6addrz / IPvFuture ) "]"
   //
   // RFC 4291
@@ -605,14 +618,18 @@ match_ip_literal(const string &s, size_t pos_start, size_t &pos_end, string &ip_
     throw URIError("expected to find IPv6 address, but failed", s, pos_start);
   }
 
-  if (match_pct_encoded(s, pos_matched, pos_matched, tmp)) {
-    if (tmp.compare("%25") == 0) {
-      if (!match_ipv6_zoneid(s, pos_matched, pos_matched, tmp)) {
-        throw URIError("invalid zoneid", s, pos_matched);
+  if (with_pct_encoded) {
+    if (match_pct_encoded(s, pos_matched, pos_matched, tmp)) {
+      if (tmp.compare("%25") == 0) {
+        if (!match_ipv6_zoneid(s, pos_matched, pos_matched, tmp, with_pct_encoded)) {
+          throw URIError("invalid zoneid", s, pos_matched);
+        }
+      } else {
+        throw URIError("invalid pct-encoded value, expected %25", s, pos_matched - 2);
       }
-    } else {
-      throw URIError("invalid pct-encoded value, expected %25", s, pos_matched - 2);
     }
+  } else if (s.at(pos_matched) == '%') {
+    pos_matched += 1;
   }
 
   if (is_eol(s, pos_matched) || s.at(pos_matched) != ']') {
@@ -626,14 +643,14 @@ match_ip_literal(const string &s, size_t pos_start, size_t &pos_end, string &ip_
 }
 
 static bool
-match_host(const string &s, size_t pos_start, size_t &pos_end, string &host) {
+match_host(const string &s, size_t pos_start, size_t &pos_end, string &host, bool with_pct_encoded) {
   // host        = IP-literal / IPv4address / reg-name
   //
   // match_reg_name has to be last as it accepts the 'empty host'
 
   return match_ipv4(s, pos_start, pos_end, host) ||
-      match_ip_literal(s, pos_start, pos_end, host) ||
-      match_reg_name(s, pos_start, pos_end, host);
+      match_ip_literal(s, pos_start, pos_end, host, with_pct_encoded) ||
+      match_reg_name(s, pos_start, pos_end, host, with_pct_encoded);
 }
 
 static bool
@@ -686,7 +703,7 @@ match_authority(const string &s, size_t pos_start, size_t &pos_end,
     split_userinfo(user_info, tmp_username, tmp_password);
   }
 
-  if (!match_host(s, pos_matched, pos_matched, tmp_host)) {
+  if (!match_host(s, pos_matched, pos_matched, tmp_host, true)) {
     throw URIError("expected host :(", s, pos_matched);
   }
 
@@ -917,6 +934,66 @@ split_query(const string &s) {
   return query;
 }
 
+/**
+ * if uri ~= host:port, URI(scheme="mysql", host=host, port=port)  [no-pct-enc]
+ * elif uri ~= ^/, URI(schema="mysql", query={"socket": uri })     [no-pct-enc]
+ * elif uri ~= ^\\, URI(schema="mysql", query={"socket": uri })    [no-pct-enc]
+ * else URI(uri)                                                   [pct-enc]
+ */
+URI URIParser::parse_shorthand_uri(const std::string &uri, bool allow_path_rootless, const std::string &default_scheme) {
+  size_t pos_matched = 0;
+  std::string host;
+  std::string port;
+
+  if (uri.length() > 0 && (uri.at(0) == '/' || uri.at(0) == '\\')) {
+    URI u;
+    URIQuery query;
+
+    query["socket"] = uri;
+    u.scheme = default_scheme;
+    u.query = query;
+
+    return u;
+  } else if (match_host(uri, 0, pos_matched, host, false)) {
+    // EOL, : or /
+    if (pos_matched < uri.length() && uri.at(pos_matched) == ':') {
+      pos_matched += 1;
+
+      match_port(uri, pos_matched, pos_matched, port);
+    }
+
+    if (pos_matched == uri.size()) {
+      uint64_t parsed_port = 0;
+      if (port.length() > 0) {
+        try {
+          parsed_port = std::stoul(port);
+        } catch (const std::out_of_range &) {
+          throw URIError("invalid URI: invalid port: impossible port number for: " + uri);
+        }
+
+        if (parsed_port > USHRT_MAX) {
+          // the URI class only has 'uint16' for the port, even though
+          // the RFC allows arbit' large numbers.
+          throw URIError("invalid URI: invalid port: impossible port number for: " + uri);
+        }
+      }
+
+      URI u;
+      URIQuery query;
+
+      query["socket"] = uri;
+      u.scheme = default_scheme;
+      u.host = host;
+      u.port = static_cast<uint16_t>(parsed_port);
+
+      return u;
+    }
+  }
+
+  return URIParser::parse(uri, allow_path_rootless);
+}
+
+
 URI
 URIParser::parse(const string &uri, bool allow_path_rootless) {
   size_t pos = 0;
@@ -1104,6 +1181,15 @@ std::ostream& operator<<(std::ostream &strm, const URI &uri) {
     strm << "#" << pct_encode(uri.fragment, kPathCharNoPctEncoded + "/?");
   }
   return strm;
+}
+
+std::string
+URI::str() const {
+  std::stringstream ss;
+
+  ss << *this;
+
+  return ss.str();
 }
 
 void URI::init_from_uri(const string &uri) {

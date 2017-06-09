@@ -29,6 +29,8 @@ public:
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &user,
                        const std::string &password,
+                       const std::string &unix_socket,
+                       const std::string &default_schema,
                        int connection_timeout = kDefaultConnectionTimeout) override;
   virtual void disconnect() override;
   virtual bool is_connected() noexcept override { return connected_; }
@@ -62,7 +64,7 @@ public:
   string string_or_null(const char *s) { return string(s); }
   string string_or_null() { return string(); }
 
-  MySQLSessionReplayer &expect_connect(const std::string &host, unsigned port, const std::string &user, const std::string &password);
+  MySQLSessionReplayer &expect_connect(const std::string &host, unsigned port, const std::string &user, const std::string &password, const std::string &unix_socket);
   MySQLSessionReplayer &expect_execute(const std::string &q);
   MySQLSessionReplayer &expect_query(const std::string &q);
   MySQLSessionReplayer &expect_query_one(const std::string &q);
@@ -102,9 +104,12 @@ private:
     unsigned int port;
     std::string user;
     std::string password;
+    std::string unix_socket;
   };
   std::deque<CallInfo> call_info_;
   uint64_t last_insert_id_;
+  std::string last_error_msg;
+  unsigned int last_error_code;
   bool trace_ = false;
   bool connected_ = false;
 };

@@ -263,30 +263,70 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
   int connection_timeout_ = 5;
+  std::string uri;
+
+  const std::string default_schema = "mysql://";
   // Extract connection information from the bootstrap server URL.
-  std::string normalized_url(server_url);
-  if (normalized_url.find("//") == std::string::npos) {
-    normalized_url = "mysql://" + normalized_url;
+  if (server_url.compare(0, default_schema.size(), default_schema) != 0) {
+    uri = default_schema + server_url;
+  } else {
+    uri = server_url;
   }
-  URI u(normalized_url);
+
+  URI u;
+  try {
+    // don't allow rootless URIs (mailto:foo@...) which would collide with the schema-less
+    // URIs are allow too: root:pw@host
+    u = URIParser::parse(uri, false);
+  } catch (const mysqlrouter::URIError &e) {
+    throw std::runtime_error(e.what());
+  }
+
+  // query, fragment and path should all be empty
+  if (!u.fragment.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a #fragement, but shouldn't");
+  }
+  if (!u.query.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a ?query, but shouldn't");
+  }
+  if (!u.path.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a /path, but shouldn't");
+  }
 
   if (u.username.empty()) {
     u.username = "root";
   }
-  // setup localhost address.
-  u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
-
   // we need to prompt for the password
   if (u.password.empty()) {
     u.password = prompt_password(
       "Please enter MySQL password for "+u.username);
   }
 
+  std::string socket_name;
+
+  // easier to just use .at() and ask for forgiveness, then useing .find() + []
+  try {
+    socket_name = bootstrap_options.at("bootstrap_socket");
+  } catch (const std::out_of_range &e) {
+    socket_name = "";
+  }
+
+  if (socket_name.size() > 0) {
+    // enforce host == "localhost" if a socket is used to avoid ambiguity with the possible hostname
+    if (u.host != "localhost") {
+      throw std::runtime_error("--bootstrap-socket given, but --bootstrap option contains a non-'localhost' hostname: " + u.host);
+    }
+  } else {
+    // setup localhost address.
+    u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
+  }
+
   UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
   try
   {
     set_ssl_options(s.get(), bootstrap_options);
-    s->connect(u.host, u.port, u.username, u.password, connection_timeout_);
+
+    s->connect(u.host, u.port, u.username, u.password, socket_name, "", connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
