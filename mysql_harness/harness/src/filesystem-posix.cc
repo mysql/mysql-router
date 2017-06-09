@@ -155,22 +155,41 @@ class Directory::DirectoryIterator::State {
   }
 
   DIR *dirp_;
-  struct dirent *entry_;
+
+  struct free_dealloc {
+    void operator()(void* p) { if (p) free(p); }
+  };
+
+  std::unique_ptr<dirent, free_dealloc> entry_;
   const string pattern_;
   struct dirent *result_;
 };
 
 Directory::DirectoryIterator::State::State()
-  : dirp_(nullptr), entry_(nullptr), pattern_(""), result_(nullptr) {}
+  : dirp_(nullptr), pattern_(""), result_(nullptr) {}
 
 
 Directory::DirectoryIterator::State::State(const Path& path,
                                            const string& pattern)
     : dirp_(opendir(path.c_str())), pattern_(pattern) {
-  // in Solaris, dirent is NOT large enough to hold a directory name, so we need to
-  // ensure there's extra space for it
-  entry_ = (struct dirent*)malloc(sizeof(struct dirent) + (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1);
-  result_ = entry_;
+
+  // dirent can be NOT large enough to hold a directory name, so we need to
+  // ensure there's extra space for it. From the "man readdir_r":
+  // "Since POSIX.1 does not specify the size of the d_name field, and other nonstandard fields may
+  //  precede that field within the dirent structure, portable  applications
+  //  that use readdir_r() should allocate the buffer whose address is passed in entry as follows:
+  //    name_max = pathconf(dirpath, _PC_NAME_MAX);
+  //    if (name_max == -1)         /* Limit not defined, or error */
+  //        name_max = 255;         /* Take a guess */
+  //    len = offsetof(struct dirent, d_name) + name_max + 1;
+  //    entryp = malloc(len);
+  //  (POSIX.1 requires that d_name is the last field in a struct dirent.)"
+  size_t alloc_size = sizeof(struct dirent) + (size_t)pathconf(path.str().c_str(), _PC_NAME_MAX) + 1;
+
+  // We need RAII here as we throw an exception in the constructor which means we can't rely
+  // on the desctructor always being called
+  entry_.reset((struct dirent*)malloc(alloc_size));
+  result_ = entry_.get();
 
   if (dirp_ == nullptr) {
     ostringstream buffer;
@@ -187,8 +206,6 @@ Directory::DirectoryIterator::State::~State() {
   // work. For example, BSD systems do not always support this.
   if (dirp_ != nullptr)
     closedir(dirp_);
-  if (entry_)
-    free(entry_);
 }
 
 
@@ -201,7 +218,7 @@ void Directory::DirectoryIterator::State::fill_result() {
     return;
 
   while (true) {
-    if (int error = readdir_safe(dirp_, entry_, &result_)) {
+    if (int error = readdir_safe(dirp_, entry_.get(), &result_)) {
       ostringstream buffer;
 
       buffer << "Failed to read directory entry - " << get_strerror(error);

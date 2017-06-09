@@ -58,7 +58,7 @@ public:
       : current_pos_(0), stopping_(false), socket_operations_(sock_ops), protocol_(protocol) {}
 
   /** @brief Destructor */
-  ~RouteDestination();
+  virtual ~RouteDestination();
 
   RouteDestination(const RouteDestination &other) = delete;
   RouteDestination(RouteDestination &&other) = delete;

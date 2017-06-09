@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -134,6 +134,9 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
     return -1;
   }
 
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){if (servinfo) freeaddrinfo(servinfo);});
+
+
 #ifdef _WIN32
   WSASetLastError(0);
 #else
@@ -207,8 +210,6 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
 
   if (info == nullptr) {
     return -1;
-  } else if (servinfo) {
-    freeaddrinfo(servinfo);
   }
 
   // Handle remaining errors
