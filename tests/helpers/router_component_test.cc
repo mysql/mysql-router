@@ -264,7 +264,7 @@ bool RouterComponentTest::CommandHandle::output_contains(const std::string& str,
 }
 
 bool RouterComponentTest::CommandHandle::read_output(unsigned timeout_ms) {
-  const size_t BUF_SIZE = 256;
+  const size_t BUF_SIZE = 1024;
   char cmd_output[BUF_SIZE] = {0};
   bool result = launcher_.read(cmd_output, BUF_SIZE, timeout_ms) > 0;
 

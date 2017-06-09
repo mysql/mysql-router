@@ -135,6 +135,9 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
     return -1;
   }
 
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){if (servinfo) freeaddrinfo(servinfo);});
+
+
 #ifdef _WIN32
   WSASetLastError(0);
 #else
@@ -208,8 +211,6 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
 
   if (info == nullptr) {
     return -1;
-  } else if (servinfo) {
-    freeaddrinfo(servinfo);
   }
 
   // Handle remaining errors
