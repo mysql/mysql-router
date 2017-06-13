@@ -621,3 +621,48 @@ URItoStringTestData uri_to_string_test_data[] = {
 INSTANTIATE_TEST_CASE_P(
     URITests, URItoStringTestsDD,
     ::testing::ValuesIn(uri_to_string_test_data));
+
+// rootless
+
+// should all throw
+struct URIRootlessTestFailData {
+  const char *uri;
+
+  const char *exception_text;
+};
+
+// pretty printer for the test data
+::std::ostream& operator<<(::std::ostream &os, const URIRootlessTestFailData &data) {
+  return os << data.uri;
+}
+
+class URIRootlessTestsDDThrowing: public URITests,
+  public ::testing::WithParamInterface<URIRootlessTestFailData> {
+};
+
+TEST_P(URIRootlessTestsDDThrowing, FailsParseURI) {
+  // call GetParam outside the ASSERT to actually make it work
+  auto expected = GetParam();
+
+  try {
+    auto u = URI(expected.uri, false);
+
+    FAIL() << "should have failed";
+  } catch(URIError &e) {
+    EXPECT_THAT(e.what(), StrEq(expected.exception_text));
+  } catch(...) {
+    FAIL() << "expected to throw URIError, got unexpected exception";
+  }
+}
+
+URIRootlessTestFailData uri_rootless_test_fail_data[] = {
+  {
+    // looks like a URI with scheme: localhost, path: 1234
+    "localhost:1234",
+    "invalid URI: neither authority nor path at position 14 for: localhost:1234"
+  },
+};
+
+INSTANTIATE_TEST_CASE_P(
+    URITests, URIRootlessTestsDDThrowing,
+    ::testing::ValuesIn(uri_rootless_test_fail_data));

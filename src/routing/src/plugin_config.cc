@@ -180,7 +180,12 @@ string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigS
         throw invalid_argument(get_log_prefix(option) +
                                    ": empty address found in destination list (was '" + value + "')");
       }
-      info = mysqlrouter::split_addr_port(part);
+      try {
+        info = mysqlrouter::split_addr_port(part);
+      } catch (const std::runtime_error &e) {
+        throw invalid_argument(get_log_prefix(option) +
+                                   ": address in destination list '" + part + "' is invalid: " + e.what());
+      }
       if (info.second == 0) {
        info.second = Protocol::get_default_port(protocol_type);
       }

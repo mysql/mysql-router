@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -139,7 +139,7 @@ static int init(const mysql_harness::AppInfo *info) {
 
         // We check if we need special plugins based on URI
         try {
-          auto uri = URI(config.destinations);
+          auto uri = URI(config.destinations, false);
           if (uri.scheme == "metadata-cache") {
             need_metadata_cache = true;
           }
@@ -178,7 +178,8 @@ static void start(const ConfigSection *section) {
                    config.connect_timeout,     config.max_connect_errors,
                    config.client_connect_timeout);
     try {
-      r.set_destinations_from_uri(URI(config.destinations));
+      // don't allow rootless URIs as we did already in the get_option_destinations()
+      r.set_destinations_from_uri(URI(config.destinations, false));
     } catch (URIError) {
       r.set_destinations_from_csv(config.destinations);
     }
