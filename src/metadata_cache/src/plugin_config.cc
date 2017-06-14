@@ -36,9 +36,9 @@ using std::invalid_argument;
 std::string MetadataCachePluginConfig::get_default(const std::string &option) {
 
   static const std::map<std::string, std::string> defaults{
-      {"address",  metadata_cache::kDefaultMetadataAddress}
+      {"address",  metadata_cache::kDefaultMetadataAddress},
+      {"ttl", to_string(metadata_cache::kDefaultMetadataTTL)},
   };
-
   auto it = defaults.find(option);
   if (it == defaults.end()) {
     return std::string();
@@ -86,19 +86,4 @@ MetadataCachePluginConfig::get_bootstrap_servers(
     }
   }
   return address_vector;
-}
-
-unsigned int MetadataCachePluginConfig::get_option_ttl(
-  const mysql_harness::ConfigSection *section, const std::string &option,
-  unsigned int defaultTTL) {
-
-  // Read option string
-  std::string ttl_option = get_option_string(section, option);
-
-  // Erase leading and trailing spaces
-  ttl_option.erase(0, ttl_option.find_first_not_of(' '));
-  ttl_option.erase(ttl_option.find_last_not_of(' ') + 1, std::string::npos);
-
-  // Convert to an integer and return
-  return mysqlrouter::strtoui_checked(ttl_option.c_str(), defaultTTL);
 }
