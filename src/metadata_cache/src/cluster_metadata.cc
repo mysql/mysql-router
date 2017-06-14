@@ -183,6 +183,7 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
     }
 
     assert(gr_member_connection->is_connected());
+    log_info("Connected to replicaset '%s' through %s", name.c_str(), mi_addr.c_str());
 
     try {
       bool single_primary_mode = true;
