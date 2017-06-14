@@ -689,6 +689,26 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+  arg_handler_.add_option(OptionNames({"--force-password-validation"}),
+                          "When autocreating database account do not use HASHED password. (bootstrap)",
+                          CmdOptionValueReq::none, "",
+                          [this](const string &) {
+        this->bootstrap_options_["force-password-validation"] = "1";
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --force-password-validation can only be used together with -B/--bootstrap");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--password-retries"}),
+                          "Number of the retries for generating the router's user password. (bootstrap)",
+                          CmdOptionValueReq::optional, "password-retries",
+                          [this](const string &retries) {
+        this->bootstrap_options_["password-retries"] = retries;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --password-retries can only be used together with -B/--bootstrap");
+        }
+      });
+
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
@@ -698,7 +718,6 @@ void MySQLRouter::prepare_command_options() noexcept {
           throw std::runtime_error("Option --force can only be used together with -B/--bootstrap");
         }
       });
-
 
   char ssl_mode_vals[128];
   char ssl_mode_desc[256];
