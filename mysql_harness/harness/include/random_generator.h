@@ -26,25 +26,54 @@ namespace mysql_harness {
 
 class HARNESS_EXPORT RandomGeneratorInterface {
  public:
-  /** @brief Generates a random (password) string
+  enum AlphabetContent: unsigned {
+    AlphabetDigits = 0x1,
+    AlphabetLowercase = 0x2,
+    AlphabetUppercase = 0x4,
+    AlphabetSpecial = 0x8,
+    AlphabetAll = 0xFF
+  };
+
+  /** @brief Generates a random string out of selected alphabet
    *
-   * @param password_length length of string requested
-   * @param base            number of possible random values per character
-   * @return string with random chars (aka password string)
+   * @param length length of string requested
+   * @param alphabet_mask bitmasmask indicating which alphabet symbol groups should be
+   *                      used for indentifier generation (see AlphabetContent enum
+   *                      for possible values that can be or-ed)
+   * @return string with the generated random chars
    *
-   */       // sizeof(alphabet)-1 inside RandomGenerator::generate_password() ----vv
-  virtual std::string generate_password(unsigned password_length, unsigned base = 87) noexcept = 0;
+   * @throws std::invalid_argument when the alphabet_mask is empty or invalid
+   *
+   */
+  virtual std::string generate_identifier(unsigned length, unsigned alphabet_mask = AlphabetAll) = 0;
+
+  /** @brief Generates a random password that adheres to the STRONG password requirements:
+   *         * contains at least 1 digit
+   *         * contains at least 1 uppercase letter
+   *         * contains at least 1 lowercase letter
+   *         * contains at least 1 special character
+   *
+   * @param length length of requested password (should be at least 8)
+   * @return string with the generated password
+   *
+   * @throws std::invalid_argument when the requested length is less than 8
+   *
+   */
+  virtual std::string generate_strong_password(unsigned length) = 0;
 };
 
 class HARNESS_EXPORT RandomGenerator : public RandomGeneratorInterface {
- public:                                        // sizeof(alphabet)-1 ----vv
-  std::string generate_password(unsigned password_length, unsigned base = 87) noexcept override;
+ public:
+  std::string generate_identifier(unsigned length, unsigned alphabet_mask = AlphabetAll) override;
+  std::string generate_strong_password(unsigned length) override;
 };
 
 class HARNESS_EXPORT FakeRandomGenerator : public RandomGeneratorInterface {
  public:
   // returns "012345678901234567890123...", truncated to password_length
-  std::string generate_password(unsigned password_length, unsigned) noexcept override;
+  std::string generate_identifier(unsigned length, unsigned) override;
+  // returns "012345678901234567890123...", truncated to password_length
+  std::string generate_strong_password(unsigned length) override;
 };
 
 } // namespace mysql_harness

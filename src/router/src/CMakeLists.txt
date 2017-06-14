@@ -26,9 +26,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter
 
 if(WITH_SSL STREQUAL "bundled")
   set(MY_AES_IMPL common/my_aes_yassl.cc)
+  add_definitions(-DSIZEOF_LONG=${SIZEOF_LONG} -DSIZEOF_LONG_LONG=${SIZEOF_LONG_LONG})
 else()
   set(MY_AES_IMPL common/my_aes_openssl.cc)
 endif()
+
+add_definitions(${SSL_DEFINES})
+
 
 set(lib_source_files
   config_generator.cc
@@ -39,6 +43,7 @@ set(lib_source_files
   datatypes.cc
   plugin_config.cc
   common/my_aes.cc
+  common/my_sha1.cc
   common/mysql_session.cc
   common/utils_sqlstring.cc
   ${MY_AES_IMPL})
@@ -48,7 +53,7 @@ endif()
 
 # Disable warnings from 3rd party code that we have no control over
 if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  add_compile_flags(common/my_aes.cc ${MY_AES_IMPL} COMPILE_FLAGS
+  add_compile_flags(common/my_aes.cc common/my_sha1.cc ${MY_AES_IMPL} COMPILE_FLAGS
       -Wno-sign-conversion
       -Wno-unused-parameter
       -Wno-conversion)
