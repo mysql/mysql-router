@@ -277,6 +277,26 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
   int connection_timeout_ = 5;
   std::string uri;
 
+  // check options
+  if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
+    char *end = NULL;
+    const char *tmp = bootstrap_options.at("base-port").c_str();
+    int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
+    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+    if (base_port <= 0 || base_port > max_base_port || end != tmp + strlen(tmp)) {
+      throw std::runtime_error("Invalid base-port number " +
+          bootstrap_options.at("base-port") +
+          "; please pick a value between 1 and "+std::to_string((max_base_port)));
+    }
+  }
+  if (bootstrap_options.find("bind-address") != bootstrap_options.end()) {
+    auto address = bootstrap_options.at("bind-address");
+    TCPAddress tmp(address, 1);
+    if (!tmp.is_valid()) {
+      throw std::runtime_error("Invalid bind-address value " + address);
+    }
+  }
+
   const std::string default_schema = "mysql://";
   // Extract connection information from the bootstrap server URL.
   if (server_url.compare(0, default_schema.size(), default_schema) != 0) {
