@@ -63,7 +63,11 @@ public:
 
   /** @brief Default constructor
    *
-   * @param uri URI to be used to read parts
+   * Rootless URIs like "mailto:user@example.com" may be forbidden to make sure
+   * that simple "host:addr" doesn't get parsed as (scheme='host', path='addr')
+   *
+   * @param uri URI string to decode
+   * @param allow_path_rootless if parsing rootless URIs is allowed.
    */
   URI(const std::string &uri, bool allow_path_rootless = true) : scheme(), host(), port(0), username(), password(), path(), query(),
                            fragment(), uri_(uri), allow_path_rootless_(allow_path_rootless) {
