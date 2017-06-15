@@ -654,6 +654,15 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
 
 #endif
 
+TEST_F(AppTest, EmptyConfigPath) {
+  vector<string> argv = {
+      "--config", ""
+  };
+  EXPECT_THROW({ MySQLRouter r(g_origin, argv); },
+      std::runtime_error);
+}
+
+
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
 

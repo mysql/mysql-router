@@ -139,7 +139,13 @@ static inline void set_signal_handlers() {
 // if it is not throw an exception
 static void check_and_add_conf(std::vector<string> &configs,
                                const std::string& value) throw(std::runtime_error) {
-  mysql_harness::Path cfg_file_path(value);
+  mysql_harness::Path cfg_file_path;
+  try {
+    cfg_file_path = mysql_harness::Path(value);
+  } catch (const std::invalid_argument &exc) {
+    throw std::runtime_error(string_format("Failed reading configuration file: %s", exc.what()));
+  }
+
   if (cfg_file_path.is_regular()) {
     configs.push_back(cfg_file_path.real_path().str());
   } else if (cfg_file_path.is_directory()) {
