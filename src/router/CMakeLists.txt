@@ -35,7 +35,7 @@ if(INSTALL_DOCDIR)
       install(FILES ${CMAKE_SOURCE_DIR}/packaging/deb-common/mysql-router.mysqlrouter.init
         DESTINATION ${INSTALL_DOCDIR} RENAME sample_mysqlrouter.init)
     else()
-      install(FILES ${CMAKE_SOURCE_DIR}/internal/packaging/deb-common-commercial/mysql-router.mysqlrouter.init
+      install(FILES ${CMAKE_SOURCE_DIR}/internal/packaging/deb-common-commercial/mysql-router-commercial.mysqlrouter.init
         DESTINATION ${INSTALL_DOCDIR} RENAME sample_mysqlrouter.init)
     endif()
   endif()
