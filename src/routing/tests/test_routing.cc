@@ -45,6 +45,7 @@ using routing::set_socket_blocking;
 
 using ::testing::ContainerEq;
 using ::testing::Eq;
+using ::testing::Gt;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -110,21 +111,16 @@ TEST_F(RoutingTests, SetSocketBlocking) {
 TEST_F(RoutingTests, CopyPacketsSingleWrite) {
   int sender_socket = 1, receiver_socket = 2;
   RoutingProtocolBuffer buffer(500);
-  fd_set readfds;
   int curr_pktnr = 100;
   bool handshake_done = true;
   size_t report_bytes_read = 0u;
-
-  FD_ZERO(&readfds);
-  FD_SET(sender_socket, &readfds);
-  FD_SET(receiver_socket, &readfds);
 
   EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(200));
 
 
   ClassicProtocol cp(&socket_op);
-  int res = cp.copy_packets(1, 2, &readfds,
+  int res = cp.copy_packets(sender_socket, receiver_socket, true /* sender is writable */,
                             buffer, &curr_pktnr,
                             handshake_done, &report_bytes_read, false);
 
@@ -135,14 +131,9 @@ TEST_F(RoutingTests, CopyPacketsSingleWrite) {
 TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
   int sender_socket = 1, receiver_socket = 2;
   RoutingProtocolBuffer buffer(500);
-  fd_set readfds;
   int curr_pktnr = 100;
   bool handshake_done = true;
   size_t report_bytes_read = 0u;
-
-  FD_ZERO(&readfds);
-  FD_SET(sender_socket, &readfds);
-  FD_SET(receiver_socket, &readfds);
 
   InSequence seq;
 
@@ -156,7 +147,7 @@ TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100)).WillOnce(Return(100));
 
   ClassicProtocol cp(&socket_op);
-  int res = cp.copy_packets(1, 2, &readfds,
+  int res = cp.copy_packets(sender_socket, receiver_socket, true,
                             buffer, &curr_pktnr,
                             handshake_done, &report_bytes_read, false);
 
@@ -167,20 +158,16 @@ TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
 TEST_F(RoutingTests, CopyPacketsWriteError) {
   int sender_socket = 1, receiver_socket = 2;
   RoutingProtocolBuffer buffer(500);
-  fd_set readfds;
   int curr_pktnr = 100;
   bool handshake_done = true;
   size_t report_bytes_read = 0u;
-
-  FD_ZERO(&readfds);
-  FD_SET(sender_socket, &readfds);
-  FD_SET(receiver_socket, &readfds);
 
   EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(-1));
 
   ClassicProtocol cp(&socket_op);
-  int res = cp.copy_packets(1, 2, &readfds,
+  // will log "Write error: ..." as we don't mock an errno
+  int res = cp.copy_packets(sender_socket, receiver_socket, true,
                             buffer, &curr_pktnr,
                             handshake_done, &report_bytes_read, false);
 
@@ -188,6 +175,9 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
 }
 
 #ifndef _WIN32  // [HERE_1]
+
+// a valid Connection::Close xprotocol message
+#define kByeMessage "\x01\x00\x00\x00\x03"
 
 class MockServer {
 public:
@@ -216,11 +206,7 @@ public:
     if (::bind(service_tcp_, (const struct sockaddr *)&addr,
                static_cast<socklen_t>(sizeof(addr))) == -1) {
       socket_operations_->close(service_tcp_);
-#ifdef _WIN32
-      int errcode = WSAGetLastError();
-#else
-      int errcode = errno;
-#endif
+      int errcode = socket_operations_->get_errno();
       throw std::runtime_error(get_message_error(errcode));
     }
     if (listen(service_tcp_, 20) < 0) {
@@ -266,9 +252,9 @@ public:
 
   void new_client(int sock) {
     num_connections_++;
-    char buf[3];
+    char buf[sizeof(kByeMessage)];
     // block until we receive the bye msg
-    if (read(sock, buf, 3) < 0) {
+    if (read(sock, buf, sizeof(buf)) < 0) {
       FAIL() << "Unexpected results from read(): " << mysql_harness::get_strerror(errno);
     }
     socket_operations_->close(sock);
@@ -293,8 +279,8 @@ static int connect_local(uint16_t port) {
 }
 
 static void disconnect(int sock) {
-  if (write(sock, "bye", 3) < 0)
-    std::cout << "write(bye) returned error\n";
+  if (write(sock, kByeMessage, sizeof(kByeMessage)) < 0)
+    std::cout << "write(xproto-connection-close) returned error\n";
 
   routing::SocketOperations::instance()->close(sock);
 }
@@ -383,8 +369,8 @@ TEST_F(RoutingTests, bug_24841281) {
     int sock11 = connect_local(router_port);
     int sock12 = connect_local(router_port);
 
-    EXPECT_TRUE(sock11 > 0);
-    EXPECT_TRUE(sock12 > 0);
+    EXPECT_THAT(sock11, Gt(0));
+    EXPECT_THAT(sock12, Gt(0));
 
     call_until([&server]() -> bool { return server.num_connections_ == 3; });
     EXPECT_EQ(3, server.num_connections_);
@@ -413,8 +399,8 @@ TEST_F(RoutingTests, bug_24841281) {
   int sock3 = connect_socket("/tmp/sock");
   int sock4 = connect_socket("/tmp/sock");
 
-  EXPECT_TRUE(sock3 > 0);
-  EXPECT_TRUE(sock4 > 0);
+  EXPECT_THAT(sock3, Gt(0));
+  EXPECT_THAT(sock4, Gt(0));
 
   call_until([&server]() -> bool { return server.num_connections_ == 2; });
   EXPECT_EQ(2, server.num_connections_);

@@ -134,6 +134,8 @@ public:
                unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
                routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance());
 
+  ~MySQLRouting();
+
   /** @brief Starts the service and accept incoming connections
    *
    * Starts the connection routing service and start accepting incoming

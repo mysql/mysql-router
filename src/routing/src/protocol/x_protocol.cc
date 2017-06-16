@@ -52,7 +52,11 @@ static bool send_message(const std::string &log_prefix,
   }
 
   if (socket_operations->write_all(destination, &buffer[0], buffer.size()) < 0) {
-    log_error("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    const int last_errno = socket_operations->get_errno();
+
+    log_error("[%s] fd=%d write error: %s", log_prefix.c_str(),
+        destination,
+        get_message_error(last_errno).c_str());
     return false;
   }
 
@@ -113,13 +117,17 @@ static bool get_next_message(int sender,
 
   // we need at least 4 bytes to know the message size
   while (bytes_left < 4) {
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
     read_res = socket_operations->read(sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
-    if (read_res <= 0) {
-      log_error("failed reading size of the message: (%d %s %d)", errno, get_message_error(errno).c_str(), read_res);
+    if (read_res < 0) {
+      const int last_errno = socket_operations->get_errno();
+      log_error("fd=%d failed reading size of the message: (%d %s %ld)",
+          sender,
+          last_errno, get_message_error(last_errno).c_str(), static_cast<long>(read_res));
+      error = true;
+      return false;
+    } else if (read_res == 0) {
+      // connection got closed on us
+
       error = true;
       return false;
     }
@@ -139,19 +147,25 @@ static bool get_next_message(int sender,
   // of the client sending huge messages while authenticating.
   size_t size_needed = message_offset + 4 + message_size;
   if (buffer.size() < size_needed) {
-    log_error("X protocol message too big to fit the buffer: (%u, %u, %u)", message_size, buffer.size(), message_offset);
+    log_error("X protocol message too big to fit the buffer: (%u, %lu, %lu)", message_size,
+              static_cast<long unsigned>(buffer.size()), static_cast<long unsigned>(message_offset)); // 32bit Linux requires casts
     error = true;
     return false;
   }
   // next read the remaining part of the message if needed
   while (message_size + 4 > bytes_left) {
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
     read_res = socket_operations->read(sender, &buffer[message_offset+bytes_left], message_size + 4 - bytes_left);
-    if (read_res <= 0) {
-      log_error("failed reading part of X protocol message: (%d %s %d)", errno, get_message_error(errno).c_str(), read_res);
+    if (read_res < 0) {
+      const int last_errno = socket_operations->get_errno();
+
+      log_error("fd=%d failed reading part of X protocol message: (%d %s %ld)",
+          sender,
+          last_errno, get_message_error(last_errno).c_str(), static_cast<long>(read_res));
+
+      error = true;
+      return false;
+    } else if (read_res == 0) {
+      // connection got closed on us.
       error = true;
       return false;
     }
@@ -165,32 +179,29 @@ static bool get_next_message(int sender,
   return true;
 }
 
-int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
+int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
                             RoutingProtocolBuffer &buffer, int * /*curr_pktnr*/,
                             bool &handshake_done, size_t *report_bytes_read,
                             bool from_server) {
-  assert(readfds != nullptr);
   assert(report_bytes_read != nullptr);
 
   ssize_t res = 0;
   auto buffer_length = buffer.size();
   size_t bytes_read = 0;
 
-  errno = 0;
-#ifdef _WIN32
-  WSASetLastError(0);
-#endif
-  if (FD_ISSET(sender, readfds)) {
+  if (sender_is_readable) {
     if ((res = socket_operations_->read(sender, &buffer.front(), buffer_length)) <= 0) {
       if (res == -1) {
-        log_error("sender read failed: (%d %s)", errno, get_message_error(errno).c_str());
+        const int last_errno = socket_operations_->get_errno();
+        log_error("fd=%d sender read failed: (%d %s)",
+            sender,
+            last_errno, get_message_error(last_errno).c_str());
+      } else {
+        // the caller assumes that errno == 0 on plain connection closes.
+        socket_operations_->set_errno(0);
       }
       return -1;
     }
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
       // check packets integrity when handshaking.
@@ -251,7 +262,10 @@ int XProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
     }
 
     if (socket_operations_->write_all(receiver, &buffer[0], bytes_read) < 0) {
-      log_error("Write error: %s", get_message_error(errno).c_str());
+      const int last_errno = socket_operations_->get_errno();
+      log_error("fd=%d write error: %s",
+          receiver,
+          get_message_error(last_errno).c_str());
       return -1;
     }
   }
@@ -277,8 +291,8 @@ bool XProtocol::send_error(int destination,
 bool XProtocol::on_block_client_host(int server, const std::string &log_prefix) {
   // currently the MySQL Server (X-Plugin) does not have the feature of blocking
   // the client after reaching certain threshold of unsuccesfull connection attemps (max_connect_errors)
-  // When this is done, the code here needs to be rewised to check if it prevents the server from
-  // considering the connection as an error abd blaming the router for it.
+  // When this is done, the code here needs to be revised to check if it prevents the server from
+  // considering the connection as an error and blaming the router for it.
 
   // at the moment we send CapabilitiesGet message to the server assuming this will prevent the
   // MySQL Server from considering the connection as an error and incrementing the counter.
