@@ -31,13 +31,16 @@ IMPORT_LOG_FUNCTIONS()
 bool ClassicProtocol::on_block_client_host(int server, const std::string &log_prefix) {
   auto fake_response = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
   if (socket_operations_->write_all(server, fake_response.data(), fake_response.size()) < 0) {
-    log_debug("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    log_debug("[%s] fd=%d write error: %s",
+        log_prefix.c_str(),
+        server,
+        get_message_error(socket_operations_->get_errno()).c_str());
     return false;
   }
   return true;
 }
 
-int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
+int ClassicProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
                                   RoutingProtocolBuffer &buffer, int *curr_pktnr,
                                   bool &handshake_done, size_t *report_bytes_read,
                                   bool /*from_server*/) {
@@ -53,21 +56,21 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
     handshake_done = true;
   }
 
-  errno = 0;
-#ifdef _WIN32
-  WSASetLastError(0);
-#endif
-  if (FD_ISSET(sender, readfds)) {
+  if (sender_is_readable) {
     if ((res = socket_operations_->read(sender, &buffer.front(), buffer_length)) <= 0) {
       if (res == -1) {
-        log_debug("sender read failed: (%d %s)", errno, get_message_error(errno).c_str());
+        const int last_errno = socket_operations_->get_errno();
+
+        log_debug("fd=%d read failed: (%d %s)",
+            sender,
+            last_errno, get_message_error(last_errno).c_str());
+      } else {
+        // the caller assumes that errno == 0 on plain connection closes.
+        socket_operations_->set_errno(0);
       }
       return -1;
     }
-    errno = 0;
-#ifdef _WIN32
-    WSASetLastError(0);
-#endif
+
     bytes_read += static_cast<size_t>(res);
     if (!handshake_done) {
       // Check packet integrity when handshaking. When packet number is 2, then we assume
@@ -94,7 +97,8 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
 
         auto server_error = mysql_protocol::ErrorPacket(buffer_err);
         if (socket_operations_->write_all(receiver, server_error.data(), server_error.size()) < 0) {
-          log_debug("Write error: %s", get_message_error(errno).c_str());
+          log_debug("fd=%d write error: %s",
+              receiver, get_message_error(socket_operations_->get_errno()).c_str());
         }
         // receiver socket closed by caller
         *curr_pktnr = 2; // we assume handshaking is done though there was an error
@@ -120,7 +124,11 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
     }
 
     if (socket_operations_->write_all(receiver, &buffer[0], bytes_read) < 0) {
-      log_debug("Write error: %s", get_message_error(errno).c_str());
+      const int last_errno = socket_operations_->get_errno();
+
+      log_debug("fd=%d write error: %s",
+          receiver,
+          get_message_error(last_errno).c_str());
       return -1;
     }
   }
@@ -137,12 +145,13 @@ bool ClassicProtocol::send_error(int destination,
                                  const std::string &sql_state,
                                  const std::string &log_prefix) {
   auto server_error = mysql_protocol::ErrorPacket(0, code, message, sql_state);
-  errno = 0;
-#ifdef _WIN32
-  WSASetLastError(0);
-#endif
+
   if (socket_operations_->write_all(destination, server_error.data(), server_error.size()) < 0) {
-    log_debug("[%s] write error: %s", log_prefix.c_str(), get_message_error(errno).c_str());
+    log_debug("[%s] fd=%d write error: %s", log_prefix.c_str(),
+        destination,
+        get_message_error(socket_operations_->get_errno()).c_str());
+
+    return false;
   }
-  return errno == 0;
+  return true;
 }

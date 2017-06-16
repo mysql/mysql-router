@@ -65,8 +65,9 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   MOCK_METHOD3(socket, int(int, int, int));
   MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
   MOCK_METHOD2(listen, int(int fd, int n));
+  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, int));
 
-  void set_errno(int err) {
+  void set_errno(int err) override {
     // set errno/Windows equivalent. At the time of writing, unit tests
     // will pass just fine without this, as they are too low-level and the errno is
     // checked at higher level. But to do an accurate mock, we should set this.
@@ -74,6 +75,14 @@ class MockSocketOperations : public routing::SocketOperationsBase {
     WSASetLastError(err);
 #else
     errno = err;
+#endif
+  }
+
+  int get_errno() override {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
 #endif
   }
 

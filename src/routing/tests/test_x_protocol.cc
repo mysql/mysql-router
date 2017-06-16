@@ -50,8 +50,6 @@ protected:
   }
 
   virtual void SetUp() {
-    FD_ZERO(&readfds_);
-
     network_buffer_.resize(routing::kDefaultNetBufferLength);
     network_buffer_offset_ = 0;
     curr_pktnr_ = 0;
@@ -77,7 +75,6 @@ protected:
   static constexpr int sender_socket_ = 1;
   static constexpr int receiver_socket_ = 2;
 
-  fd_set readfds_;
   RoutingProtocolBuffer network_buffer_;
   size_t network_buffer_offset_;
   int curr_pktnr_;
@@ -150,13 +147,11 @@ TEST_F(XProtocolTest, OnBlockClientHostWriteFail)
   ASSERT_FALSE(result);
 }
 
-TEST_F(XProtocolTest, CopyPacketsFdNotSet)
+TEST_F(XProtocolTest, CopyPacketsNoData)
 {
   size_t report_bytes_read = 0xff;
 
-  FD_CLR(sender_socket_, &readfds_);
-
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, false, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_TRUE(result==0);
@@ -168,11 +163,9 @@ TEST_F(XProtocolTest, CopyPacketsReadError)
 {
   size_t report_bytes_read = 0xff;
 
-  FD_SET(sender_socket_, &readfds_);
-
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_,_,_)).WillOnce(Return(-1));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_FALSE(handshake_done_);
@@ -185,12 +178,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneOK)
   size_t report_bytes_read = 0xff;
   constexpr int MSG_SIZE = 20;
 
-  FD_SET(sender_socket_, &readfds_);
-
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).WillOnce(Return(MSG_SIZE));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], 20)).WillOnce(Return(MSG_SIZE));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_TRUE(handshake_done_);
@@ -204,13 +195,11 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeDoneWriteError)
   size_t report_bytes_read = 0xff;
   constexpr ssize_t MSG_SIZE = 20;
 
-  FD_SET(sender_socket_, &readfds_);
-
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                                   WillOnce(Return(MSG_SIZE));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], 20)).WillOnce(Return(-1));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_TRUE(handshake_done_);
@@ -228,11 +217,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsIvalidData)
   }
   network_buffer_offset_ += INVALID_DATA_SIZE;
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                                               WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_FALSE(handshake_done_);
@@ -248,11 +236,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsWrongMessage)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, close_msg,
                                    Mysqlx::ClientMessages::SESS_CLOSE);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_FALSE(handshake_done_);
@@ -267,13 +254,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsAuthStart)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, auth_msg,
                                    Mysqlx::ClientMessages::SESS_AUTHENTICATE_START);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_TRUE(handshake_done_);
@@ -288,13 +274,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesGet)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
                                    Mysqlx::ClientMessages::CON_CAPABILITIES_GET);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_TRUE(handshake_done_);
@@ -309,13 +294,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsConnectionClose)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, close_msg,
                                    Mysqlx::ClientMessages::CON_CLOSE);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_TRUE(handshake_done_);
@@ -330,13 +314,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsCapabilitiesSet)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
                                    Mysqlx::ClientMessages::CON_CAPABILITIES_SET);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_TRUE(handshake_done_);
@@ -354,11 +337,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeClientSendsBrokenMessage)
   // let's brake some part of the message in the buffer to simulate malformed message
   network_buffer_[6] = 0xff;
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   ASSERT_FALSE(handshake_done_);
@@ -373,13 +355,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsError)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, error_msg,
                                    Mysqlx::ServerMessages::ERROR);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_TRUE(handshake_done_);
@@ -394,13 +375,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeServerSendsOtherMessage)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
                                    Mysqlx::ServerMessages::NOTICE);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                      WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                      WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_FALSE(handshake_done_);
@@ -419,13 +399,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadTwoMessages)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, error_msg,
                                    Mysqlx::ServerMessages::ERROR);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, &network_buffer_[0], network_buffer_.size())).
                                                                   WillOnce(Return(network_buffer_offset_));
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                                   WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   // handshake_done_ should be set after the second message
@@ -443,7 +422,6 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialHeader)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, capab_msg,
                                    Mysqlx::ClientMessages::CON_CAPABILITIES_GET);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
                                                Times(2).
                                                WillOnce(Return(network_buffer_offset_-3)).
@@ -451,7 +429,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialHeader)
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                 WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, false);
 
   // handshake_done_ should bet set
@@ -469,7 +447,6 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
                                    Mysqlx::ServerMessages::NOTICE);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
                                                Times(2).
                                                WillOnce(Return(network_buffer_offset_-8)).
@@ -477,7 +454,7 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessage)
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, &network_buffer_[0], network_buffer_offset_)).
                                                 WillOnce(Return(network_buffer_offset_));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_FALSE(handshake_done_);
@@ -494,13 +471,12 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeReadPartialMessageFails)
   serialize_protobuf_msg_to_buffer(network_buffer_, network_buffer_offset_, warn_msg,
                                    Mysqlx::ServerMessages::NOTICE);
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).
                                                Times(2).
                                                WillOnce(Return(network_buffer_offset_-8)).
                                                WillOnce(Return(-1));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   ASSERT_FALSE(handshake_done_);
@@ -530,11 +506,10 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer)
   // copy part of the message to the network buffer
   std::copy(msg_buffer.begin(), msg_buffer.begin()+network_buffer_.size(), network_buffer_.begin());
 
-  FD_SET(sender_socket_, &readfds_);
   EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _)).Times(1).
                                              WillOnce(Return(network_buffer_.size()));
 
-  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, &readfds_, network_buffer_, &curr_pktnr_,
+  int result = x_protocol_->copy_packets(sender_socket_, receiver_socket_, true, network_buffer_, &curr_pktnr_,
                                          handshake_done_, &report_bytes_read, true);
 
   // the size of buffer passed to copy_packets should be untouched

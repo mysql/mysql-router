@@ -69,7 +69,7 @@ public:
    *
    * @param sender Descriptor of the sender
    * @param receiver Descriptor of the receiver
-   * @param readfds Read descriptors used with FD_ISSET
+   * @param sender_is_readable true if sender socket has data
    * @param buffer Buffer to use for storage
    * @param curr_pktnr Pointer to storage for sequence id of packet
    * @param handshake_done Whether handshake phase is finished or not
@@ -79,7 +79,7 @@ public:
    *
    * @return 0 on success; -1 on error
    */
-  virtual int copy_packets(int sender, int receiver, fd_set *readfds,
+  virtual int copy_packets(int sender, int receiver, bool sender_is_readable,
                            RoutingProtocolBuffer &buffer, int *curr_pktnr,
                            bool &handshake_done, size_t *report_bytes_read,
                            bool from_server) = 0;

@@ -25,6 +25,16 @@
 #include <string>
 
 #ifdef _WIN32
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+#else
+# include <poll.h>
+#endif
+
+#ifdef _WIN32
+typedef ULONG nfds_t;
 typedef long ssize_t;
 #  define WIN32_LEAN_AND_MEAN
 #  include <winsock2.h>
@@ -88,6 +98,13 @@ extern const unsigned int kDefaultNetBufferLength;
  */
 extern const unsigned int kDefaultClientConnectTimeout;
 
+#ifdef _WIN32
+  const SOCKET kInvalidSocket = INVALID_SOCKET;// windows defines INVALID_SOCKET already
+#else
+  const int kInvalidSocket = -1;
+#endif
+
+
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
   kUndefined = 0,
@@ -122,6 +139,7 @@ void set_socket_blocking(int sock, bool blocking);
  */
 class SocketOperationsBase {
  public:
+
   virtual ~SocketOperationsBase() = default;
   virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept = 0;
   virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
@@ -151,6 +169,9 @@ class SocketOperationsBase {
     }
     return static_cast<ssize_t>(nbyte);
   }
+  virtual int get_errno() = 0;
+  virtual void set_errno(int) = 0;
+  virtual int poll(struct pollfd *fds, nfds_t nfds, int timeout_ms) = 0;
 };
 
 /** @class SocketOperations
@@ -158,7 +179,6 @@ class SocketOperationsBase {
  */
 class SocketOperations : public SocketOperationsBase {
  public:
-
   static SocketOperations* instance();
 
   /** @brief Returns socket descriptor of connected MySQL server
@@ -210,6 +230,54 @@ class SocketOperations : public SocketOperationsBase {
 
   /** @brief Thin wrapper around socket library listen() */
   int listen(int fd, int n) override;
+
+  /**
+   * wrapper around poll()/WSAPoll()
+   */
+  int poll(struct pollfd *fds, nfds_t nfds, int timeout_ms) override;
+
+  /**
+   * wait for a non-blocking connect() to finish
+   *
+   * @param sock a connected socket
+   * @param timeout_ms time to wait for the connect to complete in milliseconds
+   *
+   * call connect_non_blocking_status() to get the final result
+   */
+  int connect_non_blocking_wait(int sock, int timeout_ms);
+
+  /**
+   * get the non-blocking connect() status
+   *
+   * must be called after connect()ed socket became writable.
+   *
+   * @see connect_non_blocking_wait() and poll()
+   */
+  int connect_non_blocking_status(int sock, int &so_error);
+
+  /**
+   * get the error-code of the last (socket) operation
+   *
+   * @see errno or WSAGetLastError()
+   */
+  int get_errno() override {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+  }
+
+  /**
+   * wrapper around errno/WSAGetLastError()
+   */
+  void set_errno(int e) override {
+#ifdef _WIN32
+    WSASetLastError(e);
+#else
+    errno = e;
+#endif
+  }
  private:
   SocketOperations(const SocketOperations&) = delete;
   SocketOperations operator=(const SocketOperations&) = delete;

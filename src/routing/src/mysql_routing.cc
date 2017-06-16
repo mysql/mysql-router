@@ -42,14 +42,6 @@
 
 #include <sys/types.h>
 
-#ifdef _WIN32
-/* before winsock inclusion */
-#  define FD_SETSIZE 4096
-#else
-#  undef __FD_SETSIZE
-#  define __FD_SETSIZE 4096
-#endif
-
 #ifndef _WIN32
 #  include <netinet/in.h>
 #  include <fcntl.h>
@@ -61,6 +53,12 @@
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
+#endif
+
+#if defined(__sun)
+# include <ucred.h>
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+# include <sys/ucred.h>
 #endif
 
 using std::runtime_error;
@@ -101,8 +99,8 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
       net_buffer_length_(net_buffer_length),
       bind_address_(TCPAddress(bind_address, port)),
       bind_named_socket_(named_socket),
-      service_tcp_(0),
-      service_named_socket_(0),
+      service_tcp_(routing::kInvalidSocket),
+      service_named_socket_(routing::kInvalidSocket),
       info_active_routes_(0),
       info_handled_routes_(0),
       socket_operations_(socket_operations),
@@ -125,7 +123,7 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
 
 MySQLRouting::~MySQLRouting() {
 
-  if (service_tcp_ > 0) {
+  if (service_tcp_ != routing::kInvalidSocket) {
     socket_operations_->shutdown(service_tcp_);
     socket_operations_->close(service_tcp_);
   }
@@ -206,11 +204,9 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
   return thread_name;
 }
 
-void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& client_addr) noexcept {
+void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* client_addr */) noexcept {
   mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
 
-  int nfds;
-  int res;
   int error = 0;
   size_t bytes_down = 0;
   size_t bytes_up = 0;
@@ -221,23 +217,24 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
 
   int server = destination_->get_server_socket(destination_connect_timeout_, &error);
 
-  if (!(server > 0 && client > 0)) {
+  if ((server == routing::kInvalidSocket) ||
+      (client == routing::kInvalidSocket)) {
     std::stringstream os;
-    os << "Can't connect to remote MySQL server for client '"
+    os << "Can't connect to remote MySQL server for client connected to '"
       << bind_address_.addr << ":" << bind_address_.port << "'";
 
-    log_warning("[%s] %s", name.c_str(), os.str().c_str());
+    log_warning("[%s] fd=%d %s", name.c_str(), client, os.str().c_str());
 
     // at this point, it does not matter whether client gets the error
     protocol_->send_error(client, 2003, os.str(), "HY000", name);
 
-    socket_operations_->shutdown(client);
-    socket_operations_->shutdown(server);
+    if (client != routing::kInvalidSocket) socket_operations_->shutdown(client);
+    if (server != routing::kInvalidSocket) socket_operations_->shutdown(server);
 
-    if (client > 0) {
+    if (client != routing::kInvalidSocket) {
       socket_operations_->close(client);
     }
-    if (server > 0) {
+    if (server != routing::kInvalidSocket) {
       socket_operations_->close(server);
     }
     return;
@@ -246,92 +243,116 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
   std::pair<std::string, int> c_ip = get_peer_name(client);
   std::pair<std::string, int> s_ip = get_peer_name(server);
 
-  std::string info;
   if (c_ip.second == 0) {
     // Unix socket/Windows Named pipe
-    info = string_format("[%s] source %s - dest [%s]:%d",
-                         name.c_str(), bind_named_socket_.c_str(),
-                         s_ip.first.c_str(), s_ip.second);
+    log_debug("[%s] fd=%d connected %s -> %s:%d",
+        name.c_str(),
+        client,
+        bind_named_socket_.c_str(),
+        s_ip.first.c_str(), s_ip.second);
   } else {
-    info = string_format("[%s] source [%s]:%d - dest [%s]:%d",
-                         name.c_str(), c_ip.first.c_str(), c_ip.second,
-                         s_ip.first.c_str(), s_ip.second);
+    log_debug("[%s] fd=%d connected %s:%d -> %s:%d",
+        name.c_str(),
+        client,
+        c_ip.first.c_str(), c_ip.second,
+        s_ip.first.c_str(), s_ip.second);
   }
-  log_debug("%s", info.c_str());
 
   ++info_active_routes_;
   ++info_handled_routes_;
 
-  nfds = std::max(client, server) + 1;
-
   int pktnr = 0;
-  while (true) {
-    fd_set readfds;
-    fd_set errfds;
-    // Reset on each loop
-    FD_ZERO(&readfds);
-    FD_ZERO(&errfds);
-    FD_SET(client, &readfds);
-    FD_SET(server, &readfds);
 
-    if (handshake_done) {
-      res = select(nfds, &readfds, nullptr, &errfds, nullptr);
-    } else {
-      // Handshake reply timeout
-      struct timeval timeout_val;
-      timeout_val.tv_sec = client_connect_timeout_;
-      timeout_val.tv_usec = 0;
-      res = select(nfds, &readfds, nullptr, &errfds, &timeout_val);
-    }
+  bool connection_is_ok = true;
+  while (connection_is_ok) {
+    const size_t kClientEventIndex = 0;
+    const size_t kServerEventIndex = 1;
 
-    if (res <= 0) {
-      if (res == 0) {
-        extra_msg = string("Select timed out");
-      } else if (errno > 0) {
-        if (errno == EINTR || errno == EAGAIN)
-          continue;
-        extra_msg = string("Select failed with error: " + get_strerror(errno));
-#ifdef _WIN32
-      } else if (WSAGetLastError() > 0) {
-        extra_msg = string("Select failed with error: " + get_message_error(WSAGetLastError()));
-#endif
-      } else {
-        extra_msg = string("Select failed (" + to_string(res) + ")");
+    struct pollfd fds[] = {
+      { routing::kInvalidSocket, POLLIN, 0 },
+      { routing::kInvalidSocket, POLLIN, 0 },
+    };
+
+    fds[kClientEventIndex].fd = client;
+    fds[kServerEventIndex].fd = server;
+
+    const int poll_timeout_ms = handshake_done ? 1000 : static_cast<int>(client_connect_timeout_ * 1000);
+    int res = socket_operations_->poll(fds, sizeof(fds) / sizeof(fds[0]), poll_timeout_ms);
+
+    if (res < 0) {
+      const int last_errno = socket_operations_->get_errno();
+      switch (last_errno) {
+        case EINTR:
+        case EAGAIN:
+          // got interrupted. Just retry
+          break;
+        default:
+          // break the loop, something ugly happened
+          connection_is_ok = false;
+          extra_msg = string("poll() failed: " + to_string(get_message_error(last_errno)));
+          break;
       }
 
-      break;
+      continue;
+    } else if (res == 0) {
+      // timeout
+      if (!handshake_done) {
+        connection_is_ok = false;
+        extra_msg = string("client auth timed out");
+
+        break;
+      } else {
+        continue;
+      }
     }
+
+    // we could check if a socket triggered POLLHUP, but in the end the read() will
+    // figure that out soon enough
+
+    const bool client_is_readable = (fds[kClientEventIndex].revents & POLLIN) != 0;
+    const bool server_is_readable = (fds[kServerEventIndex].revents & POLLIN) != 0;
 
     // Handle traffic from Server to Client
     // Note: In classic protocol Server _always_ talks first
-    if (protocol_->copy_packets(server, client,
-                                &readfds, buffer, &pktnr,
+    if (protocol_->copy_packets(server, client, server_is_readable,
+                                buffer, &pktnr,
                                 handshake_done, &bytes_read, true) == -1) {
-#ifndef _WIN32
-      if (errno > 0) {
-#else
-      if (errno > 0 || WSAGetLastError() != 0) {
-#endif
-        extra_msg = string("Copy server-client failed: " + to_string(get_message_error(errno)));
+      const int last_errno = socket_operations_->get_errno();
+      if (last_errno > 0) {
+        // if read() against closed socket, errno will be 0. Don't log that.
+        extra_msg = string("Copy server-client failed: " + to_string(get_message_error(last_errno)));
       }
-      break;
+
+      connection_is_ok = false;
+    } else {
+      bytes_up += bytes_read;
     }
-    bytes_up += bytes_read;
 
     // Handle traffic from Client to Server
-    if (protocol_->copy_packets(client, server,
-                                &readfds, buffer, &pktnr,
+    if (protocol_->copy_packets(client, server, client_is_readable,
+                                buffer, &pktnr,
                                 handshake_done, &bytes_read, false) == -1) {
-      break;
+      const int last_errno = socket_operations_->get_errno();
+      if (last_errno > 0) {
+        extra_msg = string("Copy client->server failed: " + to_string(get_message_error(last_errno)));
+      } else if (!handshake_done) {
+        extra_msg = string("Copy client->server failed: unexpected connection close");
+      }
+      // client close on us.
+      connection_is_ok = false;
+    } else {
+      bytes_down += bytes_read;
     }
-    bytes_down += bytes_read;
 
   } // while (true)
 
   if (!handshake_done) {
-    auto ip_array = in_addr_to_array(client_addr);
-    log_debug("[%s] Routing failed for %s: %s", name.c_str(), c_ip.first.c_str(), extra_msg.c_str());
-    block_client_host(ip_array, c_ip.first.c_str(), server);
+    log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
+        name.c_str(),
+        client,
+        c_ip.first.c_str(), extra_msg.c_str());
+    // auto ip_array = in_addr_to_array(client_addr);
+    // block_client_host(ip_array, c_ip.first.c_str(), server);
   }
 
   // Either client or server terminated
@@ -342,9 +363,13 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
 
   --info_active_routes_;
 #ifndef _WIN32
-  log_debug("[%s] Routing stopped (up:%zub;down:%zub) %s", name.c_str(), bytes_up, bytes_down, extra_msg.c_str());
+  log_debug("[%s] fd=%d connection closed (up: %zub; down: %zub) %s",
+      name.c_str(),
+      client, bytes_up, bytes_down, extra_msg.c_str());
 #else
-  log_debug("[%s] Routing stopped (up:%Iub;down:%Iub) %s", name.c_str(), bytes_up, bytes_down, extra_msg.c_str());
+  log_debug("[%s] fd=%d connection closed (up: %Iub; down: %Iub) %s",
+      name.c_str(),
+      client, bytes_up, bytes_down, extra_msg.c_str());
 #endif
 }
 
@@ -390,81 +415,131 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
   }
 }
 
+#if !defined(_WIN32)
+/*
+ * get PID and UID of the other end of the unix-socket
+ */
+static int unix_getpeercred(int sock, pid_t &peer_pid, uid_t &peer_uid) {
+#if defined(_GNU_SOURCE)
+  struct ucred ucred;
+  socklen_t ucred_len = sizeof(ucred);
+
+  if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) == -1) {
+    return -1;
+  }
+
+  peer_pid = ucred.pid;
+  peer_uid = ucred.uid;
+
+  return 0;
+#elif defined(__sun)
+  ucred_t *ucred;
+
+  if (getpeerucred(sock, &ucred) == -1) {
+    return -1;
+  }
+
+  peer_pid = ucred_getpid(ucred);
+  peer_uid = ucred_getruid(ucred);
+
+  free(ucred);
+
+  return 0;
+#else
+  // tag them as UNUSED to keep -Werror happy
+  (void)(sock);
+  (void)(peer_pid);
+  (void)(peer_uid);
+
+  return -1;
+#endif
+}
+#endif
+
 void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
 
-  int sock_client = 0;
-  struct sockaddr_storage client_addr;
-  socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
-  int opt_nodelay = 1;
-  int nfds = 0;
-
   destination_->start();
 
-  if (service_tcp_ > 0) {
+  if (service_tcp_ != routing::kInvalidSocket) {
     routing::set_socket_blocking(service_tcp_, false);
   }
-  if (service_named_socket_ > 0) {
+  if (service_named_socket_ != routing::kInvalidSocket) {
     routing::set_socket_blocking(service_named_socket_, false);
   }
-  nfds = std::max(service_tcp_, service_named_socket_) + 1;
-  fd_set readfds;
-  fd_set errfds;
-  struct timeval timeout_val;
+
+  const int kAcceptUnixSocketNdx = 0;
+  const int kAcceptTcpNdx = 1;
+  struct pollfd fds[] = {
+    { routing::kInvalidSocket, POLLIN, 0 },
+    { routing::kInvalidSocket, POLLIN, 0 },
+  };
+
+  fds[kAcceptTcpNdx].fd = service_tcp_;
+  fds[kAcceptUnixSocketNdx].fd = service_named_socket_;
+
   while (is_running(env)) {
-    // Reset on each loop
-    FD_ZERO(&readfds);
-    FD_ZERO(&errfds);
-    if (service_tcp_ > 0) {
-      FD_SET(service_tcp_, &readfds);
+    // wait for the accept() sockets to become readable (POLLIN)
+
+    int ready_fdnum = socket_operations_->poll(fds, sizeof(fds) / sizeof(fds[0]), kAcceptorStopPollInterval_ms);
+    // < 0 - failure
+    // == 0 - timeout
+    // > 0  - number of pollfd's with a .revent
+
+    if (ready_fdnum < 0) {
+      const int last_errno = socket_operations_->get_errno();
+      switch (last_errno) {
+        case EINTR:
+        case EAGAIN:
+          continue;
+        default:
+          log_error("[%s] poll() failed with error: %s", name.c_str(), get_message_error(last_errno).c_str());
+          break;
+      }
     }
-    if (service_named_socket_ > 0) {
-      FD_SET(service_named_socket_, &readfds);
-    }
-    timeout_val.tv_sec = kAcceptorStopPollInterval_ms / 1000;
-    timeout_val.tv_usec = (kAcceptorStopPollInterval_ms % 1000) * 1000;
-    int ready_fdnum = select(nfds, &readfds, nullptr, &errfds, &timeout_val);
-    if (ready_fdnum <= 0) {
-      if (ready_fdnum == 0) {
-        // timeout - just check if stopping and continue
+
+    for (size_t ndx = 0; ndx < sizeof(fds) / sizeof(fds[0]) && ready_fdnum > 0; ndx++) {
+      // walk through all fields and check which fired
+
+      if ((fds[ndx].revents & POLLIN) == 0) {
         continue;
-      } else if (errno > 0) {
-        if (errno == EINTR || errno == EAGAIN)
-          continue;
-        log_error("[%s] Select failed with error: %s", name.c_str(), get_strerror(errno).c_str());
-        break;
-  #ifdef _WIN32
-      } else if (WSAGetLastError() > 0) {
-        log_error("[%s] Select failed with error: %s", name.c_str(), get_message_error(WSAGetLastError()));
-  #endif
-        break;
+      }
+
+      --ready_fdnum;
+
+      int sock_client;
+      struct sockaddr_storage client_addr;
+      socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
+
+
+      if ((sock_client = accept(fds[ndx].fd, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
+        log_error("[%s] Failed accepting connection: %s", name.c_str(), get_message_error(socket_operations_->get_errno()).c_str());
+        continue;
+      }
+
+      bool is_tcp = (ndx == kAcceptTcpNdx);
+
+      if (is_tcp) {
+        log_debug("[%s] fd=%d connection accepted at %s", name.c_str(), sock_client, bind_address_.str().c_str());
       } else {
-        log_error("[%s] Select failed (%i)", name.c_str(), errno);
-        break;
-      }
-    }
-    while (ready_fdnum > 0) {
-      bool is_tcp = false;
-      if (FD_ISSET(service_tcp_, &readfds)) {
-        FD_CLR(service_tcp_, &readfds);
-        --ready_fdnum;
-        if ((sock_client = accept(service_tcp_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
-          log_error("[%s] Failed accepting TCP connection: %s", name.c_str(), get_message_error(errno).c_str());
-          continue;
-        }
-        is_tcp = true;
-        log_debug("[%s] TCP connection from %i accepted at %s", name.c_str(),
-                  sock_client, bind_address_.str().c_str());
-      }
-      if (FD_ISSET(service_named_socket_, &readfds)) {
-        FD_CLR(service_named_socket_, &readfds);
-        --ready_fdnum;
-        if ((sock_client = accept(service_named_socket_, (struct sockaddr *) &client_addr, &sin_size)) < 0) {
-          log_error("[%s] Failed accepting socket connection: %s", name.c_str(), get_message_error(errno).c_str());
-          continue;
-        }
-        log_debug("[%s] UNIX socket connection from %i accepted at %s", name.c_str(),
-                  sock_client, bind_address_.str().c_str());
+#if !defined(_WIN32)
+        pid_t peer_pid;
+        uid_t peer_uid;
+
+        // try to be helpful of who tried to connect to use and failed.
+        // who == PID + UID
+        //
+        // if we can't get the PID, we'll just show a simpler errormsg
+
+        if (0 == unix_getpeercred(sock_client, peer_pid, peer_uid)) {
+          log_debug("[%s] fd=%d connection accepted at %s from (pid=%d, uid=%d)",
+              name.c_str(), sock_client, bind_named_socket_.str().c_str(),
+              peer_pid, peer_uid);
+        } else
+          // fall through
+#endif
+        log_debug("[%s] fd=%d connection accepted at %s",
+            name.c_str(), sock_client, bind_named_socket_.str().c_str());
       }
 
       if (conn_error_counters_[in_addr_to_array(client_addr)] >= max_connect_errors_) {
@@ -484,9 +559,11 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
         continue;
       }
 
+      int opt_nodelay = 1;
       if (is_tcp && setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char *>(&opt_nodelay), static_cast<socklen_t>(sizeof(int))) == -1) {
-        log_error("[%s] client setsockopt error: %s", name.c_str(), get_message_error(errno).c_str());
-        continue;
+        log_info("[%s] fd=%d client setsockopt(TCP_NODELAY) failed: %s", name.c_str(), sock_client, get_message_error(socket_operations_->get_errno()).c_str());
+
+        // if it fails, it will be slower, but cause no harm
       }
 
       // On some OS'es the socket will be non-blocking as a result of accept()
@@ -544,7 +621,7 @@ void MySQLRouting::setup_tcp_service() {
       error = get_message_error(get_socket_errno());
       log_warning("[%s] setup_tcp_service() error from setsockopt(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
-      service_tcp_ = 0;
+      service_tcp_ = routing::kInvalidSocket;
       continue;
     }
 #endif
@@ -553,7 +630,7 @@ void MySQLRouting::setup_tcp_service() {
       error = get_message_error(get_socket_errno());
       log_warning("[%s] setup_tcp_service() error from bind(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
-      service_tcp_ = 0;
+      service_tcp_ = routing::kInvalidSocket;
       continue;
     }
 
