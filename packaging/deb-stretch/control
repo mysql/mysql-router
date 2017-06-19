@@ -1,0 +1,27 @@
+Source: mysql-router
+Maintainer: MySQL Release Engineering <mysql-build@oss.oracle.com>
+Section: database
+Priority: optional
+Standards-Version: 3.9.6
+Homepage: http://www.mysql.com/
+Build-Depends: cmake,
+ debhelper (>= 9.0.0),
+ dh-apparmor,
+ fakeroot, lsb-release
+
+Package: mysql-router
+Architecture: any
+Pre-Depends: debconf, adduser
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: MySQL Router
+ The MySQL(TM) Router software delivers a fast, multi-threaded way of
+ routing connections from MySQL Clients to MySQL Servers. MySQL is a
+ trademark of Oracle.
+
+Package: mysql-router-dev
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: MySQL Router development files
+ The MySQL(TM) Router software delivers a fast, multi-threaded way of
+ routing connections from MySQL Clients to MySQL Servers. MySQL is a
+ trademark of Oracle.
