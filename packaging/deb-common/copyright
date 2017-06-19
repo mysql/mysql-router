@@ -4,7 +4,7 @@ Upstream-Contact: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Source: http://dev.mysql.com/
 
 Files: *
-Copyright: 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright: 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 License: GPL-2
  This is a release of MySQL Router, release dual-licensed.
  For the avoidance of doubt, this particular copy of the software

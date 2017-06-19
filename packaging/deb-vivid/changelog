@@ -1,5 +1,6 @@
-mysql-router (2.1.3-1ubuntu15.04) vivid; urgency=low
+mysql-router (2.1.4-1ubuntu15.04) vivid; urgency=low
 
   * initial version
 
  -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Mon, 20 Mar 2017 10:36:55 +0200
+ -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Mon, 19 Jun 2017 10:36:55 +0200 
