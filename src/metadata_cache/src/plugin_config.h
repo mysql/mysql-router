@@ -47,8 +47,7 @@ public:
                               section, "bootstrap_server_addresses",
                               metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
-        ttl(get_option_ttl(section, "ttl",
-                           metadata_cache::kDefaultMetadataTTL)),
+        ttl(get_uint_option<unsigned int>(section, "ttl")),
         metadata_cluster(get_option_string(section, "metadata_cluster"))
         { }
 
@@ -81,10 +80,6 @@ private:
   std::vector<mysqlrouter::TCPAddress> get_bootstrap_servers(
     const mysql_harness::ConfigSection *section, const std::string &option,
     uint16_t default_port);
-
-  unsigned int get_option_ttl(const mysql_harness::ConfigSection *section,
-                              const std::string &option,
-                              unsigned int defaultTTL);
 };
 
 #endif // METADATA_CACHE_PLUGIN_CONFIG_INCLUDED

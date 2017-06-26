@@ -1,5 +1,5 @@
-mysql-router (2.1.2-rc-1debian8) jessie; urgency=low
+mysql-router (2.1.3-1debian8) jessie; urgency=low
 
   * initial version
 
- -- Geert Vanderkelen <geert.vanderkelen@oracle.com>  Tue, 27 Oct 2015 20:45:55 +0100
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Mon, 20 Mar 2017 10:36:55 +0200

@@ -17,114 +17,138 @@
 
 #include "gtest/gtest.h"
 
-#include "dim.h"
 #include "random_generator.h"
 
-#include <map>
+namespace {
+const std::string kAlphabetDigits = "0123456789";
+const std::string kAlphabetLowercase = "abcdefghijklmnopqrstuvwxyz";
+const std::string kAlphabetUppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const std::string kAlphabetSpecial = "~@#$^&*()-=+]}[{|;:.>,</?";
+const std::string kAlphabetAll = kAlphabetDigits + kAlphabetLowercase + kAlphabetUppercase + kAlphabetSpecial;
+}
 
 
+TEST(UtilsTests, generate_identifier_ok) {
+  using RandGen = mysql_harness::RandomGenerator;
+  RandGen generator;
+  const unsigned kTestLen = 100u;
 
-TEST(UtilsTests, generate_password) {
-  // here we test that generate_password():
-  // - picks alphanums from the spectrum requested (if we want 10, it should choose randoms
-  //   between '0' and '9', if we want 2, should choose between '0' and '1', etc)
-  // - returns the right number of them
 
-  // number large enough so that (in practice) at least one representative of each
-  // possible random char will be present in the output.  Obviously nothing is 100%
-  // guaranteed, the idea is to make random test failures very very very unlikely.
-  constexpr unsigned kBigNumber = 10 * 1000;
-
-  constexpr unsigned kMaxBase = 87;  // this is the max base (atm)
-
-  mysql_harness::RandomGenerator rg;
-
-  // min random base
+  // digits only
   {
-    std::string s = rg.generate_password(kBigNumber, 2);
-    std::map<char, unsigned> hist;
-    for (char c : s)
-      hist[c]++;
-    EXPECT_EQ(2u, hist.size());  // if this failed, you've won the jackpot! (please rerun)
-    EXPECT_TRUE(hist.count('0'));
-    EXPECT_TRUE(hist.count('1'));
-    EXPECT_EQ(kBigNumber, hist['0'] + hist['1']);
+    std::string s = generator.generate_identifier(kTestLen, RandGen::AlphabetDigits);
+    EXPECT_EQ(std::string::npos, s.find_first_not_of(kAlphabetDigits));
+    EXPECT_EQ(kTestLen, s.size());
   }
 
-  // max random base (supported atm)
+  // lowercase letters only
   {
-    std::string s = rg.generate_password(kBigNumber, kMaxBase);
-    std::map<char, unsigned> hist;
-    for (char c : s)
-      hist[c]++;
-    EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
-
-    unsigned total_chars = 0;
-    for (const auto& i : hist)
-      total_chars += i.second;
-    EXPECT_EQ(kBigNumber, total_chars);
+    std::string s = generator.generate_identifier(kTestLen, RandGen::AlphabetLowercase);
+    EXPECT_EQ(std::string::npos, s.find_first_not_of(kAlphabetLowercase));
+    EXPECT_EQ(kTestLen, s.size());
   }
 
-  // max random base (supported atm) - implicit base
+  // uppercase letters only
   {
-    std::string s = rg.generate_password(kBigNumber);
-    std::map<char, unsigned> hist;
-    for (char c : s)
-      hist[c]++;
-    EXPECT_EQ(kMaxBase, hist.size()); // if this failed, you've won the jackpot! (please rerun)
-
-    unsigned total_chars = 0;
-    for (const auto& i : hist)
-      total_chars += i.second;
-    EXPECT_EQ(kBigNumber, total_chars);
+    std::string s = generator.generate_identifier(kTestLen, RandGen::AlphabetUppercase);
+    EXPECT_EQ(std::string::npos, s.find_first_not_of(kAlphabetUppercase));
+    EXPECT_EQ(kTestLen, s.size());
   }
 
-  // random base 10
+  // special characters only
   {
-    std::string s = rg.generate_password(kBigNumber, 10);
-    std::map<char, unsigned> hist;
-    for (char c : s)
-      hist[c]++;
-    EXPECT_EQ(10u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
-
-    unsigned total_chars = 0;
-    for (char c = '0'; c <= '9'; c++) {
-      EXPECT_NE(0u, hist[c]);
-      total_chars += hist[c];
-    }
-    EXPECT_EQ(kBigNumber, total_chars);
+    std::string s = generator.generate_identifier(kTestLen, RandGen::AlphabetSpecial);
+    EXPECT_EQ(std::string::npos, s.find_first_not_of(kAlphabetSpecial));
+    EXPECT_EQ(kTestLen, s.size());
   }
 
-  // random base 36
+  // digits and lowercase only
   {
-    std::string s = rg.generate_password(kBigNumber, 36);
-    std::map<char, unsigned> hist;
-    for (char c : s)
-      hist[c]++;
-    EXPECT_EQ(36u, hist.size()); // if this failed, you've won the jackpot! (please rerun)
-
-    unsigned total_chars = 0;
-    for (char c = '0'; c <= '9'; c++) {
-      EXPECT_NE(0u, hist[c]);
-      total_chars += hist[c];
-    }
-    for (char c = 'a'; c <= 'z'; c++) {
-      EXPECT_NE(0u, hist[c]);
-      total_chars += hist[c];
-    }
-    EXPECT_EQ(kBigNumber, total_chars);
+    std::string s = generator.generate_identifier(kTestLen, RandGen::AlphabetLowercase | RandGen::AlphabetDigits);
+    EXPECT_EQ(std::string::npos, s.find_first_not_of(kAlphabetDigits+kAlphabetLowercase));
+    EXPECT_EQ(kTestLen, s.size());
   }
 
   // length = 0
   {
-    std::string s = rg.generate_password(0, 10);
+    std::string s = generator.generate_identifier(0);
     EXPECT_EQ(0u, s.size());
   }
 
   // length = 1
   {
-    std::string s = rg.generate_password(1, 10);
+    std::string s = generator.generate_identifier(1);
     EXPECT_EQ(1u, s.size());
   }
 }
 
+TEST(UtilsTests, generate_identifier_wrong_alphabet_mask) {
+  using RandGen = mysql_harness::RandomGenerator;
+  RandGen generator;
+  const unsigned kTestLen = 100u;
+
+  {
+    try {
+      generator.generate_identifier(kTestLen, 0);
+      FAIL() << "Expected exception";
+    }
+    catch(const std::invalid_argument& exc) {
+      EXPECT_STREQ("Wrong alphabet mask provided for generate_identifier(0)", exc.what());
+    }
+    catch (...) {
+      FAIL() << "Invalid exception, expected std::invalid_argument";
+    }
+  }
+}
+
+TEST(UtilsTests, generate_identifier_check_symbols_usage) {
+  // check that all the symbols from the alphabet are being used
+  using RandGen = mysql_harness::RandomGenerator;
+  RandGen generator;
+  // number large enough so that (in practice) at least one representative of each
+  // possible random char will be present in the output.  Obviously nothing is 100%
+  // guaranteed, the idea is to make random test failures very very very unlikely.
+  constexpr unsigned kBigNumber = 10 * 1000;
+
+  std::string s = generator.generate_identifier(kBigNumber, RandGen::AlphabetAll);
+  for (const char& c: kAlphabetAll) {
+    EXPECT_NE(std::string::npos, s.find(c));
+  }
+}
+
+TEST(UtilsTests, generate_strong_password_ok) {
+  mysql_harness::RandomGenerator generator;
+  const unsigned kTestLen = 8u;
+
+  const std::string pass = generator.generate_strong_password(kTestLen);
+
+  EXPECT_EQ(kTestLen, pass.size());
+
+  // at least one digit
+  EXPECT_NE(std::string::npos, pass.find_first_of(kAlphabetDigits));
+  // at least one lowercase letter
+  EXPECT_NE(std::string::npos, pass.find_first_of(kAlphabetLowercase));
+  // at least one uppercase letter
+  EXPECT_NE(std::string::npos, pass.find_first_of(kAlphabetUppercase));
+  // at least one spacial char
+  EXPECT_NE(std::string::npos, pass.find_first_of(kAlphabetSpecial));
+
+  // check that all the chars are from the alphabet
+  EXPECT_EQ(std::string::npos, pass.find_first_not_of(kAlphabetAll));
+}
+
+TEST(UtilsTests, generate_strong_password_too_short) {
+  mysql_harness::RandomGenerator generator;
+  const unsigned kTestLen = 7u;
+
+  try {
+    generator.generate_strong_password(kTestLen);
+    FAIL() << "Expected exception";
+  }
+  catch(const std::invalid_argument& exc) {
+    EXPECT_STREQ("The password needs to be at least 8 charactes long", exc.what());
+  }
+  catch (...) {
+    FAIL() << "Invalid exception, expected std::invalid_argument";
+  }
+}

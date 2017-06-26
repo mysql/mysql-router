@@ -145,7 +145,13 @@ static inline void set_signal_handlers() {
 // if it is not throw an exception
 static void check_and_add_conf(std::vector<string> &configs,
                                const std::string& value) throw(std::runtime_error) {
-  mysql_harness::Path cfg_file_path(value);
+  mysql_harness::Path cfg_file_path;
+  try {
+    cfg_file_path = mysql_harness::Path(value);
+  } catch (const std::invalid_argument &exc) {
+    throw std::runtime_error(string_format("Failed reading configuration file: %s", exc.what()));
+  }
+
   if (cfg_file_path.is_regular()) {
     configs.push_back(cfg_file_path.real_path().str());
   } else if (cfg_file_path.is_directory()) {
@@ -649,6 +655,17 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->bootstrap_uri_ = server_url;
       });
 
+  arg_handler_.add_option(OptionNames({"--bootstrap-socket"}),
+                          "Bootstrap and configure Router via a Unix socket",
+                          CmdOptionValueReq::required, "socket_name",
+                          [this](const string &socket_name) {
+        if (socket_name.empty()) {
+            throw std::runtime_error("Invalid value for --bootstrap-socket option");
+        }
+
+        this->save_bootstrap_option_not_empty("--bootstrap-socket", "bootstrap_socket", socket_name);
+    });
+
   arg_handler_.add_option(OptionNames({"-d", "--directory"}),
                           "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
                           CmdOptionValueReq::required, "directory",
@@ -728,6 +745,26 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+  arg_handler_.add_option(OptionNames({"--force-password-validation"}),
+                          "When autocreating database account do not use HASHED password. (bootstrap)",
+                          CmdOptionValueReq::none, "",
+                          [this](const string &) {
+        this->bootstrap_options_["force-password-validation"] = "1";
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --force-password-validation can only be used together with -B/--bootstrap");
+        }
+      });
+
+  arg_handler_.add_option(OptionNames({"--password-retries"}),
+                          "Number of the retries for generating the router's user password. (bootstrap)",
+                          CmdOptionValueReq::optional, "password-retries",
+                          [this](const string &retries) {
+        this->bootstrap_options_["password-retries"] = retries;
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --password-retries can only be used together with -B/--bootstrap");
+        }
+      });
+
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
@@ -737,7 +774,6 @@ void MySQLRouter::prepare_command_options() noexcept {
           throw std::runtime_error("Option --force can only be used together with -B/--bootstrap");
         }
       });
-
 
   char ssl_mode_vals[128];
   char ssl_mode_desc[256];

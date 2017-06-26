@@ -112,6 +112,8 @@ class MySQLSession {
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &username,
                        const std::string &password,
+                       const std::string &unix_socket,
+                       const std::string &default_schema,
                        int connection_timeout = kDefaultConnectionTimeout); // throws Error
   virtual void disconnect();
 

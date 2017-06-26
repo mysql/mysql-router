@@ -137,9 +137,10 @@ static void init(mysql_harness::PluginFuncEnv* env) {
             bind_addresses.push_back(config.bind_address);
           }
 
+
           // We check if we need special plugins based on URI
           try {
-            auto uri = URI(config.destinations);
+            auto uri = URI(config.destinations, false);
             if (uri.scheme == "metadata-cache") {
               need_metadata_cache = true;
             }
@@ -189,7 +190,8 @@ static void start(mysql_harness::PluginFuncEnv* env) {
                    config.connect_timeout,     config.max_connect_errors,
                    config.client_connect_timeout);
     try {
-      r.set_destinations_from_uri(URI(config.destinations));
+      // don't allow rootless URIs as we did already in the get_option_destinations()
+      r.set_destinations_from_uri(URI(config.destinations, false));
     } catch (URIError) {
       r.set_destinations_from_csv(config.destinations);
     }

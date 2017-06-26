@@ -127,6 +127,8 @@ class MockMySQLSession: public MySQLSession {
                unsigned int port,
                const std::string&,
                const std::string&,
+               const std::string&,
+               const std::string&,
                int = kDefaultConnectionTimeout) override {
     connect_cnt_++;
 

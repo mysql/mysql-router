@@ -23,6 +23,7 @@ set(METADATA_CACHE_TESTS_HELPER
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
+  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
   ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
@@ -76,3 +77,5 @@ target_compile_definitions(test_metadata_cache_metadata PRIVATE -Dmetadata_cache
 target_compile_definitions(test_metadata_cache_metadata PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 target_compile_definitions(test_metadata_cache_failover PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
 target_compile_definitions(test_metadata_cache_failover PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_plugin_config PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+target_compile_definitions(test_metadata_cache_plugin_config PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)

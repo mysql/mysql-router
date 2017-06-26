@@ -21,13 +21,13 @@
 #include "mysqlrouter/uri.h"
 #include "common.h"
 #include "dim.h"
-#include "mysql/harness/filesystem.h"
 #include "mysql/harness/config_parser.h"
-#include "common.h"
+#include "mysql/harness/filesystem.h"
 #include "rapidjson/rapidjson.h"
 #include "random_generator.h"
 #include "utils.h"
 #include "router_app.h"
+#include "sha1.h"
 
 // #include "mysql/harness/logging.h"
 #ifdef _WIN32
@@ -39,11 +39,12 @@
 
 
 #include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <random>
 #include <cstring>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <random>
+#include <sstream>
 
 #include "cluster_metadata.h"
 
@@ -70,13 +71,25 @@ static const char *kKeyringAttributePassword = "password";
 static const int kDefaultTTL = 300; // default configured TTL in seconds
 static constexpr uint32_t kMaxRouterId = 999999;  // max router id is 6 digits due to username size constraints
 static constexpr unsigned kNumRandomChars = 12;
-static constexpr unsigned kRandomCharBase = 36;
+static constexpr unsigned kDefaultPasswordRetries = 20; // number of the retries when generating random password
+                                                        // for the router user during the bootstrap
+static constexpr unsigned kMaxPasswordRetries = 10000;
 
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::UniquePtr;
 using mysql_harness::DIM;
 using namespace mysqlrouter;
+
+namespace {
+struct password_too_weak: public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+
+struct plugin_not_loaded: public std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+}
 
 
 /**
@@ -255,30 +268,89 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
   int connection_timeout_ = 5;
-  // Extract connection information from the bootstrap server URL.
-  std::string normalized_url(server_url);
-  if (normalized_url.find("//") == std::string::npos) {
-    normalized_url = "mysql://" + normalized_url;
+  std::string uri;
+
+  // check options
+  if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
+    char *end = NULL;
+    const char *tmp = bootstrap_options.at("base-port").c_str();
+    int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
+    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+    if (base_port <= 0 || base_port > max_base_port || end != tmp + strlen(tmp)) {
+      throw std::runtime_error("Invalid base-port number " +
+          bootstrap_options.at("base-port") +
+          "; please pick a value between 1 and "+std::to_string((max_base_port)));
+    }
   }
-  URI u(normalized_url);
+  if (bootstrap_options.find("bind-address") != bootstrap_options.end()) {
+    auto address = bootstrap_options.at("bind-address");
+    TCPAddress tmp(address, 1);
+    if (!tmp.is_valid()) {
+      throw std::runtime_error("Invalid bind-address value " + address);
+    }
+  }
+
+  const std::string default_schema = "mysql://";
+  // Extract connection information from the bootstrap server URL.
+  if (server_url.compare(0, default_schema.size(), default_schema) != 0) {
+    uri = default_schema + server_url;
+  } else {
+    uri = server_url;
+  }
+
+  URI u;
+  try {
+    // don't allow rootless URIs (mailto:foo@...) which would collide with the schema-less
+    // URIs are allow too: root:pw@host
+    u = URIParser::parse(uri, false);
+  } catch (const mysqlrouter::URIError &e) {
+    throw std::runtime_error(e.what());
+  }
+
+  // query, fragment and path should all be empty
+  if (!u.fragment.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a #fragement, but shouldn't");
+  }
+  if (!u.query.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a ?query, but shouldn't");
+  }
+  if (!u.path.empty()) {
+    throw std::runtime_error("the bootstrap URI contains a /path, but shouldn't");
+  }
 
   if (u.username.empty()) {
     u.username = "root";
   }
-  // setup localhost address.
-  u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
-
   // we need to prompt for the password
   if (u.password.empty()) {
     u.password = prompt_password(
       "Please enter MySQL password for "+u.username);
   }
 
+  std::string socket_name;
+
+  // easier to just use .at() and ask for forgiveness, then useing .find() + []
+  try {
+    socket_name = bootstrap_options.at("bootstrap_socket");
+  } catch (const std::out_of_range &e) {
+    socket_name = "";
+  }
+
+  if (socket_name.size() > 0) {
+    // enforce host == "localhost" if a socket is used to avoid ambiguity with the possible hostname
+    if (u.host != "localhost") {
+      throw std::runtime_error("--bootstrap-socket given, but --bootstrap option contains a non-'localhost' hostname: " + u.host);
+    }
+  } else {
+    // setup localhost address.
+    u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
+  }
+
   mysql_ = DIM::instance().new_MySQLSession();
   try
   {
     set_ssl_options(mysql_.get(), bootstrap_options);
-    mysql_->connect(u.host, u.port, u.username, u.password, connection_timeout_);
+    mysql_->connect(u.host, u.port, u.username, u.password, socket_name, "", connection_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
@@ -587,6 +659,43 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   return options;
 }
 
+namespace {
+
+unsigned get_password_retries(const std::map<std::string, std::string> &user_options) {
+  if (user_options.find("password-retries") == user_options.end()) {
+    return kDefaultPasswordRetries;
+  }
+
+  char *end = NULL;
+  const char *tmp = user_options.at("password-retries").c_str();
+  unsigned result = static_cast<unsigned>(std::strtoul(tmp, &end, 10));
+  if (result == 0 || result > kMaxPasswordRetries || end != tmp + strlen(tmp)) {
+    throw std::runtime_error("Invalid password-retries value '" +
+        user_options.at("password-retries") +
+        "'; please pick a value from 1 to " + std::to_string((kMaxPasswordRetries)));
+  }
+
+  return result;
+}
+
+std::string compute_password_hash(const std::string &password) {
+  uint8_t hash_stage1[SHA1_HASH_SIZE];
+  my_sha1::compute_sha1_hash(hash_stage1, password.c_str(), password.length());
+  uint8_t hash_stage2[SHA1_HASH_SIZE];
+  my_sha1::compute_sha1_hash(hash_stage2, (const char *) hash_stage1, SHA1_HASH_SIZE);
+
+  std::stringstream ss;
+  ss << "*";
+  ss << std::hex << std::setfill('0') << std::uppercase;
+  for (unsigned i = 0; i < SHA1_HASH_SIZE; ++i) {
+    ss << std::setw(2) << (int)hash_stage2[i];
+  }
+
+  return ss.str();
+}
+
+}
+
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     const mysql_harness::Path &config_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
@@ -603,8 +712,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   uint32_t router_id = 0;
   std::string username;
   AutoCleaner auto_clean;
-  mysql_harness::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
-
+  using RandomGen = mysql_harness::RandomGeneratorInterface;
+  RandomGen& rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
   if (!keyring_master_key_file.empty())
     auto_clean.add_file_revert(keyring_master_key_file);
@@ -658,7 +767,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
       if (router_id > kMaxRouterId)
         throw std::runtime_error("router_id (" + std::to_string(router_id)
             + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
-      username = "mysql_router" + std::to_string(router_id) + "_" + rg.generate_password(kNumRandomChars, kRandomCharBase);
+      username = "mysql_router" + std::to_string(router_id) + "_"
+          + rg.generate_identifier(kNumRandomChars, RandomGen::AlphabetDigits|RandomGen::AlphabetLowercase);
     } catch (MySQLSession::Error &e) {
       if (e.code() == 1062) { // duplicate key
         throw std::runtime_error(
@@ -671,15 +781,12 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     }
   }
 
-  Options options(fill_options(multi_master, user_options));
-  options.keyring_file_path = keyring_file;
-  options.keyring_master_key_file_path = keyring_master_key_file;
-
   // Create or recreate the account used by this router instance to access
   // metadata server
   assert(router_id);
   assert(!username.empty());
-  std::string password = rg.generate_password(kMetadataServerPasswordLength);
+  std::string password = create_account(user_options, username);
+
   {
     mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
     keyring->store(username, kKeyringAttributePassword, password);
@@ -690,8 +797,9 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     }
   }
 
-  create_account(username, password);
-
+  Options options(fill_options(multi_master, user_options));
+  options.keyring_file_path = keyring_file;
+  options.keyring_master_key_file_path = keyring_master_key_file;
   metadata.update_router_info(router_id, options);
 
 #ifndef _WIN32
@@ -805,7 +913,7 @@ void ConfigGenerator::fetch_bootstrap_servers(
   bootstrap_servers = "";
   try {
     mysql_->query(query.str(),
-        [this, &metadata_cluster, &metadata_replicaset, &bootstrap_servers,
+        [&metadata_cluster, &metadata_replicaset, &bootstrap_servers,
           &multi_master]
           (const std::vector<const char*> &row)->bool {
       if (metadata_cluster == "") {
@@ -1048,6 +1156,62 @@ void ConfigGenerator::create_config(std::ostream &cfp,
   }
 }
 
+std::string ConfigGenerator::create_account(const std::map<std::string, std::string> &user_options,
+                                            const std::string &username) {
+  using RandomGen = mysql_harness::RandomGeneratorInterface;
+  RandomGen& rg = mysql_harness::DIM::instance().get_RandomGenerator();
+
+  const bool force_password_validation = user_options.find("force-password-validation") != user_options.end();
+  std::string password;
+  bool account_created = false;
+  unsigned retries = get_password_retries(user_options);
+  if (!force_password_validation) {
+    // 1) Try to create an account using mysql_native_password with the hashed password
+    //    to avoid validate_password verification.
+    password = rg.generate_strong_password(kMetadataServerPasswordLength);
+    const std::string hashed_password = compute_password_hash(password);
+    try {
+      create_account(username, hashed_password, true /*password_hashed*/);
+      account_created = true;
+    }
+    catch (const plugin_not_loaded&) {
+      // fallback to 2)
+    }
+  }
+
+  // 2) If 1) failed because of the missing mysql_native_password plugin,
+  //    or "-force-password-validation" parameter has being used
+  //    try to create an account using the password directly
+  if (!account_created) {
+    while (true) {
+      password = rg.generate_strong_password(kMetadataServerPasswordLength);
+
+      try {
+        create_account(username, password);
+      }
+      catch(const password_too_weak& e) {
+        if (--retries == 0) {
+          // 3) If 2) failed issue an error suggesting the change to validate_password rules
+          std::stringstream err_msg;
+          err_msg << "Error creating user account: " << e.what() << std::endl
+                  << " Try to decrease the validate_password rules and try the operation again.";
+          throw std::runtime_error(err_msg.str());
+        }
+        // generated password does not satisfy the current policy requirements.
+        // we do our best to generate strong password but with the validate_password
+        // plugin, the user can set very strong or unusual requirements that we are not able to
+        // predict so we just retry several times hoping to meet the requirements with the next
+        // generated password.
+        continue;
+      }
+
+      // no expception while creating account, we are good to continue
+      break;
+    }
+  }
+
+  return password;
+}
 
 /*
   Create MySQL account for this instance of the router in the target cluster.
@@ -1058,7 +1222,8 @@ void ConfigGenerator::create_config(std::ostream &cfp,
   cluster and that there is only one replicaset in it.
  */
 void ConfigGenerator::create_account(const std::string &username,
-                                     const std::string &password) {
+                                     const std::string &password,
+                                     bool password_hashed) {
   std::string host = "%";
   /*
   Ideally, we create a single account for the specific host that the router is
@@ -1095,12 +1260,17 @@ void ConfigGenerator::create_account(const std::string &username,
       host = get_my_hostname();
     }
   }*/
-  std::string account = username + "@" + mysql_->quote(host);
+  const std::string account = username + "@" + mysql_->quote(host);
   // log_info("Creating account %s", account.c_str());
 
-  std::vector<std::string> queries{
+  const std::string create_user = "CREATE USER " + account + " IDENTIFIED "
+      + (password_hashed ? "WITH mysql_native_password AS " : "BY ")
+      + mysql_->quote(password);
+
+
+  const std::vector<std::string> queries{
     "DROP USER IF EXISTS " + account,
-    "CREATE USER " + account + " IDENTIFIED BY " + mysql_->quote(password),
+    create_user,
     "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + account,
     "GRANT SELECT ON performance_schema.replication_group_members TO " + account,
     "GRANT SELECT ON performance_schema.replication_group_member_stats TO " + account
@@ -1116,7 +1286,15 @@ void ConfigGenerator::create_account(const std::string &username,
       } catch (...) {
         // log_error("Could not rollback transaction explicitly.");
       }
-      throw std::runtime_error(std::string("Error creating MySQL account for router: ") + e.what());
+      std::string err_msg = std::string("Error creating MySQL account for router: ") + e.what();
+      if (e.code() == 1819) { // password does not satisfy the current policy requirements
+        throw password_too_weak(err_msg);
+      }
+      if (e.code()== 1524) { // plugin not loaded
+        throw plugin_not_loaded(err_msg);
+      }
+
+      throw std::runtime_error(err_msg);
     }
   }
 }

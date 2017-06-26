@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,10 +54,10 @@ include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
 include(cmake/install_layout.cmake)  # needs ARCH_64BIT
 include(cmake/configure.cmake)
+include(Coverage)
 # Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
 include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
-include(Coverage)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
 include(cmake/packaging.cmake)

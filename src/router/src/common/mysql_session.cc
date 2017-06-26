@@ -320,6 +320,8 @@ void MySQLSession::set_ssl_cert(const std::string &cert, const std::string &key)
 void MySQLSession::connect(const std::string &host, unsigned int port,
                            const std::string &username,
                            const std::string &password,
+                           const std::string &unix_socket,
+                           const std::string &default_schema,
                            int connection_timeout) {
   disconnect();
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
@@ -331,6 +333,14 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                 &connection_timeout);
   mysql_options(connection_, MYSQL_OPT_READ_TIMEOUT,
                 &connection_timeout);
+
+  if (unix_socket.length() > 0) {
+#ifdef _WIN32
+    protocol = MYSQL_PROTOCOL_PIPE;
+#else
+    protocol = MYSQL_PROTOCOL_SOCKET;
+#endif
+  }
   mysql_options(connection_, MYSQL_OPT_PROTOCOL,
                 reinterpret_cast<char *> (&protocol));
 
@@ -338,17 +348,18 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
     CLIENT_MULTI_RESULTS
     );
+  std::string tmp_conn_addr = unix_socket.length() > 0 ? unix_socket : host + ":" + std::to_string(port);
   if (!mysql_real_connect(connection_, host.c_str(), username.c_str(),
-                         password.c_str(), nullptr,
-                         port, nullptr,
+                         password.c_str(), default_schema.c_str(),
+                         port, unix_socket.c_str(),
                          client_flags)) {
     std::stringstream ss;
-    ss << "Error connecting to MySQL server at " << host << ":" << port;
+    ss << "Error connecting to MySQL server at " << tmp_conn_addr;
     ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
     throw Error(ss.str().c_str(), mysql_errno(connection_));
   }
   connected_ = true;
-  connection_address_ = host + ":" + std::to_string(port);
+  connection_address_ = tmp_conn_addr;
 }
 
 void MySQLSession::disconnect() {

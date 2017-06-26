@@ -18,4 +18,14 @@
 # You may list individual files or (more typically) directories.
 # Do not use shell wildcards and such, they will not work.
 
+ext
+result/generated
+
+src/metadata_cache/tests
+src/mysql_protocol/tests
+src/router/tests
+src/routing/tests
+tests
+
+mysql_harness/harness/tests/
 

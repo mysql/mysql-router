@@ -60,4 +60,6 @@ foreach(test_dir legal tools)
 endforeach()
 
 add_subdirectory(component)
+add_subdirectory(fuzzers)
+
 add_definitions(-DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

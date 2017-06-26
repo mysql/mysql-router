@@ -31,9 +31,11 @@ MySQLSessionReplayer::~MySQLSessionReplayer() {
 void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
                                    const std::string &user,
                                    const std::string &password,
+                                   const std::string &unix_socket,
+                                   const std::string &,
                                    int) {
   if (trace_) {
-    std::cout << "connect: " << user << ":" << password << "@" << host << ":" << port << "\n";
+    std::cout << "connect: " << user << ":" << password << "@" << (unix_socket.length() > 0 ? unix_socket : host + ":" + std::to_string(port)) << std::endl;
   }
 
   // check if connect() is not expected to fail. Note that since we mostly just
@@ -42,16 +44,51 @@ void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
   // execute(), query() and friends, which must be preceded by their respective
   // expect_*() call.
   if (call_info_.size()
-      && call_info_.front().type == CallInfo::Connect
-      && call_info_.front().host == host
-      && call_info_.front().port == port
-      && call_info_.front().user == user
-      && call_info_.front().password == password) {
-    CallInfo info = call_info_.front();
+      && call_info_.front().type == CallInfo::Connect) {
+    const CallInfo info(call_info_.front());
     call_info_.pop_front();
 
+    connected_ = false;
+    if (info.host != host) {
+      throw MySQLSession::Error(
+          (std::string("expected host not found: expected ") + info.host +
+           ", got " + host
+           ).c_str(), info.error_code);
+    }
+
+    if (info.port != port) {
+      throw MySQLSession::Error(
+          (std::string("expected port not found: expected ") + std::to_string(info.port) +
+           ", got " + std::to_string(port)
+           ).c_str(), info.error_code);
+    }
+
+    if (info.unix_socket != unix_socket) {
+      throw MySQLSession::Error(
+          (std::string("expected unix_socket not found: expected ") + info.unix_socket +
+           ", got " + unix_socket
+           ).c_str(), info.error_code);
+    }
+
+    if (info.user != user) {
+      throw MySQLSession::Error(
+          (std::string("expected user not found: expected ") + info.user +
+           ", got " + user
+           ).c_str(), info.error_code);
+    }
+
+    if (info.password != password) {
+      throw MySQLSession::Error(
+          (std::string("expected password not found: expected ") + info.password +
+           ", got " + password
+           ).c_str(), info.error_code);
+    }
+
+    // all params match, but called wanted to inject a error-code and error-msg
     if (info.error_code != 0) {
-      connected_ = false;
+      last_error_msg = info.error;
+      last_error_code = info.error_code;
+
       throw MySQLSession::Error(info.error.c_str(), info.error_code);
     }
   }
@@ -103,6 +140,9 @@ void MySQLSessionReplayer::query(const std::string &sql, const RowProcessor &pro
     std::cout << "query: " << sql << "\n";
 
   if (info.error_code != 0) {
+    last_error_msg = info.error;
+    last_error_code = info.error_code;
+
     call_info_.pop_front();
     throw MySQLSession::Error(info.error.c_str(), info.error_code);
   }
@@ -164,7 +204,11 @@ MySQLSession::ResultRow *MySQLSessionReplayer::query_one(const std::string &sql)
     std::cout << "query_one: " << sql << "\n";
 
   if (info.error_code != 0) {
+    last_error_msg = info.error;
+    last_error_code = info.error_code;
+
     call_info_.pop_front();
+
     throw MySQLSession::Error(info.error.c_str(), info.error_code);
   }
   ResultRow *result = nullptr;
@@ -182,11 +226,11 @@ uint64_t MySQLSessionReplayer::last_insert_id() noexcept {
 }
 
 const char *MySQLSessionReplayer::last_error() {
-  return "some error";
+  return last_error_msg.c_str();
 }
 
 unsigned int MySQLSessionReplayer::last_errno() {
-  return 0;
+  return last_error_code;
 }
 
 
@@ -200,13 +244,15 @@ std::string MySQLSessionReplayer::quote(const std::string &s, char qchar) noexce
 
 MySQLSessionReplayer &MySQLSessionReplayer::expect_connect(const std::string &host, unsigned port,
                                                            const std::string &user,
-                                                           const std::string &password) {
+                                                           const std::string &password,
+                                                           const std::string &unix_socket) {
   CallInfo call;
   call.type = CallInfo::Connect;
   call.host = host;
   call.port = port;
   call.user = user;
   call.password = password;
+  call.unix_socket = unix_socket;
   call_info_.push_back(call);
   return *this;
 }
@@ -276,6 +322,6 @@ bool MySQLSessionReplayer::print_expected() {
 }
 
 MySQLSessionReplayer::CallInfo::CallInfo(const CallInfo& ci) : type(ci.type), error(ci.error), error_code(ci.error_code), sql(ci.sql),
-last_insert_id(ci.last_insert_id), num_fields(ci.num_fields), rows(ci.rows), host(ci.host), port(ci.port), user(ci.user), password(ci.password)
+last_insert_id(ci.last_insert_id), num_fields(ci.num_fields), rows(ci.rows), host(ci.host), port(ci.port), user(ci.user), password(ci.password), unix_socket(ci.unix_socket)
 {
 }

@@ -42,6 +42,7 @@ using URIQuery = std::map<std::string, std::string>;
  */
 class URIError : public std::runtime_error {
 public:
+  URIError(const char *msg, const std::string &uri, size_t position);
   explicit URIError(const std::string &what_arg) : std::runtime_error(what_arg) { }
 };
 
@@ -62,14 +63,24 @@ public:
 
   /** @brief Default constructor
    *
-   * @param uri URI to be used to read parts
+   * Rootless URIs like "mailto:user@example.com" may be forbidden to make sure
+   * that simple "host:addr" doesn't get parsed as (scheme='host', path='addr')
+   *
+   * @param uri URI string to decode
+   * @param allow_path_rootless if parsing rootless URIs is allowed.
    */
-  URI(const std::string &uri) : scheme(), host(), port(0), username(), password(), path(), query(),
-                           fragment(), uri_(uri) {
+  URI(const std::string &uri, bool allow_path_rootless = true) : scheme(), host(), port(0), username(), password(), path(), query(),
+                           fragment(), uri_(uri), allow_path_rootless_(allow_path_rootless) {
     if (!uri.empty()) {
       init_from_uri(uri);
     }
   };
+
+  bool operator==(const URI &u2) const;
+  bool operator!=(const URI &u2) const;
+
+  /** return string representation of the URI */
+  std::string str() const;
 
   /** @brief overload */
   URI() : URI("") { };
@@ -99,9 +110,7 @@ public:
   /** @brief Fragment part of the URI */
   std::string fragment;
 
-#ifndef _MSC_VER  // disable on Windows for unit tests to build (linkage errors)
 private:
-#endif
   /** @brief Sets information using the given URI
    *
    * Takes a and parsers out all URI elements.
@@ -110,22 +119,24 @@ private:
    *
    * @param uri URI to use
    */
-  void init_from_uri(const std::string uri);
+  void init_from_uri(const std::string &uri);
 
   /** @brief Copy of the original given URI */
   std::string uri_;
 
+  /** @brief all URIs like mail:foo@example.org which don't have a authority */
+  bool allow_path_rootless_;
 };
 
-#ifdef ENABLE_TESTS
-// Testing statics
-std::string t_parse_scheme(const std::string &uri);
-URIAuthority t_parse_authority(const std::string &uri);
-URIPath t_parse_path(const std::string &uri);
-URIQuery t_parse_query(const std::string &uri, const char delimiter);
-URIQuery t_parse_query(const std::string &uri);
-std::string t_parse_fragment(const std::string &uri);
-#endif
+std::ostream& operator<<(std::ostream &strm, const URI &uri);
+
+class URIParser {
+public:
+  static URI parse(const std::string &uri, bool allow_path_rootless = true);
+  static URI parse_shorthand_uri(const std::string &uri, bool allow_path_rootless = true,
+      const std::string &default_scheme = "mysql");
+};
+
 
 } // namespace mysqlrouter
 

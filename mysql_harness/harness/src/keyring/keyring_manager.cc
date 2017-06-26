@@ -228,10 +228,10 @@ static std::pair<std::string,std::string>
       throw std::runtime_error("Master key for keyring at '" + keyring_file_path + "' could not be read");
     // if the master key doesn't exist anywhere yet, generate one and store it
     mysql_harness::RandomGeneratorInterface& rg = mysql_harness::DIM::instance().get_RandomGenerator();
-    master_key = rg.generate_password(kKeyLength);
+    master_key = rg.generate_strong_password(kKeyLength);
     // scramble to encrypt the master key with, which should be stored in the
     // keyring
-    master_scramble = rg.generate_password(kKeyLength);
+    master_scramble = rg.generate_strong_password(kKeyLength);
     mkf.add(keyring_file_path, master_key, master_scramble);
   }
   return std::make_pair(master_key, master_scramble);
