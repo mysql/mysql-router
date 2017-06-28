@@ -243,6 +243,16 @@ void RouterComponentTest::get_params(const std::string &command,
   out_params[i] = nullptr;
 }
 
+int RouterComponentTest::CommandHandle::wait_for_exit(unsigned timeout_ms) {
+
+  while (read_output(0)) {}
+
+  exit_code_ = launcher_.wait(timeout_ms);
+  exit_code_set_ = true;
+
+  return exit_code_;
+}
+
 bool RouterComponentTest::CommandHandle::expect_output(const std::string& str,
                                                        bool regex,
                                                        unsigned timeout_ms) {
@@ -266,7 +276,7 @@ bool RouterComponentTest::CommandHandle::output_contains(const std::string& str,
 bool RouterComponentTest::CommandHandle::read_output(unsigned timeout_ms) {
   const size_t BUF_SIZE = 1024;
   char cmd_output[BUF_SIZE] = {0};
-  bool result = launcher_.read(cmd_output, BUF_SIZE, timeout_ms) > 0;
+  bool result = launcher_.read(cmd_output, BUF_SIZE-1, timeout_ms) > 0;
 
   if (result) {
     handle_output(cmd_output);

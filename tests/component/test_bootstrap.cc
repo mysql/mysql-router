@@ -50,7 +50,7 @@ TEST_F(RouterUserOptionTest, BootstrapOk) {
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.exit_code(), 0);
+  EXPECT_EQ(router.wait_for_exit(), 0);
 
 }
 
@@ -80,14 +80,14 @@ TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
     ) << "router: " << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
-  EXPECT_EQ(router.exit_code(), 0);
+  EXPECT_EQ(router.wait_for_exit(), 0);
 #else
   // on Windows Unix socket functionality in not available
   EXPECT_TRUE(router.expect_output("Error: unknown option '--conf-skip-tcp'")
     ) << "router: " << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
-  EXPECT_EQ(router.exit_code(), 1);
+  EXPECT_EQ(router.wait_for_exit(), 1);
 #endif
 
 }
@@ -111,7 +111,7 @@ TEST_F(RouterUserOptionTest, BootstrapUnsupportedSchemaVersion) {
   // check that it failed as expected
   EXPECT_TRUE(router.expect_output("This version of MySQL Router is not compatible with the provided MySQL InnoDB cluster metadata")
     ) << router.get_full_output();
-  EXPECT_EQ(router.exit_code(), 1);
+  EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
 int main(int argc, char *argv[]) {

@@ -69,7 +69,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
     << "routing output: "<< router_static.get_full_output() << std::endl
     << "server output: "<< server_mock.get_full_output() << std::endl;
 
-  EXPECT_EQ(router_bootstrapping.exit_code(), 0
+  EXPECT_EQ(router_bootstrapping.wait_for_exit(), 0
   ) << "bootstrap output: " << router_bootstrapping.get_full_output();
 }
 

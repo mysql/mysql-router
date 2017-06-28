@@ -36,6 +36,11 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
   auto router = launch_router("--bootstrap=127.0.0.1:5000 --user=mysqlrouter");
 
   ASSERT_TRUE(router.expect_output("Error: One can only use the -u/--user switch if running as root"));
+  ASSERT_EQ(router.wait_for_exit(), 1);
+
+  // That's more to test the framework itself:
+  // The consecutive calls to exit_code() should be possible  and return the same value
+  ASSERT_EQ(router.exit_code(), 1);
   ASSERT_EQ(router.exit_code(), 1);
 }
 
@@ -44,7 +49,7 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
   auto router = launch_router("--user=mysqlrouter --bootstrap=127.0.0.1:5000");
 
   ASSERT_TRUE(router.expect_output("Error: Option -u/--user needs to be used after the --bootstrap option"));
-  ASSERT_EQ(router.exit_code(), 1);
+  ASSERT_EQ(router.wait_for_exit(), 1);
 }
 
 #else
@@ -54,7 +59,7 @@ TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
 
   ASSERT_TRUE(router.expect_output("Error: unknown option '--user'.")
     ) << router.get_full_output();
-  ASSERT_EQ(router.exit_code(), 1);
+  ASSERT_EQ(router.wait_for_exit(), 1);
 }
 #endif
 

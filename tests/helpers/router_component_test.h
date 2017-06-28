@@ -87,17 +87,29 @@ class RouterComponentTest {
 
     /** @brief Returns the exit code of the process.
      *
+     *  Must always be called after wait_for_exit(),
+     *  otherwise it throws runtime_error
+     *
+     * @returns exit code of the process
+     */
+    int exit_code() {
+      if (!exit_code_set_) {
+        throw std::runtime_error("RouterComponentTest::Command_handle: exit_code() called without wait_for_exit()!");
+      }
+      return exit_code_;
+    }
+
+    /** @brief Waits for the process to exit.
+     *
      *  If the process did not finish yet waits the given number of milliseconds.
      *  If the timeout expired it throws runtime_error.
      *  In case of failure it throws system_error.
      *
      * @param timeout_ms maximum amount of time to wait for the process to finish
+     *
      * @returns exit code of the process
      */
-    int exit_code(unsigned timeout_ms = 1000) {
-      return launcher_.wait(timeout_ms);
-    }
-
+    int wait_for_exit(unsigned timeout_ms = 1000);
 
    private:
     CommandHandle(const std::string &app_cmd,
@@ -113,10 +125,12 @@ class RouterComponentTest {
     bool read_output(unsigned timeout_ms);
     void handle_output(const std::string &line);
 
-    ProcessLauncher launcher_; // <- this guy's destructor takes care about
+    ProcessLauncher launcher_; // <- this guy's destructor takes care of
                                // killing the spawned process
     std::string execute_output_raw_;
     std::map<std::string, std::string> output_responses_;
+    int exit_code_;
+    bool exit_code_set_{false};
 
     friend class RouterComponentTest;
   };
