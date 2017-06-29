@@ -68,9 +68,6 @@ protected:
   std::unique_ptr<Path> config_path;
 };
 
-// TODO this and next test:
-// These tests are broken, because if r.start() doesn't throw, the test passes.
-// These tests fail once #if 1 is changed to #if 0 - thus TODO investigate, then fix or remove
 TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
@@ -80,30 +77,11 @@ TEST_F(Bug21771595, ExceptionRoutingInvalidTimeout) {
 
   MySQLRouter r(g_origin, {"-c", config_path->str()});
 
-#if 1
-  // This is the original, broken test code. The test passes, but only because it's badly written.
-  // Its correct form is in the #else brach. However, once this test is corrected, it fails.
-  // TODO one of:
-  //   1 - fix the production code so it passes the CORRECT test
-  //   2 - fix the criteria of this test to match correct production code behavior
-  //   3 - erase this test, because it's meaningless
-  try {
-    r.start();
-    FAIL() << "Should throw";
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-      "option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"));
-  } catch (...) {
-    FAIL() << "Expected std::invalid_argument exception";
-  }
-#else
-  // This is the correct test, but fails, because it doesn't match production code behavior
   ASSERT_THROW_LIKE(
     r.start(),
     std::invalid_argument,
     "option connect_timeout in [routing] needs value between 1 and 65535 inclusive, was '0'"
   );
-#endif
 }
 
 TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
@@ -113,30 +91,11 @@ TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
   c.close();
 
   auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
-#if 1
-  // This is the original, broken test code. The test passes, but only because it's badly written.
-  // Its correct form is in the #else brach. However, once this test is corrected, it fails.
-  // TODO one of:
-  //   1 - fix the production code so it passes the CORRECT test
-  //   2 - fix the criteria of this test to match correct production code behavior
-  //   3 - erase this test, because it's meaningless
-  try {
-    r.start();
-    FAIL() << "Should throw";
-  } catch (const std::invalid_argument &exc) {
-    ASSERT_THAT(exc.what(), StrEq(
-      "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid URI: invalid port: impossible port number for: mysql://127.0.0.1:99999)"));
-  } catch (...) {
-    FAIL() << "Expected std::invalid_argument exception";
-  }
-#else
-  // This is the correct test, but fails, because it doesn't match production code behavior
   ASSERT_THROW_LIKE(
     r.start(),
     std::invalid_argument,
-    "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid TCP port: impossible port number)"
+    "option bootstrap_server_addresses in [metadata_cache] is incorrect (invalid URI: invalid port: impossible port number for: mysql://127.0.0.1:99999)"
   );
-#endif
 }
 
 TEST_F(Bug21771595, AppExecRoutingInvalidTimeout) {
