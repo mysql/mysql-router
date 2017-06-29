@@ -364,15 +364,7 @@ TEST_F(AppTest, ConfigFileParseError) {
   }
 }
 
-// TODO this test is broken, needs to be fixed
-// problems:
-// - Loader::start() returns due to lack of plugins to run (other than logger)
-// - CMake on Windows: plugin_path in .../mysql_extra.conf = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@,
-//                     which is <build_dir>/stage/lib/mysqlrouter, which is wrong.
-//                     It should be <build_dir>/stage/<build_type>/lib
-// - why is it running r.start() twice?
-// - the essence of this test is below r.start(), yet it is disabled
-TEST_F(AppTest, DISABLED_SectionOverMultipleConfigFiles) {
+TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   string extra_config = stage_dir.join("etc").join("mysqlrouter_extra.conf").str();
   vector<string> argv = {
       "--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
@@ -384,13 +376,12 @@ TEST_F(AppTest, DISABLED_SectionOverMultipleConfigFiles) {
   ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.conf"));
   ASSERT_THAT(r.get_extra_config_files().at(0).c_str(), EndsWith("mysqlrouter_extra.conf"));
 
-  r.start();
+  // let the Loader load the configuration files
   ASSERT_NO_THROW(r.start());
-  /* Functionality missing in Harness Loader to get section
-  auto section = r.loader_->config_.get("logger", "");
+
+  auto section = r.loader_->get_config().get("magic", "");
   ASSERT_THAT(section.get("foo"), StrEq("bar"));
-  ASSERT_THROW(section.get("NotInTheSection"), bad_option);
-  */
+  ASSERT_THROW(section.get("NotInTheSection"), mysql_harness::bad_option);
 }
 
 #ifndef _WIN32
