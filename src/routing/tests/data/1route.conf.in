@@ -2,7 +2,7 @@
 
 [DEFAULT]
 logging_folder =
-plugin_folder = @ROUTER_STAGE_DIR@/lib/mysqlrouter
+plugin_folder = @ROUTER_STAGE_DIR@/@ROUTER_PLUGIN_DIR_SUFFIX@
 runtime_folder = @ROUTER_STAGE_DIR@/run
 config_folder = @ROUTER_STAGE_DIR@/etc
 
