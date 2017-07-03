@@ -130,6 +130,12 @@ FOREACH(f ${WIX_FEATURES})
    ENDIF()
  ENDIF()
 
+ # Override display name & description for Default feature
+ IF("${f_upper}" MATCHES "DEFAULTFEATURE")
+   SET(TITLE "MySQL Router")
+   SET(DESCRIPTION "The MySQL Router executable &amp; plugins")
+ ENDIF()
+
  SET(CPACK_WIX_FEATURES
  "${CPACK_WIX_FEATURES}
    <Feature  Id='${f_upper}'
