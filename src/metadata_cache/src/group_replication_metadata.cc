@@ -136,7 +136,8 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
       member.state = GroupReplicationMember::State::Unreachable;
     else if (std::strcmp(member_state, "RECOVERING") == 0)
       member.state = GroupReplicationMember::State::Recovering;
-    // TODO: docs state there's another one, "ERROR", perhaps it should be added
+    else if (std::strcmp(member_state, "ERROR") == 0)
+      member.state = GroupReplicationMember::State::Error;
     else {
       log_info("Unknown state %s in replication_group_members table for %s", member_state, member_id);
       member.state = GroupReplicationMember::State::Other;

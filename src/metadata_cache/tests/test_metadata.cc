@@ -899,6 +899,56 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
   }
 }
 
+TEST_F(MetadataTest, CheckReplicasetStatus_ErrorAndOther) {
+  // Nodes with Error and Other status should both be handled the same:
+  // they don't count towards the quorum
+
+  std::vector<ManagedInstance> expected_servers {
+    // ServerMode doesn't matter ------vvvvvvvvvvv
+    {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+  };
+
+  for (State state : {State::Error, State::Other}) {
+    {
+      std::map<std::string, GroupReplicationMember> server_status {
+        { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
+        { "instance-2", {"", "", 0, State::Online,     Role::Secondary} },
+        { "instance-3", {"", "", 0, state,             Role::Secondary} },
+      };
+      EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
+      EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
+      EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
+      EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+    }
+
+    {
+      std::map<std::string, GroupReplicationMember> server_status {
+        { "instance-1", {"", "", 0, State::Online,     Role::Secondary} },
+        { "instance-2", {"", "", 0, State::Online,     Role::Secondary} },
+        { "instance-3", {"", "", 0, state,             Role::Secondary} },
+      };
+      EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(expected_servers, server_status));
+      EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(0).mode);
+      EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
+      EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+    }
+
+    {
+      std::map<std::string, GroupReplicationMember> server_status {
+        { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
+        { "instance-2", {"", "", 0, state,             Role::Secondary} },
+        { "instance-3", {"", "", 0, state,             Role::Secondary} },
+      };
+      EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+      EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
+      EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+      EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+    }
+  }
+}
+
 TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
 
   // Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
