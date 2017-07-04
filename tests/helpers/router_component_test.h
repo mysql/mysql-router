@@ -170,16 +170,19 @@ class RouterComponentTest {
    *
    * @returns 0 on success, error code on failure
    */
-  int purge_dir(const std::string& dir);
+  static int purge_dir(const std::string& dir);
 
-  /** @brief Creates a temporary directory and returns it's path.
+  /** @brief Creates a temporary directory with partially-random name and returns
+   * its path.
    *
-   * It throws runtime_error exception if the operation failed.
+   * @note This is a convenience proxy function to mysql_harness::get_tmp_dir(),
+   * see documentation there for more details.
    *
-   * @param name  name to be used as a directory name (or part of the name
-   *              if random name is used (non-Windows)
+   * @param name name to be used as a directory name prefix
    *
-   * @returns path to the created directory
+   * @return path to the created directory
+   *
+   * @throws std::runtime_error if operation failed
    */
   static std::string get_tmp_dir(const std::string &name = "router");
 

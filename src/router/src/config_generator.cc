@@ -134,7 +134,7 @@ public:
       _files[file] = FileBackup;
     } else {
       if (mysql_harness::Path(file+".bck").exists())
-        delete_file(file+".bck");
+        mysql_harness::delete_file(file+".bck");
       _files[file] = File;
     }
   }
@@ -146,7 +146,7 @@ public:
   void clear() {
     for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
       if (f->second == FileBackup)
-        delete_file(f->first+".bck");
+        mysql_harness::delete_file(f->first+".bck");
     }
     _files.clear();
   }
@@ -157,20 +157,20 @@ public:
     for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
       switch (f->second) {
         case File:
-          delete_file(f->first);
+          mysql_harness::delete_file(f->first);
           break;
 
         case Directory:
-          rmdir(f->first);
+          mysql_harness::rmdir(f->first);
           break;
 
         case DirectoryRecursive:
-          delete_recursive(f->first);
+          mysql_harness::delete_recursive(f->first);
           break;
 
         case FileBackup:
           copy_file(f->first+".bck", f->first);
-          delete_file(f->first+".bck");
+          mysql_harness::delete_file(f->first+".bck");
           break;
       }
     }

@@ -15,6 +15,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// On OSX, this causes __DARWIN_C_LEVEL to be upgraded to __DARWIN_C_FULL in
+// sys/cdefs.h, which in turn enables non-POSIX extensions such as mkdtemp().
+// Needs to be set before sys/cdefs.h gets #included (from any other headers),
+// thus best left here before any #includes.
+#ifdef __APPLE__
+#  define _DARWIN_C_SOURCE
+#endif
+
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 
@@ -295,6 +303,39 @@ Path Path::real_path() const {
     return Path(buf);
   else
     return Path();
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility free functions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int rmdir(const std::string& dir) noexcept {
+  return ::rmdir(dir.c_str());
+}
+
+int delete_file(const std::string& path) noexcept {
+  return ::unlink(path.c_str());
+}
+
+std::string get_tmp_dir(const std::string& name) {
+  const size_t MAX_LEN = 256;
+  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const char* pattern = pattern_str.c_str();
+  if (strlen(pattern) >= MAX_LEN) {
+    throw std::runtime_error("Could not create temporary directory, name too long");
+  }
+  char buf[MAX_LEN];
+  strncpy(buf, pattern, sizeof(buf)-1);
+  const char *res = mkdtemp(buf);
+  if (res == nullptr) {
+    throw std::runtime_error("Could not create temporary directory");
+  }
+
+  return std::string(res);
 }
 
 } // namespace mysql_harness

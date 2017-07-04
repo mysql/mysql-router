@@ -17,6 +17,7 @@
 
 #include "mysql/harness/filesystem.h"
 
+#include <cstring>
 #include <ostream>
 
 using std::string;
@@ -162,4 +163,30 @@ Directory::~Directory() = default;
 
 Directory::Directory(const Path& path) : Path(path) {}
 
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility free functions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int delete_recursive(const std::string& dir) noexcept {
+  mysql_harness::Directory d(dir);
+  try {
+    for (auto const &f : d) {
+      if (f.is_directory()) {
+        if (delete_recursive(f.str()) < 0)
+          return -1;
+      } else {
+        if (delete_file(f.str()) < 0)
+          return -1;
+      }
+    }
+  } catch (...) {
+    return -1;
+  }
+  return rmdir(dir);
 }
+
+} // namespace mysql_harness

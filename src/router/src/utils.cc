@@ -185,55 +185,6 @@ int mkdir(const std::string& dir, perm_mode mode) {
 #endif
 }
 
-int rmdir(const std::string& dir) {
-#ifndef _WIN32
-  return ::rmdir(dir.c_str());
-#else
-  return _rmdir(dir.c_str());
-#endif
-}
-
-int delete_file(const std::string& path) {
-#ifndef _WIN32
-  return ::unlink(path.c_str());
-#else
-  // In Windows a file recently closed may fail to be deleted because its
-  // still be locked (or have a 3rd party reading it, like an Indexer service
-  // or AntiVirus). So the recommended is to retry the delete operation.
-  BOOL flag = TRUE;
-  int max_attempts = 10;
-  while (max_attempts--)
-  {
-    flag = DeleteFile(path.c_str());
-    DWORD err = GetLastError();
-    if (flag) break;
-    else if (err == ERROR_FILE_NOT_FOUND) { flag = 1; break; }
-    else if (err == ERROR_ACCESS_DENIED) { Sleep(100); continue; }
-    else { return -1; }
-  }
-
-  return flag ? 0 : -1;
-#endif
-}
-
-int delete_recursive(const std::string& dir) {
-  mysql_harness::Directory d(dir);
-  try {
-    for (auto const &f : d) {
-      if (f.is_directory()) {
-        if (delete_recursive(f.str()) < 0)
-          return -1;
-      } else {
-        if (delete_file(f.str()) < 0)
-          return -1;
-      }
-    }
-  } catch (...) {
-    return -1;
-  }
-  return rmdir(dir);
-}
-
 bool substitute_envvar(std::string &line) noexcept {
   size_t pos_start;
   size_t pos_end;

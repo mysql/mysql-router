@@ -62,14 +62,14 @@ static std::string my_prompt_password(const std::string &, int *num_password_pro
 using namespace std::placeholders;
 
 static void create_keyfile(const std::string &path) {
-  mysqlrouter::delete_file(path);
-  mysqlrouter::delete_file(path+".master");
+  mysql_harness::delete_file(path);
+  mysql_harness::delete_file(path+".master");
   mysql_harness::init_keyring(path, path+".master", true);
   mysql_harness::reset_keyring();
 }
 
 static void create_keyfile_withkey(const std::string &path, const std::string &key) {
-  mysqlrouter::delete_file(path);
+  mysql_harness::delete_file(path);
   mysql_harness::init_keyring_with_key(path, key, true);
   mysql_harness::reset_keyring();
 }

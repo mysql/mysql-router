@@ -42,7 +42,6 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
-#include <random>
 #include <thread>
 
 using mysql_harness::Path;
@@ -178,54 +177,14 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
   return status >= 0;
 }
 
+/*static*/
 int RouterComponentTest::purge_dir(const std::string& dir) {
-  return mysqlrouter::delete_recursive(dir);
+  return mysql_harness::delete_recursive(dir);
 }
 
+/*static*/
 std::string RouterComponentTest::get_tmp_dir(const std::string &name) {
-#ifdef _WIN32
-  char buf[MAX_PATH];
-  auto res = GetTempPath(MAX_PATH, buf);
-  if (res == 0 || res > MAX_PATH) {
-    throw std::runtime_error("Could not get temporary directory");
-  }
-
-  auto generate_random_sequence = [](size_t len) -> std::string {
-    std::random_device rd;
-    std::string result;
-    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
-    std::uniform_int_distribution<unsigned long> dist(0, sizeof(alphabet) - 2);
-
-    for (size_t i = 0; i < len; ++i) {
-      result += alphabet[dist(rd)];
-    }
-
-    return result;
-  };
-
-  std::string dir_name = name + "-" + generate_random_sequence(10);
-  std::string result = Path(buf).join(dir_name).str();
-  int err = _mkdir(result.c_str());
-  if (err != 0) {
-    throw std::runtime_error("Error creating temporary directory " + result);
-  }
-  return result;
-#else
-  const size_t MAX_LEN = 256;
-  const std::string pattern_str = std::string(name + "-XXXXXX");
-  const char* pattern = pattern_str.c_str();
-  if (strlen(pattern) >= MAX_LEN) {
-    throw std::runtime_error("Could not create temporary directory, name too long");
-  }
-  char buf[MAX_LEN];
-  strncpy(buf, pattern, sizeof(buf)-1);
-  const char *res = mkdtemp(buf);
-  if (res == nullptr) {
-    throw std::runtime_error("Could not create temporary directory");
-  }
-
-  return std::string(res);
-#endif
+  return mysql_harness::get_tmp_dir(name);
 }
 
 void RouterComponentTest::get_params(const std::string &command,

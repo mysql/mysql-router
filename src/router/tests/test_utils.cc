@@ -28,6 +28,7 @@
 #endif
 
 #include "mysqlrouter/utils.h"
+#include "mysql/harness/filesystem.h"
 #include <fstream>
 #include <vector>
 
@@ -197,7 +198,7 @@ TEST_F(UtilsTests, delete_recursive) {
   std::ofstream().open("testdir/f2");
   std::ofstream().open("testdir/a/f");
   std::ofstream().open("testdir/a/b/f");
-  EXPECT_EQ(0, mysqlrouter::delete_recursive("testdir"));
+  EXPECT_EQ(0, mysql_harness::delete_recursive("testdir"));
 }
 
 
@@ -227,16 +228,16 @@ TEST_F(UtilsTests, copy_file) {
     EXPECT_TRUE(files_equal("empty.tf", "empty.tf2"));
     EXPECT_TRUE(files_equal("data.tf", "data.tf2"));
   } catch (...) {
-    mysqlrouter::delete_file("empty.tf");
-    mysqlrouter::delete_file("empty.tf2");
-    mysqlrouter::delete_file("data.tf");
-    mysqlrouter::delete_file("data.tf2");
+    mysql_harness::delete_file("empty.tf");
+    mysql_harness::delete_file("empty.tf2");
+    mysql_harness::delete_file("data.tf");
+    mysql_harness::delete_file("data.tf2");
     throw;
   }
-  mysqlrouter::delete_file("empty.tf");
-  mysqlrouter::delete_file("empty.tf2");
-  mysqlrouter::delete_file("data.tf");
-  mysqlrouter::delete_file("data.tf2");
+  mysql_harness::delete_file("empty.tf");
+  mysql_harness::delete_file("empty.tf2");
+  mysql_harness::delete_file("data.tf");
+  mysql_harness::delete_file("data.tf2");
 }
 
 template <typename FUNC>

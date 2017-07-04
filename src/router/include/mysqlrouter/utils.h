@@ -270,12 +270,6 @@ bool my_check_access(const std::string& path);
 
 int mkdir(const std::string& dir, perm_mode mode);
 
-int rmdir(const std::string& dir);
-
-int delete_recursive(const std::string& dir);
-
-int delete_file(const std::string& path);
-
 /** @brief Copy contents of one file to another.
  *
  * Exception thrown if open, create read or write operation fails.
