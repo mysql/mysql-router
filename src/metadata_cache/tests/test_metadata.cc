@@ -869,7 +869,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
     {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
   };
 
-  for (State state : {State::Offline, State::Recovering, State::Unreachable, State::Other}) {
+  for (State state : {State::Offline, State::Error, State::Unreachable, State::Other}) {
 
     // should keep quorum
     {
@@ -896,6 +896,162 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
       EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
       EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
     }
+  }
+}
+
+TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
+
+  // Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
+  // should be treated as valid quorum members just like ONLINE nodes, but they
+  // cannot be routed to. RS::Recovering should be returned in a (corner) case
+  // when all nodes in quorum are recovering.
+
+  std::vector<ManagedInstance> expected_servers {
+    // ServerMode doesn't matter ------vvvvvvvvvvv
+    {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+  };
+
+
+
+  // 1 node recovering, 1 RW, 1 RO
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
+      { "instance-2", {"", "", 0, State::Online,     Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 1 node recovering, 1 offline, 1 RW
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
+      { "instance-2", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 1 node recovering, 1 offline, 1 RO
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Online,     Role::Secondary} },
+      { "instance-2", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::ReadOnly,    expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 1 node recovering, 2 offline
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-2", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 1 node recovering, 1 offline, 1 left replicaset
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-2", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+  }
+
+  // 1 node recovering, 2 left replicaset
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::UnavailableRecovering, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+  }
+
+
+
+  // 2 nodes recovering, 1 RW
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
+      { "instance-2", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::ReadWrite,   expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 2 nodes recovering, 1 RO
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Online,     Role::Secondary} },
+      { "instance-2", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::ReadOnly,   expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 2 nodes recovering, 1 offline
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Error,      Role::Secondary} },
+      { "instance-2", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::UnavailableRecovering, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
+  }
+
+  // 2 nodes recovering, 1 left replicaset
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-2", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::UnavailableRecovering, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+  }
+
+
+
+  // 3 nodes recovering
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "instance-1", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-2", {"", "", 0, State::Recovering, Role::Secondary} },
+      { "instance-3", {"", "", 0, State::Recovering, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::UnavailableRecovering, metadata.check_replicaset_status(expected_servers, server_status));
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, expected_servers.at(2).mode);
   }
 }
 

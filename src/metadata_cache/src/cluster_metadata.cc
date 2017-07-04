@@ -152,9 +152,9 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
 void ClusterMetadata::update_replicaset_status(const std::string &name,
     metadata_cache::ManagedReplicaSet &replicaset) { // throws metadata_cache::metadata_error
   log_debug("Updating replicaset status from GR for '%s'", name.c_str());
+
   // iterate over all cadidate nodes until we find the node that is part of quorum
   bool found_quorum = false;
-
   std::shared_ptr<MySQLSession> gr_member_connection;
   for (const metadata_cache::ManagedInstance& mi : replicaset.members) {
     std::string mi_addr = (mi.host == "localhost" ? "127.0.0.1" : mi.host) + ":" + std::to_string(mi.port);
@@ -202,6 +202,10 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
           break;
         case metadata_cache::ReplicasetStatus::AvailableReadOnly: // have quorum, but only RO
           found_quorum = true;
+          break;
+        case metadata_cache::ReplicasetStatus::UnavailableRecovering:  // have quorum, but only with recovering nodes (cornercase)
+          log_warning("quorum for replicaset '%s' consists only of recovering nodes!", name.c_str());
+          found_quorum = true;  // no point in futher search
           break;
         case metadata_cache::ReplicasetStatus::Unavailable:       // we have nothing
           log_warning("%s is not part of quorum for replicaset '%s'", mi_addr.c_str(), name.c_str());
@@ -273,9 +277,10 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
 
   // we do two things here:
   // 1. for all `instances`, set .mode according to corresponding .status found in `member_status`
-  // 2. count nodes which are part of quorum (online nodes)
-  unsigned int online_count = 0;
+  // 2. count nodes which are part of quorum (online/recovering nodes)
+  unsigned int quorum_count = 0;
   bool have_primary_instance = false;
+  bool have_secondary_instance = false;
   for (auto &member : instances) {
     auto status = member_status.find(member.mysql_server_uuid);
     if (status != member_status.end()) {
@@ -285,15 +290,17 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
             case GR_Role::Primary:
               have_primary_instance = true;
               member.mode = ServerMode::ReadWrite;
-              online_count++;
+              quorum_count++;
               break;
             case GR_Role::Secondary:
+              have_secondary_instance = true;
               member.mode = ServerMode::ReadOnly;
-              online_count++;
+              quorum_count++;
               break;
           }
           break;
         case GR_State::Recovering:
+          quorum_count++;
         case GR_State::Unreachable:
         case GR_State::Offline:  // online node with disabled GR maps to this
         case GR_State::Other:
@@ -308,22 +315,26 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
     }
   }
 
-  // online_count is based on nodes from `instances` instead of `member_status`.
+  // quorum_count is based on nodes from `instances` instead of `member_status`.
   // This is okay, because all nodes in `member_status` are present in `instances`
   // (our assumption described at the top)
-  bool have_quorum = (online_count > member_status.size()/2);
+  bool have_quorum = (quorum_count > member_status.size()/2);
 
-  if (have_quorum) {
-    // if primary node was not elected yet, we can only allow reads (typically this is
-    // a temporary state shortly after a node failure, but could also be more permanent)
-    return have_primary_instance
-        ? ReplicasetStatus::AvailableWritable
-        : ReplicasetStatus::AvailableReadOnly;
-  } else {
-    // if we don't have quorum, we don't allow any access. Some configurations might
-    // allow RO access in this case, but we don't support it at the momemnt
+  // if we don't have quorum, we don't allow any access. Some configurations might
+  // allow RO access in this case, but we don't support it at the momemnt
+  if (!have_quorum)
     return ReplicasetStatus::Unavailable;
-  }
+
+  // if we have quorum but no primary/secondary instances, it means the quorum
+  // is composed purely of recovering nodes (this is an unlikey cornercase)
+  if (!(have_primary_instance || have_secondary_instance))
+    return ReplicasetStatus::UnavailableRecovering;
+
+  // if primary node was not elected yet, we can only allow reads (typically this is
+  // a temporary state shortly after a node failure, but could also be more permanent)
+  return have_primary_instance
+      ? ReplicasetStatus::AvailableWritable   // typical case
+      : ReplicasetStatus::AvailableReadOnly;  // primary not elected yet
 }
 
 // throws metadata_cache::metadata_error

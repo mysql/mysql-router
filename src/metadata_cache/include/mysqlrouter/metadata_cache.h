@@ -53,6 +53,7 @@ extern const std::string kDefaultMetadataCluster;
 enum class METADATA_API ReplicasetStatus {
   AvailableWritable,
   AvailableReadOnly,
+  UnavailableRecovering,
   Unavailable
 };
 
