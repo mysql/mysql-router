@@ -187,7 +187,7 @@ EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
 }
 
 
-TEST_F(UtilsTests, delete_recursive) {
+TEST_F(UtilsTests, delete_dir_recursive) {
   using mysqlrouter::mkdir;
   std::ofstream ofs;
   mkdir("testdir", 0700);
@@ -198,7 +198,7 @@ TEST_F(UtilsTests, delete_recursive) {
   std::ofstream().open("testdir/f2");
   std::ofstream().open("testdir/a/f");
   std::ofstream().open("testdir/a/b/f");
-  EXPECT_EQ(0, mysql_harness::delete_recursive("testdir"));
+  EXPECT_EQ(0, mysql_harness::delete_dir_recursive("testdir"));
 }
 
 

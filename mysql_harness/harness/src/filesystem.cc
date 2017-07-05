@@ -171,12 +171,12 @@ Directory::Directory(const Path& path) : Path(path) {}
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int delete_recursive(const std::string& dir) noexcept {
+int delete_dir_recursive(const std::string& dir) noexcept {
   mysql_harness::Directory d(dir);
   try {
     for (auto const &f : d) {
       if (f.is_directory()) {
-        if (delete_recursive(f.str()) < 0)
+        if (delete_dir_recursive(f.str()) < 0)
           return -1;
       } else {
         if (delete_file(f.str()) < 0)
@@ -186,7 +186,7 @@ int delete_recursive(const std::string& dir) noexcept {
   } catch (...) {
     return -1;
   }
-  return rmdir(dir);
+  return delete_dir(dir);
 }
 
 } // namespace mysql_harness

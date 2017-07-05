@@ -342,9 +342,12 @@ TEST_F(RoutingTests, bug_24841281) {
   MockServer server(server_port);
   server.start();
 
+  TmpDir tmp_dir; // create a tmp dir (it will be destroyed via RAII later)
+  std::string sock_path = tmp_dir() + "/sock";
+
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(routing::AccessMode::kReadWrite, router_port,
-               Protocol::Type::kXProtocol, "0.0.0.0", mysql_harness::Path("/tmp/sock"),
+               Protocol::Type::kXProtocol, "0.0.0.0", mysql_harness::Path(sock_path),
                "routing:testroute",
                routing::kDefaultMaxConnections,
                routing::kDefaultDestinationConnectionTimeout,
@@ -416,8 +419,8 @@ TEST_F(RoutingTests, bug_24841281) {
 
 #ifndef _WIN32
   // now try the same with socket ops
-  int sock3 = connect_socket("/tmp/sock");
-  int sock4 = connect_socket("/tmp/sock");
+  int sock3 = connect_socket(sock_path.c_str());
+  int sock4 = connect_socket(sock_path.c_str());
 
   EXPECT_TRUE(sock3 > 0);
   EXPECT_TRUE(sock4 > 0);

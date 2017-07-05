@@ -179,7 +179,7 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
 
 /*static*/
 int RouterComponentTest::purge_dir(const std::string& dir) {
-  return mysql_harness::delete_recursive(dir);
+  return mysql_harness::delete_dir_recursive(dir);
 }
 
 /*static*/

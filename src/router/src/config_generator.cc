@@ -161,11 +161,11 @@ public:
           break;
 
         case Directory:
-          mysql_harness::rmdir(f->first);
+          mysql_harness::delete_dir(f->first);
           break;
 
         case DirectoryRecursive:
-          mysql_harness::delete_recursive(f->first);
+          mysql_harness::delete_dir_recursive(f->first);
           break;
 
         case FileBackup:

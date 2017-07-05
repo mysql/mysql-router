@@ -415,7 +415,7 @@ class HARNESS_EXPORT Directory : public Path {
  * @return 0 on success, -1 on error and sets errno
  */
 HARNESS_EXPORT
-int rmdir(const std::string& dir) noexcept;
+int delete_dir(const std::string& dir) noexcept;
 
 /** @brief Removes a file.
  *
@@ -437,7 +437,7 @@ int delete_file(const std::string& path) noexcept;
  * @return 0 on success, -1 on error
  */
 HARNESS_EXPORT
-int delete_recursive(const std::string& dir) noexcept;
+int delete_dir_recursive(const std::string& dir) noexcept;
 
 /** @brief Creates a temporary directory with partially-random name and returns
  * its path.

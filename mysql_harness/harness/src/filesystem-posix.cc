@@ -313,7 +313,7 @@ Path Path::real_path() const {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int rmdir(const std::string& dir) noexcept {
+int delete_dir(const std::string& dir) noexcept {
   return ::rmdir(dir.c_str());
 }
 

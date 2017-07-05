@@ -17,7 +17,9 @@ include_directories(../include ../src ../../../tests/helpers)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "router"
-  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
+  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
+  LIB_DEPENDS test-helpers
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include)
 
 add_test_dir(issues MODULE issues)
 

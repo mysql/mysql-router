@@ -36,22 +36,20 @@
 
 #include "gmock/gmock.h"
 
-#ifdef _WIN32
 static std::string kTestKRFile = "tkeyfile";
 static std::string kTestKRFile2 = "tkeyfile2";
 static struct Initter {
   Initter() {
-    const char *tmpdir = getenv("TMPDIR");
-    if (!tmpdir)
-      tmpdir = ".";
-    kTestKRFile = std::string(tmpdir).append("/").append(kTestKRFile);
-    kTestKRFile2 = std::string(tmpdir).append("/").append(kTestKRFile2);
+    tmpdir_ = mysql_harness::get_tmp_dir();
+    kTestKRFile = tmpdir_ + "/" + kTestKRFile;
+    kTestKRFile2 = tmpdir_ + "/" + kTestKRFile2;
   }
+  ~Initter() {
+    mysql_harness::delete_dir_recursive(tmpdir_);
+  }
+ private:
+  std::string tmpdir_;
 } init;
-#else
-static std::string kTestKRFile = "/tmp/tkeyfile";
-static std::string kTestKRFile2 = "/tmp/tkeyfile2";
-#endif
 static std::string kTestKey = "mykey";
 
 static std::string my_prompt_password(const std::string &, int *num_password_prompts) {
