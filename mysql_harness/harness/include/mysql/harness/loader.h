@@ -846,32 +846,6 @@ class HARNESS_EXPORT Loader {
 
   std::list<Config::SectionKey> available() const;
 
-  /**
-   * Load the named plugin from a specific library.
-   *
-   * @param plugin_name Name of the plugin to be loaded.
-   *
-   * @param library_name Name of the library the plugin should be
-   * loaded from.
-   */
-  Plugin *load_from(const std::string& plugin_name,
-                    const std::string& library_name);
-
-
-  /**
-   * Load the named plugin and all dependent plugins.
-   *
-   * @param plugin_name Name of the plugin to be loaded.
-   * @param key Key of the plugin to be loaded.
-   *
-   * @post After the execution of this procedure, the plugin and all
-   * plugins required by that plugin will be loaded.
-   */
-  Plugin *load(const std::string& plugin_name);
-
-  /** @overload */
-  Plugin *load(const std::string& plugin_name, const std::string& key);
-
   bool is_loaded(const std::string& ext) const;
 
   /**
@@ -933,12 +907,43 @@ class HARNESS_EXPORT Loader {
 
   void platform_specific_init();
 
+  /**
+   * Load the named plugin from a specific library.
+   *
+   * @param plugin_name Name of the plugin to be loaded.
+   *
+   * @param library_name Name of the library the plugin should be
+   * loaded from.
+   *
+   * @throws bad_plugin (std::runtime_error) on load error
+   */
+  Plugin *load_from(const std::string& plugin_name,
+                    const std::string& library_name);
+
+  /**
+   * Load the named plugin and all dependent plugins.
+   *
+   * @param plugin_name Name of the plugin to be loaded.
+   * @param key Key of the plugin to be loaded.
+   *
+   * @throws bad_plugin (std::runtime_error) on load error
+   * @throws bad_section (std::runtime_error) when section 'plugin_name' is not
+   * present in configuration
+   *
+   * @post After the execution of this procedure, the plugin and all
+   * plugins required by that plugin will be loaded.
+   */
+  Plugin *load(const std::string& plugin_name);
+
+  /** @overload */
+  Plugin *load(const std::string& plugin_name, const std::string& key);
+
   // IMPORTANT design note: start_all() will block until PluginFuncEnv objects
   // have been created for all plugins. This guarantees that the required
   // PluginFuncEnv will always exist when plugin stop() function is called.
 
   // start() calls these, indents reflect call hierarchy
-  void               load_all();
+  void               load_all();     // throws bad_plugin on load error
   void                 setup_info();
   std::exception_ptr run();          // returns first exception returned from below harness functions
   std::exception_ptr   init_all();   // returns first exception triggered by init()
@@ -965,13 +970,13 @@ class HARNESS_EXPORT Loader {
    */
   class HARNESS_EXPORT PluginInfo {
    public:
-    PluginInfo(const std::string& folder, const std::string& library);
+    PluginInfo(const std::string& folder, const std::string& library); // throws bad_plugin
     PluginInfo(const PluginInfo&) = delete;
     PluginInfo(PluginInfo&&);
     PluginInfo(void* h, Plugin* ext) : handle(h), plugin(ext) {}
     ~PluginInfo();
 
-    void load_plugin(const std::string& name);
+    void load_plugin(const std::string& name);  // throws bad_plugin
 
     /**
      * Pointer to plugin structure.

@@ -39,8 +39,10 @@ void Loader::platform_specific_init() {}
 
 class Loader::PluginInfo::Impl {
  public:
+  // throws bad_plugin
   Impl(const std::string& plugin_folder,
        const std::string& library_name);
+
   ~Impl();
 
   Path path;

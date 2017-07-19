@@ -405,9 +405,9 @@ Plugin* Loader::load_from(const std::string& plugin_name,
   // is up to the platform implementation to ensure that multiple
   // instances of a library can be handled.
 
-  PluginInfo info(plugin_folder_, library_name);
+  PluginInfo info(plugin_folder_, library_name);  // throws bad_plugin
 
-  info.load_plugin(plugin_name);
+  info.load_plugin(plugin_name);  // throws bad_plugin
 
   // Check that ABI version and architecture match
   auto plugin = info.plugin;
@@ -431,7 +431,7 @@ Plugin* Loader::load_from(const std::string& plugin_name,
       Designator designator(req);
 
       // Load the plugin using the plugin name.
-      Plugin* dep_plugin = load(designator.plugin);
+      Plugin* dep_plugin = load(designator.plugin); // throws bad_plugin
 
       // Check that the version of the plugin match what the
       // designator expected and raise an exception if they don't
@@ -456,15 +456,15 @@ Plugin* Loader::load_from(const std::string& plugin_name,
 Plugin* Loader::load(const std::string& plugin_name, const std::string& key) {
   log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
-  ConfigSection& plugin = config_.get(plugin_name, key);
+  ConfigSection& plugin = config_.get(plugin_name, key);  // throws bad_section
   const std::string& library_name = plugin.get("library");
-  return load_from(plugin_name, library_name);
+  return load_from(plugin_name, library_name);  // throws bad_plugin
 }
 
 Plugin* Loader::load(const std::string& plugin_name) {
   log_info("  plugin '%s' loading", plugin_name.c_str());
 
-  Config::SectionList plugins = config_.get(plugin_name);
+  Config::SectionList plugins = config_.get(plugin_name); // throws bad_section
   if (plugins.size() > 1) {
     std::ostringstream buffer;
     buffer << "Section name '" << plugin_name
@@ -482,7 +482,7 @@ Plugin* Loader::load(const std::string& plugin_name) {
   assert(plugins.size() == 1);
   const ConfigSection* section = plugins.front();
   const std::string& library_name = section->get("library");
-  return load_from(plugin_name, library_name);
+  return load_from(plugin_name, library_name);  // throws bad_plugin
 }
 
 void Loader::start() {
@@ -500,7 +500,7 @@ void Loader::load_all() {
 
   platform_specific_init();
   for (std::pair<const std::string&, std::string> name : available()) {
-    load(name.first, name.second);
+    load(name.first, name.second);  // throws bad_plugin
   }
 }
 
