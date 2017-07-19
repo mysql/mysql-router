@@ -57,6 +57,7 @@
 ////////////////////////////////////////
 // Third-party include files
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 ////////////////////////////////////////
 // Standard include files
@@ -77,6 +78,7 @@ using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::test::LifecyclePluginSyncBus;
+using ::testing::HasSubstr;
 namespace ch = std::chrono;
 
 
@@ -1759,6 +1761,35 @@ TEST_F(LifecycleTest, DeinitThrowsWeird) {
 }
 
 #endif // #ifdef NDEBUG
+
+TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
+  clear_log();
+
+  config_text_ << "[nonexistent_plugin]\n";   // should cause Loader::load_all() to throw
+  config_text_ << "[nonexistent_plugin_2]\n"; // no attempt to load this should be made
+  loader_.read(config_text_);
+
+  try {
+    loader_.start();
+    FAIL() << "Loader::start() should throw bad_plugin";
+  } catch (const bad_plugin& e) {
+    EXPECT_THAT(e.what(), HasSubstr("nonexistent_plugin"));
+  } catch (...) {
+    FAIL() << "Loader::start() should throw bad_plugin";
+  }
+
+  // Expect something like so:
+  // "2017-07-13 14:38:57 main ERROR [7ffff7fd5780]   plugin 'nonexistent_plugin' failed to load: <OS-specific error text>"
+  // "2017-07-13 14:38:57 main INFO [7ffff7fd5780] Unloading all plugins."
+  refresh_log();
+  EXPECT_EQ(1, count_in_log("]   plugin 'nonexistent_plugin' failed to load: "));
+  EXPECT_EQ(1, count_in_log("] Unloading all plugins."));
+
+  // Loader::load_all() should have stopped loading as soon as it encountered 'nonexistent_plugin'.
+  // Therefore, it should not attempt to load the next plugin, 'nonexistent_plugin_2', thus we should
+  // find no trace of such string in the log.
+  EXPECT_EQ(0, count_in_log("nonexistent_plugin_2"));
+}
 
 
 

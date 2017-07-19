@@ -486,10 +486,15 @@ Plugin* Loader::load(const std::string& plugin_name) {
 }
 
 void Loader::start() {
-  load_all();
-  std::exception_ptr first_eptr = run();
-  unload_all();
 
+  // unload plugins on exit
+  std::shared_ptr<void> exit_guard(nullptr, [this](void*){ unload_all(); });
+
+  // load plugins
+  load_all(); // throws bad_plugin on load error, causing an early return
+
+  // init and run plugins
+  std::exception_ptr first_eptr = run();
   if (first_eptr) {
     std::rethrow_exception(first_eptr);
   }
@@ -500,7 +505,12 @@ void Loader::load_all() {
 
   platform_specific_init();
   for (std::pair<const std::string&, std::string> name : available()) {
-    load(name.first, name.second);  // throws bad_plugin
+    try {
+      load(name.first, name.second);
+    } catch (const bad_plugin& e) {
+      log_error("  plugin '%s' failed to load: %s", name.first.c_str(), e.what());
+      throw;
+    }
   }
 }
 
