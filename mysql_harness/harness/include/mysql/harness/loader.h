@@ -677,6 +677,7 @@ Actions taken for each plugin function are as follows:
   DECLARE_TEST(LifecycleTest, StartThrowsWeird);
   DECLARE_TEST(LifecycleTest, StopThrowsWeird);
   DECLARE_TEST(LifecycleTest, DeinitThrowsWeird);
+  DECLARE_TEST(LoaderReadTest, Loading);
 #endif
 
 namespace mysql_harness {
@@ -846,8 +847,6 @@ class HARNESS_EXPORT Loader {
 
   std::list<Config::SectionKey> available() const;
 
-  bool is_loaded(const std::string& ext) const;
-
   /**
    * Initialize and start all loaded plugins.
    *
@@ -1007,7 +1006,7 @@ class HARNESS_EXPORT Loader {
   LoaderConfig config_;
 
   /**
-   * Map of all plugins (without key name).
+   * Map of all successfully-loaded plugins (without key name).
    */
   PluginMap plugins_;
 
@@ -1079,6 +1078,7 @@ class HARNESS_EXPORT Loader {
   FRIEND_TEST(::LifecycleTest, StartThrowsWeird);
   FRIEND_TEST(::LifecycleTest, StopThrowsWeird);
   FRIEND_TEST(::LifecycleTest, DeinitThrowsWeird);
+  FRIEND_TEST(::LoaderReadTest, Loading);
 #endif
 
 };  // class Loader

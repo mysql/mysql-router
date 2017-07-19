@@ -536,10 +536,6 @@ std::exception_ptr Loader::run() {
   return first_eptr;
 }
 
-bool Loader::is_loaded(const std::string &name) const {
-  return plugins_.find(name) != plugins_.end();
-}
-
 std::list<Config::SectionKey> Loader::available() const {
   return config_.section_names();
 }
