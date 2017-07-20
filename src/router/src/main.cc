@@ -15,15 +15,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#define MYSQL_ROUTER_LOG_DOMAIN ::mysql_harness::logging::kMainLogger // must precede #include "logging.h"
+
 #include "common.h"
 #include "dim.h"
 #include "utils.h"
 #include "mysql_session.h"
+#include "mysql/harness/loader_config.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
 #include "router_app.h"
 #include "random_generator.h"
 #include "windows/main-windows.h"
 #include <mysql.h>
 #include <iostream>
+IMPORT_LOG_FUNCTIONS()
+
 
 /** @brief Initialise Dependency Injection Manager (DIM)
  *
@@ -47,18 +54,32 @@ static void init_DIM() {
 
   // Ofstream
   dim.set_Ofstream([](){ return new mysqlrouter::RealOfstream(); }, std::default_delete<mysqlrouter::Ofstream>());
+
+  // logging facility
+  dim.set_LoggingRegistry(
+    []() {
+      static mysql_harness::logging::Registry registry;
+      return &registry;
+    },
+    [](mysql_harness::logging::Registry*){}  // don't delete our static!
+  );
 }
 
 int real_main(int argc, char **argv) {
   mysql_harness::rename_thread("main");
   init_DIM();
 
+  // initialize logger to log to stderr. After reading configuration inside of MySQLRouter::start(),
+  // it will be re-initialized according to information in the configuration file
+  mysql_harness::LoaderConfig config(0U);
+  MySQLRouter::init_main_logger(config);
+
   extern std::string g_program_name;
   g_program_name = argv[0];
   int result = 0;
 
   if (mysql_library_init(argc, argv, NULL)) {
-    std::cerr << "Could not initialize MySQL library\n";
+    log_error("Could not initialize MySQL library");
     return 1;
   }
 
@@ -70,23 +91,23 @@ int real_main(int argc, char **argv) {
     try {
       router.start();
     } catch (const std::invalid_argument &exc) {
-      std::cerr << "Configuration error: " << exc.what() << std::endl;
+      log_error("Configuration error: %s", exc.what());
       result = 1;
     } catch (const std::runtime_error &exc) {
-      std::cerr << "Error: " << exc.what() << std::endl;
+      log_error("Error: %s", exc.what());
       result = 1;
     } catch (const silent_exception&) {}
   } catch(const std::invalid_argument &exc) {
-    std::cerr << "Configuration error: " << exc.what() << std::endl;
+    log_error("Configuration error: %s", exc.what());
     result = 1;
   } catch(const std::runtime_error &exc) {
-    std::cerr << "Error: " << exc.what() << std::endl;
+    log_error("Error: %s", exc.what());
     result = 1;
   } catch (const mysql_harness::syntax_error &exc) {
-    std::cerr << "Configuration syntax error: " << exc.what() << std::endl;
+    log_error("Configuration syntax error: %s", exc.what());
   } catch (const silent_exception&) {
   } catch (const std::exception &exc) {
-    std::cerr << "Error: " << exc.what() << std::endl;
+    log_error("Error: %s", exc.what());
     result = 1;
   }
 

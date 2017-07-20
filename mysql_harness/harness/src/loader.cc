@@ -347,56 +347,6 @@ std::tuple<std::string, std::exception_ptr> PluginFuncEnv::pop_error() noexcept 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// LoaderConfig
-//
-////////////////////////////////////////////////////////////////////////////////
-
-void LoaderConfig::fill_and_check() {
-  // Set the default value of library for all sections that do not
-  // have the library set.
-  for (auto&& elem : sections_) {
-    if (!elem.second.has("library")) {
-      const std::string& section_name = elem.first.first;
-
-      // Section name is always a always stored as lowercase legal C
-      // identifier, hence it is also legal as a file name, but we
-      // assert that to make sure.
-      assert(std::all_of(section_name.begin(), section_name.end(),
-                         [](const char ch) -> bool {
-                           return isalnum(ch) || ch == '_';
-                         }));
-
-      elem.second.set("library", section_name);
-    }
-  }
-
-  // Check all sections to make sure that the values are correct.
-  for (auto&& iter = sections_.begin() ; iter != sections_.end() ; ++iter) {
-    const std::string& section_name = iter->second.name;
-    const auto& seclist = find_range_first(sections_, section_name, iter);
-
-    const std::string& library = seclist.first->second.get("library");
-    auto library_mismatch = [&library](decltype(*seclist.first)& it) -> bool {
-      return it.second.get("library") != library;
-    };
-
-    auto mismatch = find_if(seclist.first, seclist.second, library_mismatch);
-    if (mismatch != seclist.second) {
-      const auto& name = seclist.first->first;
-      std::ostringstream buffer;
-      buffer << "Library for section '"
-             << name.first << ":" << name.second
-             << "' does not match library in section '"
-             << mismatch->first.first << ":" << mismatch->first.second;
-      throw bad_section(buffer.str());
-    }
-  }
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
 // Loader
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -557,15 +507,6 @@ std::exception_ptr Loader::run() {
 
 std::list<Config::SectionKey> Loader::available() const {
   return config_.section_names();
-}
-
-void Loader::read(const Path& path) {
-  config_.read(path);
-
-  // This means it is checked after each file load, which might
-  // require changes in the future if checks that cover the entire
-  // configuration are added. Right now it just contain safety checks.
-  config_.fill_and_check();
 }
 
 void Loader::setup_info() {

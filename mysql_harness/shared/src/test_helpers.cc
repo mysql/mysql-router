@@ -50,11 +50,7 @@ AssertLoaderSectionAvailable(const char *loader_expr,
          << "Sections were: " << sections.str();
 }
 
-void init_log(const std::list<std::string>& additional_log_domains /* = {} */,
-              const std::string& log_folder /* = "" */,
-              const std::string& log_filename /* = "" */) {
-
-  // register Registry object with DIM
+void register_log() {
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
   dim.set_LoggingRegistry(
     []() {
@@ -63,19 +59,26 @@ void init_log(const std::list<std::string>& additional_log_domains /* = {} */,
     },
     [](mysql_harness::logging::Registry*){}  // don't delete our static!
   );
+}
 
-  // setup logging
-  {
-    mysql_harness::logging::Registry& registry = dim.get_LoggingRegistry();
+void init_log(const std::list<std::string>& additional_log_domains /* = {} */,
+              const std::string& log_folder /* = "" */,
+              const std::string& log_filename /* = "" */) {
 
-    mysql_harness::Config config;
-    config.set_default("log_level", "debug");
-    std::list<std::string> log_domains(additional_log_domains.begin(),
-                                       additional_log_domains.end());
-    log_domains.push_back(mysql_harness::logging::kMainLogger);
+  register_log();
 
-    mysql_harness::logging::clear_registry(registry);
-    mysql_harness::logging::init_loggers(registry, config, log_domains, mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_logfile_handler(registry, log_filename, log_folder);
-  }
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+  mysql_harness::logging::Registry& registry = dim.get_LoggingRegistry();
+
+  mysql_harness::Config config;
+  config.set_default("log_level", "debug");
+  std::list<std::string> log_domains(additional_log_domains.begin(),
+                                     additional_log_domains.end());
+  log_domains.push_back(mysql_harness::logging::kMainLogger);
+
+  mysql_harness::logging::clear_registry(registry);
+  mysql_harness::logging::init_loggers(registry, config, log_domains, mysql_harness::logging::kMainLogger);
+  mysql_harness::logging::create_main_logfile_handler(registry, log_filename, log_folder);
+
+  registry.set_ready();
 }

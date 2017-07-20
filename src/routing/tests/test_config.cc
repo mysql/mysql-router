@@ -25,6 +25,7 @@
 #include "../../router/src/router_app.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
+#include "test/helpers.h"
 
 #include <cstdio>
 #include <fstream>
@@ -128,6 +129,7 @@ int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
+  register_log();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

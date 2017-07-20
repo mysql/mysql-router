@@ -102,8 +102,8 @@ class TestLoader : public Loader {
 
  public:
   TestLoader(const std::string& program,
-             const std::map<std::string, std::string> defaults)
-    : Loader(program, defaults, std::vector<std::string>()) {
+             mysql_harness::LoaderConfig& config)
+      : Loader(program, config) {
     unittest_backdoor::is_shutdown_pending() = 0;
   }
 
@@ -117,10 +117,9 @@ class TestLoader : public Loader {
     bool deinit;
   };
 
-  // analogoous to Loader::read()
   void read(std::istream& stream)
   {
-    config_.read(stream);
+    config_.Config::read(stream);
     config_.fill_and_check();
   }
 
@@ -191,9 +190,11 @@ class BasicConsoleOutputTest : public ::testing::Test {
 
 class LifecycleTest : public BasicConsoleOutputTest {
  public:
+
   LifecycleTest() :
       params_{ {"program", "harness"}, {"prefix", g_here.c_str()} },
-      loader_("harness", params_) {
+      config_(params_, std::vector<std::string>(), mysql_harness::Config::allow_keys),
+      loader_("harness", config_) {
     config_text_ <<
       "[DEFAULT]                                      \n"
 #ifndef _WIN32
@@ -274,6 +275,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
   }
 
   const std::map<std::string, std::string> params_;
+  mysql_harness::LoaderConfig config_;
   TestLoader        loader_;
   std::stringstream config_text_;
 

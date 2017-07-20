@@ -127,6 +127,16 @@ public:
 
   virtual ~MySQLRouter() = default;
 
+  /** @brief Initialize main logger
+   *
+   * Initializes main logger, according to options in the configuration.
+   *
+   * @param config Configuaration to be used to initialize logger
+   *
+   * @note This function is static and public, because unlike init_plugin_loggers(),
+   * it's also meant to be called very early during startup, close to main().
+   */
+  static void init_main_logger(mysql_harness::LoaderConfig& config);
 
   // Information member function
   std::string get_package_name() noexcept;
@@ -363,9 +373,13 @@ private:
 
   void init_keyring(mysql_harness::Config &config);
 
-  void init_log();
+  void init_plugin_loggers(mysql_harness::LoaderConfig& config);
 
-  void init_loader_and_read_config();
+  // throws std::runtime_error
+  void init_loader(mysql_harness::LoaderConfig& config);
+
+  // throws std::runtime_error
+  void read_config(mysql_harness::LoaderConfig& config);
 
   std::map<std::string, std::string> get_default_paths() const;
 

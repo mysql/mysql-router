@@ -101,7 +101,13 @@ AssertLoaderSectionAvailable(const char *loader_expr,
   EXPECT_PRED_FORMAT2(AssertLoaderSectionAvailable, L, S)
 
 /**
- * Init logger for unit tests
+ * Just register logger with DIM for unit tests (unlike init_log(), which also
+ * initializes it)
+ */
+void register_log();
+
+/**
+ * Register + init logger for unit tests
  *
  * Creates application ("main") logger, which will write all messages to the
  * console. Almost all of our code relies on the fact of "main" logger being

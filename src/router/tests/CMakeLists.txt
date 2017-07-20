@@ -25,7 +25,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 
 add_test_dir(issues MODULE issues
   INCLUDE_DIRS
-    ${GTEST_INCLUDE_DIRS})
+  LIB_DEPENDS test-helpers
+  ${GTEST_INCLUDE_DIRS})
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   # silence undefined use of macro-vars in gtest.
@@ -36,7 +37,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     PROPERTIES
     COMPILE_FLAGS "-Wno-undef")
 endif()
-
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.conf ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
 if(WIN32)

@@ -611,6 +611,7 @@ Actions taken for each plugin function are as follows:
 
 #include "config_parser.h"
 #include "filesystem.h"
+#include "mysql/harness/loader_config.h"
 #include "mysql/harness/plugin.h"
 
 #include "harness_export.h"
@@ -689,40 +690,6 @@ struct Plugin;
 class Path;
 
 /**
- * Configuration file handler for the loader.
- *
- * @ingroup Loader
- *
- * Specialized version of the config file read that do some extra
- * checks after reading the configuration file.
- */
-
-class HARNESS_EXPORT LoaderConfig : public Config {
- public:
-  template <class AssocT, class SeqT>
-  explicit LoaderConfig(const AssocT& parameters,
-                        const SeqT& reserved,
-                        bool allow_keys = false)
-          : Config(parameters, allow_keys) {
-    for (const SeqT& word : reserved)
-      reserved_.push_back(word);
-  }
-
-  using Config::Config;
-
-  /**
-   * Fill and check the configuration.
-   *
-   * This function will fill in default values for any options that
-   * should have default values and check all sections to make sure
-   * that they have valid values.
-   *
-   * @exception bad_section Thrown if the configuration is not correct.
-   */
-  void fill_and_check();
-};
-
-/**
  * PluginFuncEnv object
  *
  * This object is the basis of all communication between Harness and plugin
@@ -796,22 +763,11 @@ class HARNESS_EXPORT Loader {
   /**
    * Constructor for Loader.
    *
-   * @param defaults Associative array of defaults.
-   * @param reserved Sequence container of patterns for reserved words.
+   * @param program Name of our program
+   * @param config Router configuration
    */
-
-  template <class AssocT, class SeqT>
-  Loader(const std::string& program,
-         const AssocT& defaults = AssocT(),
-         const SeqT& reserved = SeqT())
-      : config_(defaults, reserved, Config::allow_keys),
-        program_(program) {}
-
-  /** @overload */
-  template <class AssocT>
-  explicit Loader(const std::string& program,
-                  const AssocT& defaults = AssocT())
-      : Loader(program, defaults, std::vector<std::string>()) {}
+  Loader(const std::string& program, LoaderConfig& config)
+      : config_(config), program_(program) {}
 
   Loader(const Loader&) = delete;
   Loader& operator=(const Loader&) = delete;
@@ -824,27 +780,6 @@ class HARNESS_EXPORT Loader {
    */
 
   ~Loader();
-
-  /**
-   * Read a configuration entry.
-   *
-   * This will read one configuration entry and incorporate it into
-   * the loader configuration. The entry can be either a directory or
-   * a file.
-   *
-   * This function allow reading multiple configuration entries and
-   * can be used to load paths of configurations. An example of how it
-   * could be used is:
-   *
-   * @code
-   * Loader loader;
-   * for (auto&& entry: my_path)
-   *    loader.read(entry);
-   * @endcode
-   *
-   * @param path Path to configuration entry to read.
-   */
-  void read(const Path& path);
 
   /**
    * Fetch available plugins.
@@ -866,25 +801,10 @@ class HARNESS_EXPORT Loader {
   void start();
 
   /**
-   * Return true if we are logging to a file, false if we are logging
-   * to console instead.
-   */
-  bool logging_to_file() const {
-    return !config_.get_default("logging_folder").empty();
-  }
-
-  /**
-   * Return log filename.
-   *
-   * @throws std::invalid_argument if not logging to file
-   */
-  Path get_log_file() const {
-    return Path::make_path(config_.get_default("logging_folder"),
-                           program_, "log");
-  }
-
-  /**
    * Get reference to configuration object.
+   *
+   * @note UPDATE 2017.06.19: At the time of writing, we initialize Loader with
+   * LoaderConfig reference maintained by DIM, so this method will return this object.
    */
   LoaderConfig &get_config() { return config_; }
 
@@ -1010,7 +930,7 @@ class HARNESS_EXPORT Loader {
   /**
    * Configuration sections for all plugins.
    */
-  LoaderConfig config_;
+  LoaderConfig& config_;
 
   /**
    * Map of all successfully-loaded plugins (without key name).

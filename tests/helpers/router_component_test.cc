@@ -261,7 +261,41 @@ void RouterComponentTest::CommandHandle::handle_output(const std::string &line) 
   }
 }
 
+std::map<std::string, std::string> RouterComponentTest::get_DEFAULT_defaults() const {
+  return {
+    {"logging_folder", ""},
+    {"plugin_folder", plugin_dir_.str()},
+    {"runtime_folder", stage_dir_.str()},
+    {"config_folder", stage_dir_.str()},
+    {"data_folder", stage_dir_.str()},
+  };
+}
+
+std::string RouterComponentTest::make_DEFAULT_section(const std::map<std::string, std::string>* params) const {
+  auto l = [params](const char* key) -> std::string {
+    return (params->count(key))
+        ? std::string(key) + " = " + params->at(key) + "\n"
+        : "";
+  };
+
+  return params
+    ? std::string("[DEFAULT]\n")
+        + l("logging_folder")
+        + l("plugin_folder")
+        + l("runtime_folder")
+        + l("config_folder")
+        + l("data_folder")
+        + "\n"
+    : std::string("[DEFAULT]\n")
+        + "logging_folder =\n"
+        + "plugin_folder = "  + plugin_dir_.str() + "\n"
+        + "runtime_folder = " + stage_dir_.str() + "\n"
+        + "config_folder = "  + stage_dir_.str() + "\n"
+        + "data_folder = "    + stage_dir_.str() + "\n\n";
+}
+
 std::string RouterComponentTest::create_config_file(const std::string &content,
+                                                    const std::map<std::string, std::string> *params,
                                                     const std::string &directory,
                                                     const std::string &name) const {
   Path file_path = Path(directory).join(name);
@@ -271,13 +305,7 @@ std::string RouterComponentTest::create_config_file(const std::string &content,
     throw(std::runtime_error("Could not create config file " + file_path.str()));
   }
 
-  ofs_config << "[DEFAULT]" << std::endl;
-  ofs_config << "logging_folder =" << std::endl;
-  ofs_config << "plugin_folder = " << plugin_dir_.str() << std::endl;
-  ofs_config << "runtime_folder = " << stage_dir_.str() << std::endl;
-  ofs_config << "config_folder = " << stage_dir_.str() << std::endl;
-  ofs_config << "data_folder = " << stage_dir_.str() << std::endl << std::endl;
-
+  ofs_config << make_DEFAULT_section(params);
   ofs_config << content << std::endl;
   ofs_config.close();
 

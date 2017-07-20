@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <string>   // unfortunately, std::string is a typedef and therefore not easy to forward-declare
+#include <mutex>    // using fwd declaration + ptr-to-implementation gives build errors on BSD-based systems
 
 
 
@@ -197,6 +198,7 @@ namespace mysqlrouter { class MySQLSession; }
 namespace mysqlrouter { class Ofstream; }
 namespace mysql_harness { class RandomGeneratorInterface; }
 namespace mysql_harness { namespace logging { class Registry; } }
+namespace mysql_harness { class LoaderConfig; }
 
 namespace mysql_harness {
 
@@ -247,6 +249,15 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
     deleter_RandomGenerator_ = deleter;
   }
 
+  // LoaderConfig
+  void reset_Config() { reset_generic(instance_Config_); }
+  void set_Config(const std::function<mysql_harness::LoaderConfig*(void)>& factory,
+                  const std::function<void(mysql_harness::LoaderConfig*)>& deleter
+                      = std::default_delete<mysql_harness::LoaderConfig>()) {
+    factory_Config_ = factory;
+    deleter_Config_ = deleter;
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // object getters [step 3] (used for singleton objects)
   ////////////////////////////////////////////////////////////////////////////////
@@ -256,6 +267,9 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
 
   // RandomGenerator
   mysql_harness::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
+
+  // LoaderConfig
+  mysql_harness::LoaderConfig& get_Config() { return get_external_generic(instance_Config_, factory_Config_, deleter_Config_); }
 
   ////////////////////////////////////////////////////////////////////////////////
   // object creators [step 3] (used for non-singleton objects)
@@ -288,6 +302,10 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   std::function<mysql_harness::RandomGeneratorInterface*(void)> factory_RandomGenerator_;
   std::function<void(mysql_harness::RandomGeneratorInterface*)> deleter_RandomGenerator_;
 
+  // LoaderConfig
+  std::function<mysql_harness::LoaderConfig*(void)> factory_Config_;
+  std::function<void(mysql_harness::LoaderConfig*)> deleter_Config_;
+  UniquePtr<mysql_harness::LoaderConfig> instance_Config_;
 
 
 
@@ -337,6 +355,27 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
       [deleter](T* p){ deleter(p); }  // [&deleter] would be unsafe if set_T() was called before this object got erased
     );
   }
+
+  template <typename T>
+  T& get_external_generic(UniquePtr<T>& object, const std::function<T*(void)>& factory, const std::function<void(T*)>& deleter) {
+    mtx_.lock();
+    std::shared_ptr<void> exit_trigger(nullptr, [&](void*){ mtx_.unlock(); });
+
+    if (!object)
+      object = new_generic(factory, deleter);
+
+    return *object;
+  }
+
+  template <typename T>
+  void reset_generic(UniquePtr<T>& object) {
+    mtx_.lock();
+    std::shared_ptr<void> exit_trigger(nullptr, [&](void*){ mtx_.unlock(); });
+
+    object.reset();
+  }
+
+  mutable std::recursive_mutex mtx_;
 
 };  // class DIM
 

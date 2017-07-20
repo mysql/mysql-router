@@ -22,6 +22,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "router_app.h"
+#include "test/helpers.h"
 
 //ignore GMock warnings
 #ifdef __clang__
@@ -421,7 +422,8 @@ TEST_F(AppTest, ShowingInfoTrue) {
 TEST_F(AppTest, ShowingInfoFalse) {
   // Cases should be allowing Router to start
   vector<vector<string> > cases = {
-      {"--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),},
+      {"--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
+       "--extra-config=" + stage_dir.join("etc").join("mysqlrouter_extra.conf").str()}
   };
 
   for(auto &argv: cases) {
@@ -700,12 +702,12 @@ TEST_F(AppLoggerTest, TestLogger) {
   // verify the log contains what we expect it to contain. We're looking for something like this:
   // 2017-05-03 11:30:23 main INFO [7ffff7fd4780]
   //
-  // ******** Router started ********
+  // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Main logger initialized, logging to STDERR
   // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-  EXPECT_THAT(get_log_stream().str(), HasSubstr(" main INFO "));
-  EXPECT_THAT(get_log_stream().str(), HasSubstr("\n\n******** Router started ********"));
-  EXPECT_THAT(get_log_stream().str(), HasSubstr(" magic INFO "));
-  EXPECT_THAT(get_log_stream().str(), HasSubstr(" It is some kind of magic"));
+  EXPECT_THAT(ssout.str(), HasSubstr(" main INFO "));
+  EXPECT_THAT(ssout.str(), HasSubstr(" Main logger initialized, logging to STDERR"));
+  EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
+  EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
 }
 
 TEST_F(AppTest, EmptyConfigPath) {
@@ -738,6 +740,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  register_log();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

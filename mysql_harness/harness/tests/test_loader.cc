@@ -67,7 +67,9 @@ class LoaderTest : public ::testing::TestWithParam<const char*> {
     params["program"] = "harness";
     params["prefix"] = g_here.c_str();
 
-    loader = new Loader("harness", params);
+    config_.reset(new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
+                                                  mysql_harness::Config::allow_keys));
+    loader = new Loader("harness", *config_);
   }
 
   virtual void TearDown() {
@@ -76,13 +78,14 @@ class LoaderTest : public ::testing::TestWithParam<const char*> {
   }
 
   Loader *loader;
+  std::unique_ptr<mysql_harness::LoaderConfig> config_;
 };
 
 class LoaderReadTest : public LoaderTest {
  protected:
   virtual void SetUp() {
     LoaderTest::SetUp();
-    loader->read(Path(g_here).join(GetParam()));
+    loader->get_config().read(Path(g_here).join(GetParam()));
   }
 };
 
@@ -129,7 +132,7 @@ INSTANTIATE_TEST_CASE_P(TestLoaderGood, LoaderReadTest,
                         ::testing::ValuesIn(good_cfgs));
 
 TEST_P(LoaderTest, BadSection) {
-  EXPECT_THROW(loader->read(g_here.join(GetParam())), bad_section);
+  EXPECT_THROW(loader->get_config().read(g_here.join(GetParam())), bad_section);
 }
 
 //TODO: this test is fixed in WL#10822
@@ -159,8 +162,9 @@ TEST(TestStart, StartFailure) {
   params["program"] = "harness";
   params["prefix"] = g_here.c_str();
 
-  Loader loader("harness", params);
-  loader.read(g_here.join("data/tests-start-1.cfg"));
+  mysql_harness::LoaderConfig config(params, std::vector<std::string>(), mysql_harness::Config::allow_keys);
+  config.read(g_here.join("data/tests-start-1.cfg"));
+  mysql_harness::Loader loader("harness", config);
   try {
     loader.start();
     FAIL() << "start() should throw std::runtime_error";

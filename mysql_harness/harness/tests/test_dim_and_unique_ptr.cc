@@ -302,6 +302,7 @@ TEST_F(UniquePtrTest, release_and_get_deleter) {
 class Foo;
 class Bar;
 class Baz;
+class Ext;
 
 class TestDIM : public mysql_harness::DIM {
   // this class is a singleton
@@ -323,6 +324,8 @@ class TestDIM : public mysql_harness::DIM {
   void set_Foo(const std::function<Foo*(void)>& factory, const std::function<void(Foo*)>& deleter = std::default_delete<Foo>()) { factory_Foo_ = factory; deleter_Foo_ = deleter; }
   void set_Bar(const std::function<Bar*(void)>& factory, const std::function<void(Bar*)>& deleter = std::default_delete<Bar>()) { factory_Bar_ = factory; deleter_Bar_ = deleter; }
   void set_Baz(const std::function<Baz*(void)>& factory, const std::function<void(Baz*)>& deleter = std::default_delete<Baz>()) { factory_Baz_ = factory; deleter_Baz_ = deleter; }
+  void set_Ext(const std::function<Ext*(void)>& factory, const std::function<void(Ext*)>& deleter = std::default_delete<Ext>()) { factory_Ext_ = factory; deleter_Ext_ = deleter; }
+  void reset_Ext() { reset_generic(instance_Ext_); }
 
   // NOTE: for convenience of not writing two separate test classes, we have both new_A() and get_A() here,
   //       but normally only one of those two methods would be implemented (we either want DIM to manage
@@ -333,6 +336,7 @@ class TestDIM : public mysql_harness::DIM {
   Foo& get_Foo() const { return get_generic<Foo>(factory_Foo_, deleter_Foo_); }
   Bar& get_Bar() const { return get_generic<Bar>(factory_Bar_, deleter_Bar_); }
   Baz& get_Baz() const { return get_generic<Baz>(factory_Baz_, deleter_Baz_); }
+  Ext& get_Ext() { return get_external_generic(instance_Ext_, factory_Ext_, deleter_Ext_); }
 
   // object creators [step 3]
   UniquePtr<A> new_A()                           const { return new_generic(factory_A_, deleter_A_); }
@@ -349,6 +353,7 @@ class TestDIM : public mysql_harness::DIM {
   std::function<Foo*(void)> factory_Foo_;  std::function<void(Foo*)> deleter_Foo_;
   std::function<Bar*(void)> factory_Bar_;  std::function<void(Bar*)> deleter_Bar_;
   std::function<Baz*(void)> factory_Baz_;  std::function<void(Baz*)> deleter_Baz_;
+  std::function<Ext*(void)> factory_Ext_;  std::function<void(Ext*)> deleter_Ext_; UniquePtr<Ext> instance_Ext_;
 };
 
 class DIMTest : public ::testing::Test {
@@ -590,6 +595,23 @@ TEST_F(DIMTest, factory_object_should_remember_its_deleter2) {
     dim.set_A([](const char* arg1, int arg2){ return new B(arg1, arg2); }, deleter2);
     UniquePtr<A> a2 = dim.new_A("arg1", 2);
   }
+}
+
+class Ext {
+ public:
+  Ext(int xx) : x(xx) {}
+  int x;
+};
+
+TEST_F(DIMTest, object_reset) {
+  dim.set_Ext([]() { return new Ext(42); });  // set new factory
+  EXPECT_EQ(dim.get_Ext().x, 42);             // the factory gets called here
+
+  dim.set_Ext([]() { return new Ext(555); }); // set new factory again, ...
+  EXPECT_EQ(dim.get_Ext().x, 42);             // but it will not be called yet, ...
+
+  dim.reset_Ext();                            // until we reset the object.
+  EXPECT_EQ(dim.get_Ext().x, 555);            // now it gets called!
 }
 
 

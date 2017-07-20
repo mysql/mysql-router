@@ -56,8 +56,10 @@ class KeepalivePluginTest : public ::testing::Test {
     params["prefix"] = here.c_str();
     params["log_level"] = "info";
 
-    loader = new Loader("harness", params);
-    loader->read(here.join("data/keepalive.cfg"));
+    config_.reset(new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
+                                                  mysql_harness::Config::allow_keys));
+    config_->read(here.join("data/keepalive.cfg"));
+    loader = new Loader("harness", *config_);
   }
 
   virtual void TearDown() {
@@ -67,6 +69,7 @@ class KeepalivePluginTest : public ::testing::Test {
   }
 
   Loader *loader;
+  std::unique_ptr<mysql_harness::LoaderConfig> config_;
 
  private:
   std::stringstream ssout;

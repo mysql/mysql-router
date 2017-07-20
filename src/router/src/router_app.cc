@@ -66,6 +66,7 @@ IMPORT_LOG_FUNCTIONS()
 
 using std::string;
 using std::vector;
+using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
@@ -348,7 +349,41 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   return params;
 }
 
-void MySQLRouter::init_log() {
+/*static*/ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config) {
+
+  // set defaults if they're not defined
+  if (!config.has_default("log_level"))
+    config.set_default("log_level", mysql_harness::logging::kDefaultLogLevelName);
+  if (!config.has_default("logging_folder"))
+    config.set_default("logging_folder", "");
+
+  const std::string logging_folder = config.get_default("logging_folder");
+
+  // setup logging
+  {
+    mysql_harness::logging::Registry& registry = DIM::instance().get_LoggingRegistry();
+
+    // create main logger and attached handler
+    mysql_harness::logging::init_loggers(registry, config,
+                                         {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
+    mysql_harness::logging::create_main_logfile_handler(registry, kProgramName, logging_folder);
+
+    registry.set_ready();
+  }
+
+  // and give it a first spin
+  if (config.logging_to_file())
+    log_debug("Main logger initialized, logging to '%s'", config.get_log_file().c_str());
+  else
+    log_debug("Main logger initialized, logging to STDERR");
+}
+
+void MySQLRouter::init_plugin_loggers(mysql_harness::LoaderConfig& config) {
+  mysql_harness::logging::Registry& registry = DIM::instance().get_LoggingRegistry();
+
+  // logging facility should be operational and main logger should exist by now
+  assert(registry.is_ready());
+
   // put together a list of plugins to be loaded. loader_->available() provides
   // a list of plugin instances (one per each [section:key]), while we need
   // a list of plugin names (each entry has to be unique).
@@ -357,52 +392,44 @@ void MySQLRouter::init_log() {
   for (const mysql_harness::Config::SectionKey& sk : plugins)
     modules.emplace(sk.first);
 
-  mysql_harness::LoaderConfig config = loader_->get_config();
+  // create loggers for all modules (plugins)
+  std::list<std::string> log_domains(modules.begin(), modules.end());
+  mysql_harness::logging::init_loggers(registry, config,
+                                       log_domains, MYSQL_ROUTER_LOG_DOMAIN);
 
-  // if there is no log level defined, we set it to the default log level
-  if (!config.has_default("log_level"))
-    config.set_default("log_level", mysql_harness::logging::kDefaultLogLevelName);
-
-  // register Registry object with DIM  //TODO move this near main()
-  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
-  dim.set_LoggingRegistry(
-    []() {
-      static mysql_harness::logging::Registry registry;
-      return &registry;
-    },
-    [](mysql_harness::logging::Registry*){}  // don't delete our static!
-  );
-
-  // setup logging
-  {
-    mysql_harness::logging::Registry& registry = dim.get_LoggingRegistry();
-
-    // create loggers: 1 for each module (plugin) + 1 for main program
-    std::list<std::string> log_domains(modules.begin(), modules.end());
-    log_domains.push_back(MYSQL_ROUTER_LOG_DOMAIN);
-
-    mysql_harness::logging::clear_registry(registry); // simplifies unit testing
-    mysql_harness::logging::init_loggers(registry, config,
-                                         log_domains, MYSQL_ROUTER_LOG_DOMAIN);
-    mysql_harness::logging::create_main_logfile_handler(registry, kProgramName,
-                                                        config.get_default("logging_folder"));
-  }
-
-  // and give it a first spin
-  log_info("\n\n******** Router started ********");
+  // take all the handlers that exist, and attach them to all new loggers.
+  // At the time of writing, there is only one such handler - the main console/file
+  // handler that was created in init_main_logger()
+  for (const std::string& h : registry.get_handler_names())
+    attach_handler_to_all_loggers(registry, h);
 }
 
-void MySQLRouter::init_loader_and_read_config() {
+// throws std::runtime_error
+void MySQLRouter::read_config(mysql_harness::LoaderConfig& config) {
   std::map<std::string, std::string> params = get_default_paths();
   std::string err_msg = "Configuration error: %s.";
 
   try {
-    loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader(kProgramName, params));
-    for (auto &&config_file: available_config_files_) {
-      loader_->read(mysql_harness::Path(config_file));
-    }
+    // LoaderConfig ctor throws bad_option (std::runtime_error)
+    config = mysql_harness::LoaderConfig(params, std::vector<std::string>(),
+                                         mysql_harness::Config::allow_keys);
+
+    // throws std::invalid_argument, std::runtime_error, syntax_error, ...
+    for (const mysql_harness::Path& config_file: get_used_config_files())
+      config.read(config_file);
+
   } catch (const mysql_harness::syntax_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
+  } catch (const std::runtime_error &err) {
+    throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
+  }
+}
+
+// throws std::runtime_error
+void MySQLRouter::init_loader(mysql_harness::LoaderConfig& config) {
+  std::string err_msg = "Configuration error: %s."; // TODO: is this error message right?
+  try {
+    loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader(kProgramName, config));
   } catch (const std::runtime_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   }
@@ -413,6 +440,20 @@ void MySQLRouter::start() {
     // when we are showing info like --help or --version, we do not throw
     return;
   }
+
+  // read config, and also make this config globally-available via DIM
+  DIM::instance().set_Config([this](){
+    return new mysql_harness::LoaderConfig(0U); // read_config() will overwrite it
+  });
+  mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
+  read_config(config); // throws std::runtime_error, ...
+
+  // clear registry: this deletes previously-defined main logger, and also
+  // simplifies unit tests
+  clear_registry(DIM::instance().get_LoggingRegistry());
+
+  init_main_logger(config);
+
   if (!can_start_) {
     throw std::runtime_error("Can not start");
   }
@@ -437,7 +478,7 @@ void MySQLRouter::start() {
     }
   }
 
-  init_loader_and_read_config();  // throws std::runtime_error
+  init_loader(config);  // throws std::runtime_error
 
   if (!pid_file_path_.empty()) {
     auto pid = getpid();
@@ -445,7 +486,7 @@ void MySQLRouter::start() {
     if (pidfile.good()) {
       pidfile << pid << std::endl;
       pidfile.close();
-      std::cout << "PID " << pid << " written to " << pid_file_path_ << std::endl;
+      log_info("PID %d written to '%s'", pid, pid_file_path_.c_str());
     } else {
       throw std::runtime_error(
           string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(), mysqlrouter::get_last_error(errno).c_str()));
@@ -453,21 +494,18 @@ void MySQLRouter::start() {
   }
 
   std::list<mysql_harness::Config::SectionKey> plugins = loader_->available();
-  if (!plugins.size()) {
-    std::cout << "MySQL Router not configured to load or start any plugin. Exiting." << std::endl;
-    return;
-  }
+  if (!plugins.size())
+    throw std::runtime_error("MySQL Router not configured to load or start any plugin. Exiting.");
 
-  init_log();
+  init_plugin_loggers(config);
 
   // there can be at most one metadata_cache section because
   // currently the router supports only one metadata_cache instance
-  auto config = loader_->get_config();
-  if (config.has_any("metadata_cache") && config.get("metadata_cache").size() > 1) {
-    std::cout << "MySQL Router currently supports only one metadata_cache instance." << std::endl
-              << "There is more than one metadata_cache section in the router configuration. Exiting." << std::endl;
-    return;
-  }
+  if (config.has_any("metadata_cache") && config.get("metadata_cache").size() > 1)
+    throw std::runtime_error(
+        "MySQL Router currently supports only one metadata_cache instance. "
+        "There is more than one metadata_cache section in the router configuration. Exiting."
+    );
 
 #ifndef _WIN32
   // --user param given on the command line has a priority over
@@ -480,7 +518,7 @@ void MySQLRouter::start() {
 
   try {
     // get logger directory
-    auto log_file = loader_->get_log_file();
+    auto log_file = config.get_log_file();
     std::string log_path(log_file.str()); // log_path = /path/to/file.log
     size_t pos;
     pos = log_path.find_last_of('/');
@@ -490,7 +528,6 @@ void MySQLRouter::start() {
     // PM 2017.03.07: TODO shouldn't throw here. See older code
     if (mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
       throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
-    std::cout << "Logging to " << log_file << std::endl;
   } catch (...) {
     // We are logging to console
   }

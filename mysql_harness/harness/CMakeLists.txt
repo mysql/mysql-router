@@ -25,6 +25,7 @@ SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
 set(harness_source
   ${MY_SSL_SOURCE_DIR}/my_aes.cc
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
+  src/loader_config.cc
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc
   src/dim.cc

@@ -265,6 +265,7 @@ class RouterComponentTest {
   std::map<std::string, std::string> get_DEFAULT_defaults() const;
 
   std::string create_config_file(const std::string &content = "",
+                                 const std::map<std::string, std::string> *params = nullptr,
                                  const std::string &directory = get_tmp_dir("conf"),
                                  const std::string &name = "mysqlrouter.conf") const;
 
@@ -280,6 +281,13 @@ class RouterComponentTest {
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
                   const char* out_params[MAX_PARAMS]) const;
+ 
+  /** @brief returns a [DEFAULT] section as string
+   *
+   * @param params map of [DEFAULT] section parameters
+   * @returns [DEFAULT] section text
+   */
+  std::string make_DEFAULT_section(const std::map<std::string, std::string>* params) const;
 
   Path data_dir_;
   Path origin_dir_;

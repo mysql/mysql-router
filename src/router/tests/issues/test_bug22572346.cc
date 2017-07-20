@@ -23,6 +23,7 @@
 #include "router_app.h"
 #include "mysql/harness/config_parser.h"
 #include "router_test_helpers.h"
+#include "test/helpers.h"
 
 #include <fstream>
 #include <string>
@@ -196,6 +197,7 @@ int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
+  register_log();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

@@ -431,7 +431,7 @@ class HARNESS_EXPORT Config {
   /**
    * Copy the guts of another configuration.
    *
-   * This member functio is used to copy configuration state (the
+   * This member function is used to copy configuration state (the
    * "guts") but not the sections and options, including not copying
    * the default section.
    */

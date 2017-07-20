@@ -23,6 +23,7 @@
 #include "mysql/harness/config_parser.h"
 #include "harness_export.h"
 
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <string>
@@ -132,10 +133,30 @@ class HARNESS_EXPORT Registry {
    */
   std::set<std::string> get_handler_names() const;
 
+  /**
+   * Flag that the registry has been initialized
+   *
+   * This method should be called after log initialization is complete to
+   * flag that logging facility is now available. Note that this is a
+   * convenience flag - it does not directly affect the operation of Registry.
+   * However, a logging function (i.e. log_message()) might want to query
+   * this flag when called and do whatever it deems appropriate.
+   */
+  void set_ready() noexcept { ready_ = true; }
+
+  /**
+   * Query if logging facility is ready to use
+   *
+   * The exact meaning of this flag is not defined here, see description in
+   * set_ready()
+   */
+  bool is_ready() const noexcept { return ready_; }
+
  private:
   mutable std::mutex mtx_;
   std::map<std::string, Logger> loggers_; // key = log domain
   std::map<std::string, std::shared_ptr<Handler>> handlers_; // key = handler id
+  std::atomic<bool> ready_{false};
 
 }; // class Registry
 

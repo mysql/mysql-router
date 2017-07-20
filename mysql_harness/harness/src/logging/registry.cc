@@ -330,13 +330,14 @@ extern "C" void log_message(LogLevel level, const char* module, const char* fmt,
 
   mysql_harness::logging::Registry& registry = mysql_harness::DIM::instance().
                                                get_LoggingRegistry();
-  Logger logger;
+  harness_assert(registry.is_ready());
 
   // Find the logger for the module
   // NOTE that we copy the logger. Even if some other thread removes this
   //      logger from registry, our call will still be valid. As for the
   //      case of handlers getting removed in the meantime, Logger::handle()
   //      handles this properly.
+  Logger logger;
   try {
     logger = registry.get_logger(module);
   } catch (std::logic_error&) {
