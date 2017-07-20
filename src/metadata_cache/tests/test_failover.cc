@@ -246,7 +246,7 @@ TEST_F(FailoverTest, primary_failover) {
 }
 
 int main(int argc, char *argv[]) {
-  init_log();
+  init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

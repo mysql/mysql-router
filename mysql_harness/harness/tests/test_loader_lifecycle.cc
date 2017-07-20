@@ -1794,7 +1794,7 @@ TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
 int main(int argc, char *argv[])
 {
   g_here = Path(argv[0]).dirname();
-  init_log();
+  init_test_logger();
 
   ::testing::InitGoogleTest(&argc, argv);
   int res = RUN_ALL_TESTS();

@@ -553,7 +553,7 @@ TEST_F(RoutingPluginTests, InvalidProtocolName) {
 }
 
 int main(int argc, char *argv[]) {
-  init_log();
+  init_test_logger();
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();

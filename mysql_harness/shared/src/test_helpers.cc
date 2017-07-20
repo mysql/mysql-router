@@ -50,7 +50,7 @@ AssertLoaderSectionAvailable(const char *loader_expr,
          << "Sections were: " << sections.str();
 }
 
-void register_log() {
+void register_test_logger() {
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
   dim.set_LoggingRegistry(
     []() {
@@ -61,11 +61,11 @@ void register_log() {
   );
 }
 
-void init_log(const std::list<std::string>& additional_log_domains /* = {} */,
-              const std::string& log_folder /* = "" */,
-              const std::string& log_filename /* = "" */) {
+void init_test_logger(const std::list<std::string>& additional_log_domains /* = {} */,
+                      const std::string& log_folder /* = "" */,
+                      const std::string& log_filename /* = "" */) {
 
-  register_log();
+  register_test_logger();
 
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
   mysql_harness::logging::Registry& registry = dim.get_LoggingRegistry();

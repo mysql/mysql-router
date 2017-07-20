@@ -441,17 +441,21 @@ class HARNESS_EXPORT Config {
 
   /**
    * Function to read single file.
+   *
+   * @throws std::runtime_error, syntax_error
    */
-  virtual void do_read_file(const Path& path); // throws std::runtime_error
+  virtual void do_read_file(const Path& path);
 
   /**
    * Function to read the configuration from a stream.
+   *
+   * @throws syntax_error, maybe bad_section (not sure if it can happen)
    *
    * @note This function is guaranteeed to be called for reading all
    * configurations so it can be overridden to handle post- or
    * pre-parsing actions.
    */
-  virtual void do_read_stream(std::istream& input); // throws syntax_error, bad_section?
+  virtual void do_read_stream(std::istream& input);
 
   SectionMap sections_;
   ReservedList reserved_;

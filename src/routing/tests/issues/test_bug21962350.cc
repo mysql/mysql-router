@@ -92,7 +92,7 @@ private:
 
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
 TEST_F(Bug21962350, InitLogger) {
-  init_log();
+  init_test_logger();
 }
 
 TEST_F(Bug21962350, AddToQuarantine) {

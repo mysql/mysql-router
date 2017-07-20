@@ -1506,7 +1506,7 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
 }
 
 int main(int argc, char *argv[]) {
-  init_log();
+  init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

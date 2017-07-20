@@ -294,7 +294,7 @@ Config::add(const std::string& section, const std::string& key) {
 // throws std::invalid_argument, std::runtime_error, syntax_error, ...
 void Config::read(const Path& path) {
   if (path.is_directory()) {
-    read(path, Config::DEFAULT_PATTERN);  // throws std::invalid_argument, ?
+    read(path, Config::DEFAULT_PATTERN);  // throws std::invalid_argument, possibly others
   } else if (path.is_regular()) {
     Config new_config;
     new_config.copy_guts(*this);
@@ -325,10 +325,9 @@ void Config::read(const Path& path, const std::string& pattern) {
 }
 
 void Config::read(std::istream& input) {
-  do_read_stream(input);  // throws syntax_error
+  do_read_stream(input);  // throws syntax_error, maybe bad_section
 }
 
-// throws std::runtime_error, syntax_error
 void Config::do_read_file(const Path& path) {
   std::ifstream ifs(path.c_str(), std::ifstream::in);
   if (ifs.fail()) {
@@ -336,10 +335,9 @@ void Config::do_read_file(const Path& path) {
     buffer << "Unable to open file " << path << " for reading";
     throw std::runtime_error(buffer.str());
   }
-  do_read_stream(ifs);  // throws syntax_error
+  do_read_stream(ifs);  // throws syntax_error, maybe bad_section
 }
 
-// throws syntax_error, bad_section?
 void Config::do_read_stream(std::istream& input) {
   ConfigSection *current = NULL;
   std::string line;
@@ -455,10 +453,10 @@ void Config::update(const Config& other) {
     if (iter == sections_.end())
       sections_.emplace(key, ConfigSection(section.second, defaults_));
     else
-      iter->second.update(section.second);  // throws bad_section?
+      iter->second.update(section.second);
   }
 
-  defaults_->update(*other.defaults_.get());  // throws bad_section?
+  defaults_->update(*other.defaults_.get());
 
   // Post-condition is that the default section pointers after the
   // update all refer to the default section for this configuration

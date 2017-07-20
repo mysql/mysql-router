@@ -104,7 +104,7 @@ AssertLoaderSectionAvailable(const char *loader_expr,
  * Just register logger with DIM for unit tests (unlike init_log(), which also
  * initializes it)
  */
-void register_log();
+void register_test_logger();
 
 /**
  * Register + init logger for unit tests
@@ -114,9 +114,9 @@ void register_log();
  * initialized, so it is necessary to provide one for unit tests. Also, some
  * unit tests analyze log output, and expect that output to exist on stderr.
  */
-void init_log(const std::list<std::string>& additional_log_domains = {},
-              const std::string& log_folder = "",
-              const std::string& log_filename = "");
+void init_test_logger(const std::list<std::string>& additional_log_domains = {},
+                      const std::string& log_folder = "",
+                      const std::string& log_filename = "");
 
 /**
  * Temporary Directory object using RAII semantics

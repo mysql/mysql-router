@@ -135,6 +135,6 @@ int main(int argc, char *argv[]) {
   g_cwd = Path(argv[0]).dirname().str();
   ::testing::InitGoogleTest(&argc, argv);
 
-  init_log();
+  init_test_logger();
   return RUN_ALL_TESTS();
 }

@@ -186,7 +186,7 @@ INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
-  init_log();
+  init_test_logger();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

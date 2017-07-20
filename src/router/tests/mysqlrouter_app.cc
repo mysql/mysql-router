@@ -740,7 +740,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  register_log();
+  register_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

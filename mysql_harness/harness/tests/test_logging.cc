@@ -270,7 +270,7 @@ TEST_F(LoggingLowLevelTest, test_logger_update) {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(FunctionalTest, ThisMustRunAsFirst) {
-  init_log();
+  init_test_logger();
 }
 
 TEST(FunctionalTest, LogFromUnregisteredModule) {
@@ -614,7 +614,7 @@ TEST(FunctionalTest, Handlers) {
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
-  init_log();
+  init_test_logger();
   g_registry = &mysql_harness::DIM::instance().get_LoggingRegistry();
 
   ::testing::InitGoogleTest(&argc, argv);
