@@ -803,8 +803,8 @@ class HARNESS_EXPORT Loader {
   /**
    * Get reference to configuration object.
    *
-   * @note UPDATE 2017.06.19: At the time of writing, we initialize Loader with
-   * LoaderConfig reference maintained by DIM, so this method will return this object.
+   * @note In production code we initialize Loader with LoaderConfig
+   * reference maintained by DIM, so this method will return this object.
    */
   LoaderConfig &get_config() { return config_; }
 

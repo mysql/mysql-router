@@ -42,7 +42,8 @@ int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexc
   // We start the list at the currently available server
   for (size_t i = current_pos_; i < destinations_.size(); ++i) {
     auto addr = destinations_.at(i);
-    log_debug("Trying server %s (index %lu)", addr.str().c_str(), i);
+    log_debug("Trying server %s (index %lu)", addr.str().c_str(),
+              static_cast<long unsigned>(i)); // 32bit Linux requires cast
     auto sock = get_mysql_socket(addr, connect_timeout);
     if (sock >= 0) {
       current_pos_ = i;

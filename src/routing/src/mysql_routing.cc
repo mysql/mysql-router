@@ -141,8 +141,9 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
       log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
       blocked = true;
     } else {
-      log_info("[%s] %lu connection errors for %s (max %llu)",
-               name.c_str(), conn_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
+      log_info("[%s] %lu connection errors for %s (max %llu)", name.c_str(),
+               static_cast<unsigned long>(conn_error_counters_[client_ip_array]), // 32bit Linux requires cast
+               client_ip_str.c_str(), max_connect_errors_);
     }
   }
 

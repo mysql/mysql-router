@@ -143,7 +143,8 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
 
     // Try server
     TCPAddress server_addr = destinations_[server_pos];
-    log_debug("Trying server %s (index %lu)", server_addr.str().c_str(), server_pos);
+    log_debug("Trying server %s (index %lu)", server_addr.str().c_str(), 
+              static_cast<long unsigned>(server_pos));
     auto sock = get_mysql_socket(server_addr, connect_timeout);
     if (sock >= 0) {
       // Server is available
@@ -178,11 +179,13 @@ int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect
 void RouteDestination::add_to_quarantine(const size_t index) noexcept {
   assert(index < size());
   if (index >= size()) {
-    log_debug("Impossible server being quarantined (index %lu)", index);
+    log_debug("Impossible server being quarantined (index %lu)",
+              static_cast<long unsigned>(index));  // 32bit Linux requires cast
     return;
   }
   if (!is_quarantined(index)) {
-    log_debug("Quarantine destination server %s (index %lu)", destinations_.at(index).str().c_str(), index);
+    log_debug("Quarantine destination server %s (index %lu)", destinations_.at(index).str().c_str(),
+              static_cast<long unsigned>(index));  // 32bit Linux requires cast
     quarantined_.push_back(index);
     condvar_quarantine_.notify_one();
   }
@@ -216,7 +219,8 @@ void RouteDestination::cleanup_quarantine() noexcept {
       shutdown(sock, SD_BOTH);
       closesocket(sock);
 #endif
-      log_debug("Unquarantine destination server %s (index %lu)", addr.str().c_str(), *it);
+      log_debug("Unquarantine destination server %s (index %lu)", addr.str().c_str(),
+                static_cast<long unsigned>(*it)); // 32bit Linux requires cast
       std::lock_guard<std::mutex> lock(mutex_quarantine_);
       quarantined_.erase(std::remove(quarantined_.begin(), quarantined_.end(), *it));
     }

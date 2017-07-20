@@ -379,7 +379,7 @@ private:
   void init_loader(mysql_harness::LoaderConfig& config);
 
   // throws std::runtime_error
-  void read_config(mysql_harness::LoaderConfig& config);
+  mysql_harness::LoaderConfig* make_config();
 
   std::map<std::string, std::string> get_default_paths() const;
 

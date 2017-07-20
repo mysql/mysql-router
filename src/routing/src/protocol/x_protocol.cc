@@ -131,7 +131,8 @@ static bool get_next_message(int sender,
 #endif
     read_res = socket_operations->read(sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
     if (read_res <= 0) {
-      log_error("failed reading size of the message: (%d %s %ld)", errno, get_message_error(errno).c_str(), read_res);
+      log_error("failed reading size of the message: (%d %s %ld)", errno, get_message_error(errno).c_str(),
+                static_cast<long>(read_res)); // 32bit Linux requires cast
       error = true;
       return false;
     }
@@ -151,7 +152,8 @@ static bool get_next_message(int sender,
   // of the client sending huge messages while authenticating.
   size_t size_needed = message_offset + 4 + message_size;
   if (buffer.size() < size_needed) {
-    log_error("X protocol message too big to fit the buffer: (%u, %lu, %lu)", message_size, buffer.size(), message_offset);
+    log_error("X protocol message too big to fit the buffer: (%u, %lu, %lu)", message_size,
+              static_cast<long unsigned>(buffer.size()), static_cast<long unsigned>(message_offset)); // 32bit Linux requires casts
     error = true;
     return false;
   }
@@ -163,7 +165,8 @@ static bool get_next_message(int sender,
 #endif
     read_res = socket_operations->read(sender, &buffer[message_offset+bytes_left], message_size + 4 - bytes_left);
     if (read_res <= 0) {
-      log_error("failed reading part of X protocol message: (%d %s %ld)", errno, get_message_error(errno).c_str(), read_res);
+      log_error("failed reading part of X protocol message: (%d %s %ld)",
+                errno, get_message_error(errno).c_str(), static_cast<long unsigned>(read_res)); // 32bit Linux requires cast
       error = true;
       return false;
     }

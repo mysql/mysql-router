@@ -405,19 +405,21 @@ void MySQLRouter::init_plugin_loggers(mysql_harness::LoaderConfig& config) {
 }
 
 // throws std::runtime_error
-void MySQLRouter::read_config(mysql_harness::LoaderConfig& config) {
+mysql_harness::LoaderConfig* MySQLRouter::make_config() {
   std::map<std::string, std::string> params = get_default_paths();
   std::string err_msg = "Configuration error: %s.";
 
   try {
     // LoaderConfig ctor throws bad_option (std::runtime_error)
-    config = mysql_harness::LoaderConfig(params, std::vector<std::string>(),
-                                         mysql_harness::Config::allow_keys);
+    std::unique_ptr<mysql_harness::LoaderConfig> config(
+        new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
+                                        mysql_harness::Config::allow_keys));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
     for (const mysql_harness::Path& config_file: get_used_config_files())
-      config.read(config_file);
+      config->read(config_file);
 
+    return config.release();
   } catch (const mysql_harness::syntax_error &err) {
     throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
   } catch (const std::runtime_error &err) {
@@ -442,11 +444,9 @@ void MySQLRouter::start() {
   }
 
   // read config, and also make this config globally-available via DIM
-  DIM::instance().set_Config([this](){
-    return new mysql_harness::LoaderConfig(0U); // read_config() will overwrite it
-  });
+  DIM::instance().reset_Config(); // simplifies unit tests
+  DIM::instance().set_Config([this](){ return make_config(); });
   mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
-  read_config(config); // throws std::runtime_error, ...
 
   // clear registry: this deletes previously-defined main logger, and also
   // simplifies unit tests

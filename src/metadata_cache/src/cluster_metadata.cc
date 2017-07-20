@@ -193,7 +193,8 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
           fetch_group_replication_members(*gr_member_connection,
                                           single_primary_mode); // throws metadata_cache::metadata_error
       log_debug("Replicaset '%s' has %lu members in metadata, %lu in status table",
-                name.c_str(), replicaset.members.size(), member_status.size());
+                name.c_str(), static_cast<unsigned long>(replicaset.members.size()),
+                static_cast<unsigned long>(member_status.size()));  // 32bit Linux requires cast
 
       // check status of all nodes; updates instances ------------------vvvvvvvvvvvvvvvvvv
       metadata_cache::ReplicasetStatus status = check_replicaset_status(replicaset.members, member_status);
