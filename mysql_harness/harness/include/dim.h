@@ -191,6 +191,58 @@
  *     UniquePtr<Foo> foo = dim.new_Foo();
  *     foo->do_something();
  *   }
+ *
+ * 3. OTHER FEATURES: OBJECT RESET
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * There's also an option to reset an object managed by DIM, should you need it. Normally,
+ * on the first call to get_Foo(), it will call the factory_Foo_() to create the object
+ * before returning it. On subsequent calls, it will just return that Foo object previously
+ * created. But what if you needed to reset that object? And perhaps to create it via another
+ * Foo factory method, or with different parameters?
+ *
+ * For such case, we can define reset_Foo() method, which will reset the Foo object back to
+ * nullptr. The Foo object can no longer be kept inside of get_Foo(), because it has to be
+ * modifiable via reset_Foo(). Here's the code:
+ *
+ *   // Foo-related members. instance_Foo_ is new here, it now stores the Foo object
+ *   // (previously, this object was stored as a static variable inside of get_Foo()
+ *   std::function<Foo*(void)> factory_Foo_;
+ *   std::function<void(Foo*)> deleter_Foo_;
+ *   UniquePtr<Foo>            instance_Foo_; // <---- new member
+ *
+ *   // getter now relies on get_external_generic() to manage the Foo object
+ *   Foo& get_Foo() { return get_external_generic(instance_Foo_, factory_Foo_, deleter_Foo_); }
+ *
+ *   // this is our new function. After calling it, set_Foo() can be used again to set the
+ *   // factory method, which will be triggered on subsequent call to get_Foo() to create
+ *   // the new Foo object
+ *   void reset_Foo() { reset_generic(instance_Foo_); }
+ *
+ *   // set_Foo remains unaltered
+ *   void set_Foo(const std::function<Foo*(void)>& factory,
+ *                const std::function<void(Foo*)>& deleter = std::default_delete<Foo>()) {
+ *     factory_Foo_ = factory;
+ *     deleter_Foo_ = deleter;
+ *   }
+ *
+ * EXAMPLE USAGE:
+ *
+ *   // init code
+ *   DIM& dim = DIM::instance();
+ *   dim.set_Foo([]() { return new Foo(42); });
+ *
+ *   // use code
+ *   dim.get_Foo().do_something(); // automatically calls set_Foo() which returns new Foo(42)
+ *   dim.get_Foo().do_something(); // does not call set_Foo() anymore
+ *   dim.get_Foo().do_something(); // does not call set_Foo() anymore
+ *
+ *   dim.set_Foo([]() { return new Foo(555); }); // sets new creating function
+ *   dim.get_Foo().do_something(); // but the new set_Foo() is still not called
+ *
+ *   dim.reset_Foo();
+ *   dim.get_Foo().do_something(); // automatically calls (new) set_Foo(), which returns new Foo(555)
+ *
  */
 
 // forward declarations [step 1]
@@ -210,7 +262,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ~DIM();
   public:
   DIM(const DIM&) = delete;
-  DIM& operator==(const DIM&) = delete;
+  DIM& operator=(const DIM&) = delete;
   static DIM& instance();
 
   // NOTE: once we gain confidence in this DIM and we can treat it as black box,
@@ -314,22 +366,9 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
 
  protected:
-  // get_generic*() (add more variants if needed, or convert into varargs template)
   template <typename T>
   static T& get_generic(const std::function<T*(void)>& factory, const std::function<void(T*)>& deleter) {
     static UniquePtr<T> obj = new_generic(factory, deleter);
-    return *obj;
-  }
-//FIXME multiple variants of this might not make sense.  After the first get_generic*() call, it always ignores the args because the object has been created
-//      If this was needed to comply with new_generic*() semantics, it's probably a flawed idea.
-  template <typename T, typename A1>
-  static T& get_generic1(const std::function<T*(A1)>& factory, const std::function<void(T*)>& deleter, const A1& a1) {
-    static UniquePtr<T> obj = new_generic1(factory, deleter, a1);
-    return *obj;
-  }
-  template <typename T, typename A1, typename A2> //FIXME (in another WL): fix the function name and what it calls
-  static T& get_generic1(const std::function<T*(A1, A2)>& factory, const std::function<void(T*)>& deleter, const A1& a1, const A2& a2) {
-    static UniquePtr<T> obj = new_generic1(factory, deleter, a1, a2);
     return *obj;
   }
 
