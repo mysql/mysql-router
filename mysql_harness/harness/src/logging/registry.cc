@@ -185,7 +185,7 @@ static std::string g_main_app_log_domain;
 void attach_handler_to_all_loggers(Registry& registry, std::string handler_name) {
   for (const std::string& logger_name : registry.get_logger_names()) {
     Logger logger = registry.get_logger(logger_name);
-    logger.attach_handler(handler_name);
+    logger.attach_handler(handler_name);  // no-op if handler is already attached
     registry.update_logger(logger_name, logger);
   }
 }

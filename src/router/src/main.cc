@@ -36,6 +36,12 @@
 static void init_DIM() {
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
 
+  // RandomGenerator
+  dim.set_RandomGenerator(
+    [](){ static mysql_harness::RandomGenerator rg; return &rg; },
+    [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
+  );
+
   // MySQLSession
   dim.set_MySQLSession([](){ return new mysqlrouter::MySQLSession(); }, std::default_delete<mysqlrouter::MySQLSession>());
 
@@ -95,12 +101,6 @@ int real_main(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-
-  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
-  dim.set_RandomGenerator(
-    [](){ static mysql_harness::RandomGenerator rg; return &rg; },
-    [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
-  );
 #ifdef _WIN32
   return proxy_main(real_main, argc, argv);
 #else

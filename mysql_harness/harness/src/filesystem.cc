@@ -27,8 +27,9 @@ namespace mysql_harness {
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
 
-Path::Path() : type_(FileType::EMPTY_PATH) {}
+Path::Path() noexcept : type_(FileType::EMPTY_PATH) {}
 
+// throws std::invalid_argument
 Path::Path(const string& path) : path_(path), type_(FileType::TYPE_UNKNOWN) {
 #ifdef _WIN32
   // in Windows, we normalize directory separator from \ to /, to not
@@ -48,8 +49,10 @@ Path::Path(const string& path) : path_(path), type_(FileType::TYPE_UNKNOWN) {
     throw std::invalid_argument("Empty path");
 }
 
+// throws std::invalid_argument
 Path::Path(const char* path) : Path(string(path)) {}
 
+// throws std::invalid_argument
 void Path::validate_non_empty_path() const {
   if (!is_set()) {
     throw std::invalid_argument("Empty path");
@@ -67,7 +70,7 @@ bool Path::operator<(const Path& rhs) const {
 
 
 Path Path::basename() const {
-  validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
   string::size_type pos = path_.find_last_of(directory_separator);
   if (pos == string::npos)
     return *this;
@@ -79,7 +82,7 @@ Path Path::basename() const {
 
 
 Path Path::dirname() const {
-  validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
   string::size_type pos = path_.find_last_of(directory_separator);
   if (pos == string::npos)
     return Path(".");
@@ -90,32 +93,32 @@ Path Path::dirname() const {
 }
 
 bool Path::is_directory() const {
-  validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
   return type() == FileType::DIRECTORY_FILE;
 }
 
 bool Path::is_regular() const {
-  validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
   return type() == FileType::REGULAR_FILE;
 }
 
 bool Path::exists() const {
-  validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
   return type() != FileType::FILE_NOT_FOUND
     && type() != FileType::STATUS_ERROR;
 }
 
 void Path::append(const Path& other) {
-  validate_non_empty_path();
-  other.validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
+  other.validate_non_empty_path();  // throws std::invalid_argument
   path_.append(directory_separator + other.path_);
   type_ = FileType::TYPE_UNKNOWN;
 }
 
 
 Path Path::join(const Path& other) const {
-  validate_non_empty_path();
-  other.validate_non_empty_path();
+  validate_non_empty_path();  // throws std::invalid_argument
+  other.validate_non_empty_path();  // throws std::invalid_argument
   Path result(*this);
   result.append(other);
   return result;
@@ -161,6 +164,7 @@ Directory::DirectoryIterator Directory::end() {
 
 Directory::~Directory() = default;
 
+// throws std::invalid_argument
 Directory::Directory(const Path& path) : Path(path) {}
 
 

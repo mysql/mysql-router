@@ -205,7 +205,7 @@ class RouterComponentTest {
    */
   CommandHandle launch_router(const std::string &params,
                      bool catch_stderr = true,
-                     bool with_sudo = false);
+                     bool with_sudo = false) const;
 
   /** @brief Launches the MySQLServerMock process.
    *
@@ -216,7 +216,7 @@ class RouterComponentTest {
    * @returns handle to the launched proccess
    */
   CommandHandle launch_mysql_server_mock(const std::string& json_file,
-                                         unsigned port);
+                                         unsigned port) const;
 
   /** @brief Removes non-empty directory recursively.
    *
@@ -249,18 +249,24 @@ class RouterComponentTest {
    * @returns true if the selected port accepts connections, false otherwise
    */
   bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
-                           const std::string &hostname = "127.0.0.1");
+                           const std::string &hostname = "127.0.0.1") const;
 
   /** @brief Gets path to the directory containing testing data
    *         (conf files, json files).
    */
-  Path &get_data_dir() {
+  const Path &get_data_dir() const {
     return data_dir_;
   }
 
+  /** @brief returns a map with default [DEFAULT] section parameters
+   *
+   * @return default parameters for [DEFAULT] section
+   */
+  std::map<std::string, std::string> get_DEFAULT_defaults() const;
+
   std::string create_config_file(const std::string &content = "",
                                  const std::string &directory = get_tmp_dir("conf"),
-                                 const std::string &name = "mysqlrouter.conf");
+                                 const std::string &name = "mysqlrouter.conf") const;
 
   void set_origin(const Path &origin) {
     origin_dir_ = origin;
@@ -269,11 +275,11 @@ class RouterComponentTest {
  private:
   CommandHandle launch_command(const std::string &command,
                                const std::string &params,
-                               bool catch_stderr);
+                               bool catch_stderr) const;
 
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
-                  const char* out_params[MAX_PARAMS]);
+                  const char* out_params[MAX_PARAMS]) const;
 
   Path data_dir_;
   Path origin_dir_;

@@ -310,7 +310,7 @@ static string fixpath(const string &path, const std::string &basedir) {
 #endif
 }
 
-std::map<std::string, std::string> MySQLRouter::get_default_paths() {
+std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   std::string basedir = mysql_harness::Path(origin_).dirname().str();
 
   std::map<std::string, std::string> params = {

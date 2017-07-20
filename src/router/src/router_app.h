@@ -367,7 +367,7 @@ private:
 
   void init_loader_and_read_config();
 
-  std::map<std::string, std::string> get_default_paths();
+  std::map<std::string, std::string> get_default_paths() const;
 
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;

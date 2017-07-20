@@ -83,6 +83,7 @@ void ConfigSection::clear() {
   options_.clear();
 }
 
+// throws bad_section
 void ConfigSection::update(const ConfigSection& other) {
 #ifndef NDEBUG
   auto old_defaults = defaults_;
@@ -174,7 +175,7 @@ ConfigSection::do_locate(const std::string& option) const {
 }
 
 void ConfigSection::set(const std::string& option, const std::string& value) {
-  check_option(option);
+  check_option(option); // throws bad_option
   options_[lower(option)] = value;
 }
 
@@ -184,11 +185,11 @@ void ConfigSection::add(const std::string& option, const std::string& value) {
     throw bad_option("Option '" + option + "' already defined");
 }
 
-Config::Config(unsigned int flags)
+Config::Config(unsigned int flags) noexcept
   : defaults_(std::make_shared<ConfigSection>("default", "", nullptr)),
     flags_(flags) {}
 
-void Config::copy_guts(const Config& source) {
+void Config::copy_guts(const Config& source) noexcept {
   reserved_ = source.reserved_;
   flags_ = source.flags_;
 }
@@ -265,6 +266,7 @@ bool Config::is_reserved(const std::string& word) const {
   return (it != reserved_.end());
 }
 
+// throws syntax_error, bad_section
 ConfigSection&
 Config::add(const std::string& section, const std::string& key) {
   if (is_reserved(section))
@@ -289,13 +291,14 @@ Config::add(const std::string& section, const std::string& key) {
   return result.first->second;
 }
 
+// throws std::invalid_argument, std::runtime_error, syntax_error, ...
 void Config::read(const Path& path) {
   if (path.is_directory()) {
-    read(path, Config::DEFAULT_PATTERN);
+    read(path, Config::DEFAULT_PATTERN);  // throws std::invalid_argument, ?
   } else if (path.is_regular()) {
     Config new_config;
     new_config.copy_guts(*this);
-    new_config.do_read_file(path);
+    new_config.do_read_file(path);  // throws std::runtime_error, syntax_error
     update(new_config);
   } else {
     ostringstream buffer;
@@ -308,33 +311,35 @@ void Config::read(const Path& path) {
   }
 }
 
+// throws std::invalid_argument, std::runtime_error, syntax_error, ...
 void Config::read(const Path& path, const std::string& pattern) {
-  Directory dir(path);
+  Directory dir(path); // throws std::invalid_argument
   Config new_config;
   new_config.copy_guts(*this);
   for (auto&& iter = dir.glob(pattern) ; iter != dir.end() ; ++iter) {
     Path entry(*iter);
-    if (entry.is_regular())
-      new_config.do_read_file(entry);
+    if (entry.is_regular()) // throws std::invalid_argument
+      new_config.do_read_file(entry); // throws std::runtime_error, syntax_error
   }
   update(new_config);
 }
 
 void Config::read(std::istream& input) {
-  do_read_stream(input);
+  do_read_stream(input);  // throws syntax_error
 }
 
-
+// throws std::runtime_error, syntax_error
 void Config::do_read_file(const Path& path) {
   std::ifstream ifs(path.c_str(), std::ifstream::in);
   if (ifs.fail()) {
     ostringstream buffer;
-    buffer << "Unable to file " << path << " for reading";
+    buffer << "Unable to open file " << path << " for reading";
     throw std::runtime_error(buffer.str());
   }
-  do_read_stream(ifs);
+  do_read_stream(ifs);  // throws syntax_error
 }
 
+// throws syntax_error, bad_section?
 void Config::do_read_stream(std::istream& input) {
   ConfigSection *current = NULL;
   std::string line;
@@ -400,7 +405,7 @@ void Config::do_read_stream(std::istream& input) {
       if (section_name == "default")
         current = defaults_.get();
       else
-        current = &add(section_name, section_key);
+        current = &add(section_name, section_key); // throws syntax_error, bad_section
     } else {  // if (line[0] != '[')
       if (current == NULL)
         throw syntax_error("Option line before start of section");
@@ -417,7 +422,7 @@ void Config::do_read_stream(std::istream& input) {
       if (!std::all_of(option.begin(), option.end(), isident))
         throw syntax_error("Invalid option name '" + option + "'");
 
-      current->add(option, value);
+     current->add(option, value); // throws syntax_error, bad_section
     }
   }
 
@@ -450,10 +455,10 @@ void Config::update(const Config& other) {
     if (iter == sections_.end())
       sections_.emplace(key, ConfigSection(section.second, defaults_));
     else
-      iter->second.update(section.second);
+      iter->second.update(section.second);  // throws bad_section?
   }
 
-  defaults_->update(*other.defaults_.get());
+  defaults_->update(*other.defaults_.get());  // throws bad_section?
 
   // Post-condition is that the default section pointers after the
   // update all refer to the default section for this configuration

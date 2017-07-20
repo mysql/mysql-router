@@ -121,7 +121,7 @@ void RouterComponentTest::SetUp() {
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_command(const std::string &command,
                                     const std::string &params,
-                                    bool catch_stderr) {
+                                    bool catch_stderr) const {
   auto params_vec = split_str(params, ' ');
   const char* params_arr[MAX_PARAMS];
   get_params(command, params_vec, params_arr);
@@ -132,7 +132,7 @@ RouterComponentTest::launch_command(const std::string &command,
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_router(const std::string &params,
                                    bool catch_stderr,
-                                   bool with_sudo) {
+                                   bool with_sudo) const {
   std::string sudo_str(with_sudo ? "sudo --non-interactive " : "");
   std::string cmd = sudo_str + mysqlrouter_exec_.str();
 
@@ -140,13 +140,13 @@ RouterComponentTest::launch_router(const std::string &params,
 }
 
 RouterComponentTest::CommandHandle
-RouterComponentTest::launch_mysql_server_mock(const std::string& json_file, unsigned port) {
+RouterComponentTest::launch_mysql_server_mock(const std::string& json_file, unsigned port) const {
   return launch_command(mysqlserver_mock_exec_.str(),
                         json_file + " " + std::to_string(port), true);
 }
 
 bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_msec,
-                                              const std::string &hostname) {
+                                              const std::string &hostname) const {
   struct addrinfo hints, * ainfo;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -193,7 +193,7 @@ std::string RouterComponentTest::get_tmp_dir(const std::string &name) {
 
 void RouterComponentTest::get_params(const std::string &command,
                                      const std::vector<std::string> &params_vec,
-                                     const char* out_params[MAX_PARAMS]) {
+                                     const char* out_params[MAX_PARAMS]) const {
   out_params[0] =  command.c_str();
 
   size_t i = 1;
@@ -263,7 +263,7 @@ void RouterComponentTest::CommandHandle::handle_output(const std::string &line) 
 
 std::string RouterComponentTest::create_config_file(const std::string &content,
                                                     const std::string &directory,
-                                                    const std::string &name) {
+                                                    const std::string &name) const {
   Path file_path = Path(directory).join(name);
   std::ofstream ofs_config(file_path.str());
 

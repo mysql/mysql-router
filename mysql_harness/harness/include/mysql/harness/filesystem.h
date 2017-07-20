@@ -97,12 +97,12 @@ class HARNESS_EXPORT Path {
    *
    * @param path Non-empty string denoting the path.
    */
-  Path();
+  Path() noexcept;
 
-  /** @overload */
+  /** @overload */  // throws std::invalid_argument
   Path(const std::string& path);  // NOLINT(runtime/explicit)
 
-  /** @overload */
+  /** @overload */  // throws std::invalid_argument
   Path(const char* path);  // NOLINT(runtime/explicit)
 
   /**
@@ -263,7 +263,7 @@ class HARNESS_EXPORT Path {
   operator bool() const noexcept { return is_set(); }
 
  private:
-  void validate_non_empty_path() const;
+  void validate_non_empty_path() const; // throws std::invalid_argument
 
   std::string path_;
   mutable FileType type_;
@@ -371,9 +371,9 @@ class HARNESS_EXPORT Directory : public Path {
    * version of the constructor used.
    */
   Directory(const std::string& path)  // NOLINT(runtime/explicit)
-      : Path(path) {}
+      : Path(path) {} // throws std::invalid_argument
 
-  /** @overload */
+  /** @overload */  // throws std::invalid_argument
   Directory(const Path& path);  // NOLINT(runtime/explicit)
 
   ~Directory();

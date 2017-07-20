@@ -248,7 +248,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  // object getters [step 3]
+  // object getters [step 3] (used for singleton objects)
   ////////////////////////////////////////////////////////////////////////////////
 
   // Logging Registry
@@ -258,7 +258,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   mysql_harness::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
 
   ////////////////////////////////////////////////////////////////////////////////
-  // object creators [step 3]
+  // object creators [step 3] (used for non-singleton objects)
   ////////////////////////////////////////////////////////////////////////////////
 
   // MySQLSession
@@ -302,12 +302,14 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
     static UniquePtr<T> obj = new_generic(factory, deleter);
     return *obj;
   }
+//FIXME multiple variants of this might not make sense.  After the first get_generic*() call, it always ignores the args because the object has been created
+//      If this was needed to comply with new_generic*() semantics, it's probably a flawed idea.
   template <typename T, typename A1>
   static T& get_generic1(const std::function<T*(A1)>& factory, const std::function<void(T*)>& deleter, const A1& a1) {
     static UniquePtr<T> obj = new_generic1(factory, deleter, a1);
     return *obj;
   }
-  template <typename T, typename A1, typename A2>
+  template <typename T, typename A1, typename A2> //FIXME (in another WL): fix the function name and what it calls
   static T& get_generic1(const std::function<T*(A1, A2)>& factory, const std::function<void(T*)>& deleter, const A1& a1, const A2& a2) {
     static UniquePtr<T> obj = new_generic1(factory, deleter, a1, a2);
     return *obj;

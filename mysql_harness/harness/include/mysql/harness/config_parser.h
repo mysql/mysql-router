@@ -161,10 +161,10 @@ class HARNESS_EXPORT ConfigSection {
    *
    * @param other Section to copy options and values from.
    */
-  void update(const ConfigSection& other);
+  void update(const ConfigSection& other); // throws bad_section
 
   std::string get(const std::string& option) const;
-  void set(const std::string& option, const std::string& value);
+  void set(const std::string& option, const std::string& value);  // throws bad_option
   void add(const std::string& option, const std::string& value);
   bool has(const std::string& option) const;
 
@@ -251,22 +251,22 @@ class HARNESS_EXPORT Config {
    * @param reserved Sequence container of reserved words.
    */
 
-  explicit Config(unsigned int flags = 0U);
+  explicit Config(unsigned int flags = 0U) noexcept;
 
-  /** @overload */
+  /** @overload */  // throws bad_option
   template <class AssocT>
   explicit Config(const AssocT& parameters, unsigned int flags = 0U)
       : Config(flags) {
     for (auto item : parameters)
-      defaults_->set(item.first, item.second);
+      defaults_->set(item.first, item.second);  // throws bad_option
   }
 
-  /** @overload */
+  /** @overload */  // throws bad_option
   template <class AssocT, class SeqT>
   explicit Config(const AssocT& parameters,
                   const SeqT& reserved,
                   unsigned int flags = 0U)
-      : Config(parameters, flags) {
+      : Config(parameters, flags) /* throws bad_option */ {
     for (auto word : reserved)
       reserved_.push_back(word);
   }
@@ -435,14 +435,14 @@ class HARNESS_EXPORT Config {
    * "guts") but not the sections and options, including not copying
    * the default section.
    */
-  void copy_guts(const Config& source);
+  void copy_guts(const Config& source) noexcept;
 
   std::string replace_variables(const std::string& value) const;
 
   /**
    * Function to read single file.
    */
-  virtual void do_read_file(const Path& path);
+  virtual void do_read_file(const Path& path); // throws std::runtime_error
 
   /**
    * Function to read the configuration from a stream.
@@ -451,7 +451,7 @@ class HARNESS_EXPORT Config {
    * configurations so it can be overridden to handle post- or
    * pre-parsing actions.
    */
-  virtual void do_read_stream(std::istream& input);
+  virtual void do_read_stream(std::istream& input); // throws syntax_error, bad_section?
 
   SectionMap sections_;
   ReservedList reserved_;
