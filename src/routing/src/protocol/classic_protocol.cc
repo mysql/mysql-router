@@ -110,7 +110,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver, fd_set *readfds,
           auto pkt = mysql_protocol::Packet(buffer);
           capabilities = pkt.get_int<uint32_t>(4);
         } catch (const mysql_protocol::packet_error &exc) {
-          log_debug(exc.what());
+          log_debug("%s", exc.what());
           return -1;
         }
         if (capabilities & mysql_protocol::kClientSSL) {

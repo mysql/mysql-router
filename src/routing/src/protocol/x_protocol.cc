@@ -59,7 +59,7 @@ static bool send_message(const std::string &log_prefix,
   buffer[kMessageHeaderSize-1] = static_cast<uint8_t>(type);
 
   if ((msg.ByteSize() > 0) && (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize()))) {
-    log_error("[%s] error while serializing error message: %s", log_prefix.c_str());
+    log_error("[%s] error while serializing error message. Message size = %d", log_prefix.c_str(), msg.ByteSize());
     return false;
   }
 
@@ -131,7 +131,7 @@ static bool get_next_message(int sender,
 #endif
     read_res = socket_operations->read(sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
     if (read_res <= 0) {
-      log_error("failed reading size of the message: (%d %s %d)", errno, get_message_error(errno).c_str(), read_res);
+      log_error("failed reading size of the message: (%d %s %ld)", errno, get_message_error(errno).c_str(), read_res);
       error = true;
       return false;
     }
@@ -151,7 +151,7 @@ static bool get_next_message(int sender,
   // of the client sending huge messages while authenticating.
   size_t size_needed = message_offset + 4 + message_size;
   if (buffer.size() < size_needed) {
-    log_error("X protocol message too big to fit the buffer: (%u, %u, %u)", message_size, buffer.size(), message_offset);
+    log_error("X protocol message too big to fit the buffer: (%u, %lu, %lu)", message_size, buffer.size(), message_offset);
     error = true;
     return false;
   }
@@ -163,7 +163,7 @@ static bool get_next_message(int sender,
 #endif
     read_res = socket_operations->read(sender, &buffer[message_offset+bytes_left], message_size + 4 - bytes_left);
     if (read_res <= 0) {
-      log_error("failed reading part of X protocol message: (%d %s %d)", errno, get_message_error(errno).c_str(), read_res);
+      log_error("failed reading part of X protocol message: (%d %s %ld)", errno, get_message_error(errno).c_str(), read_res);
       error = true;
       return false;
     }

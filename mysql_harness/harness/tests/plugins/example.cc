@@ -87,7 +87,7 @@ static void deinit(PluginFuncEnv*) {
 
 static void start(PluginFuncEnv*) {
   for (int x = 0 ; x < 10 ; ++x) {
-    log_info("example", "<count: %d>", x);
+    log_info("example <count: %d>", x);
 #ifndef _WIN32
     sleep(1);
 #else

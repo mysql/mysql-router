@@ -23,6 +23,7 @@
 #ifndef MYSQL_HARNESS_LOGGING_INCLUDED
 #define MYSQL_HARNESS_LOGGING_INCLUDED
 
+#include "mysql/harness/compiler_attributes.h"
 #include "mysql/harness/filesystem.h"
 #include "harness_export.h"
 
@@ -169,8 +170,16 @@ extern "C" {
 #endif
 
 /*
- * Declare the implementation log functions and define inline
- * functions that pick up the log domain defined for the module.
+ * We need to declare these first, because __attribute__ can only be used in
+ * declarations.
+ */
+static inline void log_error(const char *fmt, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_warning(const char *fmt, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_info(const char *fmt, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_debug(const char *fmt, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+
+/*
+ * Define inline functions that pick up the log domain defined for the module.
  */
 
 static inline void log_error(const char* fmt, ...) {

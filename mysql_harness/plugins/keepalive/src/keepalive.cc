@@ -81,7 +81,7 @@ static void start(PluginFuncEnv* env) {
   }
 
   for (int total_runs = 0 ; runs == 0 || total_runs < runs ; ++total_runs) {
-    log_info(name.c_str());
+    log_info("%s", name.c_str());
     if (wait_for_stop(env, static_cast<uint32_t>(interval * 1000)))
       break;
   }

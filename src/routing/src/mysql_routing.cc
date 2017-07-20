@@ -141,7 +141,7 @@ bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_ar
       log_warning("[%s] blocking client host %s", name.c_str(), client_ip_str.c_str());
       blocked = true;
     } else {
-      log_info("[%s] %d connection errors for %s (max %u)",
+      log_info("[%s] %lu connection errors for %s (max %llu)",
                name.c_str(), conn_error_counters_[client_ip_array], client_ip_str.c_str(), max_connect_errors_);
     }
   }
@@ -256,7 +256,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& cli
                          name.c_str(), c_ip.first.c_str(), c_ip.second,
                          s_ip.first.c_str(), s_ip.second);
   }
-  log_debug(info.c_str());
+  log_debug("%s", info.c_str());
 
   ++info_active_routes_;
   ++info_handled_routes_;
@@ -383,7 +383,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
 #ifndef _WIN32
     if (bind_named_socket_.is_set() && unlink(bind_named_socket_.str().c_str()) == -1) {
       if (errno != ENOENT)
-        log_warning(("Failed removing socket file " + bind_named_socket_.str() + " (" + get_strerror(errno) + " (" + to_string(errno) + "))").c_str());
+        log_warning("%s", ("Failed removing socket file " + bind_named_socket_.str() + " (" + get_strerror(errno) + " (" + to_string(errno) + "))").c_str());
     }
 #endif
   }
@@ -587,7 +587,7 @@ retry:
           log_warning("Socket file %s already exists, but seems to be unused. Deleting and retrying...", socket_file.c_str());
           if (unlink(socket_file.c_str()) == -1) {
             if (errno != ENOENT) {
-              log_warning(("Failed removing socket file " + socket_file + " (" + get_strerror(errno) + " (" + to_string(errno) + "))").c_str());
+              log_warning("%s", ("Failed removing socket file " + socket_file + " (" + get_strerror(errno) + " (" + to_string(errno) + "))").c_str());
               throw std::runtime_error(
                   "Failed removing socket file " + socket_file + " (" + get_strerror(errno) + " (" + to_string(errno) + "))");
             }

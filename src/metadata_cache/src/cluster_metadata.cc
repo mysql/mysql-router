@@ -192,7 +192,7 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
       std::map<std::string, GroupReplicationMember> member_status =
           fetch_group_replication_members(*gr_member_connection,
                                           single_primary_mode); // throws metadata_cache::metadata_error
-      log_debug("Replicaset '%s' has %i members in metadata, %i in status table",
+      log_debug("Replicaset '%s' has %lu members in metadata, %lu in status table",
                 name.c_str(), replicaset.members.size(), member_status.size());
 
       // check status of all nodes; updates instances ------------------vvvvvvvvvvvvvvvvvv
@@ -224,7 +224,8 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
       continue; // faulty server, next!
     } catch (...) {
       assert(0);  // unexpected exception
-      log_warning("Unable to fetch live group_replication member data from %s from replicaset '%s'");
+      log_warning("Unable to fetch live group_replication member data from %s from replicaset '%s'",
+                  mi_addr.c_str(), name.c_str());
       continue; // faulty server, next!
     }
 
