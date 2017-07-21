@@ -336,6 +336,19 @@ class HARNESS_EXPORT Config {
   void clear();
 
   /**
+   * Remove section from configuration
+   *
+   * @param section Name of section to remove.
+   * @param key Optional key of section to remove.
+   * @param section_key section+key to remove.
+   */
+  bool remove(const SectionKey& section_key) noexcept;
+
+  /** @overload */
+  bool remove(const std::string& section,
+              const std::string& key = std::string()) noexcept;
+
+  /**
    * Update configuration using another configuration.
    *
    * This will incorporate all the sections and options from the

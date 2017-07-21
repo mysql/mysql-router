@@ -145,6 +145,60 @@ TEST_F(ConfigTest, SetGetTest) {
   EXPECT_TRUE(config.empty());
 }
 
+TEST_F(ConfigTest, RemoveTest) {
+
+  constexpr const char* section_name = "my_section_name";
+  constexpr const char* section_key = "my_section_key";
+
+  // config without section key
+  {
+    Config config;
+
+    // add a section with some key/value pair
+    config.add(section_name);
+    config.get(section_name).front()->set("my_option", "my_value");
+    EXPECT_STREQ("my_value", config.get(section_name).front()->get("my_option").c_str());
+
+    // removing non-existent section should be a no-op, but return false
+    EXPECT_FALSE(config.remove("no_such_section", "no_such_key"));
+    EXPECT_FALSE(config.remove("no_such_section", ""));
+    EXPECT_FALSE(config.remove("no_such_section"));
+    EXPECT_FALSE(config.remove(section_name, "no_such_key"));
+
+    // removing existing section should return true
+    EXPECT_TRUE(config.remove(section_name));
+    EXPECT_FALSE(config.remove(section_name)); // no-op again
+
+    // other tests proving the section got removed
+    EXPECT_TRUE(config.empty());
+  }
+
+  // config with section key
+  {
+    Config config(mysql_harness::Config::allow_keys);
+
+    // add a section with some key/value pair
+    config.add(section_name, section_key);
+    config.get(section_name, section_key).set("my_option", "my_value");
+    EXPECT_STREQ("my_value", config.get(section_name, section_key).get("my_option").c_str());
+
+    // removing non-existent section should be a no-op, but return false
+    EXPECT_FALSE(config.remove("no_such_section", section_key));
+    EXPECT_FALSE(config.remove("no_such_section", "no_such_key"));
+    EXPECT_FALSE(config.remove("no_such_section", ""));
+    EXPECT_FALSE(config.remove("no_such_section"));
+    EXPECT_FALSE(config.remove(section_name, "no_such_key"));
+    EXPECT_FALSE(config.remove(section_name, ""));
+    EXPECT_FALSE(config.remove(section_name));
+
+    // removing existing section should return true
+    EXPECT_TRUE(config.remove(section_name, section_key));
+    EXPECT_FALSE(config.remove(section_name, section_key)); // no-op again
+
+    // other tests proving the section got removed
+    EXPECT_TRUE(config.empty());
+  }
+}
 
 class GoodParseTestAllowKey : public ::testing::TestWithParam<const char*> {
  protected:

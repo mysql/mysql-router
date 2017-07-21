@@ -438,6 +438,16 @@ void Config::clear() {
   sections_.clear();
 }
 
+
+bool Config::remove(const SectionKey& section_key) noexcept {
+  return sections_.erase(section_key);
+}
+
+bool Config::remove(const std::string& section,
+                    const std::string& key /*= std::string()*/) noexcept {
+  return remove(SectionKey(section, key));
+}
+
 void Config::update(const Config& other) {
   // Pre-condition is that the default section pointers before the
   // update all refer to the default section for this configuration
