@@ -690,6 +690,9 @@ class AppLoggerTest : public ConsoleOutputTest {
 };
 
 TEST_F(AppLoggerTest, TestLogger) {
+  // This test verifies that:
+  // - setting log level works (by overriding the default)
+  // - a logger is created for each of: main exec and all plugins
 
   // create config file
   Path config_path(g_origin.str());
@@ -701,11 +704,14 @@ TEST_F(AppLoggerTest, TestLogger) {
     ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
     ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
     ofs_config << "config_folder = " << stage_dir->str() << "\n";
-    ofs_config << "log_level = DEBUG\n";
+    ofs_config << "log_level = DEBUG\n";  // override the default (WARNING)
     ofs_config << "\n";
-    ofs_config << "[magic]\n";
+    ofs_config << "[magic]\n";            // magic plugin
     ofs_config << "do_magic = yes\n";
     ofs_config << "message = It is some kind of magic\n";
+    ofs_config << "\n";
+    ofs_config << "[lifecycle3]\n";           // lifecycle3 plugin (lifecycle dependency)
+    ofs_config << "[lifecycle:instance1]\n";  // lifecycle plugin
     ofs_config.close();
   } else {
     throw std::runtime_error("Failed creating config file '" + config_path.str() + "'");
@@ -719,17 +725,23 @@ TEST_F(AppLoggerTest, TestLogger) {
 
   // verify that all plugins have a module registered with the logger
   auto loggers = mysql_harness::DIM::instance().get_LoggingRegistry().get_logger_names();
-  EXPECT_THAT(loggers, testing::UnorderedElementsAre(mysql_harness::logging::kMainLogger, "magic"));
+  EXPECT_THAT(loggers, testing::UnorderedElementsAre(
+      mysql_harness::logging::kMainLogger, "magic", "lifecycle", "lifecycle3"));
 
-  // verify the log contains what we expect it to contain. We're looking for something like this:
-  // 2017-05-03 11:30:23 main INFO [7ffff7fd4780]
-  //
-  // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Main logger initialized, logging to STDERR
-  // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-  EXPECT_THAT(ssout.str(), HasSubstr(" main INFO "));
-  EXPECT_THAT(ssout.str(), HasSubstr(" Main logger initialized, logging to STDERR"));
-  EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
-  EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
+  // verify the log contains what we expect it to contain. We're looking for lines like this:
+  {
+    // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Main logger initialized, logging to STDERR
+    EXPECT_THAT(ssout.str(), HasSubstr(" main DEBUG "));
+    EXPECT_THAT(ssout.str(), HasSubstr(" Main logger initialized, logging to STDERR"));
+
+    // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
+    EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
+    EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
+
+    // 2017-05-03 11:30:25 lifecycle INFO [7faefa705780] lifecycle:all init():begin
+    EXPECT_THAT(ssout.str(), HasSubstr(" lifecycle INFO "));
+    EXPECT_THAT(ssout.str(), HasSubstr(" lifecycle:all init():begin"));
+  }
 }
 
 TEST_F(AppTest, EmptyConfigPath) {
