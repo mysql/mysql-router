@@ -25,7 +25,8 @@ plugin_folder = %INSTALL_FOLDER%/lib
 runtime_folder = %PROGRAMDATA_FOLDER%
 config_folder = %PROGRAMDATA_FOLDER%
 
-log_level = INFO
+[logger]
+level = INFO
 
 # If no plugin is configured which starts a service, keepalive
 # will make sure MySQL Router will not immediately exit. It is

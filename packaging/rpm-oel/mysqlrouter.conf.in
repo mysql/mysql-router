@@ -25,7 +25,8 @@ plugin_folder = @RPM_LIBDIR@/mysqlrouter
 runtime_folder = /var/run/mysqlrouter
 config_folder = /etc/mysqlrouter
 
-log_level = INFO
+[logger]
+level = INFO
 
 # If no plugin is configured which starts a service, keepalive
 # will make sure MySQL Router will not immediately exit. It is

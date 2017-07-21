@@ -57,7 +57,9 @@ const std::map<std::string, LogLevel> Registry::kLogLevels{
   {"debug", LogLevel::kDebug},
 };
 
-
+// log level is stored in this hacky global variable; see place where it's
+// set for exaplanation
+std::string g_HACK_default_log_level;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -247,8 +249,21 @@ void init_loggers(Registry& registry,
 
 LogLevel get_default_log_level(const Config& config) {
 
-  // We get the default log level from the configuration.
-  auto level_name = config.get_default("log_level");
+  // What we do here is an UGLY HACK. See code where g_HACK_default_log_level
+  // is set for explanation.
+  //
+  // Before introducing this hack in Router v8.0, we used to obtain the default
+  // log level from configuration, like so:
+  //
+  //   // We get the default log level from the configuration.
+  //   auto level_name = config.get_default("log_level");
+  //
+  // Once we have a proper remedy, something analogous should be reinstated.
+
+  // Obtain default log level (through UGLY HACK)
+  (void) config;  // after we remove this hack, config will be used once again
+  std::string level_name = mysql_harness::logging::g_HACK_default_log_level;
+
   std::transform(level_name.begin(), level_name.end(),
                  level_name.begin(), ::tolower);
 

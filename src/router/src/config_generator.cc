@@ -23,13 +23,13 @@
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
 #include "rapidjson/rapidjson.h"
 #include "random_generator.h"
 #include "utils.h"
 #include "router_app.h"
 #include "mysqlrouter/sha1.h"
 
-// #include "mysql/harness/logging.h"
 #ifdef _WIN32
 #include <Windows.h>
 #define strcasecmp _stricmp
@@ -1055,7 +1055,9 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
 
   const std::string metadata_key = metadata_cluster;
-  cfp << "log_level = INFO\n"
+  cfp << "\n"
+      << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
+      << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n"
       << "\n"
       << "[metadata_cache:" << metadata_key << "]\n"
       << "router_id=" << router_id << "\n"

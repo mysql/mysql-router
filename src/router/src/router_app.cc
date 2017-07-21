@@ -350,15 +350,68 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   return params;
 }
 
+// throws mysql_harness::bad_section (std::runtime_error) on [logger:some_key] section
+static void set_default_log_level(mysql_harness::LoaderConfig& config) {
+
+  // What we do here is an UGLY HACK. TODO remove once we have a proper remedy.
+  //
+  // This is a (hopefully temporary) hack to guarantee backward compatibility
+  // after we revamped our logging facility in v8.0. Before, 8.0, our logger
+  // was a separate plugin, and thus config file had a [logger] section.
+  // Since 8.0, logger is integral part of the Harness and logger.so/dll no
+  // longer exists. Therefore [logger] section should no longer appear in the
+  // config file. Yet, we need to maintain backward compatibility of the
+  // config file, therefore must allow [logger] section to appear and carry the
+  // information it carried before. This however, presents numerous problems:
+  //
+  // - Loader will complain that it can't find a plugin.so (plugin.dll) and
+  //   shut down the Router
+  //
+  // - Loader will try to access start(), stop(), init() and deinit() functions
+  //   of the "logger" plugin, which are undefined
+  //
+  // - logger initialization will try to create a logger for non-existent
+  //   "logger" plugin
+  //
+  // - possibly others, the list is not necessairly exhaustive
+  //
+  //
+  //
+  // To work around these problems, we introduce an UGLY HACK:
+  // We allow [logger] section to appear, along with the log level key/value
+  // pair, as it did before. During log initialization, we look for that [logger]
+  // section and extract the information it carries. Then, we erase it from
+  // configuration, so that no other piece of code ever sees it.
+  // This hack relies on the fact that logging initialization is done very
+  // early in the startup of the Router, even before Loader or anything else
+  // gets a chance to access the configuration.
+
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char* kLogLevel = mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char* kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  // extract log level from [logger] section/log level entry, if it exists
+  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogLevel))
+    mysql_harness::logging::g_HACK_default_log_level = config.get(kLogger, kNone).get(kLogLevel);
+  // otherwise, set it to default
+  else
+    mysql_harness::logging::g_HACK_default_log_level = mysql_harness::logging::kDefaultLogLevelName;
+
+  // now erase the entire [logger] section, if it exists (NOTE: it will not erase sections with keys)
+  config.remove(kLogger);  // no-op if [logger] section doesn't exist
+
+  // if there's anything leftover, it means it must be a section with a key
+  if (config.has_any(kLogger)) {
+    throw mysql_harness::bad_section(std::string("Section '") + kLogger + "' does not support keys");
+  }
+}
+
 /*static*/ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config) {
 
-  // clear registry: this deletes previously-defined main logger, and also
-  // simplifies unit tests
-  clear_registry(DIM::instance().get_LoggingRegistry());
-
   // set defaults if they're not defined
-  if (!config.has_default("log_level"))
-    config.set_default("log_level", mysql_harness::logging::kDefaultLogLevelName);
+  set_default_log_level(config);  // throws std::runtime_error on [logger:some_key] section
   if (!config.has_default("logging_folder"))
     config.set_default("logging_folder", "");
 
@@ -367,6 +420,13 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   // setup logging
   {
     mysql_harness::logging::Registry& registry = DIM::instance().get_LoggingRegistry();
+
+    // clear registry - this deletes previously-defined main logger
+    // REMINDER: If something throws beoynd this point, but before we manage to re-initialize
+    //           the logger, we need to take special care to properly handle such situation.
+    //           Throwing with a non-functioning logger is a very bad idea (it may cascade
+    //           to a place where the error is logged and... boom!)
+    clear_registry(DIM::instance().get_LoggingRegistry());
 
     // create main logger and attached handler
     mysql_harness::logging::init_loggers(registry, config,
@@ -486,7 +546,7 @@ void MySQLRouter::start() {
 
   // reinit logger (right now the logger is configured to log to STDERR, here
   //                we re-configure it with settings from config file)
-  init_main_logger(config); // throws std::runtime_error on error opening file
+  init_main_logger(config); // throws std::runtime_error on error opening file or bad config
 
   if (!can_start_) {
     throw std::runtime_error("Can not start");

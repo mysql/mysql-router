@@ -32,6 +32,11 @@ namespace mysql_harness {
 
 namespace logging {
 
+// log level is stored in this hacky global variable; see place where it's
+// set for exaplanation
+HARNESS_EXPORT
+extern std::string g_HACK_default_log_level;
+
 class Handler;
 
 class HARNESS_EXPORT Registry {

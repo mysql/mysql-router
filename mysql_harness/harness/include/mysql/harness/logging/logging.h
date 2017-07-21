@@ -67,6 +67,18 @@ namespace logging {
 const size_t kLogMessageMaxSize = 256;
 
 /**
+ * Section name and option name used in config file (and later in configuration
+ * object) to specify log level, best explained by example:
+ *
+ *  vvvvvv------------------ kConfigSectionLogger
+ * [logger]
+ * level = DEBUG
+ * ^^^^^-------------------- kConfigOptionLogLevel
+ */
+constexpr char kConfigOptionLogLevel[] = "level";
+constexpr char kConfigSectionLogger[] = "logger";
+
+/**
  * Special names reserved for "main" program logger. It will use one of the
  * two handlers, depending on whether logging_folder is empty or not.
  */

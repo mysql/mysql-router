@@ -133,7 +133,9 @@ public:
    *
    * @param config Configuaration to be used to initialize logger
    *
-   * @throws std::runtime_error if opening log file fails
+   * @throws std::runtime_error on:
+   * - failure to initialize file logger
+   * - bad configuration
    *
    * @note This function is static and public, because unlike init_plugin_loggers(),
    * it's also meant to be called very early during startup, close to main().

@@ -704,7 +704,9 @@ TEST_F(AppLoggerTest, TestLogger) {
     ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
     ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
     ofs_config << "config_folder = " << stage_dir->str() << "\n";
-    ofs_config << "log_level = DEBUG\n";  // override the default (WARNING)
+    ofs_config << "\n";
+    ofs_config << "[logger]\n";
+    ofs_config << "level = DEBUG\n";      // override the default (WARNING)
     ofs_config << "\n";
     ofs_config << "[magic]\n";            // magic plugin
     ofs_config << "do_magic = yes\n";

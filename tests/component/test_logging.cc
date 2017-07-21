@@ -88,7 +88,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   auto router = launch_router("-c " +  conf_file);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
-  // expect something like this to appaer on STDERR
+  // expect something like this to appear on STDERR
   // 2017-06-18 15:24:32 main ERROR [7ffff7fd4780] Error: MySQL Router not configured to load or start any plugin. Exiting.
   std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
@@ -151,7 +151,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     auto router = launch_router("-c " +  conf_file);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
-    // expect something like this to appaer on STDERR
+    // expect something like this to appear on STDERR
     // 2017-07-28 12:24:11 main ERROR [7f6eafe41780] Error: Error when creating dir '/bla': 13
     std::string out = router.get_full_output();
     EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
@@ -171,7 +171,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     auto router = launch_router("-c " +  conf_file);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
-    // expect something like this to appaer on STDERR
+    // expect something like this to appear on STDERR
     // 2017-07-28 15:48:40 main ERROR [7f41b826a780] Error: Failed to open //mysqlrouter.log: Permission denied
     std::string out = router.get_full_output();
     EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
@@ -202,7 +202,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     auto router = launch_router("-c " +  conf_file);
     EXPECT_EQ(router.wait_for_exit(), 1);
 
-    // expect something like this to appaer on STDERR
+    // expect something like this to appear on STDERR
     // 2017-07-28 15:52:43 main ERROR [7fcbbfb90780] Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
     std::string out = router.get_full_output();
     EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
@@ -212,6 +212,40 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: No such file or directory"));
 #endif
   }
+}
+
+TEST_F(RouterLoggingTest, logger_section_with_key) {
+  // This test verifies that [logger:with_some_key] section is handled properly
+  // Router should report the error on STDERR and exit
+
+  std::string conf_file = create_config_file("[logger:some_key]\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // 2017-08-02 16:44:39 main ERROR [7ff0cf635780] Error: Section 'logger' does not support keys
+  std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+  EXPECT_THAT(out.c_str(), HasSubstr(" Error: Section 'logger' does not support keys"));
+}
+
+TEST_F(RouterLoggingTest, multiple_logger_sections) {
+  // This test verifies that multiple [logger] sections are handled properly.
+  // Router should report the error on STDERR and exit
+
+  std::string conf_file = create_config_file("[logger]\n[logger]\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // 2017-08-02 16:47:35 main ERROR [7f756674d780] Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'.
+  std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+  EXPECT_THAT(out.c_str(), HasSubstr(" Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
 }
 
 int main(int argc, char *argv[]) {

@@ -210,7 +210,10 @@ class LifecycleTest : public BasicConsoleOutputTest {
       "config_folder  = {prefix}/etc\n"
       "data_folder    = {prefix}/var/lib\n"
 #endif
-      "log_level = DEBUG                              \n"
+// TODO: restore this after after [logger] hack is reverted (grep for g_HACK_default_log_level)
+//    "                                               \n"
+//    "[logger]                                       \n"
+//    "level = DEBUG                                  \n"
       "                                               \n"
       "[lifecycle3]                                   \n"
       "                                               \n"
@@ -1351,7 +1354,10 @@ TEST_F(LifecycleTest, NoInstances) {
       "plugin_folder  = {prefix}/../../../stage/lib/mysqlrouter\n"
       "runtime_folder = {prefix}/var/run/{program}    \n"
       "config_folder  = {prefix}/var/run/{program}    \n"
-      "log_level = DEBUG                              \n"
+// TODO: restore this after after [logger] hack is reverted (grep for g_HACK_default_log_level)
+//    "                                               \n"
+//    "[logger]                                       \n"
+//    "level = DEBUG                                  \n"
       "                                               \n");
   init_test_without_lifecycle_plugin(config_text_);
 
