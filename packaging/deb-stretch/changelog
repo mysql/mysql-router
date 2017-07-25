@@ -1,0 +1,5 @@
+mysql-router (2.1.4-1debian9) stretch; urgency=low
+
+  * initial version
+
+ -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Mon, 19 Jun 2017 10:36:55 +0200

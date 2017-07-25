@@ -17,7 +17,7 @@
 
 # Project version, has to be an X.Y.Z number since it is used with the
 # "project" CMake command
-set(PROJECT_VERSION_TEXT "2.1.3")
+set(PROJECT_VERSION_TEXT "2.1.4")
 
 # Can be arbitrary test that is added to the package file names after
 # the version, but before the extensions.

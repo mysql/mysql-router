@@ -1,0 +1,5 @@
+mysql-router (2.1.4-1ubuntu17.04) zesty; urgency=low
+
+  * initial version
+
+ -- Sreedhar Sreedhargadda <sreedhar.sreedhargadda@oracle.com>  Mon, 19 Jun 2017 10:36:55 +0200
