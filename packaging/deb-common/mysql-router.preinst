@@ -21,6 +21,16 @@ LOGDIR=/var/log/mysqlrouter
 MYSQLROUTERHOME=/var/lib/mysqlrouter
 LOGFILE=${MYSQLLOGDIR}/mysqlrouter.log
 
+fix_permissions_for_var_run() {
+
+  # This directory had different owner and permissions in older versions of Router,
+  # which may cause problems, therefore we reset them here if the directory exists.
+  RUNTIMEDIR=/var/run/mysqlrouter
+  if [ -d ${RUNTIMEDIR} ]; then
+    install -d -m 0755 -o mysqlrouter -g mysqlrouter ${RUNTIMEDIR}
+  fi
+}
+
 case "$1" in
   install)
 
@@ -39,11 +49,15 @@ case "$1" in
     fi
     install /dev/null -m 0640 -o mysqlrouter -g adm ${LOGFILE}
 
+    fix_permissions_for_var_run
+
     set +e
     ;;
 
   upgrade)
     set -e
+
+    fix_permissions_for_var_run
 
     #DEBHELPER#
 
