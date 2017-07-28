@@ -222,7 +222,10 @@ void create_main_logfile_handler(Registry& registry,
     attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   } else {
     Path log_file = Path::make_path(logging_folder, program, "log");
+
+    // throws std::runtime_error on failure to open file
     registry.add_handler(kMainLogHandler, std::make_shared<FileHandler>(log_file));
+
     attach_handler_to_all_loggers(registry, kMainLogHandler);
   }
 }

@@ -22,6 +22,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "harness_assert.h"
 #include "keyring/keyring_manager.h"
 #include "router_app.h"
 #include "config_generator.h"
@@ -351,6 +352,10 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
 
 /*static*/ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config) {
 
+  // clear registry: this deletes previously-defined main logger, and also
+  // simplifies unit tests
+  clear_registry(DIM::instance().get_LoggingRegistry());
+
   // set defaults if they're not defined
   if (!config.has_default("log_level"))
     config.set_default("log_level", mysql_harness::logging::kDefaultLogLevelName);
@@ -366,7 +371,22 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
     // create main logger and attached handler
     mysql_harness::logging::init_loggers(registry, config,
                                          {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
-    mysql_harness::logging::create_main_logfile_handler(registry, kProgramName, logging_folder);
+    try {
+      mysql_harness::logging::create_main_logfile_handler(registry, kProgramName, logging_folder);
+    } catch (const std::runtime_error& e) {
+      // this should only be possible if we're logging to a file
+      harness_assert(!config.get_default("logging_folder").empty());
+
+      // Oops, we couldn't open the log file. We need to throw an exception, but first,
+      // we need to restore a functioning logger that will log the error to STDERR.
+      // We do this by calling ourselves again, but with logging_folder set to empty
+      // this time. Such call cannot fail.
+      config.set_default("logging_folder", "");
+      init_main_logger(config);
+
+      // now that we have a functioning logger, it's time to throw the error
+      throw;
+    }
 
     registry.set_ready();
   }
@@ -448,11 +468,25 @@ void MySQLRouter::start() {
   DIM::instance().set_Config([this](){ return make_config(); });
   mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
 
-  // clear registry: this deletes previously-defined main logger, and also
-  // simplifies unit tests
-  clear_registry(DIM::instance().get_LoggingRegistry());
+  // create logging directory if necessary
+  if (config.logging_to_file()) {
+    // get logger directory
+    auto log_file = config.get_log_file();
+    std::string log_path(log_file.str()); // log_path = /path/to/file.log
+    size_t pos;
+    pos = log_path.find_last_of('/');
+    if (pos != std::string::npos)
+      log_path.erase(pos);                // log_path = /path/to
 
-  init_main_logger(config);
+    // mkdir if it doesn't exist
+    if (mysql_harness::Path(log_path).exists() == false &&
+        mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
+        throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
+  }
+
+  // reinit logger (right now the logger is configured to log to STDERR, here
+  //                we re-configure it with settings from config file)
+  init_main_logger(config); // throws std::runtime_error on error opening file
 
   if (!can_start_) {
     throw std::runtime_error("Can not start");
@@ -516,21 +550,6 @@ void MySQLRouter::start() {
 #endif
   init_keyring(config);
 
-  try {
-    // get logger directory
-    auto log_file = config.get_log_file();
-    std::string log_path(log_file.str()); // log_path = /path/to/file.log
-    size_t pos;
-    pos = log_path.find_last_of('/');
-    if (pos != std::string::npos)
-      log_path.erase(pos);                // log_path = /path/to
-
-    // PM 2017.03.07: TODO shouldn't throw here. See older code
-    if (mysqlrouter::mkdir(log_path, mysqlrouter::kStrictDirectoryPerm) != 0)
-      throw std::runtime_error("Error when creating dir '" + log_path + "': " + std::to_string(errno));
-  } catch (...) {
-    // We are logging to console
-  }
   loader_->start();
 }
 

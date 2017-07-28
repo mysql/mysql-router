@@ -121,6 +121,99 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   EXPECT_TRUE(find_in_log(logging_folder, matcher));
 }
 
+TEST_F(RouterLoggingTest, bad_logging_folder) {
+  // This test verifies that invalid logging_folder is properly handled and
+  // appropriate message is printed on STDERR. Router tries to mkdir(logging_folder)
+  // if it doesn't exist, then write its log inside of it.
+
+  // create tmp dir to contain our tests
+  const std::string tmp_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(tmp_dir);});
+
+// unfortunately it's not (reasonably) possible to make folders read-only on Windows,
+// therefore we can run the following 2 tests only on Unix
+// https://support.microsoft.com/en-us/help/326549/you-cannot-view-or-change-the-read-only-or-the-system-attributes-of-fo
+#ifndef _WIN32
+
+  // make tmp dir read-only
+  chmod(tmp_dir.c_str(), S_IRUSR | S_IXUSR); // r-x for the user (aka 500)
+
+  // logging_folder doesn't exist and can't be created
+  {
+    std::string logging_dir = tmp_dir + "/some_dir";
+
+    // create Router config
+    std::map<std::string, std::string> params = get_DEFAULT_defaults();
+    params.at("logging_folder") = logging_dir;
+    std::string conf_file = create_config_file("", &params);
+
+    // run the router and wait for it to exit
+    auto router = launch_router("-c " +  conf_file);
+    EXPECT_EQ(router.wait_for_exit(), 1);
+
+    // expect something like this to appaer on STDERR
+    // 2017-07-28 12:24:11 main ERROR [7f6eafe41780] Error: Error when creating dir '/bla': 13
+    std::string out = router.get_full_output();
+    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Error when creating dir '" + logging_dir + "': 13"));
+  }
+
+  // logging_folder exists but is not writeable
+  {
+    std::string logging_dir = tmp_dir;
+
+    // create Router config
+    std::map<std::string, std::string> params = get_DEFAULT_defaults();
+    params.at("logging_folder") = logging_dir;
+    std::string conf_file = create_config_file("", &params);
+
+    // run the router and wait for it to exit
+    auto router = launch_router("-c " +  conf_file);
+    EXPECT_EQ(router.wait_for_exit(), 1);
+
+    // expect something like this to appaer on STDERR
+    // 2017-07-28 15:48:40 main ERROR [7f41b826a780] Error: Failed to open //mysqlrouter.log: Permission denied
+    std::string out = router.get_full_output();
+    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: Permission denied"));
+  }
+
+  // restore writability to tmp dir
+  chmod(tmp_dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR); // rwx for the user (aka 700)
+
+#endif // #ifndef _WIN32
+
+  // logging_folder is really a file
+  {
+    std::string logging_dir = tmp_dir + "/some_file";
+
+    // create that file
+    {
+      std::ofstream some_file(logging_dir);
+      EXPECT_TRUE(some_file.good());
+    }
+
+    // create Router config
+    std::map<std::string, std::string> params = get_DEFAULT_defaults();
+    params.at("logging_folder") = logging_dir;
+    std::string conf_file = create_config_file("", &params);
+
+    // run the router and wait for it to exit
+    auto router = launch_router("-c " +  conf_file);
+    EXPECT_EQ(router.wait_for_exit(), 1);
+
+    // expect something like this to appaer on STDERR
+    // 2017-07-28 15:52:43 main ERROR [7fcbbfb90780] Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
+    std::string out = router.get_full_output();
+    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+#ifndef _WIN32
+    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
+#else
+    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: No such file or directory"));
+#endif
+  }
+}
+
 int main(int argc, char *argv[]) {
   g_origin_path = Path(argv[0]).dirname();
   ::testing::InitGoogleTest(&argc, argv);
