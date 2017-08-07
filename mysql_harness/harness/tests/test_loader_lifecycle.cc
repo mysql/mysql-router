@@ -132,16 +132,6 @@ class TestLoader : public Loader {
   {
     Plugin* plugin = plugins_.at("lifecycle").plugin;
 
-    // when we run for the first time, we need to save plugin function pointers,
-    // so that we can restore them after overriding them for a particular test.
-    // (we copy the whole struct because it's easier and CPU time doesn't matter)
-    if (!virgin_plugin_saved_) {
-      virgin_plugin_ = *plugin; // save
-      virgin_plugin_saved_ = true;
-    } else {
-      *plugin = virgin_plugin_; // restore
-    }
-
     // signal plugin to reset state and init our lifecycle_plugin_itc_
     // (we use a special hack (tag the pointer with last bit=1) to tell it that
     // this is not a normal init() call, but a special call meant to
@@ -149,23 +139,17 @@ class TestLoader : public Loader {
     uintptr_t ptr = reinterpret_cast<uintptr_t>(&lifecycle_plugin_itc_) + 1;
     plugin->init(reinterpret_cast<mysql_harness::PluginFuncEnv*>(ptr));
 
-    // override plugin functions
+    // override plugin functions as requested
     if (!switches.init) plugin->init = nullptr;
     if (!switches.start) plugin->start = nullptr;
     if (!switches.stop) plugin->stop = nullptr;
     if (!switches.deinit) plugin->deinit = nullptr;
   }
 
-  static Plugin virgin_plugin_;
-  static bool   virgin_plugin_saved_;
-
   // struct to expose additional things we need from lifecycle plugin,
   // pointer owner = lifecycle plugin
   mysql_harness::test::LifecyclePluginITC* lifecycle_plugin_itc_;
 }; // class TestLoader
-
-/*static*/ bool   TestLoader::virgin_plugin_saved_;
-/*static*/ Plugin TestLoader::virgin_plugin_;
 
 
 
