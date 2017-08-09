@@ -363,17 +363,6 @@ License
 
 License information can be found in the License.txt file.
 
-MySQL FOSS License Exception
-We want free and open source software applications under certain
-licenses to be able to use specified GPL-licensed MySQL client
-libraries despite the fact that not all such FOSS licenses are
-compatible with version 2 of the GNU General Public License.
-Therefore there are special exceptions to the terms and conditions
-of the GPLv2 as applied to these client libraries, which are
-identified and described in more detail in the FOSS License
-Exception at
-<http://www.mysql.com/about/legal/licensing/foss-exception.html>.
-
 This distribution may include materials developed by third
 parties. For license and attribution notices for these
 materials, please refer to the documentation that accompanies
