@@ -55,12 +55,12 @@ do_start() {
 
   if [ ! -d ${RUNTIMEDIR} -a ! -L ${RUNTIMEDIR} ];
   then
-    install -d -m 0755 -o mysqlrouter -g adm ${RUNTIMEDIR}
+    install -d -m 0755 -o mysqlrouter -g mysqlrouter ${RUNTIMEDIR}
   fi
 
   if [ ! -d ${DATADIR} -a ! -L ${DATADIR} ];
   then
-    install -d -m 0750 -o mysqlrouter -g adm ${DATADIR}
+    install -d -m 0750 -o mysqlrouter -g mysqlrouter ${DATADIR}
   fi
 
   if [ ! -d ${LOGDIR} -a ! -L ${LOGDIR} ];
