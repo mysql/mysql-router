@@ -682,13 +682,13 @@ void MySQLRouter::prepare_command_options() noexcept {
   // and the configuration.
 
   arg_handler_.clear_options();
-  arg_handler_.add_option(CmdOption::OptionNames({"-v", "--version"}), "Display version information and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-V", "--version"}), "Display version information and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         std::cout << this->get_version_line() << std::endl;
         this->showing_info_ = true;
       });
 
-  arg_handler_.add_option(CmdOption::OptionNames({"-h", "--help"}), "Display this help and exit.",
+  arg_handler_.add_option(CmdOption::OptionNames({"-?", "--help"}), "Display this help and exit.",
                           CmdOptionValueReq::none, "", [this](const string &) {
         this->show_help();
         this->showing_info_ = true;

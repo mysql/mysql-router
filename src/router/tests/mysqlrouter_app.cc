@@ -343,12 +343,34 @@ TEST_F(AppTest, CmdLineVersion) {
 }
 
 TEST_F(AppTest, CmdLineVersionShort) {
-  vector<string> argv = {"-v"};
+  vector<string> argv = {"-V"};
 
   reset_ssout();
 
   MySQLRouter r(g_origin, argv);
   ASSERT_THAT(ssout.str(), StartsWith("MySQL Router"));
+}
+
+TEST_F(AppTest, CmdLineHelp) {
+  vector<string> argv = {"--help"};
+  reset_ssout();
+  MySQLRouter r(g_origin, argv);
+
+  // several substrings from help output that are unlikely to change soon
+  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router v"));
+  EXPECT_THAT(ssout.str(), HasSubstr("Oracle is a registered trademark of Oracle Corporation and/or its"));
+  EXPECT_THAT(ssout.str(), HasSubstr("Usage: mysqlrouter"));
+}
+
+TEST_F(AppTest, CmdLineHelpShort) {
+  vector<string> argv = {"-?"};
+  reset_ssout();
+  MySQLRouter r(g_origin, argv);
+
+  // several substrings from help output that are unlikely to change soon
+  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router v"));
+  EXPECT_THAT(ssout.str(), HasSubstr("Oracle is a registered trademark of Oracle Corporation and/or its"));
+  EXPECT_THAT(ssout.str(), HasSubstr("Usage: mysqlrouter"));
 }
 
 TEST_F(AppTest, ConfigFileParseError) {

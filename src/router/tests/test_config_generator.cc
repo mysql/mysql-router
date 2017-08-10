@@ -1634,7 +1634,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --ssl-mode not given
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310" };
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310" };
     MySQLRouter router(Path(), argv);
     EXPECT_EQ(0u, router.bootstrap_options_.count("ssl_mode"));
   }
@@ -1652,7 +1652,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
     for (auto &opt : argument_required_options) {
                                            //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-      const std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", opt};
+      const std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", opt};
       try {
         MySQLRouter router(Path(), argv);
         FAIL() << "Expected std::invalid_argument to be thrown";
@@ -1664,7 +1664,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
       }
 
       // the value is required but also it CAN'T be empty, like when the user uses --tls-version ""
-      const std::vector<std::string> argv2 {"-v", "--bootstrap", "0:3310", opt, ""};
+      const std::vector<std::string> argv2 {"-V", "--bootstrap", "0:3310", opt, ""};
       try {
         MySQLRouter router(Path(), argv2);
         FAIL() << "Expected std::invalid_argument to be thrown";
@@ -1685,7 +1685,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --bootstrap missing
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--ssl-mode", "whatever"};
+    std::vector<std::string> argv {"-V", "--ssl-mode", "whatever"};
     try {
       MySQLRouter router(Path(), argv);
       FAIL() << "Expected std::invalid_argument to be thrown";
@@ -1699,7 +1699,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --ssl-mode has an invalid argument
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "bad"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "bad"};
     try {
       MySQLRouter router(Path(), argv);
       FAIL() << "Expected std::invalid_argument to be thrown";
@@ -1713,35 +1713,35 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --ssl-mode = DISABLED + uppercase
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "DISABLED"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "DISABLED"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("DISABLED", router.bootstrap_options_.at("ssl_mode"));
   }
 
   // --ssl-mode = PREFERRED + lowercase
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "preferred"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "preferred"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("preferred", router.bootstrap_options_.at("ssl_mode"));
   }
 
   // --ssl-mode = REQUIRED + mixedcase
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "rEqUIrEd"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "rEqUIrEd"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("rEqUIrEd", router.bootstrap_options_.at("ssl_mode"));
   }
 
   // --ssl-mode = VERIFY_CA
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("verify_ca", router.bootstrap_options_.at("ssl_mode"));
   }
 
   // --ssl-mode = VERIFY_CA, --ssl-ca etc
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca",
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "verify_ca",
                                     "--ssl-ca=/some/ca.pem", "--ssl-capath=/some/cadir",
                                     "--ssl-crl=/some/crl.pem", "--ssl-crlpath=/some/crldir"};
     MySQLRouter router(Path(), argv);
@@ -1754,7 +1754,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --ssl-mode = VERIFY_IDENTITY, --ssl-ca etc
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "verify_identity",
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "verify_identity",
                                     "--ssl-ca=/some/ca.pem", "--ssl-capath=/some/cadir",
                                     "--ssl-crl=/some/crl.pem", "--ssl-crlpath=/some/crldir"};
     MySQLRouter router(Path(), argv);
@@ -1767,7 +1767,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 
   // --ssl-mode = REQUIRED, --ssl-* cipher options
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "required",
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "required",
                                    "--ssl-cipher",  "FOO-BAR-SHA678", "--tls-version", "TLSv1"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
@@ -1779,7 +1779,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
 #if 0
   // --ssl-mode = REQUIRED, --ssl-cert, --ssl-key
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-v", "--bootstrap", "0:3310", "--ssl-mode", "required", "--ssl-cert=/some/cert.pem", "--ssl-key=/some/key.pem"};
+    std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "required", "--ssl-cert=/some/cert.pem", "--ssl-key=/some/key.pem"};
     MySQLRouter router(Path(), argv);
     EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
     EXPECT_EQ("/some/cert.pem", router.bootstrap_options_.at("ssl_cert"));

@@ -128,8 +128,8 @@ TEST_F(ConsoleOutputTestX, ConfigurationFileList) {
 
 TEST_F(ConsoleOutputTestX, BasicUsage) {
   std::vector<std::string> options{
-      "[-v|--version]",
-      "[-h|--help]",
+      "[-V|--version]",
+      "[-?|--help]",
       "[-c|--config=<path>]",
       "[-a|--extra-config=<path>]",
   };
@@ -141,9 +141,9 @@ TEST_F(ConsoleOutputTestX, BasicUsage) {
 
 TEST_F(ConsoleOutputTestX, BasicOptionDescriptions) {
   std::vector<std::string> options{
-      "  -v, --version",
+      "  -V, --version",
       "        Display version information and exit.",
-      "  -h, --help",
+      "  -?, --help",
       "        Display this help and exit.",
       "  -c <path>, --config <path>",
       "        Only read configuration from given file.",
