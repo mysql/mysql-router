@@ -580,8 +580,10 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
 
   mysql_harness::make_file_private(config_file_path.str());
   set_file_owner(options, config_file_path.str());
+
   // create start/stop scripts
-  create_start_scripts(path.str(), keyring_master_key_file.empty(), options);
+  create_start_script(path.str(), keyring_master_key_file.empty(), options);
+  create_stop_script(path.str(), options);
 
 #ifndef _WIN32
   // If we are running with --user option we need to check if the user will have access
@@ -1402,10 +1404,11 @@ std::pair<uint32_t, std::string> ConfigGenerator::get_router_id_and_name_from_co
   return std::make_pair(0, "");
 }
 
-void ConfigGenerator::create_start_scripts(const std::string &directory,
-                                           bool interactive_master_key,
-                                           const std::map<std::string, std::string> &options) {
+void ConfigGenerator::create_start_script(const std::string &directory,
+                                          bool interactive_master_key,
+                                          const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
+
   std::ofstream script;
   std::string script_path = directory + "/start.ps1";
 
@@ -1418,24 +1421,10 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   script << "Start-Process \"" << find_executable_path() << "\" \" -c " << directory << "/mysqlrouter.conf\"" << " -WindowStyle Hidden" << std::endl;
   script.close();
 
-  script_path = directory + "/stop.ps1";
-  script.open(script_path);
-  if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
-  }
-  script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", \"Process\")" << std::endl;
-  script << "If(Test-Path $filename) {" << std::endl;
-  script << "  $mypid = [IO.File]::ReadAllText($filename)" << std::endl;
-  script << "  Stop-Process -Id $mypid" << std::endl;
-  script << "  [IO.File]::Delete($filename)" << std::endl;
-  script << "}" << std::endl;
-  script << "else { Write-Host \"Error when trying to stop mysqlrouter process\" }" << std::endl;
-  script.close();
-
-
 #else
+
   std::ofstream script;
-  std::string script_path = directory+"/start.sh";
+  std::string script_path = directory + "/start.sh";
 
   std::string owner_name;
   bool change_owner = options.find("user") != options.end();
@@ -1445,7 +1434,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open "+script_path+" for writing: "+get_strerror(errno));
+    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
   }
   script << "#!/bin/bash\n";
   script << "basedir=" << directory << "\n";
@@ -1470,7 +1459,34 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   }
   set_file_owner(options, script_path);
 
-  script_path = directory+"/stop.sh";
+#endif // #ifdef _WIN32
+}
+
+void ConfigGenerator::create_stop_script(const std::string &directory,
+                                         const std::map<std::string, std::string> &options) {
+#ifdef _WIN32
+
+  std::ofstream script;
+  std::string script_path = directory + "/stop.ps1";
+
+  script.open(script_path);
+  if (script.fail()) {
+    throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
+  }
+  script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", \"Process\")" << std::endl;
+  script << "If(Test-Path $filename) {" << std::endl;
+  script << "  $mypid = [IO.File]::ReadAllText($filename)" << std::endl;
+  script << "  Stop-Process -Id $mypid" << std::endl;
+  script << "  [IO.File]::Delete($filename)" << std::endl;
+  script << "}" << std::endl;
+  script << "else { Write-Host \"Error when trying to stop mysqlrouter process\" }" << std::endl;
+  script.close();
+
+#else
+
+  std::ofstream script;
+  std::string script_path = directory + "/stop.sh";
+
   script.open(script_path);
   if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
@@ -1484,7 +1500,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
     std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
   }
   set_file_owner(options, script_path);
-#endif
+#endif // #ifdef _WIN32
 }
 
 static bool files_equal(const std::string &f1, const std::string &f2) {

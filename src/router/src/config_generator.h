@@ -127,9 +127,12 @@ private:
   Options fill_options(bool multi_master,
       const std::map<std::string, std::string> &user_options);
 
-  void create_start_scripts(const std::string &directory,
-                            bool interactive_master_key,
-                            const std::map<std::string, std::string> &options);
+  void create_start_script(const std::string &directory,
+                           bool interactive_master_key,
+                           const std::map<std::string, std::string> &options);
+
+  void create_stop_script(const std::string &directory,
+                          const std::map<std::string, std::string> &options);
 
   void bootstrap_deployment(std::ostream &config_file,
       const mysql_harness::Path &config_file_path, const std::string &name,
