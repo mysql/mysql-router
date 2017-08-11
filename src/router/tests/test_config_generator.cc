@@ -21,6 +21,7 @@
 #include "cluster_metadata.h"
 #include "config_generator.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
 #include "dim.h"
 #include "gtest_consoleoutput.h"
 #include "mysql_session_replayer.h"
@@ -2386,11 +2387,115 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   }
 }
 
+class TestConfigGenerator : public ConfigGenerator {
+ private:
+  // we disable this method by overriding - calling it requires sudo access
+  void set_script_permissions(const std::string&,
+                              const std::map<std::string, std::string>&) override {};
+};
+
+// TODO This is very ugly, it should not be a global. It's defined in config_generator.cc and
+//      used in find_executable_path() to provide path to Router binary when generating start.sh.
+extern std::string g_program_name;
+
+// start.sh/stop.sh is unix-specific
+#ifndef _WIN32
+TEST_F(ConfigGeneratorTest, start_sh) {
+  // This test verifies that start.sh is generated correctly
+
+  // dir where we'll test start.sh
+  const std::string deployment_dir = mysql_harness::get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){
+    mysql_harness::delete_dir_recursive(deployment_dir);
+  });
+
+  // get path to start.sh
+  mysql_harness::Path start_sh(deployment_dir);
+  start_sh.append("start.sh");
+
+  // no --user
+  {
+    // generate start.sh
+    TestConfigGenerator().create_start_script(deployment_dir, false, {});
+
+    // test file contents
+    ASSERT_TRUE(start_sh.exists());
+    char buf[1024] = {0};
+    std::ifstream ifs(start_sh.c_str());
+    ifs.read(buf, sizeof(buf));
+    EXPECT_STREQ(
+        (std::string("#!/bin/bash\n") +
+         "basedir=" + deployment_dir.c_str() + "\n"
+         "ROUTER_PID=$basedir/mysqlrouter.pid " + g_program_name + " -c $basedir/mysqlrouter.conf &\n"
+         "disown %-\n").c_str(),
+        buf);
+  }
+
+  // with --user
+  {
+    // generate start.sh
+    TestConfigGenerator().create_start_script(deployment_dir, false, {{"user", "loser"}});
+
+    // test file contents
+    ASSERT_TRUE(start_sh.exists());
+    char buf[1024] = {0};
+    std::ifstream ifs(start_sh.c_str());
+    ifs.read(buf, sizeof(buf));
+    EXPECT_STREQ(
+        (std::string("#!/bin/bash\n") +
+         "basedir=" + deployment_dir.c_str() + "\n"
+         "if [ `whoami` == 'loser' ]; then\n"
+         "  ROUTER_PID=$basedir/mysqlrouter.pid " + g_program_name + " -c $basedir/mysqlrouter.conf &\n"
+         "else\n"
+         "  sudo ROUTER_PID=$basedir/mysqlrouter.pid " + g_program_name + " -c $basedir/mysqlrouter.conf --user=loser &\n"
+         "fi\n"
+         "disown %-\n").c_str(),
+        buf);
+  }
+}
+
+TEST_F(ConfigGeneratorTest, stop_sh) {
+  // This test verifies that stop.sh is generated correctly
+
+  // dir where we'll test stop.sh
+  const std::string deployment_dir = mysql_harness::get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){
+    mysql_harness::delete_dir_recursive(deployment_dir);
+  });
+
+  // generate stop.sh
+  TestConfigGenerator().create_stop_script(deployment_dir, {});
+
+  // get path to stop.sh
+  mysql_harness::Path stop_sh(deployment_dir);
+  stop_sh.append("stop.sh");
+
+  // test file contents
+  ASSERT_TRUE(stop_sh.exists());
+  char buf[1024] = {0};
+  std::ifstream ifs(stop_sh.c_str());
+  ifs.read(buf, sizeof(buf));
+  const std::string pid_file = deployment_dir + "/mysqlrouter.pid";
+  EXPECT_STREQ(
+      (std::string("#!/bin/bash\n") +
+       "if [ -f " + pid_file + " ]; then\n"
+       "  kill -TERM `cat " + pid_file + "` && rm -f " + pid_file + "\n"
+       "fi\n").c_str(),
+      buf);
+}
+#endif // #ifndef _WIN32
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();
   g_cwd = mysql_harness::Path(argv[0]).dirname().str();
+
+  // it would be nice to provide something more descriptive like "/fake/path/to/mysqlrouter", but
+  // unfortunately, this path goes through realpath() and therefore has to actually exist.
+  g_program_name = "/";
+
   init_test_logger();
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

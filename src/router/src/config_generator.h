@@ -51,6 +51,8 @@ DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
 DECLARE_TEST(ConfigGeneratorTest, warn_on_no_ssl);
 DECLARE_TEST(ConfigGeneratorTest, set_file_owner_no_user);
 DECLARE_TEST(ConfigGeneratorTest, set_file_owner_user_empty);
+DECLARE_TEST(ConfigGeneratorTest, start_sh);
+DECLARE_TEST(ConfigGeneratorTest, stop_sh);
 #endif
 
 namespace mysqlrouter {
@@ -69,6 +71,8 @@ public:
     : sys_user_operations_(sys_user_operations)
   #endif
   {}
+  virtual ~ConfigGenerator() = default;
+
   void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);  // throws std::runtime_error
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options); // throws std::runtime_error
 
@@ -133,6 +137,10 @@ private:
 
   void create_stop_script(const std::string &directory,
                           const std::map<std::string, std::string> &options);
+
+  // virtual so we can disable it in unit tests
+  virtual void set_script_permissions(const std::string& script_path,
+                                      const std::map<std::string, std::string> &options);
 
   void bootstrap_deployment(std::ostream &config_file,
       const mysql_harness::Path &config_file_path, const std::string &name,
@@ -207,6 +215,8 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, warn_on_no_ssl);
   FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_no_user);
   FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_user_empty);
+  FRIEND_TEST(::ConfigGeneratorTest, start_sh);
+  FRIEND_TEST(::ConfigGeneratorTest, stop_sh);
 #endif
 };
 }

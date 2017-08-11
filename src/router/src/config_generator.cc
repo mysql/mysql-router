@@ -23,6 +23,7 @@
 #include "mysqlrouter/uri.h"
 #include "common.h"
 #include "dim.h"
+#include "harness_assert.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -989,6 +990,9 @@ void ConfigGenerator::fetch_bootstrap_servers(
     throw std::runtime_error("No clusters defined in metadata server");
 }
 
+// TODO This is very ugly, it should not be a global. It's set in main(), and
+//      used in find_executable_path() below to provide path to Router binary
+//      when generating start.sh.
 std::string g_program_name;
 
 #ifdef _WIN32
@@ -1017,8 +1021,11 @@ static std::string find_executable_path() {
     return std::string(szPath);
   }
 #else
+  harness_assert(!g_program_name.empty());
+
   if (g_program_name.find('/') != std::string::npos) {
     char *tmp = realpath(g_program_name.c_str(), NULL);
+    harness_assert(tmp);  // will fail if g_program_name provides bogus path
     std::string path(tmp);
     free(tmp);
     return path;
@@ -1404,6 +1411,18 @@ std::pair<uint32_t, std::string> ConfigGenerator::get_router_id_and_name_from_co
   return std::make_pair(0, "");
 }
 
+/* virtual */
+void ConfigGenerator::set_script_permissions(const std::string& script_path,
+                                             const std::map<std::string, std::string> &options) {
+// we only call this method from unix-specific code
+#ifndef _WIN32
+  if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
+    std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
+  }
+  set_file_owner(options, script_path);
+#endif
+}
+
 void ConfigGenerator::create_start_script(const std::string &directory,
                                           bool interactive_master_key,
                                           const std::map<std::string, std::string> &options) {
@@ -1426,12 +1445,6 @@ void ConfigGenerator::create_start_script(const std::string &directory,
   std::ofstream script;
   std::string script_path = directory + "/start.sh";
 
-  std::string owner_name;
-  bool change_owner = options.find("user") != options.end();
-  if (change_owner) {
-    owner_name = options.at("user");
-  }
-
   script.open(script_path);
   if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
@@ -1447,19 +1460,37 @@ void ConfigGenerator::create_start_script(const std::string &directory,
     script << "stty $old_stty\n";
     script << "echo $password | ";
   }
-  script << (change_owner ? "sudo " : "")
-         <<"ROUTER_PID=$basedir/mysqlrouter.pid "
-         << find_executable_path() << " -c " << "$basedir/mysqlrouter.conf "
-         << (change_owner ? std::string("--user=" + owner_name) : "")
-         << "&\n";
+
+  // Router launch command
+  {
+    std::string main_cmd = "ROUTER_PID=$basedir/mysqlrouter.pid "
+        + find_executable_path() + " -c $basedir/mysqlrouter.conf ";
+
+    if (options.find("user") != options.end()) {
+      // if --user was given, we use it to generate shell code that works for both cases:
+      //   - when owner runs this script -> run without sudo and --user
+      //   - when someone else runs it   -> run with    sudo and --user
+
+      const std::string owner_name = options.at("user");
+      harness_assert(!owner_name.empty());
+
+      script << "if [ `whoami` == '" << owner_name << "' ]; then"                "\n"
+             << "  " << main_cmd << "&"                                          "\n"
+             << "else"                                                           "\n"
+             << "  " << "sudo " << main_cmd << "--user=" << owner_name << " &"   "\n"
+             << "fi"                                                             "\n";
+    } else {
+      // if --user was not given, we have no choice but to only provide the code for that case
+      script << main_cmd << "&\n";
+    }
+  }
+
   script << "disown %-\n";
   script.close();
-  if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
-    std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
-  }
-  set_file_owner(options, script_path);
 
-#endif // #ifdef _WIN32
+  set_script_permissions(script_path, options);
+
+#endif  // #ifdef _WIN32
 }
 
 void ConfigGenerator::create_stop_script(const std::string &directory,
@@ -1467,7 +1498,7 @@ void ConfigGenerator::create_stop_script(const std::string &directory,
 #ifdef _WIN32
 
   std::ofstream script;
-  std::string script_path = directory + "/stop.ps1";
+  const std::string script_path = directory + "/stop.ps1";
 
   script.open(script_path);
   if (script.fail()) {
@@ -1485,22 +1516,21 @@ void ConfigGenerator::create_stop_script(const std::string &directory,
 #else
 
   std::ofstream script;
-  std::string script_path = directory + "/stop.sh";
+  const std::string script_path = directory + "/stop.sh";
 
   script.open(script_path);
   if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
   }
+  script << "#!/bin/bash\n";
   script << "if [ -f " + directory + "/mysqlrouter.pid ]; then\n";
-  script << "  kill -HUP `cat " + directory + "/mysqlrouter.pid`\n";
-  script << "  rm -f " << directory + "/mysqlrouter.pid\n";
+  script << "  kill -TERM `cat " + directory + "/mysqlrouter.pid` && rm -f " << directory + "/mysqlrouter.pid\n";
   script << "fi\n";
   script.close();
-  if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
-    std::cerr << "Could not change permissions for " << script_path << ": " << get_strerror(errno) << "\n";
-  }
-  set_file_owner(options, script_path);
-#endif // #ifdef _WIN32
+
+  set_script_permissions(script_path, options);
+
+#endif  // #ifdef _WIN32
 }
 
 static bool files_equal(const std::string &f1, const std::string &f2) {

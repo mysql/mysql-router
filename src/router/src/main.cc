@@ -74,15 +74,17 @@ int real_main(int argc, char **argv) {
   mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
   MySQLRouter::init_main_logger(config, true); // true = raw logging mode
 
+  // TODO This is very ugly, it should not be a global. It's defined in config_generator.cc and
+  //      used in find_executable_path() to provide path to Router binary when generating start.sh.
   extern std::string g_program_name;
   g_program_name = argv[0];
-  int result = 0;
 
   if (mysql_library_init(argc, argv, NULL)) {
     log_error("Could not initialize MySQL library");
     return 1;
   }
 
+  int result = 0;
   try {
     MySQLRouter router(argc, argv);
     // This nested try/catch block is necessary in Windows, to
