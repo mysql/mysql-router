@@ -42,7 +42,7 @@ int DestFirstAvailable::get_server_socket(std::chrono::milliseconds connect_time
     auto addr = destinations_.at(i);
     log_debug("Trying server %s (index %d)", addr.str().c_str(), i);
     auto sock = get_mysql_socket(addr, connect_timeout);
-    if (sock != -1) {
+    if (sock >= 0) {
       current_pos_ = i;
       return sock;
     }
