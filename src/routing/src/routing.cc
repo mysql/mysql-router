@@ -121,6 +121,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
+  bool timeout_expired = false;
 
   int err;
   if ((err = getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
@@ -177,6 +178,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
       this->shutdown(sock);
       this->close(sock);
       if (res == 0) {
+        timeout_expired = true;
         if (log) {
           log_warning("Timeout reached trying to connect to MySQL Server %s", addr.str().c_str());
         }
@@ -210,7 +212,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
   } // for (info = servinfo; info != nullptr; info = info->ai_next)
 
   if (info == nullptr) {
-    return -1;
+    return timeout_expired ? -2 : -1;
   }
 
   // Handle remaining errors

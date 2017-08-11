@@ -567,6 +567,32 @@ TEST_F(RoutingTests, make_thread_name) {
   EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
 }
 
+// This test verifies fix for Bug #23857183 and checks if trying to connect to wrong port
+// fails immediately not via timeout
+TEST_F(RoutingTests, ConnectToServerWrongPort) {
+  const int TIMEOUT = 4; // seconds
+
+  // wrong port number
+  {
+    mysqlrouter::TCPAddress address("127.0.0.1", 10888);
+    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
+    ASSERT_EQ(server, -1);
+  }
+
+// in darwin and solaris, attempting connection to 127.0.0.11 will fail by timeout
+#if !defined(__APPLE__) && !defined(__sun)
+  // wrong port number and IP
+  {
+    mysqlrouter::TCPAddress address("127.0.0.11", 10888);
+    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
+    ASSERT_EQ(server, -1);
+  }
+#endif
+}
+
+
 int main(int argc, char *argv[]) {
   init_log();
   ::testing::InitGoogleTest(&argc, argv);

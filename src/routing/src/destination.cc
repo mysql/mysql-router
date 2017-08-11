@@ -131,7 +131,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
     log_debug("Trying server %s (index %d)", addr.str().c_str(), i);
     auto sock = get_mysql_socket(addr, connect_timeout);
 
-    if (sock != -1) {
+    if (sock >= 0) {
       // Server is available
       current_pos_ = (i + 1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
       return sock;
@@ -196,7 +196,7 @@ void RouteDestination::cleanup_quarantine() noexcept {
     auto addr = destinations_.at(*it);
     auto sock = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
 
-    if (sock != -1) {
+    if (sock >= 0) {
 #ifndef _WIN32
       shutdown(sock, SHUT_RDWR);
       close(sock);
