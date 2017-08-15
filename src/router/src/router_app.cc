@@ -474,8 +474,8 @@ void MySQLRouter::init_plugin_loggers(mysql_harness::LoaderConfig& config) {
 
   // create loggers for all modules (plugins)
   std::list<std::string> log_domains(modules.begin(), modules.end());
-  mysql_harness::logging::init_loggers(registry, config,
-                                       log_domains, MYSQL_ROUTER_LOG_DOMAIN);
+  mysql_harness::logging::init_loggers( // throws std::invalid_argument, std::logic_error
+      registry, config, log_domains, MYSQL_ROUTER_LOG_DOMAIN);
 
   // take all the handlers that exist, and attach them to all new loggers.
   // At the time of writing, there is only one such handler - the main console/file

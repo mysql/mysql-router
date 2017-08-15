@@ -179,6 +179,8 @@ class HARNESS_EXPORT Registry {
    * Fetches default log level set in the configuration file
    *
    * @param config Configuration items from configuration file
+   *
+   * @throws std::invalid_argument if [logger].level in configuration is invalid
    */
   HARNESS_EXPORT
   LogLevel get_default_log_level(const Config& config);
@@ -216,8 +218,8 @@ class HARNESS_EXPORT Registry {
    * Initialize logging facility
    *
    * Initializes logging facility by registering a logger for each given module.
-   * Loggers will have their log level set to default log level set in the
-   * Router configuration.
+   * Loggers will have their log level set to default log level ([logger].level)
+   * set in the Router configuration .
    *
    * @note Loggers will not have any handlers attached, this needs to be done
    *       separately (see `create_main_logfile_handler()`)
@@ -228,6 +230,10 @@ class HARNESS_EXPORT Registry {
    * @param main_app_log_domain Log domain (logger id) to be used as the main
    *                            program logger. This logger must exist, because
    *                            log_*() functions might fail
+   *
+   * @throws std::invalid_argument (derived from logic_error) on invalid
+   *         [logger].level
+   * @throws std::logic_error on other error with reason accessible via what()
    */
   HARNESS_EXPORT
   void init_loggers(Registry& registry,

@@ -341,6 +341,8 @@ class HARNESS_EXPORT Config {
    * @param section Name of section to remove.
    * @param key Optional key of section to remove.
    * @param section_key section+key to remove.
+   *
+   * @return true if section was removed, false if section did not exit
    */
   bool remove(const SectionKey& section_key) noexcept;
 
