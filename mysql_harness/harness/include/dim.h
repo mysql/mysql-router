@@ -274,6 +274,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
 
   // Logging Registry
+  void reset_LoggingRegistry() { reset_generic(instance_LoggingRegistry_); }
   void set_LoggingRegistry(const std::function<mysql_harness::logging::Registry*(void)>& factory,
                            const std::function<void(mysql_harness::logging::Registry*)>& deleter) {
     factory_LoggingRegistry_ = factory;
@@ -315,7 +316,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   ////////////////////////////////////////////////////////////////////////////////
 
   // Logging Registry
-  mysql_harness::logging::Registry& get_LoggingRegistry() const { return get_generic(factory_LoggingRegistry_, deleter_LoggingRegistry_); }
+  mysql_harness::logging::Registry& get_LoggingRegistry() { return get_external_generic(instance_LoggingRegistry_, factory_LoggingRegistry_, deleter_LoggingRegistry_); }
 
   // RandomGenerator
   mysql_harness::RandomGeneratorInterface& get_RandomGenerator() const { return get_generic(factory_RandomGenerator_, deleter_RandomGenerator_); }
@@ -341,6 +342,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   // Logging Registry
   std::function<mysql_harness::logging::Registry*(void)> factory_LoggingRegistry_;
   std::function<void(mysql_harness::logging::Registry*)> deleter_LoggingRegistry_;
+  UniquePtr<mysql_harness::logging::Registry> instance_LoggingRegistry_;
 
   // MySQLSession
   std::function<mysqlrouter::MySQLSession*(void)> factory_MySQLSession_;

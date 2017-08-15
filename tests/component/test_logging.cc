@@ -248,6 +248,49 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   EXPECT_THAT(out.c_str(), HasSubstr(" Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
 }
 
+TEST_F(RouterLoggingTest, bad_loglevel) {
+  // This test verifies that bad log level in [logger] section is handled properly.
+  // Router should report the error on STDERR and exit
+
+  const std::string conf_file = create_config_file("[logger]\nlevel = UNKNOWN\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // 2017-08-14 16:03:44 main ERROR [7f7a61be6780] Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning
+  const std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
+  EXPECT_THAT(out.c_str(), HasSubstr(" Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning"));
+}
+
+TEST_F(RouterLoggingTest, bad_loglevel_gets_logged) {
+  // This test is the same as bad_loglevel(), but the failure
+  // message is expected to be logged into a logfile
+
+  // create tmp dir where we will log
+  const std::string logging_folder = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(logging_folder);});
+
+  // create config with logging_folder set to that directory
+  std::map<std::string, std::string> params = get_DEFAULT_defaults();
+  params.at("logging_folder") = logging_folder;
+  const std::string conf_file = create_config_file("[logger]\nlevel = UNKNOWN\n", &params);
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // 2017-08-14 16:03:44 main ERROR [7f7a61be6780] Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning
+  auto matcher = [](const std::string& line) -> bool {
+    return line.find(" main ERROR ") != line.npos &&
+           line.find(" Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning") != line.npos;
+  };
+  EXPECT_TRUE(find_in_log(logging_folder, matcher));
+}
+
 int main(int argc, char *argv[]) {
   g_origin_path = Path(argv[0]).dirname();
   ::testing::InitGoogleTest(&argc, argv);

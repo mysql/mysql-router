@@ -233,7 +233,7 @@ class HARNESS_EXPORT Registry {
    *
    * @throws std::invalid_argument (derived from logic_error) on invalid
    *         [logger].level
-   * @throws std::logic_error on other error with reason accessible via what()
+   * @throws std::logic_error on other error
    */
   HARNESS_EXPORT
   void init_loggers(Registry& registry,

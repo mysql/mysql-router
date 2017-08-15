@@ -408,6 +408,28 @@ static void set_default_log_level(mysql_harness::LoaderConfig& config) {
   }
 }
 
+std::exception_ptr detect_and_fix_nonfatal_problems(mysql_harness::LoaderConfig& config) {
+  // This function checks (and fixes) certain logging-related problems, which can be fixed well
+  // enough to enable the logger to initialize, and therefore log the actual problem, before the
+  // whole application exits with error.
+  //
+  // We return the exception ptr to the first problem we found.
+
+  std::exception_ptr eptr = nullptr;
+
+  // fix invalid log level
+  try {
+    mysql_harness::logging::get_default_log_level(config);
+  } catch (const std::invalid_argument&) {
+    mysql_harness::logging::g_HACK_default_log_level = mysql_harness::logging::kDefaultLogLevelName;
+    if (!eptr)
+      eptr = std::current_exception();
+  }
+
+  // return first problem found
+  return eptr;
+}
+
 /*static*/ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config) {
 
   // set defaults if they're not defined
@@ -417,39 +439,40 @@ static void set_default_log_level(mysql_harness::LoaderConfig& config) {
 
   const std::string logging_folder = config.get_default("logging_folder");
 
+  // detect (and fix) certain logger config problems early
+  std::exception_ptr first_problem = detect_and_fix_nonfatal_problems(config);
+
   // setup logging
   {
-    mysql_harness::logging::Registry& registry = DIM::instance().get_LoggingRegistry();
+    // REMINDER: If something threw beyond this point, but before we managed to re-initialize
+    //           the logger (registry), we would be in a world of pain: throwing with a non-
+    //           functioning logger may cascade to a place where the error is logged and... BOOM!)
+    //           So we deal with the above problem by working on a new logger registry object,
+    //           and only if nothing throws, we replace the current registry with the new one at
+    //           the very end.
 
-    // clear registry - this deletes previously-defined main logger
-    // REMINDER: If something throws beoynd this point, but before we manage to re-initialize
-    //           the logger, we need to take special care to properly handle such situation.
-    //           Throwing with a non-functioning logger is a very bad idea (it may cascade
-    //           to a place where the error is logged and... boom!)
-    clear_registry(DIM::instance().get_LoggingRegistry());
+    // our new logger registry, it will replace the current one if all goes well
+    std::unique_ptr<mysql_harness::logging::Registry> registry(new mysql_harness::logging::Registry());
 
-    // create main logger and attached handler
-    mysql_harness::logging::init_loggers(registry, config,
+    // register loggers for all modules + main exec (throws std::logic_error, std::invalid_argument)
+    mysql_harness::logging::init_loggers(*registry, config,
                                          {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
-    try {
-      mysql_harness::logging::create_main_logfile_handler(registry, kProgramName, logging_folder);
-    } catch (const std::runtime_error& e) {
-      // this should only be possible if we're logging to a file
-      harness_assert(!config.get_default("logging_folder").empty());
 
-      // Oops, we couldn't open the log file. We need to throw an exception, but first,
-      // we need to restore a functioning logger that will log the error to STDERR.
-      // We do this by calling ourselves again, but with logging_folder set to empty
-      // this time. Such call cannot fail.
-      config.set_default("logging_folder", "");
-      init_main_logger(config);
+    // attach all loggers to main handler (throws std::runtime_error)
+    mysql_harness::logging::create_main_logfile_handler(*registry, kProgramName, logging_folder);
 
-      // now that we have a functioning logger, it's time to throw the error
-      throw;
-    }
+    // nothing threw - we're good. Now let's replace the new registry with the old one
+    DIM::instance().set_LoggingRegistry([&registry](){ return registry.release(); },
+                                        std::default_delete<mysql_harness::logging::Registry>());
+    DIM::instance().reset_LoggingRegistry();
 
-    registry.set_ready();
+    // flag that the new loggers are ready for use
+    DIM::instance().get_LoggingRegistry().set_ready();
   }
+
+  // now that our logger is running, report the first problem found (if any)
+  if (first_problem)
+    std::rethrow_exception(first_problem);
 
   // and give it a first spin
   if (config.logging_to_file())
