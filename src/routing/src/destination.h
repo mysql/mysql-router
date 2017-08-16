@@ -230,6 +230,12 @@ protected:
    */
   virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, int connect_timeout, bool log_errors = true);
 
+  /** @brief Gets the id of the next server to connect to.
+   *
+   * @throws std::logic_error if destinations list is empty
+   */
+  size_t get_next_server();
+
   /** @brief List of destinations */
   AddrVector destinations_;
 

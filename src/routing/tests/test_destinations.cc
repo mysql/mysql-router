@@ -15,25 +15,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-
 #include <functional>
 #include <iostream>
 #include <stdexcept>
 
 #include "mysql/harness/logging/logging.h"
+#include "test/helpers.h"
 #include "destination.h"
 
 #include "mysqlrouter/datatypes.h"
+#include "routing_mocks.h"
+
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+
 
 using mysqlrouter::TCPAddress;
 using ::testing::StrEq;
 
 class RouteDestinationTest : public ::testing::Test {
 protected:
-  virtual void SetUp() {
-  }
+  virtual void SetUp() {}
+
+  MockSocketOperations mock_socket_operations_;
 };
 
 TEST_F(RouteDestinationTest, Constructor)
@@ -121,4 +125,60 @@ TEST_F(RouteDestinationTest, RemoveAll)
   d.clear();
   exp = 0;
   ASSERT_EQ(exp, d.size());
+}
+
+
+
+TEST_F(RouteDestinationTest, get_server_socket)
+{
+  int error;
+
+  // create round-robin (read-only) destination and add a few servers
+  RouteDestination dest(Protocol::get_default(), &mock_socket_operations_);
+  std::vector<int> dest_servers_addresses { 11, 12, 13 };
+  for (const auto& server_address: dest_servers_addresses) {
+    dest.add(std::to_string(server_address), 1 /*port - doesn't matter here*/);
+  }
+
+  // NOTE: this test exploits the fact that MockSocketOperations::get_mysql_socket() returns the value
+  // based on the IP address it is given (it uses the number the address starts with)
+
+  using ThrPtr = std::unique_ptr<std::thread>;
+  std::vector<ThrPtr> client_threads;
+  std::map<int, size_t> connections; // number of connections per each destination address
+  std::mutex connections_mutex;
+
+  // spawn number of threads each trying to get the server socket at the same time
+  const size_t kNumClientThreads = dest_servers_addresses.size() * 10;
+  for (size_t i = 0; i < kNumClientThreads; ++i) {
+    client_threads.emplace_back(
+      new std::thread(
+        [&]() {
+          int addr = dest.get_server_socket(0, &error);
+          {
+            std::unique_lock<std::mutex> lock(connections_mutex);
+            // increment the counter for returned address
+            ++connections[addr];
+          }
+        }
+      )
+    );
+  }
+
+  // wait for each thread to finish
+  for (auto& thr: client_threads) {
+     thr->join();
+  }
+
+  // we didn't simulate any connection errors so there should be no quarantine
+  // so the number of connections to the the destination addresses should be evenly distributed
+  for (const auto& server_address: dest_servers_addresses) {
+    EXPECT_EQ(connections[server_address], kNumClientThreads/dest_servers_addresses.size());
+  }
+}
+
+int main(int argc, char *argv[]) {
+  init_log();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

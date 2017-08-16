@@ -105,35 +105,48 @@ void RouteDestination::clear() {
   destinations_.clear();
 }
 
-int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
+size_t RouteDestination::get_next_server() {
+  std::lock_guard<std::mutex> lock(mutex_update_);
 
   if (destinations_.empty()) {
-    log_warning("No destinations currently available for routing");
-    return -1;  // no destination is available
+    throw std::runtime_error("Destination servers list is empty");
   }
 
-  // We start the list at the currently available server
-  for (size_t i = current_pos_;
-       quarantined_.size() < destinations_.size() && i < destinations_.size();
-       i = (i+1) % destinations_.size()) {
+  auto result = current_pos_.load();
+  current_pos_++;
+  if (current_pos_ >= destinations_.size()) current_pos_ = 0;
+
+  return result;
+}
+
+int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
+  size_t server_pos;
+
+  const size_t num_servers = size();
+  // Try at most num_servers times
+  for (size_t i = 0; i < num_servers; i++) {
+    try {
+      server_pos = get_next_server();
+    }
+    catch (const std::runtime_error&) {
+      log_warning("No destinations currently available for routing");
+      return -1;
+    }
 
     // If server is quarantined, skip
     {
       std::lock_guard<std::mutex> lock(mutex_quarantine_);
-      if (is_quarantined(i)) {
+      if (is_quarantined(server_pos)) {
         continue;
       }
     }
 
     // Try server
-    TCPAddress addr;
-    addr = destinations_.at(i);
-    log_debug("Trying server %s (index %d)", addr.str().c_str(), i);
-    auto sock = get_mysql_socket(addr, connect_timeout);
-
+    TCPAddress server_addr = destinations_[server_pos];
+    log_debug("Trying server %s (index %d)", server_addr.str().c_str(), server_pos);
+    auto sock = get_mysql_socket(server_addr, connect_timeout);
     if (sock >= 0) {
       // Server is available
-      current_pos_ = (i + 1) % destinations_.size(); // Reset to 0 when current_pos_ == size()
       return sock;
     } else {
 #ifndef _WIN32
@@ -144,7 +157,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
       if (errno != ENFILE && errno != EMFILE) {
         // We failed to get a connection to the server; we quarantine.
         std::lock_guard<std::mutex> lock(mutex_quarantine_);
-        add_to_quarantine(i);
+        add_to_quarantine(server_pos);
         if (quarantined_.size() == destinations_.size()) {
           log_debug("No more destinations: all quarantined");
           break;
@@ -155,7 +168,6 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
     }
   }
 
-  current_pos_ = 0;
   return -1; // no destination is available
 }
 
