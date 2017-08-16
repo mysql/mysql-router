@@ -64,6 +64,7 @@ set(source_include
   "${src_dir}/ext"
   "${src_dir}/src"
   "${src_dir}/tests"
+  "${src_dir}/tools"
   "${src_dir}/packaging"
   "${src_dir}/CMakeLists.txt"
   "${src_dir}/config.h.in"

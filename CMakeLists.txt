@@ -76,3 +76,5 @@ endif()
 
 # Load all modules, including plugins
 add_subdirectory(src)
+
+add_subdirectory(tools)

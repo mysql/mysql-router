@@ -507,17 +507,37 @@ const uint32_t PLUGIN_ABI_VERSION = 0x0200;
 const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HARNESS_ARCH_OS@/@MYSQL_HARNESS_ARCH_COMPILER@/@MYSQL_HARNESS_ARCH_RUNTIME@";
 
 /**
- * Macro to create a version number from a major and minor version.
+ * Macro to create a version number from a major, minor and patch version.
  *
  * @ingroup Loader
  */
 #define VERSION_NUMBER(MAJ, MIN, PAT) \
   ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
 
+/**
+ * Macros to extract major/minor/patch version from the full version number.
+ *
+ * @ingroup Loader
+ */
 #define VERSION_MAJOR(VER) (((VER) >> 24) & 0xFF)
 #define VERSION_MINOR(VER) (((VER) >> 16) & 0xFF)
 #define VERSION_PATCH(VER) ((VER) & 0xFFFF)
 
+/**
+ * Macro to create ABI version number from a major and minor version.
+ *
+ * @ingroup Loader
+ */
+#define ABI_VERSION_NUMBER(MAJ, MIN) \
+  ((((MAJ) & 0xFF) << 8) | ((MIN) & 0xFF))
+
+/**
+ * Macros to extract major/minor version from the full ABI version number.
+ *
+ * @ingroup Loader
+ */
+#define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
+#define ABI_VERSION_MINOR(VER) ((VER) & 0xFF)
 }
 
 #endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */
