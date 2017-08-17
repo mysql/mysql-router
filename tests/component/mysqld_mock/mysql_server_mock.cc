@@ -264,6 +264,14 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
                                               next_statement.statement);
       }
 
+      // debug trace: show SQL statement that was received vs what was expected
+      std::cout << "vvvv---- received statement ----vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"
+                << statement_received << std::endl
+                << "----\n"
+                << next_statement.statement << std::endl
+                << "^^^^---- expected statement ----^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+                << (statement_matching ? "[MATCH OK]\n" : "[MATCH FAILED]\n\n\n\n") << std::flush;
+
       if (!statement_matching) {
         auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
         send_error(client_socket, packet_seq, MYSQL_PARSE_ERROR,
@@ -288,6 +296,16 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
   return true;
 }
 
+static void debug_trace_result(const QueriesJsonReader::resultset_type& resultset) {
+  std::cout << "QUERY RESULT:\n";
+  for (size_t i = 0; i < resultset.rows.size(); ++i) {
+    for (const std::string& cell : resultset.rows[i])
+      std::cout << "  |  " << cell;
+    std::cout << "  |\n";
+  }
+  std::cout << "\n\n\n" << std::flush;
+}
+
 void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
                     const QueriesJsonReader::statement_info& statement) {
   using statement_result_type = QueriesJsonReader::statement_result_type;
@@ -298,6 +316,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
   break;
   case statement_result_type::STMT_RES_RESULT: {
     const auto& resultset = statement.resultset;
+    debug_trace_result(resultset);
     seq_no = static_cast<uint8_t>(seq_no + 1);
     auto buf = protocol_encoder_.encode_columns_number_message(seq_no++, resultset.columns.size());
     send_packet(client_socket, buf);
