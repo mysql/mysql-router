@@ -112,7 +112,7 @@ void ProcessLauncher::start() {
   free(sz_cmd_line);
 }
 
-uint64_t ProcessLauncher::get_pid() {
+uint64_t ProcessLauncher::get_pid() const {
   return (uint64_t)pi.hProcess;
 }
 
@@ -225,11 +225,11 @@ void ProcessLauncher::report_error(const char *msg, const char* prefix) {
   }
 }
 
-uint64_t ProcessLauncher::get_fd_write() {
+uint64_t ProcessLauncher::get_fd_write() const {
   return (uint64_t)child_in_wr;
 }
 
-uint64_t ProcessLauncher::get_fd_read() {
+uint64_t ProcessLauncher::get_fd_read() const {
   return (uint64_t)child_out_rd;
 }
 
@@ -388,7 +388,7 @@ void ProcessLauncher::report_error(const char *msg, const char *prefix)
   }
 }
 
-uint64_t ProcessLauncher::get_pid()
+uint64_t ProcessLauncher::get_pid() const
 {
   return (uint64_t)childpid;
 }
@@ -433,12 +433,12 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
   return exitstatus;
 }
 
-uint64_t ProcessLauncher::get_fd_write()
+uint64_t ProcessLauncher::get_fd_write() const
 {
   return (uint64_t)fd_in[1];
 }
 
-uint64_t ProcessLauncher::get_fd_read()
+uint64_t ProcessLauncher::get_fd_read() const
 {
   return (uint64_t)fd_out[0];
 }

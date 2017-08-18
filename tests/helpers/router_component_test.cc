@@ -251,7 +251,7 @@ bool RouterComponentTest::CommandHandle::read_output(unsigned timeout_ms) {
 }
 
 void RouterComponentTest::CommandHandle::handle_output(const std::string &line) {
-  for (auto &response: output_responses_) {
+  for (const auto &response: output_responses_) {
     const std::string &output = response.first;
     if (line.substr(0, output.size()) == output) {
       const char* resp = response.second.c_str();

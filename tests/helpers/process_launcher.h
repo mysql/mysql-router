@@ -77,11 +77,11 @@ public:
    * Returns the child process handle.
    * In Linux this needs to be cast to pid_t, in Windows to cast to HANDLE.
    */
-  uint64_t get_pid();
+  uint64_t get_pid() const;
 
   /**
    * Wait for the child process to exists and returns its exit code.
-   * If the child process is already dead, wait() it just returns.
+   * If the child process is already dead, wait() just returns.
    * Returns the exit code of the process.
    */
   int wait(unsigned int timeout_ms = 1000);
@@ -90,13 +90,13 @@ public:
   * Returns the file descriptor write handle (to write child's stdin).
   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
   */
-  uint64_t get_fd_write();
+  uint64_t get_fd_write() const;
 
   /**
   * Returns the file descriptor read handle (to read child's stdout).
   * In Linux this needs to be cast to int, in Windows to cast to HANDLE.
   */
-  uint64_t get_fd_read();
+  uint64_t get_fd_read() const;
 
 private:
   /**
