@@ -69,6 +69,7 @@ using std::string;
 using std::vector;
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
+using mysql_harness::truncate_string;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::wrap_string;
@@ -1102,7 +1103,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysqlrouter::mkdir(default_keyring_file, mysqlrouter::kStrictDirectoryPerm) < 0) {
-        log_error("Cannot create directory '%s': %s", default_keyring_file.c_str(), get_strerror(errno).c_str());
+        log_error("Cannot create directory '%s': %s", truncate_string(default_keyring_file).c_str(), get_strerror(errno).c_str());
         throw std::runtime_error("Could not create keyring directory");
       } else {
         // sets the directory owner for the --user if provided

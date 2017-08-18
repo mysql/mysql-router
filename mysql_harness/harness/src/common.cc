@@ -15,12 +15,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
 #include <sstream>
 #include <memory>
 #include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <string.h>
 #include <fstream>
+
+#include "common.h"
+#include "harness_assert.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -369,6 +371,37 @@ void rename_thread(const char thread_name[16]) {
   (void) thread_name;
 
 #endif
+}
+
+static inline const std::string& truncate_string_backend(const std::string& input,
+                                                         std::string& output,
+                                                         size_t max_len) {
+
+  // to keep code simple, we don't support unlikely use cases
+  harness_assert(max_len >= 6); // 3 (to fit the first 3 chars) + 3 (to fit "..."), allowing: "foo..."
+                                // ^--- arbitrarily-reasonable number, could be even 0 if we wanted
+
+  // no truncation needed, so just return the original
+  if (input.size() <= max_len)
+    return input;
+
+  // we truncate and overwrite last three characters with "..."
+  // ("foobarbaz" becomes "foobar...")
+  output.assign(input, 0, max_len);
+  output[max_len-3] = '.';
+  output[max_len-2] = '.';
+  output[max_len-1] = '.';
+  return output;
+}
+
+const std::string& truncate_string(const std::string& input, size_t max_len /*= 80*/) {
+  thread_local std::string output;
+  return truncate_string_backend(input, output, max_len);
+}
+
+std::string truncate_string_r(const std::string& input, size_t max_len /*= 80*/) {
+  std::string output;
+  return truncate_string_backend(input, output, max_len);
 }
 
 } // namespace mysql_harness

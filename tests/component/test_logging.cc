@@ -63,6 +63,8 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
     return false;
   }
 
+  static const unsigned SERVER_PORT = 4417;
+
  private:
   bool real_find_in_log(const std::string logging_folder, const std::function<bool(const std::string&)>& predicate) {
     Path file(logging_folder + "/" + "mysqlrouter.log");
@@ -285,6 +287,41 @@ TEST_F(RouterLoggingTest, bad_loglevel_gets_logged) {
            line.find(" Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning") != line.npos;
   };
   EXPECT_TRUE(find_in_log(logging_folder, matcher));
+}
+
+TEST_F(RouterLoggingTest, DISABLED_very_long_router_name_gets_properly_logged) {
+  // This test verifies that a very long router name gets truncated in the
+  // logged message (this is done because if it doesn't happen, the entire
+  // message will exceed log message max length, and then the ENTIRE message
+  // will get truncated instead. It's better to truncate the long name rather
+  // than the stuff that follows it).
+  // Router should report the error on STDERR and exit
+
+  const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
+  const std::string bootstrap_dir = get_tmp_dir();
+
+  // launch mock server and wait for it to start accepting connections
+  RouterComponentTest::CommandHandle server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
+  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+  std::string name = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
+  assert(name.size() > 255);  // log message max length is 256, we want something that guarrantees the limit would be exceeded
+
+  // launch the router in bootstrap mode
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(SERVER_PORT)
+                              + " --name " + name + " -d " + bootstrap_dir);
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // wait for router to exit
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255).
+  std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), HasSubstr("Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255)."));
 }
 
 int main(int argc, char *argv[]) {

@@ -63,6 +63,7 @@ add_harness_test(TestLogger SOURCES test_logging.cc)
 add_harness_test(TestDesignator SOURCES test_designator.cc)
 add_harness_test(TestIterator SOURCES test_iterator.cc)
 add_harness_test(TestUtilities SOURCES test_utilities.cc)
+add_harness_test(TestCommon SOURCES test_common.cc)
 
 add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
 add_harness_test(TestConfig SOURCES test_config.cc)

@@ -80,7 +80,40 @@ std::string HARNESS_EXPORT get_strerror(int err);
  */
 void HARNESS_EXPORT rename_thread(const char thread_name[16]);
 
-}
+/** @brief Return a truncated version of input string (fast version)
+ *
+ * WARNING!
+ * This function is optimised for speed, but see note below for use restrictions.
+ * If these are a problem, use truncate_string_r() instead.
+ *
+ * This function returns a refernce to the input string if input.size() <= max_len,
+ * otherwise it returns a reference to a truncated copy of input string.
+ *
+ * @param input input text
+ * @param max_len maximum length after truncation
+ * @return const reference to truncated string
+ *
+ * @note This function may return a reference to a string allocated on thread-local
+ *       storage. Therefore, the resulting string reference is only valid until
+ *       another call to this function is made from caller's thread (other threads
+ *       calling this function have no impact), and by the same token, dereferencing
+ *       it outside of the caller's thread may lead to a race. If your use case
+ *       violates these limitations, you should use truncate_string_r() instead
+ *       to ensure safety.
+ */
+HARNESS_EXPORT
+const std::string& truncate_string(const std::string& input, size_t max_len = 80);
+
+/** @brief Return a truncated version of input string (reentrant version)
+ *
+ * This is a safe version of truncate_string(), which lifts its use restrictions
+ * by always returning a copy of result string. Please see documentation of
+ * truncate_string() for more information.
+ */
+HARNESS_EXPORT
+std::string truncate_string_r(const std::string& input, size_t max_len = 80);
+
+} // namespace mysql_harness
 
 /**
  * Macros for disabling and enabling compiler warnings.

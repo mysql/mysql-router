@@ -64,7 +64,7 @@ namespace logging {
  * Max message length that can be logged; if message is longer,
  * it will be truncated to this length.
  */
-const size_t kLogMessageMaxSize = 256;
+const size_t kLogMessageMaxSize = 4096;
 
 /**
  * Section name and option name used in config file (and later in configuration

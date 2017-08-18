@@ -79,6 +79,7 @@ static constexpr unsigned kDefaultPasswordRetries = 20; // number of the retries
 static constexpr unsigned kMaxPasswordRetries = 10000;
 
 using mysql_harness::get_strerror;
+using mysql_harness::truncate_string;
 using mysql_harness::Path;
 using mysql_harness::UniquePtr;
 using mysql_harness::DIM;
@@ -376,9 +377,9 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   if (user_options.find("name") != user_options.end()) {
     router_name = user_options.at("name");
     if (!is_valid_name(router_name))
-      throw std::runtime_error("Router name '" + router_name + "' contains invalid characters.");
+      throw std::runtime_error("Router name '" + truncate_string(router_name) + "' contains invalid characters.");
     if (router_name.length() > kMaxRouterNameLength)
-      throw std::runtime_error("Router name '" + router_name + "' too long (max " + std::to_string(kMaxRouterNameLength) + ").");
+      throw std::runtime_error("Router name '" + truncate_string(router_name) + "' too long (max " + std::to_string(kMaxRouterNameLength) + ").");
   }
   if (router_name.empty())
     router_name = kSystemRouterName;
@@ -441,14 +442,14 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     if ((router_name = user_options.at("name")) == kSystemRouterName)
       throw std::runtime_error("Router name '" + kSystemRouterName + "' is reserved");
     if (!is_valid_name(router_name))
-      throw std::runtime_error("Router name '"+router_name+"' contains invalid characters.");
+      throw std::runtime_error("Router name '" + truncate_string(router_name) + "' contains invalid characters.");
     if (router_name.length() > kMaxRouterNameLength)
-      throw std::runtime_error("Router name '"+router_name+"' too long (max "+std::to_string(kMaxRouterNameLength)+").");
+      throw std::runtime_error("Router name '" + truncate_string(router_name) + "' too long (max "+std::to_string(kMaxRouterNameLength)+").");
   }
 
   if (!path.exists()) {
     if (mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
-      log_error("Cannot create directory '%s': %s", directory.c_str(), get_strerror(errno).c_str());
+      log_error("Cannot create directory '%s': %s", truncate_string(directory).c_str(), get_strerror(errno).c_str());
 #ifndef _WIN32
       if (errno == EACCES || errno == EPERM) {
         log_error(
@@ -504,7 +505,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     if (do_mkdir) {
       if (mkdir(options[option_name].c_str(), kStrictDirectoryPerm) < 0) {
         if (errno != EEXIST) {
-          log_error("Cannot create directory '%s': %s", options[option_name].c_str(), get_strerror(errno).c_str());
+          log_error("Cannot create directory '%s': %s", truncate_string(options[option_name]).c_str(), get_strerror(errno).c_str());
           throw std::runtime_error("Could not create " + option_name + "directory");
         }
       } else {
