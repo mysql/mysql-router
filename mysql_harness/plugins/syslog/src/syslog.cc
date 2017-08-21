@@ -33,8 +33,8 @@ class SyslogHandler final : public mysql_harness::logging::Handler {
  public:
   static constexpr const char* kDefaultName = "syslog";
 
-  SyslogHandler(LogLevel level = LogLevel::kNotSet)
-      : mysql_harness::logging::Handler(level) {}
+  SyslogHandler(bool format_messages = true, LogLevel level = LogLevel::kNotSet)
+      : mysql_harness::logging::Handler(format_messages, level) {}
   ~SyslogHandler() { close(); }
 
   void open(const std::string& ident) {

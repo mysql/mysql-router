@@ -216,17 +216,21 @@ std::ostream *get_default_logger_stream() {
 
 void create_main_logfile_handler(Registry& registry,
                                  const std::string& program,
-                                 const std::string& logging_folder) {
+                                 const std::string& logging_folder,
+                                 bool format_messages) {
   // Register the console as the handler if the logging folder is
   // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {
-    registry.add_handler(kMainConsoleHandler, std::make_shared<StreamHandler>(*get_default_logger_stream()));
+    registry.add_handler(kMainConsoleHandler,
+                         std::make_shared<StreamHandler>(*get_default_logger_stream(),
+                                                         format_messages));
     attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   } else {
     Path log_file = Path::make_path(logging_folder, program, "log");
 
     // throws std::runtime_error on failure to open file
-    registry.add_handler(kMainLogHandler, std::make_shared<FileHandler>(log_file));
+    registry.add_handler(kMainLogHandler,
+                         std::make_shared<FileHandler>(log_file, format_messages));
 
     attach_handler_to_all_loggers(registry, kMainLogHandler);
   }

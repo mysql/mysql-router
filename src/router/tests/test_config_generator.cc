@@ -2376,6 +2376,8 @@ int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();
   g_cwd = mysql_harness::Path(argv[0]).dirname().str();
+  init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+

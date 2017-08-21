@@ -253,13 +253,16 @@ class HARNESS_EXPORT Registry {
    * @param registry Registry object, typically managed by DIM
    * @param program Name of the main program (Router)
    * @param logging_folder logging_folder provided in configuration file
+   * @param format_messages If set to true, log messages will be formatted
+   *        (prefixed with log level, timestamp, etc) before logging
    *
    * @throws std::runtime_error if opening log file fails
    */
   HARNESS_EXPORT
   void create_main_logfile_handler(Registry& registry,
                                    const std::string& program,
-                                   const std::string& logging_folder);
+                                   const std::string& logging_folder,
+                                   bool format_messages);
 
 
 

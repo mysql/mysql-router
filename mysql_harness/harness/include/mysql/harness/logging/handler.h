@@ -64,7 +64,7 @@ class HARNESS_EXPORT Handler {
  protected:
   std::string format(const Record& record) const;
 
-  explicit Handler(LogLevel level);
+  explicit Handler(bool format_messages, LogLevel level);
 
  private:
   /**
@@ -78,6 +78,12 @@ class HARNESS_EXPORT Handler {
    * @param record Record containing information about the message.
    */
   virtual void do_log(const Record& record) = 0;
+
+  /**
+   * Flags if log messages should be formatted (prefixed with log level,
+   * timestamp, etc) before logging.
+   */
+  bool format_messages_;
 
   /**
    * Log level set for the handler.
@@ -99,6 +105,7 @@ class HARNESS_EXPORT StreamHandler : public Handler {
   static constexpr const char* kDefaultName = "stream";
 
   explicit StreamHandler(std::ostream& stream,
+                         bool format_messages = true,
                          LogLevel level = LogLevel::kNotSet);
 
  protected:
@@ -122,7 +129,9 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
  public:
   static constexpr const char* kDefaultName = "file";
 
-  explicit FileHandler(const Path& path, LogLevel level = LogLevel::kNotSet);
+  explicit FileHandler(const Path& path,
+                       bool format_messages = true,
+                       LogLevel level = LogLevel::kNotSet);
   ~FileHandler();
 
  private:

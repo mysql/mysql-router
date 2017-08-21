@@ -132,6 +132,8 @@ public:
    * Initializes main logger, according to options in the configuration.
    *
    * @param config Configuaration to be used to initialize logger
+   * @param raw_mode If true, all messages are logged raw; if false, messages
+   *        are subject formatting
    *
    * @throws std::runtime_error on:
    * - failure to initialize file logger
@@ -140,7 +142,7 @@ public:
    * @note This function is static and public, because unlike init_plugin_loggers(),
    * it's also meant to be called very early during startup, close to main().
    */
-  static void init_main_logger(mysql_harness::LoaderConfig& config);
+  static void init_main_logger(mysql_harness::LoaderConfig& config, bool raw_mode = false);
 
   // Information member function
   std::string get_package_name() noexcept;

@@ -62,12 +62,17 @@ namespace logging {
 ////////////////////////////////////////////////////////////////
 // class Handler
 
-Handler::Handler(LogLevel level) : level_(level) {}
+Handler::Handler(bool format_messages, LogLevel level) :
+    format_messages_(format_messages), level_(level) {}
 
 // Log format is:
 // <date> <time> <plugin> <level> [<thread>] <message>
 
 std::string Handler::format(const Record& record) const {
+  // Bypass formatting if disabled
+  if (!format_messages_)
+    return record.message;
+
   // Format the time (19 characters)
   char time_buf[20];
   strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S",
@@ -85,7 +90,7 @@ std::string Handler::format(const Record& record) const {
            level_str[static_cast<int>(record.level)],
            ss.str().c_str(), record.message.c_str());
 
-  // Note: This copy the buffer into an std::string
+  // Note: This copies the buffer into an std::string
   return buffer;
 }
 
@@ -99,8 +104,10 @@ constexpr const char* StreamHandler::kDefaultName;
 ////////////////////////////////////////////////////////////////
 // class StreamHandler
 
-StreamHandler::StreamHandler(std::ostream& out, LogLevel level)
-    : Handler(level), stream_(out) {}
+StreamHandler::StreamHandler(std::ostream& out,
+                             bool format_messages,
+                             LogLevel level)
+    : Handler(format_messages, level), stream_(out) {}
 
 void StreamHandler::do_log(const Record& record) {
   std::lock_guard<std::mutex> lock(stream_mutex_);
@@ -110,8 +117,10 @@ void StreamHandler::do_log(const Record& record) {
 ////////////////////////////////////////////////////////////////
 // class FileHandler
 
-FileHandler::FileHandler(const Path& path, LogLevel level)
-    : StreamHandler(fstream_, level),
+FileHandler::FileHandler(const Path& path,
+                         bool format_messages,
+                         LogLevel level)
+    : StreamHandler(fstream_, format_messages, level),
       fstream_(path.str(), ofstream::app) {
   if (fstream_.fail()) {
     throw std::runtime_error("Failed to open " + path.str() + ": " +

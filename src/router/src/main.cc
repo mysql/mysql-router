@@ -72,7 +72,7 @@ int real_main(int argc, char **argv) {
   // initialize logger to log to stderr. After reading configuration inside of MySQLRouter::start(),
   // it will be re-initialized according to information in the configuration file
   mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
-  MySQLRouter::init_main_logger(config);
+  MySQLRouter::init_main_logger(config, true); // true = raw logging mode
 
   extern std::string g_program_name;
   g_program_name = argv[0];

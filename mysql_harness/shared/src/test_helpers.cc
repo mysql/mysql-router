@@ -84,7 +84,7 @@ void init_test_logger(const std::list<std::string>& additional_log_domains /* = 
 
   mysql_harness::logging::clear_registry(registry);
   mysql_harness::logging::init_loggers(registry, config, log_domains, mysql_harness::logging::kMainLogger);
-  mysql_harness::logging::create_main_logfile_handler(registry, log_filename, log_folder);
+  mysql_harness::logging::create_main_logfile_handler(registry, log_filename, log_folder, true);
 
   registry.set_ready();
 }

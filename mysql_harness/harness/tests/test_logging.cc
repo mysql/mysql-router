@@ -66,7 +66,9 @@ using testing::Eq;
 using testing::Ge;
 using testing::Gt;
 using testing::HasSubstr;
+using testing::Not;
 using testing::StartsWith;
+using testing::StrEq;
 using testing::Test;
 using testing::Values;
 using testing::ValuesIn;
@@ -373,6 +375,8 @@ TEST_F(LoggingTest, StreamHandler) {
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
   logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
+
+  // message should be logged after applying format (timestamp, etc)
   EXPECT_THAT(buffer.str(), StartsWith("1970-01-01 01:00:00 my_module INFO"));
   EXPECT_THAT(buffer.str(), EndsWith("Message\n"));
 
@@ -410,11 +414,31 @@ TEST_F(LoggingTest, FileHandler) {
 
   // Check basic properties for the first line.
   EXPECT_THAT(lines.size(), Eq(1));
+
+  // message should be logged after applying format (timestamp, etc)
   EXPECT_THAT(lines.at(0), StartsWith("1970-01-01 01:00:00 my_module INFO"));
   EXPECT_THAT(lines.at(0), EndsWith("Message"));
 
   // clean up
   g_registry->remove_handler("TestFileHandler");
+}
+
+TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
+  std::stringstream buffer;
+
+  g_registry->add_handler("TestStreamHandler", std::make_shared<StreamHandler>(buffer, false));
+  logger.attach_handler("TestStreamHandler");
+
+  // A bunch of casts to int for tellp to avoid C2666 in MSVC
+  ASSERT_THAT((int)buffer.tellp(), Eq(0));
+  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  EXPECT_THAT((int)buffer.tellp(), Gt(0));
+
+  // message should be logged verbatim
+  EXPECT_THAT(buffer.str(), StrEq("Message\n"));
+
+  // clean up
+  g_registry->remove_handler("TestStreamHandler");
 }
 
 TEST_F(LoggingTest, Messages) {
@@ -461,7 +485,7 @@ TEST_P(LogLevelTest, Level) {
   LogLevel handler_level = std::get<1>(GetParam());
 
   std::stringstream buffer;
-  g_registry->add_handler("TestStreamHandler", std::make_shared<StreamHandler>(buffer, handler_level));
+  g_registry->add_handler("TestStreamHandler", std::make_shared<StreamHandler>(buffer, true, handler_level));
   logger.attach_handler("TestStreamHandler");
 
   time_t now;

@@ -351,7 +351,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
 }
 
 // throws mysql_harness::bad_section (std::runtime_error) on [logger:some_key] section
-static void set_default_log_level(mysql_harness::LoaderConfig& config) {
+static void set_default_log_level(mysql_harness::LoaderConfig& config, bool raw_mode /*= false*/) {
 
   // What we do here is an UGLY HACK. TODO remove once we have a proper remedy.
   //
@@ -397,7 +397,9 @@ static void set_default_log_level(mysql_harness::LoaderConfig& config) {
     mysql_harness::logging::g_HACK_default_log_level = config.get(kLogger, kNone).get(kLogLevel);
   // otherwise, set it to default
   else
-    mysql_harness::logging::g_HACK_default_log_level = mysql_harness::logging::kDefaultLogLevelName;
+    mysql_harness::logging::g_HACK_default_log_level = raw_mode
+        ? mysql_harness::logging::kRawLogLevelName
+        : mysql_harness::logging::kDefaultLogLevelName;
 
   // now erase the entire [logger] section, if it exists (NOTE: it will not erase sections with keys)
   config.remove(kLogger);  // no-op if [logger] section doesn't exist
@@ -430,10 +432,11 @@ std::exception_ptr detect_and_fix_nonfatal_problems(mysql_harness::LoaderConfig&
   return eptr;
 }
 
-/*static*/ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config) {
+/*static*/
+void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config, bool raw_mode /*= false*/) {
 
   // set defaults if they're not defined
-  set_default_log_level(config);  // throws std::runtime_error on [logger:some_key] section
+  set_default_log_level(config, raw_mode);  // throws std::runtime_error on [logger:some_key] section
   if (!config.has_default("logging_folder"))
     config.set_default("logging_folder", "");
 
@@ -459,7 +462,8 @@ std::exception_ptr detect_and_fix_nonfatal_problems(mysql_harness::LoaderConfig&
                                          {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
 
     // attach all loggers to main handler (throws std::runtime_error)
-    mysql_harness::logging::create_main_logfile_handler(*registry, kProgramName, logging_folder);
+    mysql_harness::logging::create_main_logfile_handler(*registry, kProgramName,
+                                                        logging_folder, !raw_mode);
 
     // nothing threw - we're good. Now let's replace the new registry with the old one
     DIM::instance().set_LoggingRegistry([&registry](){ return registry.release(); },

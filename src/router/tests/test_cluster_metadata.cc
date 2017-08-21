@@ -17,6 +17,7 @@
 
 #include "router_test_helpers.h"
 #include "mysqlrouter/utils.h"
+#include "test/helpers.h"
 
 #include <cstring>
 
@@ -154,4 +155,10 @@ TEST_F(ClusterMetadataTest, register_router_get_hostname_throws) {
 
   // get_my_hostname() throwing should be handled inside register_router
   EXPECT_NO_THROW(cluster_metadata.register_router(kRouterName, false));
+}
+
+int main(int argc, char *argv[]) {
+  init_test_logger();
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

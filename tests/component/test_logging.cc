@@ -22,6 +22,7 @@
 #include <functional>
 
 using testing::HasSubstr;
+using testing::StartsWith;
 Path g_origin_path;
 
 class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
@@ -152,10 +153,9 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
-    // 2017-07-28 12:24:11 main ERROR [7f6eafe41780] Error: Error when creating dir '/bla': 13
+    // Error: Error when creating dir '/bla': 13
     std::string out = router.get_full_output();
-    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Error when creating dir '" + logging_dir + "': 13"));
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Error when creating dir '" + logging_dir + "': 13"));
   }
 
   // logging_folder exists but is not writeable
@@ -172,10 +172,9 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
-    // 2017-07-28 15:48:40 main ERROR [7f41b826a780] Error: Failed to open //mysqlrouter.log: Permission denied
+    // Error: Failed to open //mysqlrouter.log: Permission denied
     std::string out = router.get_full_output();
-    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: Permission denied"));
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Permission denied"));
   }
 
   // restore writability to tmp dir
@@ -203,13 +202,12 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
-    // 2017-07-28 15:52:43 main ERROR [7fcbbfb90780] Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
+    // Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
     std::string out = router.get_full_output();
-    EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
 #else
-    EXPECT_THAT(out.c_str(), HasSubstr(" Error: Failed to open " + logging_dir + "/mysqlrouter.log: No such file or directory"));
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: No such file or directory"));
 #endif
   }
 }
@@ -225,10 +223,9 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
-  // 2017-08-02 16:44:39 main ERROR [7ff0cf635780] Error: Section 'logger' does not support keys
+  // Error: Section 'logger' does not support keys
   std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-  EXPECT_THAT(out.c_str(), HasSubstr(" Error: Section 'logger' does not support keys"));
+  EXPECT_THAT(out.c_str(), StartsWith("Error: Section 'logger' does not support keys"));
 }
 
 TEST_F(RouterLoggingTest, multiple_logger_sections) {
@@ -242,10 +239,9 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
-  // 2017-08-02 16:47:35 main ERROR [7f756674d780] Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'.
+  // Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'.
   std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-  EXPECT_THAT(out.c_str(), HasSubstr(" Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
+  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
 }
 
 TEST_F(RouterLoggingTest, bad_loglevel) {
