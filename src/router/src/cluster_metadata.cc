@@ -20,6 +20,9 @@
 #include "common.h"
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
+#include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
+
 #include <memory>
 #include <string.h>
 #ifdef _WIN32
@@ -331,8 +334,8 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
     // If we fail to get the hostname we continue with an empty value.
     // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
     // Currently the hostname in the metadata is not being used anyway.
-    std::cout << "WARNING: Failed calling get_my_hostname() with error: " << exc.what() << std::endl
-              << "Continuing with an empty hostname" << std::endl;
+    log_warning("WARNING: Failed calling get_my_hostname() with error: %s\n"
+                "Continuing with an empty hostname", exc.what());
     // TODO: also log when the logger is available here
   }
 
@@ -387,9 +390,8 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
     // If we fail to get the hostname we continue with an empty value.
     // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
     // Currently the hostname in the metadata is not being used anyway.
-
-    std::cout << "WARNING: Failed calling get_my_hostname() with error: " << exc.what() << std::endl
-              << "Continuing with an empty hostname" << std::endl;
+    log_warning("WARNING: Failed calling get_my_hostname() with error: %s\n"
+                "Continuing with an empty hostname", exc.what());
     // TODO: also log when the logger is available here
   }
 

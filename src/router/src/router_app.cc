@@ -1044,7 +1044,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     PasswordVault pv;
     pv.update_password(value, pass);
     pv.store_passwords();
-    std::cout << "The password was stored in the vault successfully." << std::endl;
+    log_info("The password was stored in the vault successfully.");
     throw silent_exception();
   });
 
@@ -1053,7 +1053,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     PasswordVault pv;
     pv.remove_password(value);
     pv.store_passwords();
-    std::cout << "The password was removed successfully." << std::endl;
+    log_info("The password was removed successfully.");
     throw silent_exception();
   });
 
@@ -1061,7 +1061,7 @@ void MySQLRouter::prepare_command_options() noexcept {
     CmdOptionValueReq::none, "", [this](const string&) {
     PasswordVault pv;
     pv.clear_passwords();
-    std::cout << "Removed successfully all passwords from the vault." << std::endl;
+    log_info("Removed successfully all passwords from the vault.");
     throw silent_exception();
   });
 #endif
@@ -1102,7 +1102,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysqlrouter::mkdir(default_keyring_file, mysqlrouter::kStrictDirectoryPerm) < 0) {
-        std::cerr << "Cannot create directory " << default_keyring_file << ": " << get_strerror(errno) << "\n";
+        log_error("Cannot create directory '%s': %s", default_keyring_file.c_str(), get_strerror(errno).c_str());
         throw std::runtime_error("Could not create keyring directory");
       } else {
         // sets the directory owner for the --user if provided
