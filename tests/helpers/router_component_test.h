@@ -23,13 +23,66 @@
 #include <map>
 #include <streambuf>
 #include <vector>
+#include <iostream>
 #ifndef _WIN32
 #include <unistd.h>
-#else
-typedef long ssize_t;
 #endif
 
 using mysql_harness::Path;
+
+/** @class UniqueID
+ *
+ * Helper class allowing mechanism to retrieve system-level unique identifier.
+ * Compatible with mysql-test MTR, see mysql-test/lib/mtr_unique.pm for details
+ *
+ **/
+class UniqueId {
+ public:
+  UniqueId(unsigned start_from, unsigned range);
+  UniqueId(UniqueId&& other);
+  ~UniqueId();
+
+  UniqueId(const UniqueId&) = delete;
+  UniqueId& operator=(const UniqueId&) = delete;
+
+  unsigned get() const {
+    return id_;
+  }
+
+ private:
+   bool lock_file(const std::string& file_name);
+   std::string get_lock_file_dir() const;
+
+  unsigned id_;
+#ifndef _WIN32
+  int lock_file_fd_;
+#else
+  HANDLE lock_file_fd_;
+#endif
+  std::string lock_file_name_;
+};
+
+/** @class TcpPortPool
+ *
+ * Helper class allowing mechanism to retrieve pool of the system-level unique TCP port numbers.
+ * Compatible with mysql-test MTR, see mysql-test/lib/mtr_unique.pm for details.
+ *
+ **/
+class TcpPortPool {
+public:
+  TcpPortPool(unsigned start_from = 1, unsigned range = 300):
+    unique_id_(start_from, range) {}
+
+  TcpPortPool(const TcpPortPool&) = delete;
+  TcpPortPool& operator=(const TcpPortPool&) = delete;
+  TcpPortPool(TcpPortPool&& other) = default;
+
+  unsigned get_next_available();
+private:
+  UniqueId unique_id_;
+  unsigned number_of_ids_used_{0};
+  static const int kMaxPort{10};
+};
 
 /** @brief maximum number of parameters that can be passed to the launched process */
 const size_t MAX_PARAMS{30};

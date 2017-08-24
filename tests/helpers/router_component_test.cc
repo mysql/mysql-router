@@ -18,10 +18,10 @@
 #ifndef _WIN32
 #  include <netdb.h>
 #  include <netinet/in.h>
-#  include <fcntl.h>
 #  include <sys/un.h>
 #  include <sys/select.h>
 #  include <sys/socket.h>
+#  include <sys/file.h>
 #  include <sys/types.h>
 #  include <unistd.h>
 #else
@@ -32,8 +32,12 @@
 #  include <windows.h>
 #  include <direct.h>
 #  include <stdio.h>
+#  include <io.h>
+#  include <locale>
+#  include <codecvt>
 #endif
 
+#include <fcntl.h>
 #include "router_component_test.h"
 
 #include "process_launcher.h"
@@ -204,7 +208,9 @@ void RouterComponentTest::get_params(const std::string &command,
 
 int RouterComponentTest::CommandHandle::wait_for_exit(unsigned timeout_ms) {
 
-  while (read_output(0)) {}
+  while (read_output(200)) {}
+
+  timeout_ms -= std::min(200u, timeout_ms);
 
   exit_code_ = launcher_.wait(timeout_ms);
   exit_code_set_ = true;
@@ -276,4 +282,131 @@ std::string RouterComponentTest::create_config_file(const std::string &content,
   ofs_config.close();
 
   return file_path.str();
+}
+
+
+#ifndef _WIN32
+bool UniqueId::lock_file(const std::string& file_name) {
+  lock_file_fd_ = open(file_name.c_str(), O_RDWR | O_CREAT, 0666);
+
+  if (lock_file_fd_ >= 0) {
+#ifdef __sun
+    struct flock fl;
+
+    fl.l_start = 0;
+    fl.l_len = 0;
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+
+    int lock = fcntl(lock_file_fd_, F_SETLK, &fl);
+#else
+    int lock = flock(lock_file_fd_, LOCK_EX | LOCK_NB);
+#endif
+    if (lock) {
+      // no lock so no luck, try the next one
+      close(lock_file_fd_);
+      return false;
+    }
+
+    // obtained the lock
+    return true;
+  }
+
+  return false;
+}
+
+std::string UniqueId::get_lock_file_dir() const {
+  // this is what MTR uses, see mysql-test/lib/mtr_unique.pm for details
+  return "/tmp/mysql-unique-ids";
+}
+
+#else
+
+bool UniqueId::lock_file(const std::string& file_name) {
+  lock_file_fd_ = ::CreateFile(file_name.c_str(), GENERIC_READ, 0, NULL, OPEN_ALWAYS, 0, NULL);
+  if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {
+    return true;
+  }
+
+  return false;
+}
+
+std::string UniqueId::get_lock_file_dir() const {
+  // this are env variables that MTR uses, see mysql-test/lib/mtr_unique.pm for details
+  DWORD buff_size = 65535;
+  std::vector<char> buffer;
+  buffer.resize(buff_size);
+  buff_size = GetEnvironmentVariableA("ALLUSERSPROFILE", &buffer[0], buff_size);
+  if (!buff_size) {
+    buff_size = GetEnvironmentVariableA("TEMP", &buffer[0], buff_size);
+  }
+
+  if (!buff_size) {
+    throw std::runtime_error("Could not get directory for lock files.");
+  }
+
+  std::string result(buffer.begin(), buffer.begin()+buff_size);
+  result.append("\\mysql-unique-ids");
+  return result;
+}
+
+#endif
+
+UniqueId::UniqueId(unsigned start_from, unsigned range) {
+  const std::string lock_file_dir = get_lock_file_dir();
+  mysqlrouter::mkdir(lock_file_dir, 0777);
+
+  for (unsigned i = 0; i < range; i++) {
+    id_ = start_from + i;
+    Path lock_file_path(lock_file_dir);
+    lock_file_path.append(std::to_string(id_));
+    lock_file_name_ = lock_file_path.str();
+
+    if (lock_file(lock_file_name_.c_str())) {
+      // obtained the lock, we are good to go
+      return;
+    }
+  }
+
+  throw std::runtime_error("Could not get uniqe id from the given range");
+}
+
+UniqueId::~UniqueId() {
+#ifndef _WIN32
+  if (lock_file_fd_ > 0) {
+    close(lock_file_fd_);
+  }
+#else
+  if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {
+    ::CloseHandle(lock_file_fd_);
+  }
+#endif
+
+  if (!lock_file_name_.empty()) {
+    mysql_harness::delete_file(lock_file_name_);
+  }
+}
+
+UniqueId::UniqueId(UniqueId&& other) {
+  id_ = other.id_;
+  lock_file_fd_ = other.lock_file_fd_;
+  lock_file_name_ = other.lock_file_name_;
+
+  // mark moved object as no longer owning of the resources
+#ifndef _WIN32
+  other.lock_file_fd_ = -1;
+#else
+  other.lock_file_fd_ = INVALID_HANDLE_VALUE;
+#endif
+
+  other.lock_file_name_ = "";
+}
+
+unsigned TcpPortPool::get_next_available() {
+  if (number_of_ids_used_ >= kMaxPort) {
+    throw std::runtime_error("No more available ports from UniquePortsGroup");
+  }
+
+  // this is the formula that mysql-test also uses to map lock filename to actual port number
+  return 10000 + unique_id_.get() * kMaxPort + number_of_ids_used_++;
 }

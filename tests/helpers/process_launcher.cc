@@ -310,8 +310,9 @@ void ProcessLauncher::start()
 
 void ProcessLauncher::close()
 {
-  if(::kill(childpid, SIGTERM) < 0 && errno != ESRCH)
+  if(::kill(childpid, SIGTERM) < 0 && errno != ESRCH) {
     report_error(NULL, "close()");
+  }
   if(errno != ESRCH)
   {
     sleep(1);
@@ -321,6 +322,7 @@ void ProcessLauncher::close()
 
   ::close(fd_out[0]);
   ::close(fd_in[1]);
+  wait();
   is_alive = false;
 }
 

@@ -26,39 +26,42 @@ class RouterRoutingTest : public RouterComponentTest, public ::testing::Test {
     set_origin(g_origin_path);
     RouterComponentTest::SetUp();
   }
+
+  TcpPortPool port_pool_;
 };
 
 TEST_F(RouterRoutingTest, RoutingOk) {
-  const unsigned ROUTER_PORT = 7015;
-  const unsigned SERVER_PORT = 4417;
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
 
   const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
+  // launch the server mock for bootstrapping
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+
   const std::string routing_section =
                       "[routing:basic]\n"
-                      "bind_port = " + std::to_string(ROUTER_PORT) + "\n"
+                      "bind_port = " + std::to_string(router_port) + "\n"
                       "mode = read-write\n"
-                      "destinations = 127.0.0.1:" + std::to_string(SERVER_PORT) + "\n";
+                      "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n";
 
   std::string conf_file = create_config_file(routing_section);
 
-  // launch the server mock for bootstrapping
-  auto server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
 
   // launch the router with simple static routing configuration
   auto router_static = launch_router("-c " +  conf_file);
 
   // wait for both to begin accepting the connections
-  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
+  bool ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
-  ready = wait_for_port_ready(ROUTER_PORT, 1000);
+  ready = wait_for_port_ready(router_port, 1000);
   EXPECT_TRUE(ready) << router_static.get_full_output();
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
-  auto router_bootstrapping = launch_router("--bootstrap=localhost:" + std::to_string(ROUTER_PORT)
+  auto router_bootstrapping = launch_router("--bootstrap=localhost:" + std::to_string(router_port)
                                             + " -d " +  bootstrap_dir);
 
   router_bootstrapping.register_response("Please enter MySQL password for root: ", "fake-pass\n");

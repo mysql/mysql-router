@@ -26,6 +26,8 @@ class RouterConfigTest : public RouterComponentTest, public ::testing::Test {
     set_origin(g_origin_path);
     RouterComponentTest::SetUp();
   }
+
+  TcpPortPool port_pool_;
 };
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
@@ -44,14 +46,14 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
 TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
-  const unsigned ROUTER_PORT = 7015;
-  const unsigned SERVER_PORT = 4417;
+  const auto router_port = port_pool_.get_next_available();
+  const auto server_port = port_pool_.get_next_available();
 
   const std::string routing_section =
                       "[routing:basic]\n"
-                      "bind_port = " + std::to_string(ROUTER_PORT) + "\n"
+                      "bind_port = " + std::to_string(router_port) + "\n"
                       "mode = read-write\n"
-                      "destinations = 127.0.0.1:" + std::to_string(SERVER_PORT) + "\n";
+                      "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n";
 
   std::string conf_file = create_config_file(routing_section);
   const std::string config_dir = get_tmp_dir();

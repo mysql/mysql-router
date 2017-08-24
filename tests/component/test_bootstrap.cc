@@ -27,21 +27,24 @@ class RouterUserOptionTest : public RouterComponentTest, public ::testing::Test 
     RouterComponentTest::SetUp();
   }
 
-  static const unsigned SERVER_PORT = 4406;
+  TcpPortPool port_pool_;
 };
 
 TEST_F(RouterUserOptionTest, BootstrapOk) {
   const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
+  const auto server_port = port_pool_.get_next_available();
+
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
-  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
+                     << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
-  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(SERVER_PORT)
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
                               + " -d " + bootstrap_dir);
 
   // add login hook
@@ -51,21 +54,21 @@ TEST_F(RouterUserOptionTest, BootstrapOk) {
   EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
   EXPECT_EQ(router.wait_for_exit(), 0);
-
 }
 
 TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
   const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
-  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  bool ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // do the bootstrap, request using only sockets
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
-  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(SERVER_PORT)
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
                               + " -d " + bootstrap_dir
                               + " --conf-skip-tcp"
                               + " --conf-use-sockets");
@@ -95,22 +98,24 @@ TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
 TEST_F(RouterUserOptionTest, BootstrapUnsupportedSchemaVersion) {
   const std::string json_stmts = get_data_dir().join("bootstrap_usupported_schema_version.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
+  const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
-  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  bool ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
-  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(SERVER_PORT)
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
                               + " -d " + bootstrap_dir);
 
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
   // check that it failed as expected
   EXPECT_TRUE(router.expect_output("This version of MySQL Router is not compatible with the provided MySQL InnoDB cluster metadata")
-    ) << router.get_full_output();
+    ) << "router: " << router.get_full_output()  << std::endl
+      << "server: " << server_mock.get_full_output();
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
 

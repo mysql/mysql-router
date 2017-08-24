@@ -47,6 +47,8 @@ class MySQLServerMock {
    */
   void run();
 
+  ~MySQLServerMock();
+
  private:
   void setup_service();
 
@@ -66,7 +68,7 @@ class MySQLServerMock {
 
   static constexpr int kListenQueueSize = 5;
   unsigned bind_port_;
-  socket_t listener_;
+  socket_t listener_{socket_t(-1)};
   QueriesJsonReader json_reader_;
   MySQLProtocolEncoder protocol_encoder_;
   MySQLProtocolDecoder protocol_decoder_;

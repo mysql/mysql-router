@@ -123,6 +123,14 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
   }
 }
 
+MySQLRouting::~MySQLRouting() {
+
+  if (service_tcp_ > 0) {
+    socket_operations_->shutdown(service_tcp_);
+    socket_operations_->close(service_tcp_);
+  }
+}
+
 bool MySQLRouting::block_client_host(const std::array<uint8_t, 16> &client_ip_array,
                                      const string &client_ip_str, int server) {
   bool blocked = false;
@@ -520,6 +528,7 @@ void MySQLRouting::setup_tcp_service() {
       std::string error = get_message_error(errno);
       freeaddrinfo(servinfo);
       socket_operations_->close(service_tcp_);
+      service_tcp_ = 0;
       throw std::runtime_error(error);
     }
 #endif
@@ -528,6 +537,7 @@ void MySQLRouting::setup_tcp_service() {
       std::string error = get_message_error(errno);
       freeaddrinfo(servinfo);
       socket_operations_->close(service_tcp_);
+      service_tcp_ = 0;
       throw std::runtime_error(error);
     }
     break;

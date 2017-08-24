@@ -25,12 +25,13 @@
 #  include <netdb.h>
 #  include <netinet/in.h>
 #  include <fcntl.h>
+#  include <signal.h>
 #  include <sys/un.h>
 #  include <sys/select.h>
 #  include <sys/socket.h>
 #  include <sys/types.h>
 #  include <unistd.h>
-#include <regex.h>
+#  include <regex.h>
 #else
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -125,6 +126,15 @@ MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
   protocol_decoder_(&read_packet) {
 }
 
+MySQLServerMock::~MySQLServerMock() {
+  if (listener_ > 0) {
+#ifndef _WIN32
+    ::shutdown(listener_, SHUT_RDWR);
+#endif
+    close_socket(listener_);
+  }
+}
+
 void MySQLServerMock::run() {
   setup_service();
   handle_connections();
@@ -141,55 +151,80 @@ void MySQLServerMock::setup_service() {
 
   err = getaddrinfo(nullptr, std::to_string(bind_port_).c_str(), &hints, &ainfo);
   if (err != 0) {
-    throw std::runtime_error(std::string("getaddrinfo failed: ") + gai_strerror(err));
+    throw std::runtime_error(std::string("getaddrinfo() failed: ") + gai_strerror(err));
   }
+
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){freeaddrinfo(ainfo);});
 
   listener_ = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
   if (listener_ < 0) {
-    freeaddrinfo(ainfo);
     throw std::runtime_error("socket() failed: " + get_socket_errno_str());
   }
 
   int option_value = 1;
   if (setsockopt(listener_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&option_value),
         static_cast<socklen_t>(sizeof(int))) == -1) {
-    freeaddrinfo(ainfo);
-    throw std::runtime_error("socket() failed: " + get_socket_errno_str());
+    throw std::runtime_error("setsockopt() failed: " + get_socket_errno_str());
   }
 
   err = bind(listener_, ainfo->ai_addr, ainfo->ai_addrlen);
   if (err < 0) {
-    freeaddrinfo(ainfo);
-    throw std::runtime_error("bind() failed: " + get_socket_errno_str());
+    throw std::runtime_error("bind() failed: " + get_socket_errno_str()
+                             + "; port=" + std::to_string(bind_port_));
   }
 
   err = listen(listener_, kListenQueueSize);
   if (err < 0) {
-    freeaddrinfo(ainfo);
     throw std::runtime_error("listen() failed: " + get_socket_errno_str());
   }
-
-  freeaddrinfo(ainfo);
 }
 
+#ifndef _WIN32
+static volatile sig_atomic_t g_terminate = 0;
+
+// Signal handler to catch SIGTERM.
+static void sigterm_handler(int signo) {
+  std::cout << "Received signal " << signo << " - teminating." << std::endl;
+  g_terminate = 1;
+}
+#else
+static bool g_terminate = false;
+#endif
+
 void MySQLServerMock::handle_connections() {
-  socket_t client_socket;
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
 
   std::cout << "Starting to handle connections" << std::endl;
 
-  while(true) {
-    client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
+#ifndef _WIN32
+  // Install the signal handler for SIGTERM.
+  struct sigaction sig_action;
+  sig_action.sa_handler = sigterm_handler;
+  sigemptyset(&sig_action.sa_mask);
+  sig_action.sa_flags = 0;
+  sigaction(SIGTERM, &sig_action, NULL);
+  sigaction(SIGINT, &sig_action, NULL);
+#endif
+
+  while (!g_terminate) {
+//    fd_set fds;
+//    FD_ZERO (&fds);
+//    FD_SET (listener_, &fds);
+
+//    int err = select (listener_ + 1, &fds, NULL, NULL, NULL);
+//    if (err < 0) {
+//      break;
+//    }
+
+    socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
     if (client_socket < 0) {
       throw std::runtime_error("accept() failed: " + get_socket_errno_str());
     }
 
-    std::cout << "Accepted client " << client_socket << std::endl;
+    std::shared_ptr<void> exit_guard(nullptr, [&](void*){close_socket(client_socket);});
 
-    // int flags = fcntl(client_socket, F_GETFL, 0);
-    // flags = flags & (~O_NONBLOCK);
-    // fcntl(client_socket, F_SETFL, flags);
+    std::cout << "Accepted client " << client_socket << std::endl;
 
     try {
       auto buf = protocol_encoder_.encode_greetings_message(0);
@@ -207,10 +242,8 @@ void MySQLServerMock::handle_connections() {
     catch (const std::exception &e) {
       std::cerr << "Exception caught in connection loop: "
                 <<  e.what() << std::endl;
-      close_socket(client_socket);
     }
   }
-  close_socket(client_socket);
 }
 
 bool MySQLServerMock::process_statements(socket_t client_socket) {
