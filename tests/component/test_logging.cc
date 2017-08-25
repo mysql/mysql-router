@@ -85,7 +85,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   // This test verifies that fatal error message thrown in MySQLRouter::start()
   // during startup (before Loader::start() takes over) are properly logged to STDERR
 
-  std::string conf_file = create_config_file("");
+  const std::string conf_file = create_config_file("");
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -93,7 +93,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
 
   // expect something like this to appear on STDERR
   // 2017-06-18 15:24:32 main ERROR [7ffff7fd4780] Error: MySQL Router not configured to load or start any plugin. Exiting.
-  std::string out = router.get_full_output();
+  const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
   EXPECT_THAT(out.c_str(), HasSubstr(" Error: MySQL Router not configured to load or start any plugin. Exiting."));
 }
@@ -109,7 +109,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   // create config with logging_folder set to that directory
   std::map<std::string, std::string> params = get_DEFAULT_defaults();
   params.at("logging_folder") = logging_folder;
-  std::string conf_file = create_config_file("", &params);
+  const std::string conf_file = create_config_file("", &params);
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -143,12 +143,12 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
   // logging_folder doesn't exist and can't be created
   {
-    std::string logging_dir = tmp_dir + "/some_dir";
+    const std::string logging_dir = tmp_dir + "/some_dir";
 
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    std::string conf_file = create_config_file("", &params);
+    const std::string conf_file = create_config_file("", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " +  conf_file);
@@ -156,18 +156,18 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // expect something like this to appear on STDERR
     // Error: Error when creating dir '/bla': 13
-    std::string out = router.get_full_output();
+    const std::string out = router.get_full_output();
     EXPECT_THAT(out.c_str(), StartsWith("Error: Error when creating dir '" + logging_dir + "': 13"));
   }
 
   // logging_folder exists but is not writeable
   {
-    std::string logging_dir = tmp_dir;
+    const std::string logging_dir = tmp_dir;
 
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    std::string conf_file = create_config_file("", &params);
+    const std::string conf_file = create_config_file("", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " +  conf_file);
@@ -175,7 +175,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // expect something like this to appear on STDERR
     // Error: Failed to open //mysqlrouter.log: Permission denied
-    std::string out = router.get_full_output();
+    const std::string out = router.get_full_output();
     EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Permission denied"));
   }
 
@@ -186,7 +186,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
   // logging_folder is really a file
   {
-    std::string logging_dir = tmp_dir + "/some_file";
+    const std::string logging_dir = tmp_dir + "/some_file";
 
     // create that file
     {
@@ -197,7 +197,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // create Router config
     std::map<std::string, std::string> params = get_DEFAULT_defaults();
     params.at("logging_folder") = logging_dir;
-    std::string conf_file = create_config_file("", &params);
+    const std::string conf_file = create_config_file("", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " +  conf_file);
@@ -205,7 +205,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 
     // expect something like this to appear on STDERR
     // Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
-    std::string out = router.get_full_output();
+    const std::string out = router.get_full_output();
 #ifndef _WIN32
     EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
 #else
@@ -218,7 +218,7 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
   // This test verifies that [logger:with_some_key] section is handled properly
   // Router should report the error on STDERR and exit
 
-  std::string conf_file = create_config_file("[logger:some_key]\n");
+  const std::string conf_file = create_config_file("[logger:some_key]\n");
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -226,7 +226,7 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
 
   // expect something like this to appear on STDERR
   // Error: Section 'logger' does not support keys
-  std::string out = router.get_full_output();
+  const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), StartsWith("Error: Section 'logger' does not support keys"));
 }
 
@@ -234,7 +234,7 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   // This test verifies that multiple [logger] sections are handled properly.
   // Router should report the error on STDERR and exit
 
-  std::string conf_file = create_config_file("[logger]\n[logger]\n");
+  const std::string conf_file = create_config_file("[logger]\n[logger]\n");
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -242,7 +242,7 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
 
   // expect something like this to appear on STDERR
   // Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'.
-  std::string out = router.get_full_output();
+  const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
 }
 
@@ -305,7 +305,7 @@ TEST_F(RouterLoggingTest, DISABLED_very_long_router_name_gets_properly_logged) {
   bool ready = wait_for_port_ready(SERVER_PORT, 1000);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
-  std::string name = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
+  const std::string name = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
   assert(name.size() > 255);  // log message max length is 256, we want something that guarrantees the limit would be exceeded
 
   // launch the router in bootstrap mode
@@ -320,7 +320,7 @@ TEST_F(RouterLoggingTest, DISABLED_very_long_router_name_gets_properly_logged) {
 
   // expect something like this to appear on STDERR
   // Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255).
-  std::string out = router.get_full_output();
+  const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), HasSubstr("Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255)."));
 }
 
