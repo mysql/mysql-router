@@ -54,8 +54,8 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSIO
 
 # We ignore all files in the root of the repository and then
 # exclude from the list which we want to keep.
-file(GLOB cpack_source_ignore_files "${CMAKE_SOURCE_DIR}/*")
-set(src_dir ${CMAKE_SOURCE_DIR})
+file(GLOB cpack_source_ignore_files "${PROJECT_SOURCE_DIR}/*")
+set(src_dir ${PROJECT_SOURCE_DIR})
 set(source_include
   "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
@@ -84,12 +84,12 @@ include(CPack)
 # RPM-based
 #
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/rpm-oel")
+  add_subdirectory("${PROJECT_SOURCE_DIR}/packaging/rpm-oel")
 endif()
 
 #
 # MSI for Windows
 #
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  add_subdirectory("${CMAKE_SOURCE_DIR}/packaging/WiX")
+  add_subdirectory("${PROJECT_SOURCE_DIR}/packaging/WiX")
 endif()

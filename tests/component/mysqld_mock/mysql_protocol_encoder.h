@@ -33,7 +33,7 @@ using byte = uint8_t;
  * Supported MySQL Coumn types.
  *
  **/
-enum class MySQLColumnType: uint8_t {
+enum class MySQLColumnType {
   TINY =  0x01,
   LONG = 0x03,
   LONGLONG = 0x08,

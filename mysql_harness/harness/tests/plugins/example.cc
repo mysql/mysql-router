@@ -45,7 +45,7 @@ extern "C" {
 }
 
 
-#if defined(_MSC_VER) && defined(example_EXPORTS)
+#if defined(_MSC_VER) && defined(harness_example_EXPORTS)
 /* We are building this library */
 #  define EXAMPLE_API __declspec(dllexport)
 #else

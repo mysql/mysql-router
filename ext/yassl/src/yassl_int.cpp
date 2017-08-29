@@ -18,7 +18,7 @@
  */
 
 // First include (the generated) my_config.h, to get correct platform defines.
-#include "config.h"
+#include "router_config.h"
 #ifdef _WIN32
 #include<Windows.h>
 #else

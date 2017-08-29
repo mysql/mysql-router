@@ -253,10 +253,10 @@ TEST_F(ClassicProtocolTest, SendErrorWriteFail)
 MATCHER_P(BufferEq, buf1,
            std::string(negation ? "Buffers content does not match" : "Buffers content matches"))
 {
-  if (buf1.size() != ::std::tr1::get<1>(arg))
+  if (buf1.size() != ::std::get<1>(arg))
     return false;
 
-  return 0 == memcmp(buf1.data(), ::std::tr1::get<0>(arg), buf1.size());
+  return 0 == memcmp(buf1.data(), ::std::get<0>(arg), buf1.size());
 }
 
 // check if the proper error is sent by the router if there is no valid

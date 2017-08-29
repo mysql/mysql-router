@@ -25,7 +25,7 @@
  *
  */
 
-#include "config.h"
+#include "router_config.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysqlrouter/utils.h"
@@ -124,6 +124,8 @@ public:
               , mysqlrouter::SysUserOperationsBase *sys_user_operations = mysqlrouter::SysUserOperations::instance()
 #endif
   );
+
+  virtual ~MySQLRouter() = default;
 
 
   // Information member function

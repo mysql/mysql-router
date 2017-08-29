@@ -30,10 +30,31 @@ else()
   project("MySQLRouter")
 endif()
 
+SET(MySQLRouter_BINARY_STAGE_DIR ${MySQLRouter_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/extra/rapidjson/")
+  # prefer server-side rapidjson
+  SET(RAPIDJSON_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extra/rapidjson/include/")
+else()
+  SET(RAPIDJSON_INCLUDE_DIRS "${MySQLRouter_SOURCE_DIR}/ext/rapidjson/include/")
+endif()
+
+IF(EXISTS "${CMAKE_SOURCE_DIR}/rapid/plugin/x/protocol/mysqlx.proto")
+  # use the server's protobuf files, we they exist
+  SET(PROTOBUF_MYSQLX_DIR "${CMAKE_SOURCE_DIR}/rapid/plugin/x/protocol/")
+ELSE()
+  SET(PROTOBUF_MYSQLX_DIR "${MySQLRouter_SOURCE_DIR}/src/x_protocol/proto/")
+ENDIF()
+
+
 include(cmake/settings.cmake)
 
+if(WITH_UNIT_TESTS)
+  set(ENABLE_TESTS 1)
+endif()
+
 # Load Internal
-if(EXISTS "${CMAKE_SOURCE_DIR}/internal/")
+if(EXISTS "${PROJECT_SOURCE_DIR}/internal/")
   message(STATUS "Loading internal repository")
   add_subdirectory(internal)
 endif()
@@ -52,7 +73,11 @@ MESSAGE(STATUS "SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
 # Required tools, libraries, etc..
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
-include(cmake/install_layout.cmake)  # needs ARCH_64BIT
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/install_layout.cmake")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/install_layout.cmake)
+else()
+  include(cmake/install_layout.cmake)  # needs ARCH_64BIT
+endif()
 include(cmake/configure.cmake)
 include(Coverage)
 # Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
@@ -60,13 +85,20 @@ include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
-include(cmake/packaging.cmake)
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/include/mysql.h")
+  # if we are built as part of the server-tree, don't initiate our own packaging
+  include(cmake/packaging.cmake)
+endif()
+
 find_package(MySQL 5.5 REQUIRED)
-include_directories(${CMAKE_BINARY_DIR}/include)
+include_directories(${PROJECT_BINARY_DIR}/include)
 
 include(cmake/compile_flags.cmake)
-include(cmake/protobuf.cmake)
-MYSQL_CHECK_PROTOBUF()
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/include/mysql.h")
+  # if we are build as part of the server-tree, use their protobuf
+  include(cmake/protobuf.cmake)
+  MYSQL_CHECK_PROTOBUF()
+endif()
 
 # Enable testing
 if(ENABLE_TESTS)

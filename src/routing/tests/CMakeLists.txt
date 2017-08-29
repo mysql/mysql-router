@@ -16,11 +16,11 @@
 include_directories(
   ../include
   ../src
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
-  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
-  ${CMAKE_SOURCE_DIR}/src/x_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/x_protocol/include
   ../../../tests/helpers
-  ${CMAKE_BINARY_DIR}/generated/protobuf
+  ${PROJECT_BINARY_DIR}/generated/protobuf
   ${PROTOBUF_INCLUDE_DIR}
 )
 
@@ -66,19 +66,19 @@ else()
                                            "-include mysqlrouter/xprotocol.h")
 endif(MSVC)
 
-link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
+# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 
 add_library(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 target_link_libraries(routing_tests routertest_helpers router_lib metadata_cache
                       mysql_protocol x_protocol ${PB_LIBRARY})
 set_target_properties(routing_tests PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
+  LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib)
 target_include_directories(routing PRIVATE ${include_dirs})
 
 add_library(routing_plugin_tests STATIC ${ROUTING_PLUGIN_SOURCE_FILES})
 target_link_libraries(routing_plugin_tests routing_tests routertest_helpers router_lib metadata_cache)
 set_target_properties(routing_plugin_tests PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib)
+  LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib)
 target_include_directories(routing_plugin_tests PRIVATE ${include_dirs})
 
 target_compile_definitions(routing_plugin_tests PRIVATE -Drouting_DEFINE_STATIC=1)
@@ -92,7 +92,7 @@ endif()
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "routing"
   LIB_DEPENDS routing_tests test-helpers
-  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
+  ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
@@ -101,11 +101,11 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
     routing_tests
     routing_plugin_tests
     test-helpers
-  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
+  ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
-    ${CMAKE_SOURCE_DIR}/tests/helpers
-    ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
+    ${PROJECT_SOURCE_DIR}/tests/helpers
+    ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
   )
 
 add_test_dir(issues MODULE issues
@@ -115,21 +115,21 @@ add_test_dir(issues MODULE issues
     test-helpers
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
-    ${CMAKE_SOURCE_DIR}/tests/helpers
-    ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
+    ${PROJECT_SOURCE_DIR}/tests/helpers
+    ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
   )
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
 if(WIN32)
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-    set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage/${conf})
+    set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR}/${conf})
     set(ROUTER_PLUGIN_DIR_SUFFIX "lib")
-    configure_file(data/1route.conf.in ${STAGE_DIR}/${conf}/etc/routing_1route.conf)
+    configure_file(data/1route.conf.in ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/etc/routing_1route.conf)
   endforeach()
 else()
-  set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
+  set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR})
   set(ROUTER_PLUGIN_DIR_SUFFIX "lib/mysqlrouter")
-  configure_file(data/1route.conf.in ${STAGE_DIR}/etc/routing_1route.conf)
+  configure_file(data/1route.conf.in ${MySQLRouter_BINARY_STAGE_DIR}/etc/routing_1route.conf)
 endif()
 
 target_link_libraries(test_issues_bug21962350)

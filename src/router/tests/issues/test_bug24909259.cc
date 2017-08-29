@@ -108,9 +108,15 @@ TEST(Bug24909259, PasswordPrompt_plain) {
     config.read(ss);
 
     MySQLRouter router;
-    ASSERT_THROW(
-      router.init_keyring(config),
-      std::runtime_error);
+    try {
+      router.init_keyring(config);
+
+      FAIL() << "expected std::runtime_error, got no exception";
+    } catch(const std::runtime_error &) {
+      // ok
+    } catch(const std::exception &e) {
+      FAIL() << "expected std::runtime_error, got " << typeid(e).name() << ": " << e.what();
+    }
     EXPECT_EQ(1, num_password_prompts);
     EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
   }
@@ -168,9 +174,15 @@ TEST(Bug24909259, PasswordPrompt_keyed) {
     config.read(ss);
 
     MySQLRouter router;
-    ASSERT_THROW(
-      router.init_keyring(config),
-      std::runtime_error);
+    try {
+      router.init_keyring(config);
+
+      FAIL() << "expected std::runtime_error, got no exception";
+    } catch(const std::runtime_error &) {
+      // ok
+    } catch(const std::exception &e) {
+      FAIL() << "expected std::runtime_error, got " << typeid(e).name() << ": " << e.what();
+    }
     EXPECT_EQ(1, num_password_prompts);
     EXPECT_TRUE(mysql_harness::get_keyring() == nullptr);
   }

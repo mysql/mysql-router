@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,17 +34,17 @@ FUNCTION(MYSQLX_PROTOBUF_GENERATE_CPP SRCS HDRS)
     GET_FILENAME_COMPONENT(ABS_FIL ${FIL} ABSOLUTE)
     GET_FILENAME_COMPONENT(FIL_WE ${FIL} NAME_WE)
 
-    LIST(APPEND ${SRCS} "${CMAKE_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.cc")
-    LIST(APPEND ${HDRS} "${CMAKE_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.h")
+    LIST(APPEND ${SRCS} "${PROJECT_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.cc")
+    LIST(APPEND ${HDRS} "${PROJECT_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.h")
 
     ADD_CUSTOM_COMMAND(
-      OUTPUT "${CMAKE_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.cc"
-             "${CMAKE_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.h"
+      OUTPUT "${PROJECT_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.cc"
+             "${PROJECT_BINARY_DIR}/generated/protobuf/${FIL_WE}.pb.h"
       COMMAND ${CMAKE_COMMAND}
-            -E make_directory "${CMAKE_BINARY_DIR}/generated/protobuf"
+              -E make_directory "${PROJECT_BINARY_DIR}/generated/protobuf"
       COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
-      ARGS --cpp_out=dllexport_decl=X_PROTOCOL_API:${CMAKE_BINARY_DIR}/generated/protobuf
-           -I "${CMAKE_SOURCE_DIR}/src/x_protocol/proto" ${ABS_FIL}
+      ARGS --cpp_out=dllexport_decl=X_PROTOCOL_API:${PROJECT_BINARY_DIR}/generated/protobuf
+              -I "${PROTOBUF_MYSQLX_DIR}" -I "${PROTOBUF_INCLUDE_DIR}" ${ABS_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC_EXECUTABLE}
       COMMENT "Running C++ protocol buffer compiler on ${FIL}"
       VERBATIM)
@@ -53,12 +53,12 @@ FUNCTION(MYSQLX_PROTOBUF_GENERATE_CPP SRCS HDRS)
   SET_SOURCE_FILES_PROPERTIES(
     ${${SRCS}} ${${HDRS}}
     PROPERTIES GENERATED TRUE)
-  
+
   IF(MSVC)
-    ADD_COMPILE_FLAGS(${${SRCS}} 
+    ADD_COMPILE_FLAGS(${${SRCS}}
       COMPILE_FLAGS ${MYSQLX_PROTOBUF_MSVC_DISABLED_WARNINGS})
   ENDIF()
-  
+
   SET(${SRCS} ${${SRCS}} PARENT_SCOPE)
   SET(${HDRS} ${${HDRS}} PARENT_SCOPE)
 ENDFUNCTION()

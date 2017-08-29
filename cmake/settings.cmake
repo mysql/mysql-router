@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,10 @@ option(ENABLE_TESTS "Enable Tests" NO)
 option(WITH_STATIC "Enable static linkage of external libraries" NO)
 option(GPL "Produce GNU GPLv2 source and binaries" YES)
 
+IF(MYSQL_SERVER_SUFFIX STREQUAL "-enterprise-commercial-advanced" OR DEB_PRODUCT STREQUAL "commercial")
+  # if the server's cmake options for 'commercial' builds are set, use them.
+  SET(GPL 0)
+ENDIF()
+
 # MySQL Harness
 set(HARNESS_NAME "mysqlrouter" CACHE STRING "Name of Harness")
-

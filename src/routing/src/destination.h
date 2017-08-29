@@ -18,7 +18,7 @@
 #ifndef ROUTING_DESTINATION_INCLUDED
 #define ROUTING_DESTINATION_INCLUDED
 
-#include "config.h"
+#include "router_config.h"
 
 #include <algorithm>
 #include <atomic>

@@ -35,6 +35,7 @@
 #  include <regex.h>
 #else
 #  include <windows.h>
+#  include <winsock2.h>
 #  include <direct.h>
 #  include <regex>
 #  define getcwd _getcwd

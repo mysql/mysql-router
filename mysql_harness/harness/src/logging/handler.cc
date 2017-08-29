@@ -93,6 +93,9 @@ void Handler::handle(const Record& record) {
   do_log(record);
 }
 
+// satisfy ODR
+constexpr const char* StreamHandler::kDefaultName;
+
 ////////////////////////////////////////////////////////////////
 // class StreamHandler
 
@@ -115,6 +118,9 @@ FileHandler::FileHandler(const Path& path, LogLevel level)
                              get_strerror(errno));
   }
 }
+
+// satisfy ODR
+constexpr const char* FileHandler::kDefaultName;
 
 FileHandler::~FileHandler() {}
 

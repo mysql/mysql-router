@@ -15,11 +15,11 @@
 
 find_package(Threads REQUIRED)
 
-include(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
+include(${MySQLRouter_SOURCE_DIR}/cmake/compile_flags.cmake)
 include(GenerateExportHeader)
 
-set(MY_SSL_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src/router/src/common)
-SET(MY_SSL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/router/include/mysqlrouter
+set(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
+SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
                         ${SSL_INCLUDE_DIRS})
 
 set(harness_source
@@ -65,12 +65,10 @@ else()
     src/filesystem-posix.cc src/utilities-posix.cc src/loader-posix.cc)
 endif()
 
-file(GLOB harness_headers include/*.h)
-
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql/harness
   ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${CMAKE_BINARY_DIR}/include
+  ${MySQLRouter_BINARY_DIR}/include
   ${MY_SSL_INCLUDE_DIRS})
 
 if(WIN32)
@@ -79,7 +77,7 @@ endif()
 set(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
                      ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES})
 
-configure_file(plugin.h.in ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
+configure_file(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
   ESCAPE_QUOTES @ONLY)
 
 # create harness library - static version
@@ -88,7 +86,7 @@ target_link_libraries(harness-archive ${common_libraries})
 target_include_directories(harness-archive PUBLIC include)
 if(WIN32)
   set_target_properties(harness-archive PROPERTIES
-		COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
+    COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
 endif()
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(PUBLIC harness-archive "-pthread")
@@ -100,8 +98,8 @@ target_link_libraries(harness-library ${common_libraries})
 target_include_directories(harness-library PUBLIC include)
 
 generate_export_header(harness-library
-	BASE_NAME HARNESS
-	EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/harness_export.h)
+  BASE_NAME HARNESS
+  EXPORT_FILE_NAME ${MySQLRouter_BINARY_DIR}/include/harness_export.h)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   target_link_libraries(harness-library -lnsl -lsocket)
@@ -130,7 +128,7 @@ if(NOT WIN32)
     PREFIX "lib"
     SOVERSION 1)
   set_target_properties(harness-library PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/stage/lib)
+    LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_DIR}/stage/lib)
 else()
   set_target_properties(harness-archive PROPERTIES
     OUTPUT_NAME "mysqlharness_a"
@@ -142,7 +140,7 @@ else()
   # stage/{bin,etc,lib}/${configuration_type}
   foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
     set_target_properties(harness-library PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY_${config_} ${CMAKE_BINARY_DIR}/stage/${config_}/bin) # <-- [SEARCH TAG] RUNTIME_OUTPUT_DIRECTORY
+      RUNTIME_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/bin) # <-- [SEARCH TAG] RUNTIME_OUTPUT_DIRECTORY
   endforeach()
 
   get_property(harness_library_location TARGET harness-library PROPERTY LOCATION)
@@ -150,23 +148,25 @@ else()
     # lib is the location of harness-library for unit tests (since they have no knowledge
     # of bin folder
     add_custom_command(TARGET harness-library
-          COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${STAGE_DIR}/${conf}/lib/
+      COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/lib/
           COMMENT "Copying harness library from: ${harness_library_location}"
     )
     if(WIN32)
       # bin is the location of harness-library to be deployed to MSI (and also for normal
       # scenarios when router is launched from command line. Only for Windows.
       add_custom_command(TARGET harness-library
-          COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${STAGE_DIR}/${conf}/bin/
-          COMMENT "Copying harness library from: ${harness_library_location}"
+        COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/bin/
+        COMMENT "Copying harness library from: ${harness_library_location}"
       )
     endif()
-    file(MAKE_DIRECTORY "${STAGE_DIR}/${conf}/lib/")
+    file(MAKE_DIRECTORY "${MySQLRouter_BINARY_STAGE_DIR}/${conf}/lib/")
   endforeach()
 endif()
 
-install(FILES ${harness_headers}
-  DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
+# don't install headers until a) a final destination is found and b) API is stable
+# file(GLOB harness_headers include/*.h)
+# install(FILES ${harness_headers}
+#   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
 if(NOT WIN32)
   install(TARGETS harness-archive harness-library
         LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}

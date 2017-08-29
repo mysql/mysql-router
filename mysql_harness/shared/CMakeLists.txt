@@ -16,9 +16,17 @@
 add_library(test-helpers STATIC src/test_helpers.cc)
 set_target_properties(test-helpers PROPERTIES
   LINKER_LANGUAGE CXX)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # silence undefined use of macro-vars in gtest.
+  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
+  # supress it locally.
+  set_target_properties(test-helpers PROPERTIES
+    COMPILE_FLAGS "-Wno-undef")
+endif()
 target_include_directories(test-helpers
   PUBLIC include
+  PUBLIC ${GMOCK_INCLUDE_DIRS}
   PUBLIC ../harness/include
-  PUBLIC ${CMAKE_BINARY_DIR}/include)
+  PUBLIC ${MySQLRouter_BINARY_DIR}/include)
 target_link_libraries(test-helpers
   PUBLIC ${TEST_LIBRARIES} harness-library)

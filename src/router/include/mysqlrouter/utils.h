@@ -34,7 +34,7 @@
 #include <iostream>
 #include <map>
 
-#include "config.h"
+#include "router_config.h"
 
 namespace mysqlrouter {
 
@@ -55,7 +55,14 @@ extern const perm_mode kStrictDirectoryPerm;
  */
 class Ofstream : public std::ofstream {
  public:
-  using std::ofstream::ofstream;
+  // disabled copying the ofstream constructurs as sunpro 12.5 says:
+  //
+  //   'ofstream' not in 'std::ofstream'
+  //
+  // If there is a need to have other than the no-param constructor
+  // that is inherited by default, a new solution has to be found.
+  //
+  // using std::ofstream::ofstream;
   virtual ~Ofstream() {}
   virtual void open(const char* filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
   virtual void open(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
@@ -68,7 +75,7 @@ class Ofstream : public std::ofstream {
  */
 class RealOfstream : public Ofstream {
  public:
-  using Ofstream::Ofstream;
+  // using Ofstream::Ofstream;
   virtual void open(const char* filename, std::ios_base::openmode mode = std::ios_base::out) {
     return std::ofstream::open(filename, mode);
   }

@@ -21,8 +21,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../utils.h"
 #include "mysqlrouter/routing.h"
 
+#ifdef __GNUC__
+// disable -Wconversion for protobuf 2.6.
+// this can be removed with protobuf 3.0.x and later
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wconversion"
+#endif
 #include "mysqlx.pb.h"
+#include "mysqlx_session.pb.h"
+#include "mysqlx_connection.pb.h"
 #include <google/protobuf/io/coded_stream.h>
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 #include <algorithm>
 #include <cassert>

@@ -59,8 +59,11 @@ IMPORT_LOG_FUNCTIONS()
 // need POSIX signals and threads to support signal handling (pthread_sigmask(),
 // sigaction() and friends). For platforms that do not have them (e.g. Windows),
 // a different mechanism is used instead (see proxy_main()).
-#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L
+// Compiler on Solaris does not always define _POSIX_C_SOURCE although the signal handling is there
+#if ((!defined _WIN32) && defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L) || (defined(__sun) && defined(__SVR4))
 # define USE_POSIX_SIGNALS
+#elif (!defined _WIN32)
+#error "No signals support on Unix system"
 #endif
 
 #ifdef USE_POSIX_SIGNALS
@@ -282,6 +285,12 @@ void clear_running(PluginFuncEnv* env) noexcept {
 }
 
 //----[ error handling ]------------------------------------------------------
+
+void set_error(PluginFuncEnv* env, ErrorType error_type, const char* fmt, ...) noexcept
+#ifdef HAVE_ATTRIBUTE_FORMAT
+  __attribute__((format(printf, 3, 4)))
+#endif
+  ;
 
 void set_error(PluginFuncEnv* env, ErrorType error_type, const char* fmt, ...) noexcept {
   va_list args;
@@ -719,7 +728,7 @@ void Loader::start_all() {
     std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
 
     // plugin start() will run in this new thread
-    auto dispatch = [this, fptr, section, &env_promise]()
+    auto dispatch = [fptr, section, &env_promise]()
         -> std::exception_ptr {
       log_info("  plugin '%s:%s' starting",
                section->name.c_str(), section->key.c_str());

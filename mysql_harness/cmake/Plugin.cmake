@@ -55,7 +55,7 @@
 
 function(add_harness_plugin NAME)
   set(_options NO_INSTALL)
-  set(_single_value LOG_DOMAIN INTERFACE DESTINATION_SUFFIX)
+  set(_single_value LOG_DOMAIN INTERFACE DESTINATION_SUFFIX OUTPUT_NAME)
   set(_multi_value SOURCES REQUIRES)
   cmake_parse_arguments(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
@@ -82,6 +82,10 @@ function(add_harness_plugin NAME)
   # allow. On OSX, this means that the suffix for the library becomes
   # .dylib, which we do not want, so we reset it here.
   add_library(${NAME} SHARED ${_option_SOURCES})
+  if(_option_OUTPUT_NAME)
+    set_target_properties(${NAME}
+      PROPERTIES OUTPUT_NAME ${_option_OUTPUT_NAME})
+  endif()
   target_compile_definitions(${NAME} PRIVATE
     MYSQL_ROUTER_LOG_DOMAIN=${_option_LOG_DOMAIN})
   if(NOT WIN32)
@@ -97,7 +101,7 @@ function(add_harness_plugin NAME)
     target_include_directories(${NAME}
       PUBLIC ${_option_INTERFACE})
     execute_process(
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${_option_INTERFACE} ${CMAKE_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${_option_INTERFACE} ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR})
   endif()
 
   # Add a dependencies on interfaces for other plugins this plugin

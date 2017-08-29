@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@ endif()
 message(STATUS "Adding MySQL Harness from ${WITH_HARNESS}")
 
 set(ENABLE_HARNESS_PROGRAM NO CACHE BOOL "Harness program is not installed")
-set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
+set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
 set(HARNESS_INSTALL_LIBRARY_DIR "${INSTALL_LIBDIR}" CACHE PATH "Installation directory for Harness libraries")
 
 # binary_dir needed when WITH_HARNESS is out-of-tree
-add_subdirectory(${WITH_HARNESS} ${CMAKE_BINARY_DIR}/harness)
+add_subdirectory(${WITH_HARNESS} ${PROJECT_BINARY_DIR}/harness)
 
 include_directories(${WITH_HARNESS}/harness/include)

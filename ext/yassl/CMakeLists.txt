@@ -13,14 +13,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/libutils.cmake)
+INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libutils.cmake)
 
 INCLUDE_DIRECTORIES(
- ${CMAKE_BINARY_DIR}
- ${CMAKE_BINARY_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/taocrypt/include
- ${CMAKE_CURRENT_SOURCE_DIR}/taocrypt/mySTL)
+  ${MySQLRouter_BINARY_DIR}
+  ${MySQLRouter_BINARY_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/taocrypt/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/taocrypt/mySTL)
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 
@@ -89,6 +89,6 @@ SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp sr
 				src/log.cpp src/socket_wrapper.cpp src/ssl.cpp src/timer.cpp src/yassl_error.cpp
 				src/yassl_imp.cpp src/yassl_int.cpp)
 
-ADD_CONVENIENCE_LIBRARY(yassl ${YASSL_SOURCES})
+ADD_CONVENIENCE_LIBRARY(router_yassl ${YASSL_SOURCES})
 
 ADD_SUBDIRECTORY(taocrypt)

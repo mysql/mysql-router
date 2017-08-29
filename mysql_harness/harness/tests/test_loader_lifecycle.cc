@@ -53,6 +53,7 @@
 #include "mysql/harness/plugin.h"
 #include "test/helpers.h"
 #include "utilities.h"
+#include "mysql/harness/logging/registry.h"
 
 ////////////////////////////////////////
 // Third-party include files
@@ -73,6 +74,13 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+// see loader.cc for more info on this define
+#if ((!defined _WIN32) && defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L) || (defined(__sun) && defined(__SVR4))
+# define USE_POSIX_SIGNALS
+#elif (!defined _WIN32)
+#error "No signals support on Unix system"
+#endif
 
 using mysql_harness::Loader;
 using mysql_harness::Path;
@@ -165,16 +173,20 @@ class BasicConsoleOutputTest : public ::testing::Test {
 
  private:
   void SetUp() {
-    orig_cerr_ = std::cerr.rdbuf();
-    std::cerr.rdbuf(log.rdbuf());
+    std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+
+    orig_log_stream_ = log_stream->rdbuf();
+    log_stream->rdbuf(log.rdbuf());
   }
 
   void TearDown() {
-    if (orig_cerr_)
-      std::cerr.rdbuf(orig_cerr_);
+    if (orig_log_stream_) {
+      std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+      log_stream->rdbuf(orig_log_stream_);
+    }
   }
 
-  std::streambuf* orig_cerr_;
+  std::streambuf* orig_log_stream_;
 };
 
 class LifecycleTest : public BasicConsoleOutputTest {
@@ -1448,7 +1460,7 @@ TEST_F(LifecycleTest, set_error_exception) {
   EXPECT_THROW({ std::rethrow_exception(eptr); }, std::runtime_error);
 }
 
-#ifndef _WIN32  // these don't make sense on Windows
+#ifdef USE_POSIX_SIGNALS  // these don't make sense on Windows
 TEST_F(LifecycleTest, send_signals) {
   // this test verifies that:
   // - sending SIGINT or SIGTERM will trigger shutdown

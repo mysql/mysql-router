@@ -22,7 +22,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/compile_flags.cmake)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter
   ${SSL_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/ext/rapidjson/include)
+  ${RAPIDJSON_INCLUDE_DIRS})
 
 if(WITH_SSL STREQUAL "bundled")
   set(MY_AES_IMPL common/my_aes_yassl.cc)
@@ -73,10 +73,10 @@ if(WIN32)
 endif()
 target_include_directories(router_lib PUBLIC ../include ${MySQL_INCLUDE_DIRS})
 if(WITH_HARNESS)
-  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}")
-  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/include/mysql/harness")
-  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/include")
-  target_include_directories(router_lib PUBLIC "${CMAKE_BINARY_DIR}/harness")
+  target_include_directories(router_lib PUBLIC "${PROJECT_BINARY_DIR}")
+  target_include_directories(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include/mysql/harness")
+  target_include_directories(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include")
+  target_include_directories(router_lib PUBLIC "${PROJECT_BINARY_DIR}/harness")
 endif()
 set_target_output_directory(router_lib LIBRARY_OUTPUT_DIRECTORY lib)
 if(NOT WIN32)
@@ -103,16 +103,24 @@ endif()
 set_target_output_directory(${MYSQL_ROUTER_TARGET} RUNTIME_OUTPUT_DIRECTORY bin)
 
 if(WIN32)
-  set(MYSQL_DLL ${MySQL_LIBRARIES})
-  string(REPLACE ".lib" ".dll" MYSQL_DLL ${MYSQL_DLL})
-  get_filename_component(MYSQL_FILE ${MYSQL_DLL} NAME)
-  get_filename_component(MYSQL_DLL ${MYSQL_DLL} DIRECTORY)
+  if(TARGET libmysql)
+    # if we are part of the server tree, copy the target file directly
+    add_custom_command(TARGET ${MYSQL_ROUTER_TARGET} PRE_BUILD
+                          COMMAND ${CMAKE_COMMAND} -E copy
+                          $<TARGET_FILE:libmysql> $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>/)
+  else()
+    set(MYSQL_DLL ${MySQL_LIBRARIES})
+    string(REPLACE ".lib" ".dll" MYSQL_DLL ${MYSQL_DLL})
+    get_filename_component(MYSQL_FILE ${MYSQL_DLL} NAME)
+    get_filename_component(MYSQL_DLL ${MYSQL_DLL} DIRECTORY)
 
-  # Copies the dll to the binary location to enable debugging
-  add_custom_command(TARGET ${MYSQL_ROUTER_TARGET} PRE_BUILD
-                        COMMAND ${CMAKE_COMMAND} -E copy
-                        "${MYSQL_DLL}/${MYSQL_FILE}" $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>/${MYSQL_FILE})
-  install(FILES "${MYSQL_DLL}/${MYSQL_FILE}" DESTINATION bin)
+    # Copies the dll to the binary location to enable debugging
+    add_custom_command(TARGET ${MYSQL_ROUTER_TARGET} PRE_BUILD
+                          COMMAND ${CMAKE_COMMAND} -E copy
+                          "${MYSQL_DLL}/${MYSQL_FILE}" $<TARGET_FILE_DIR:${MYSQL_ROUTER_TARGET}>/${MYSQL_FILE})
+    install(FILES "${MYSQL_DLL}/${MYSQL_FILE}" DESTINATION bin)
+  endif()
+
   IF (NOT GPL AND WITH_SSL_PATH)
     GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
@@ -138,21 +146,21 @@ endif()
 if(ENABLE_TESTS)
   file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/../tests/*.conf.in)
   if(NOT WIN32)
-    set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage)
+    set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR})
     set(ROUTER_PLUGIN_DIR_SUFFIX "lib/mysqlrouter")
     foreach(config_file ${config_files})
       get_filename_component(dest_config_file ${config_file} NAME)
       string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})
-      configure_file(${config_file} ${STAGE_DIR}/etc/${dest_config_file})
+      configure_file(${config_file} ${MySQLRouter_BINARY_STAGE_DIR}/etc/${dest_config_file})
     endforeach()
   else()
     foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-      set(ROUTER_STAGE_DIR ${CMAKE_BINARY_DIR}/stage/${conf})
+      set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR}/${conf})
       set(ROUTER_PLUGIN_DIR_SUFFIX "lib")
       foreach(config_file ${config_files})
         get_filename_component(dest_config_file ${config_file} NAME)
         string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})
-        configure_file(${config_file} ${STAGE_DIR}/${conf}/etc/${dest_config_file})
+        configure_file(${config_file} ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/etc/${dest_config_file})
       endforeach()
     endforeach()
   endif()

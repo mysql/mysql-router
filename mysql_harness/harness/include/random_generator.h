@@ -60,6 +60,7 @@ class HARNESS_EXPORT RandomGeneratorInterface {
    *
    */
   virtual std::string generate_strong_password(unsigned length) = 0;
+  virtual ~RandomGeneratorInterface();
 };
 
 class HARNESS_EXPORT RandomGenerator : public RandomGeneratorInterface {

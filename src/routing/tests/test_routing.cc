@@ -372,7 +372,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   int sock1;
   // router is running in a thread, so we need to sync it
-  call_until([&sock1]() -> bool { sock1 = connect_local(router_port); return sock1 > 0; });
+  call_until([&sock1, &router_port]() -> bool { sock1 = connect_local(router_port); return sock1 > 0; });
   int sock2 = connect_local(router_port);
 
   EXPECT_TRUE(sock1 > 0);

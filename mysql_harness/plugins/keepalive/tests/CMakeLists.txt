@@ -21,3 +21,12 @@ add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
 
 create_harness_test_directory_post_build(TestPluginKeepalive keepalive)
 configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # silence undefined use of macro-vars in gtest.
+  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
+  # supress it locally.
+  set_target_properties(TestPluginKeepalive PROPERTIES
+    COMPILE_FLAGS "-Wno-undef")
+endif()
+

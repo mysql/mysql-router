@@ -38,10 +38,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
-# error "This file expects POSIX.1-2001 or later"
-#endif
-
 #if defined(__sun) && defined(__SVR4) // Solaris
   #include <limits.h> // PATH_MAX; maybe <climits> would be ok too,
 #endif                //           had no easy way of checking
@@ -256,11 +252,12 @@ void Directory::DirectoryIterator::State::fill_result() {
 // be here since the automatically generated default
 // constructor/destructor uses the definition of the class 'State',
 // which is not available when the header file is read.
-Directory::DirectoryIterator::~DirectoryIterator() = default;
+Directory::DirectoryIterator::~DirectoryIterator() {}
 Directory::DirectoryIterator::DirectoryIterator(
     DirectoryIterator&&) = default;
 Directory::DirectoryIterator::DirectoryIterator(
-    const DirectoryIterator&) = default;
+    const DirectoryIterator& other) : DirectoryIteratorBase(other), path_(other.path_), pattern_(other.pattern_), state_(other.state_) {
+}
 
 Directory::DirectoryIterator::DirectoryIterator()
   : path_("*END*"), state_(std::make_shared<State>()) {}

@@ -19,6 +19,7 @@
 #define MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED
 
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/registry.h"
 
 #include <memory>
 
@@ -64,24 +65,45 @@ protected:
 #else
     mysql_server_mock->append("mysql_server_mock");
 #endif
-
     orig_cerr_ = std::cerr.rdbuf();
     std::cerr.rdbuf(ssout.rdbuf());
+
+    std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+    if (log_stream != &std::cerr) {
+      orig_log_ = log_stream->rdbuf();
+      log_stream->rdbuf(ssout_log.rdbuf());
+    }
   }
 
   virtual void TearDown() {
     if (orig_cerr_) {
       std::cerr.rdbuf(orig_cerr_);
     }
+
+    if (orig_log_) {
+      std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+      log_stream->rdbuf(orig_log_);
+    }
   }
 
   void reset_ssout() {
     ssout.str("");
     ssout.clear();
+    ssout_log.str("");
+    ssout_log.clear();
   }
 
   void set_origin(const Path &origin) {
     origin_dir.reset(new Path(origin));
+  }
+
+  std::stringstream& get_log_stream() {
+    if (orig_log_) {
+      // if logger stream differs from cerr
+      return ssout_log;
+    }
+
+    return ssout;
   }
 
   std::unique_ptr<Path> stage_dir;
@@ -91,7 +113,11 @@ protected:
   std::unique_ptr<Path> mysql_server_mock;
 
   std::stringstream ssout;
-  std::streambuf *orig_cerr_;
+  std::streambuf *orig_cerr_{nullptr};
+  std::streambuf *orig_log_{nullptr};
+
+ private:
+  std::stringstream ssout_log;
 };
 
 #endif // MYSQLROUTER_GTEST_ROUTER_EXETEST_INCLUDED

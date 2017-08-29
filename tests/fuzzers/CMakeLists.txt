@@ -146,8 +146,8 @@ if (CLANG_HAS_LIBFUZZER)
   #
   add_executable(${FUZZ_TARGET}
     fuzz_router_uri.cc
-    ${CMAKE_SOURCE_DIR}/src/router/src/uri.cc
-    ${CMAKE_SOURCE_DIR}/src/router/src/utils.cc
+    ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
+    ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
   )
 
   set_target_properties(
@@ -159,7 +159,7 @@ if (CLANG_HAS_LIBFUZZER)
   target_link_libraries(${FUZZ_TARGET} harness-library ${MySQL_LIBRARIES} ${SSL_LIBRARIES} ${LIBFUZZER_LIBRARIES})
   target_include_directories(${FUZZ_TARGET}
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/router/include/)
+    ${PROJECT_SOURCE_DIR}/src/router/include/)
   fuzz(${FUZZ_TARGET})
 
 
@@ -171,8 +171,8 @@ if (CLANG_HAS_LIBFUZZER)
   #
   add_executable(${FUZZ_TARGET}
     fuzz_router_uri_tostring.cc
-    ${CMAKE_SOURCE_DIR}/src/router/src/uri.cc
-    ${CMAKE_SOURCE_DIR}/src/router/src/utils.cc
+    ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
+    ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
   )
 
   set_target_properties(
@@ -184,7 +184,7 @@ if (CLANG_HAS_LIBFUZZER)
   target_link_libraries(${FUZZ_TARGET} harness-library ${MySQL_LIBRARIES} ${SSL_LIBRARIES} ${LIBFUZZER_LIBRARIES})
   target_include_directories(${FUZZ_TARGET}
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src/router/include/)
+    ${PROJECT_SOURCE_DIR}/src/router/include/)
   fuzz(${FUZZ_TARGET})
 
 endif()

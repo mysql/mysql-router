@@ -19,13 +19,23 @@
 #include "gmock/gmock.h"
 
 #include <memory>
-#include <google/protobuf/io/coded_stream.h>
 
 #include "mysql/harness/logging/logging.h"
 #include "protocol/x_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "routing_mocks.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wconversion"
+#endif
+#include <google/protobuf/io/coded_stream.h>
 #include "mysqlx.pb.h"
+#include "mysqlx_session.pb.h"
+#include "mysqlx_connection.pb.h"
+#include "mysqlx_notice.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 #include "test/helpers.h"
 
 using ::testing::_;

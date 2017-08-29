@@ -16,7 +16,7 @@
 */
 
 #define UNIT_TESTS  // used in router_app.h
-#include "config.h"
+#include "router_config.h"
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
@@ -144,11 +144,11 @@ TEST_F(AppTest, GetVersionAsString) {
 
 TEST_F(AppTest, GetVersionLine) {
   MySQLRouter r;
-  ASSERT_THAT(r.get_version_line(), StartsWith(PACKAGE_NAME));
+  ASSERT_THAT(r.get_version_line(), StartsWith(MYSQL_ROUTER_PACKAGE_NAME));
   ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION));
   ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION_EDITION));
-  ASSERT_THAT(r.get_version_line(), HasSubstr(PACKAGE_PLATFORM));
-  if (PACKAGE_ARCH_64BIT == 1) {
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_PACKAGE_PLATFORM));
+  if (MYSQL_ROUTER_PACKAGE_ARCH_64BIT == 1) {
     ASSERT_THAT(r.get_version_line(), HasSubstr("64-bit"));
   } else {
     ASSERT_THAT(r.get_version_line(), HasSubstr("32-bit"));
@@ -702,10 +702,10 @@ TEST_F(AppLoggerTest, TestLogger) {
   //
   // ******** Router started ********
   // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-  EXPECT_THAT(ssout.str(), HasSubstr(" main INFO "));
-  EXPECT_THAT(ssout.str(), HasSubstr("\n\n******** Router started ********"));
-  EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
-  EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
+  EXPECT_THAT(get_log_stream().str(), HasSubstr(" main INFO "));
+  EXPECT_THAT(get_log_stream().str(), HasSubstr("\n\n******** Router started ********"));
+  EXPECT_THAT(get_log_stream().str(), HasSubstr(" magic INFO "));
+  EXPECT_THAT(get_log_stream().str(), HasSubstr(" It is some kind of magic"));
 }
 
 TEST_F(AppTest, EmptyConfigPath) {

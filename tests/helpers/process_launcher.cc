@@ -372,7 +372,7 @@ void ProcessLauncher::report_error(const char *msg, const char *prefix)
         ! defined _GNU_SOURCE
     int r = strerror_r(errno, sys_err, sizeof(sys_err));
     (void)r;  // silence unused variable;
-  #elif defined _GNU_SOURCE
+  #elif defined(_GNU_SOURCE) && defined(__GLIBC__)
     const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
     (void)r;  // silence unused variable;
   #else

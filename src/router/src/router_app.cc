@@ -523,9 +523,9 @@ string MySQLRouter::get_version_line() noexcept {
   std::ostringstream os;
   string edition{MYSQL_ROUTER_VERSION_EDITION};
 
-  os << PACKAGE_NAME << " v" << get_version();
+  os << MYSQL_ROUTER_PACKAGE_NAME << " v" << get_version();
 
-  os << " on " << PACKAGE_PLATFORM << " (" << (PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") << ")";
+  os << " on " << MYSQL_ROUTER_PACKAGE_PLATFORM << " (" << (MYSQL_ROUTER_PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") << ")";
 
   if (!edition.empty()) {
     os << " (" << edition << ")";

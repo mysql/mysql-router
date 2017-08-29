@@ -29,13 +29,14 @@ add_harness_plugin(mysql_protocol
   REQUIRES router_lib)
 target_include_directories(mysql_protocol PRIVATE ${include_dirs})
 
-file(GLOB mysqlv10_headers include/mysqlrouter/*.h)
-install(FILES ${mysqlv10_headers}
-  DESTINATION "include/mysql/${HARNESS_NAME}")
+# don't install headers until a) a final destination is found and b) API is stable
+# file(GLOB mysqlv10_headers include/mysqlrouter/*.h)
+# install(FILES ${mysqlv10_headers}
+#   DESTINATION "include/mysql/${HARNESS_NAME}")
 
-file(GLOB mysqlv10_headers include/mysqlrouter/mysql_protocol/*.h)
-install(FILES ${mysqlv10_headers}
-  DESTINATION "include/${HARNESS_NAME}/mysql_protocol")
+# file(GLOB mysqlv10_headers include/mysqlrouter/mysql_protocol/*.h)
+# install(FILES ${mysqlv10_headers}
+#   DESTINATION "include/${HARNESS_NAME}/mysql_protocol")
 
 if(ENABLE_TESTS)
   add_subdirectory(tests/)

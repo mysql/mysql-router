@@ -27,7 +27,7 @@
  */
 
 #include "protocol/base_protocol.h"
-#include "config.h"
+#include "router_config.h"
 #include "destination.h"
 #include "mysql/harness/filesystem.h"
 #include "mysqlrouter/datatypes.h"

@@ -483,14 +483,20 @@ TEST(TestConfig, SectionRead) {
               UnorderedElementsAreArray({"example", "empty"}));
 
   // Test that options for a section is correct
-  std::vector<std::pair<std::string, std::string>> expected_options{
+  std::set<std::pair<std::string, std::string>> expected_options{
     {"library", "magic"},
     {"message", "Some kind of"}
   };
-  EXPECT_THAT(config.get("example", "").get_options(),
-              ElementsAreArray(expected_options));
-  EXPECT_THAT(config.get("example", "").get_options(),
-              SizeIs(2));
+
+  // ElementsAreArray() segfaults with Sun Studio compiler
+  //  EXPECT_THAT(config.get("example", "").get_options(),
+  //              ElementsAreArray(expected_options));
+  auto config_options = config.get("example", "").get_options();
+  for (const auto& op: config_options) {
+    EXPECT_EQ(1u, expected_options.count(op));
+  }
+  EXPECT_THAT(config_options, SizeIs(2));
+
   EXPECT_THAT(config.get("empty", "").get_options(),
               IsEmpty());
   EXPECT_THAT(config.get("empty", "").get_options(),

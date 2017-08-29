@@ -20,7 +20,7 @@
 #include "mysql/harness/filesystem.h"
 #include "common.h"
 #include "dim.h"
-#include "my_aes.h"
+#include "mysqlrouter/my_aes.h"
 #include "random_generator.h"
 #include <string.h>
 #include <random>
@@ -244,6 +244,7 @@ bool init_keyring(const std::string &keyring_file_path,
   std::string master_scramble;
   MasterKeyFile mkf(master_key_path);
 
+  errno = 0;
   try {
     mkf.load();
   } catch (std::exception&) {

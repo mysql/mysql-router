@@ -23,7 +23,7 @@
 
 
 // First include (the generated) my_config.h, to get correct platform defines.
-#include "config.h"
+#include "router_config.h"
 #include <string.h>             // memcpy
 #include "runtime.hpp"
 #include "buffer.hpp"

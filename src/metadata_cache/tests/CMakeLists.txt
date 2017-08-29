@@ -20,21 +20,21 @@
 # The MockMetadata class does the functionality of the Metadata class.
 
 set(METADATA_CACHE_TESTS_HELPER
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
 )
 
 
 set(include_dirs
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
-  ${CMAKE_SOURCE_DIR}/tests/helpers
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
+  ${PROJECT_SOURCE_DIR}/tests/helpers
   )
 
 # We do not link to the metadata cache libraries since the sources are
@@ -51,7 +51,7 @@ endif()
 
 set_target_properties(metadata_cache_tests PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY
-                      ${STAGE_DIR}/lib)
+                      ${MySQLRouter_BINARY_STAGE_DIR}/lib)
 
 
 target_include_directories(metadata_cache_tests PRIVATE ${include_dirs})
@@ -62,12 +62,24 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
                metadata_cache_tests
                test-helpers
              INCLUDE_DIRS
-               ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
-               ${CMAKE_SOURCE_DIR}/src/metadata_cache/src
-               ${CMAKE_SOURCE_DIR}/src/metadata_cache/tests/helper
-               ${CMAKE_SOURCE_DIR}/tests/helpers
-               ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
+               ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
+               ${PROJECT_SOURCE_DIR}/tests/helpers
+               ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
 )
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # silence undefined use of macro-vars in gtest.
+  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
+  # supress it locally.
+  set_target_properties(
+    test_metadata_cache_plugin_config
+    PROPERTIES
+    COMPILE_FLAGS "-Wno-undef")
+endif()
+
+
 
 target_compile_definitions(test_metadata_cache_cache_plugin PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
 target_compile_definitions(test_metadata_cache_metadata_cache PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)

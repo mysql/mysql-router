@@ -208,13 +208,17 @@ void clear_registry(Registry& registry) {
     registry.remove_handler(name.c_str()); // throws std::logic_error
 }
 
+std::ostream *get_default_logger_stream() {
+  return &std::cerr;
+}
+
 void create_main_logfile_handler(Registry& registry,
                                  const std::string& program,
                                  const std::string& logging_folder) {
   // Register the console as the handler if the logging folder is
   // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {
-    registry.add_handler(kMainConsoleHandler, std::make_shared<StreamHandler>(std::cerr));
+    registry.add_handler(kMainConsoleHandler, std::make_shared<StreamHandler>(*get_default_logger_stream()));
     attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   } else {
     Path log_file = Path::make_path(logging_folder, program, "log");
@@ -311,7 +315,11 @@ void set_log_level_for_all_loggers(LogLevel level) {
 // However, since we are building a DLL/DSO with this file, and since VS only
 // allows __declspec(dllimport/dllexport) in function declarations, we must
 // provide both declaration and definition.
-extern "C" void LOGGER_API log_message(LogLevel level, const char* module, const char* fmt, va_list ap);
+extern "C" void LOGGER_API log_message(LogLevel level, const char* module, const char* fmt, va_list ap)
+#ifdef HAVE_ATTRIBUTE_FORMAT
+  __attribute__((format(printf, 3, 0)))
+#endif
+  ;
 
 extern "C" void log_message(LogLevel level, const char* module, const char* fmt, va_list ap) {
   harness_assert(level <= LogLevel::kDebug);

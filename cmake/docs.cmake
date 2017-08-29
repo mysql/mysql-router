@@ -16,17 +16,17 @@
 find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/doc)
+  file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/doc)
 
-  configure_file(doc/doxygen.cfg.in ${CMAKE_BINARY_DIR}/doc/doxygen.cfg @ONLY)
+  configure_file(doc/doxygen.cfg.in ${PROJECT_BINARY_DIR}/doc/doxygen.cfg @ONLY)
 
   foreach(f router_footer.html router_header.html router_doxygen.css)
-    file(COPY ${CMAKE_SOURCE_DIR}/doc/${f} DESTINATION ${CMAKE_BINARY_DIR}/doc)
+    file(COPY ${PROJECT_SOURCE_DIR}/doc/${f} DESTINATION ${PROJECT_BINARY_DIR}/doc)
   endforeach()
 
   add_custom_target(doc ${DOXYGEN_EXECUTABLE} doc/doxygen.cfg
     COMMAND pwd
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     COMMENT "Generate MySQL Router developer documentation"
     VERBATIM)
 endif()

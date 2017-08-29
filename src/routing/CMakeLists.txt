@@ -34,13 +34,13 @@ set(ROUTING_PLUGIN_SOURCE_FILES
 )
 
 set(include_dirs
-  ${CMAKE_SOURCE_DIR}/src/router/include
-  ${CMAKE_SOURCE_DIR}/src/routing/include
-  ${CMAKE_SOURCE_DIR}/src/metadata_cache/include
-  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include
-  ${CMAKE_SOURCE_DIR}/src/x_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/router/include
+  ${PROJECT_SOURCE_DIR}/src/routing/include
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/x_protocol/include
   ${PROTOBUF_INCLUDE_DIR}
-  ${CMAKE_BINARY_DIR}/generated/protobuf
+  ${PROJECT_BINARY_DIR}/generated/protobuf
 )
 
 # this file includes protobuf generated header that is causing 'shadow' warning on some compilers
@@ -65,7 +65,7 @@ if(CXX_HAVE_DEPRECATED_DECLARATIONS)
     COMPILE_FLAGS "-Wno-deprecated-declarations")
 endif()
 
-link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
+# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 # The Plugin
 add_harness_plugin(routing
         SOURCES ${ROUTING_PLUGIN_SOURCE_FILES} ${ROUTING_SOURCE_FILES}
@@ -87,9 +87,10 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   target_link_libraries(routing PRIVATE -lnsl PRIVATE -lsocket)
 endif()
 
-file(GLOB routing_headers include/mysqlrouter/*.h)
-install(FILES ${routing_headers}
-  DESTINATION "include/mysql/${HARNESS_NAME}")
+# don't install headers until a) a final destination is found and b) API is stable
+# file(GLOB routing_headers include/mysqlrouter/*.h)
+# install(FILES ${routing_headers}
+#   DESTINATION "include/mysql/${HARNESS_NAME}")
 
 if(ENABLE_TESTS)
   add_subdirectory(tests/)

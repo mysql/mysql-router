@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "utils.h"
+#include "mysqlrouter/utils.h"
 #include "mysql/harness/filesystem.h"
 #include "common.h"
 
@@ -409,7 +409,7 @@ std::string get_last_error(int myerrnum)
       ! defined _GNU_SOURCE
   int r = strerror_r(errno, sys_err, sizeof(sys_err));
   (void)r;  // silence unused variable;
-#elif defined _GNU_SOURCE
+#elif defined(_GNU_SOURCE) && defined(__GLIBC__)
   const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
   (void)r;  // silence unused variable;
 #else

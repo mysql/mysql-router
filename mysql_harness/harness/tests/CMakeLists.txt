@@ -86,6 +86,30 @@ add_harness_test(TestDIMandUniquePtr SOURCES test_dim_and_unique_ptr.cc)
 
 add_harness_test(TestRandomGenerator SOURCES test_random_generator.cc)
 
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # silence undefined use of macro-vars in gtest.
+  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
+  # supress it locally.
+  set_target_properties(
+    TestIPAddress
+    TestConfig
+    TestKeyring
+    TestRandomGenerator
+    TestLogger
+    TestBug22104451
+    TestFilesystem
+    TestUtilities
+    TestIterator
+    TestLoaderLifecycle
+    TestLoader
+    TestDesignator
+    TestKeyringManager
+    TestDIMandUniquePtr
+    TestNameResolver
+    PROPERTIES
+    COMPILE_FLAGS "-Wno-undef")
+endif()
+
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
 if(WIN32)

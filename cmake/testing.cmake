@@ -13,8 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-set(_TEST_RUNTIME_DIR ${CMAKE_BINARY_DIR}/tests)
-set(STAGE_DIR ${CMAKE_BINARY_DIR}/stage CACHE INTERNAL "STAGE_DIR")
+set(_TEST_RUNTIME_DIR ${PROJECT_BINARY_DIR}/tests)
 
 # Set {RUNTIME,LIBRARY}_OUTPUT_DIRECTORY properties of a target to the stage dir.
 # On unix platforms this is just one directory, but on Windows it's per build-type,
@@ -24,11 +23,11 @@ function(set_target_output_directory target target_output_directory dirname)
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       string(TOUPPER ${config_} config__)
       set_property(TARGET ${target} PROPERTY
-        ${target_output_directory}_${config__} ${STAGE_DIR}/${config_}/${dirname})
+        ${target_output_directory}_${config__} ${MySQLRouter_BINARY_STAGE_DIR}/${config_}/${dirname})
     endforeach()
   else()
     set_property(TARGET ${target} PROPERTY
-      ${target_output_directory} ${STAGE_DIR}/${dirname})
+      ${target_output_directory} ${MySQLRouter_BINARY_STAGE_DIR}/${dirname})
   endif()
 endfunction()
 
@@ -36,10 +35,10 @@ endfunction()
 foreach(dir etc;run;log;bin;lib)
   if(WIN32)
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
-      file(MAKE_DIRECTORY ${STAGE_DIR}/${config_}/${dir})
+      file(MAKE_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/${config_}/${dir})
     endforeach()
   else()
-    file(MAKE_DIRECTORY ${STAGE_DIR}/${dir})
+    file(MAKE_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/${dir})
   endif()
 endforeach()
 
@@ -55,7 +54,7 @@ function(add_test_file FILE)
   get_filename_component(test_ext ${FILE} EXT)
   get_filename_component(runtime_dir ${FILE} PATH)  # Not using DIRECTORY because of CMake >=2.8.11 requirement
 
-  set(runtime_dir ${CMAKE_BINARY_DIR}/tests/${TEST_MODULE})
+  set(runtime_dir ${PROJECT_BINARY_DIR}/tests/${TEST_MODULE})
 
   if(test_ext STREQUAL ".cc")
     # Tests written in C++
@@ -78,16 +77,19 @@ function(add_test_file FILE)
     set_target_properties(${test_target}
       PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${runtime_dir}/)
-    add_test(NAME ${test_name}
-      COMMAND ${runtime_dir}/${test_target})
     if(WIN32)
+      # use old-style add_test() to circumvent the 'ctest needs -C ...'-requirement on windows
+      add_test(${test_name} ${runtime_dir}/${CMAKE_BUILD_TYPE}/${test_target})
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-          "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};PATH=${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\lib\;${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
+        "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};PATH=${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\lib\;${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
     else()
+      # use new-style add_test() ...
+      add_test(NAME ${test_name}
+        COMMAND ${runtime_dir}/${test_target})
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-          "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
+        "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
     endif()
   else()
     message(ERROR "Unknown test type; file '${FILE}'")

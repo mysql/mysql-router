@@ -97,6 +97,7 @@ class RouterComponentTest {
  protected:
 
   RouterComponentTest();
+  virtual ~RouterComponentTest() = default;
 
   /** @class CommandHandle
    *

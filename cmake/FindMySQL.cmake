@@ -73,19 +73,32 @@ else()
   )
 endif()
 
-find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS}
-          PATH_SUFFIXES mysql NO_DEFAULT_PATH)
-if(WITH_STATIC AND NOT WIN32)
-  find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a
-               PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
-               NO_DEFAULT_PATH)
-else()
-  find_library(MySQL_CLIENT_LIB NAMES ${MySQL_CLIENT_LIBRARY}
-               PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
-               NO_DEFAULT_PATH)
-  if(NOT WIN32)
-    find_library(LIBDL NAMES dl)
+# test if we are located in the mysql-server-tree
+
+IF(EXISTS "${CMAKE_SOURCE_DIR}/include/mysql.h")
+  # bundled build
+  SET(MySQL_CLIENT_LIB libmysql)
+  SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
+  SET(MySQL_INCLUDES ${CMAKE_SOURCE_DIR}/include)
+  LIST(APPEND MySQL_INCLUDES ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+  LIST(APPEND MySQL_INCLUDES ${CMAKE_BINARY_DIR}/include)
+ELSE()
+  # external mysql-server install
+  find_path(MySQL_INCLUDES mysql.h PATHS ${MySQL_INCLUDE_PATHS}
+            PATH_SUFFIXES mysql NO_DEFAULT_PATH)
+  if(WITH_STATIC AND NOT WIN32)
+    find_library(MySQL_CLIENT_LIB NAMES lib${MySQL_CLIENT_LIBRARY}.a
+                 PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
+                 NO_DEFAULT_PATH)
+  else()
+    find_library(MySQL_CLIENT_LIB NAMES ${MySQL_CLIENT_LIBRARY}
+                 PATHS ${MySQL_LIBRARY_PATHS} PATH_SUFFIXES mysql
+                 NO_DEFAULT_PATH)
+    if(NOT WIN32)
+      find_library(LIBDL NAMES dl)
+    endif()
   endif()
+  SET(MySQL_VERSION_HEADER ${MySQL_INCLUDES}/mysql_version.h)
 endif()
 
 if(MySQL_INCLUDES AND MySQL_CLIENT_LIB)
@@ -96,7 +109,7 @@ if(MySQL_INCLUDES AND MySQL_CLIENT_LIB)
   else()
     set(MySQL_LIBRARIES ${MySQL_CLIENT_LIB})
   endif()
-  file(STRINGS "${MySQL_INCLUDE_DIRS}/mysql_version.h"
+  file(STRINGS "${MySQL_VERSION_HEADER}"
     version_line
     REGEX "^#define[\t ]+MYSQL_SERVER_VERSION.*"
   )

@@ -290,7 +290,8 @@ std::string get_strerror(int err) {
     char msg[256];
     std::string result;
 
-#if  !_GNU_SOURCE && (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
+#if  !defined(_GNU_SOURCE) && ((defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || (defined(_XOPEN_SOURCE) && _XOPEN_SOURCE >= 600))
+  // glibc's POSIX version
   int ret = strerror_r(err, msg, sizeof(msg));
   if (ret) {
     return "errno= " + std::to_string(err) + " (strerror_r failed: " + std::to_string(ret) + ")";
@@ -304,9 +305,18 @@ std::string get_strerror(int err) {
   } else {
     result = std::string(msg);
   }
-#else // GNU version
+#elif defined(__GLIBC__) && defined (_GNU_SOURCE)
+  // glibc's POSIX version, GNU version
   char* ret = strerror_r(err, msg, sizeof(msg));
   result = std::string(ret);
+#else
+  // POSIX version
+  int ret = strerror_r(err, msg, sizeof(msg));
+  if (ret) {
+    return "errno= " + std::to_string(err) + " (strerror_r failed: " + std::to_string(ret) + ")";
+  } else {
+    result = std::string(msg);
+  }
 #endif
 
   return result;

@@ -17,7 +17,7 @@
 
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
-#include "config.h"
+#include "router_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "utils.h"
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include "config_parser.h"
 #include "harness_assert.h"
+#include "router_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "lifecycle.h"
 #include "mysql/harness/plugin.h"
@@ -82,6 +83,12 @@ namespace {
     // unsupported instance name
     harness_assert_this_should_not_execute();
   }
+
+  static void log_info(bool notify, const std::string& key, const char* format, ...)
+#ifdef HAVE_ATTRIBUTE_FORMAT
+    __attribute__((format(printf, 3, 4)))
+#endif
+    ;
 
   static void log_info(bool notify, const std::string& key, const char* format, ...) {
     char buf[1024];

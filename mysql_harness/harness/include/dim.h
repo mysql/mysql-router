@@ -221,32 +221,28 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
 
   // Logging Registry
   void set_LoggingRegistry(const std::function<mysql_harness::logging::Registry*(void)>& factory,
-                           const std::function<void(mysql_harness::logging::Registry*)>& deleter
-                               = std::default_delete<mysql_harness::logging::Registry>()) {
+                           const std::function<void(mysql_harness::logging::Registry*)>& deleter) {
     factory_LoggingRegistry_ = factory;
     deleter_LoggingRegistry_ = deleter;
   }
 
   // MySQLSession
   void set_MySQLSession(const std::function<mysqlrouter::MySQLSession*(void)>& factory,
-                        const std::function<void(mysqlrouter::MySQLSession*)>& deleter
-                              = std::default_delete<mysqlrouter::MySQLSession>()) {
+                        const std::function<void(mysqlrouter::MySQLSession*)>& deleter) {
     factory_MySQLSession_ = factory;
     deleter_MySQLSession_ = deleter;
   }
 
   // Ofstream
   void set_Ofstream(const std::function<mysqlrouter::Ofstream*(void)>& factory,
-                    const std::function<void(mysqlrouter::Ofstream*)>& deleter
-                          = std::default_delete<mysqlrouter::Ofstream>()) {
+                    const std::function<void(mysqlrouter::Ofstream*)>& deleter) {
     factory_Ofstream_ = factory;
     deleter_Ofstream_ = deleter;
   }
 
   // RandomGenerator
   void set_RandomGenerator(const std::function<mysql_harness::RandomGeneratorInterface*(void)>& factory,
-                           const std::function<void(mysql_harness::RandomGeneratorInterface*)>& deleter
-                                 = std::default_delete<mysql_harness::RandomGeneratorInterface>()) {
+                           const std::function<void(mysql_harness::RandomGeneratorInterface*)>& deleter) {
     factory_RandomGenerator_ = factory;
     deleter_RandomGenerator_ = deleter;
   }

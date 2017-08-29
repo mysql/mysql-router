@@ -48,6 +48,9 @@ using mysql_harness::utility::strip;
 
 namespace mysql_harness {
 
+// satisfy ODR requirements
+constexpr const char* Config::DEFAULT_PATTERN;
+
 static bool isident(const char ch) {
   return isalnum(ch) || ch == '_';
 }

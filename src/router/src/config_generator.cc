@@ -27,7 +27,7 @@
 #include "random_generator.h"
 #include "utils.h"
 #include "router_app.h"
-#include "sha1.h"
+#include "mysqlrouter/sha1.h"
 
 // #include "mysql/harness/logging.h"
 #ifdef _WIN32

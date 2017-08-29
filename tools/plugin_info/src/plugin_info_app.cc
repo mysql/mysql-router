@@ -18,7 +18,7 @@
 #include "plugin_info_app.h"
 #include "library_file.h"
 
-#include "config.h"
+#include "router_config.h"
 
 Plugin_info_app::Plugin_info_app(int argc,
                                  const char** argv,

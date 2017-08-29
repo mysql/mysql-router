@@ -607,6 +607,8 @@ Actions taken for each plugin function are as follows:
 #ifndef MYSQL_HARNESS_LOADER_INCLUDED
 #define MYSQL_HARNESS_LOADER_INCLUDED
 
+#include "router_config.h"
+
 #include "config_parser.h"
 #include "filesystem.h"
 #include "mysql/harness/plugin.h"
@@ -614,6 +616,7 @@ Actions taken for each plugin function are as follows:
 #include "harness_export.h"
 
 #include <csignal>
+#include <cstdarg>  // va_list
 #include <exception>
 #include <future>
 #include <istream>
@@ -769,7 +772,11 @@ class HARNESS_EXPORT PluginFuncEnv {
   // error handling
   // (see also corresponding Harness API functions in plugin.h for more info)
   bool exit_ok() const noexcept;
-  void set_error(ErrorType error_type, const char* fmt, va_list ap) noexcept;
+  void set_error(ErrorType error_type, const char* fmt, va_list ap) noexcept
+#ifdef HAVE_ATTRIBUTE_FORMAT
+    __attribute__((format(printf, 3, 0)))
+#endif
+    ;
   std::tuple<std::string, std::exception_ptr> pop_error() noexcept;
 
  private:

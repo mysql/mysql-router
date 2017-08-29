@@ -67,7 +67,7 @@ ELSE()
 ENDIF()
 
 foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${CMAKE_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.conf.sample)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${PROJECT_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.conf.sample)
 endforeach()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_router_extra.wxs.in

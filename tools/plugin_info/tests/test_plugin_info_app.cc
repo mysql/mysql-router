@@ -25,7 +25,7 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
-#include "config.h"
+#include "router_config.h"
 
 #include <iostream>
 #include <sstream>

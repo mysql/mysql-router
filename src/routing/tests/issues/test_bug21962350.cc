@@ -23,6 +23,7 @@
 #include "mysql/harness/config_parser.h"
 #include "destination.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "test/helpers.h"
@@ -68,21 +69,25 @@ public:
 class Bug21962350 : public ::testing::Test {
 protected:
   virtual void SetUp() {
-    orig_cerr_ = std::cerr.rdbuf(ssout.rdbuf());
+    std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+
+    orig_log_stream_ = log_stream->rdbuf();
+    log_stream->rdbuf(sslog.rdbuf());
   }
 
   virtual void TearDown() {
-    if (orig_cerr_) {
-      std::cerr.rdbuf(orig_cerr_);
+    if (orig_log_stream_) {
+      std::ostream *log_stream = mysql_harness::logging::get_default_logger_stream();
+      log_stream->rdbuf(orig_log_stream_);
     }
   }
 
   static const std::vector<TCPAddress> servers;
 
-  std::stringstream ssout;
+  std::stringstream sslog;
 
 private:
-  std::streambuf *orig_cerr_;
+  std::streambuf *orig_log_stream_;
 };
 
 // NOTE: this test must run as first, it doesn't really test anything, just inits logger.
@@ -98,13 +103,13 @@ TEST_F(Bug21962350, AddToQuarantine) {
   d.add(servers[2]);
 
   d.add_to_quarantine(static_cast<size_t>(0));
-  ASSERT_THAT(ssout.str(), HasSubstr("Quarantine destination server s1.example.com:3306"));
+  ASSERT_THAT(sslog.str(), HasSubstr("Quarantine destination server s1.example.com:3306"));
   d.add_to_quarantine(static_cast<size_t>(1));
   exp = 2;
   ASSERT_EQ(exp, d.size_quarantine());
-  ASSERT_THAT(ssout.str(), HasSubstr("s2.example.com:3306"));
+  ASSERT_THAT(sslog.str(), HasSubstr("s2.example.com:3306"));
   d.add_to_quarantine(static_cast<size_t>(2));
-  ASSERT_THAT(ssout.str(), HasSubstr("s3.example.com:3306"));
+  ASSERT_THAT(sslog.str(), HasSubstr("s3.example.com:3306"));
   exp = 3;
   ASSERT_EQ(exp, d.size_quarantine());
 }
@@ -136,7 +141,7 @@ TEST_F(Bug21962350, CleanupQuarantine) {
   d.cleanup_quarantine();
   exp = 0;
   ASSERT_EQ(exp,d.size_quarantine());
-  ASSERT_THAT(ssout.str(), HasSubstr("Unquarantine destination server s2.example.com:3306"));
+  ASSERT_THAT(sslog.str(), HasSubstr("Unquarantine destination server s2.example.com:3306"));
 }
 
 TEST_F(Bug21962350, QuarantineServerMultipleTimes) {

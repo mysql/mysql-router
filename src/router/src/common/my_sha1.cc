@@ -22,7 +22,7 @@
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
-#include <sha1.h>
+#include "mysqlrouter/sha1.h"
 
 
 #if defined(HAVE_YASSL)

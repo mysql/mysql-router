@@ -18,6 +18,7 @@
 #include "utilities.h"
 
 #include <Windows.h>
+#include <Winsock2.h>
 #include <Shlwapi.h>
 
 #include <string>

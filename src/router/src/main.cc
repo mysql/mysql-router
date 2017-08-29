@@ -37,10 +37,10 @@ static void init_DIM() {
   mysql_harness::DIM& dim = mysql_harness::DIM::instance();
 
   // MySQLSession
-  dim.set_MySQLSession([](){ return new mysqlrouter::MySQLSession(); });
+  dim.set_MySQLSession([](){ return new mysqlrouter::MySQLSession(); }, std::default_delete<mysqlrouter::MySQLSession>());
 
   // Ofstream
-  dim.set_Ofstream([](){ return new mysqlrouter::RealOfstream(); });
+  dim.set_Ofstream([](){ return new mysqlrouter::RealOfstream(); }, std::default_delete<mysqlrouter::Ofstream>());
 }
 
 int real_main(int argc, char **argv) {

@@ -16,7 +16,7 @@
 */
 
 #include "keyring/keyring_memory.h"
-#include "my_aes.h"
+#include "mysqlrouter/my_aes.h"
 #include <cstdint>
 #include <cstring>
 

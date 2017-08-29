@@ -78,10 +78,10 @@ TEST_F(TestBlockClients, BlockClientHost) {
                  1, 1, max_connect_errors, client_connect_timeout);
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
-  ASSERT_THAT(ssout.str(), HasSubstr("1 connection errors for ::1 (max 2)"));
+  ASSERT_THAT(get_log_stream().str(), HasSubstr("1 connection errors for ::1 (max 2)"));
   reset_ssout();
   ASSERT_TRUE(r.block_client_host(client_ip_array1, string("::1")));
-  ASSERT_THAT(ssout.str(), HasSubstr("blocking client host ::1"));
+  ASSERT_THAT(get_log_stream().str(), HasSubstr("blocking client host ::1"));
 
   auto blocked_hosts = r.get_blocked_client_hosts();
   ASSERT_GE(blocked_hosts.size(), 1u);

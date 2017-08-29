@@ -269,7 +269,6 @@ class HARNESS_EXPORT Path {
   mutable FileType type_;
 };
 
-
 /**
  * Class representing a directory in a file system.
  *
@@ -292,8 +291,10 @@ class HARNESS_EXPORT Directory : public Path {
    *
    * A directory iterator is an input iterator.
    */
+  using DirectoryIteratorBase = std::iterator<std::input_iterator_tag, Path>;
+
   class HARNESS_EXPORT DirectoryIterator
-      : public std::iterator<std::input_iterator_tag, Path> {
+      : public DirectoryIteratorBase {
     friend class Directory;
 
    public:

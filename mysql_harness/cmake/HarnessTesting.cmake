@@ -26,13 +26,17 @@ function(add_harness_test NAME)
   endif()
   target_link_libraries(${NAME}
     PUBLIC harness-library test-helpers ${TEST_LIBRARIES})
-  add_test(NAME ${NAME} COMMAND ${NAME})
 
-   if(WIN32)
-     set_tests_properties(${NAME} PROPERTIES
-       ENVIRONMENT
-         "STAGE_DIR=${STAGE_DIR};CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR};CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR};PATH=${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\lib\;${CMAKE_BINARY_DIR}\\stage\\$<CONFIG>\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
-   endif()
+  if(WIN32)
+    # use old-style add_test() to circumvent the 'ctest needs -C ...'-requirement on windows
+    add_test(${NAME} ${CMAKE_BUILD_TYPE}/${NAME})
+    set_tests_properties(${NAME} PROPERTIES
+      ENVIRONMENT
+      "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};PATH=${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\lib\;${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
+  else()
+    # use new-style add_test() everywhere else
+    add_test(NAME ${NAME} COMMAND ${NAME})
+  endif()
 endfunction()
 
 

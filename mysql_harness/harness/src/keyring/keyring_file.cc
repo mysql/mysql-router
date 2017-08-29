@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,12 +55,14 @@ static SecurityDescriptorPtr get_security_descriptor(
 
   if (GetFileSecurityA(file_name.c_str(), kReqInfo, nullptr,
                        0, &sec_desc_size) == FALSE) {
-    auto error = GetLastError();
+    // calling code checks for errno
+    // also multiple calls to GetLastError() erase error value
+    errno = GetLastError();
 
     // We expect to receive `ERROR_INSUFFICIENT_BUFFER`.
-    if (error != ERROR_INSUFFICIENT_BUFFER) {
+    if (errno != ERROR_INSUFFICIENT_BUFFER) {
       throw std::runtime_error("GetFileSecurity() failed (" + file_name +
-                               "): " + std::to_string(error));
+                               "): " + std::to_string(errno));
     }
   }
 
@@ -244,7 +246,7 @@ void KeyringFile::save(const std::string& file_name,
       file_name + ": " + get_strerror(errno));
   }
 #else
-  // For Microsoft Windows, on repeated saving of files (like our unit tests) the file opening sometimes fails with 
+  // For Microsoft Windows, on repeated saving of files (like our unit tests) the file opening sometimes fails with
   // "Access Denied", since it works fine when disabling indexing of file contents for the whole folder
   // we assume the indexer is not releasing the file fast enough.
   // So here we simply retry the opening of the file.

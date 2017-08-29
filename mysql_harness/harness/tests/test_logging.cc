@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,7 +57,10 @@ using mysql_harness::logging::log_info;
 using mysql_harness::logging::log_warning;
 
 
+#if GTEST_HAS_COMBINE
+// only available if the system has <tr1/tuple> [if not gtest's own, minimal tr1/tuple is used.
 using testing::Combine;
+#endif
 using testing::EndsWith;
 using testing::Eq;
 using testing::Ge;
@@ -447,6 +450,7 @@ TEST_F(LoggingTest, Messages) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
+#if GTEST_HAS_COMBINE
 class LogLevelTest
     : public LoggingTest,
       public WithParamInterface<std::tuple<LogLevel, LogLevel>> {};
@@ -506,7 +510,7 @@ const LogLevel all_levels[]{
 
 INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
                         Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
-
+#endif
 ////////////////////////////////////////////////////////////////
 // Tests of the functional interface to the logger.
 ////////////////////////////////////////////////////////////////

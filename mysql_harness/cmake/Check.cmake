@@ -18,10 +18,10 @@ find_program(CPPLINT NAMES "cpplint" "cpplint.py")
 if(CPPLINT)
   message(STATUS "Cpplint found as ${CPPLINT}, creating 'check' target")
   file(GLOB_RECURSE _files
-    ${CMAKE_SOURCE_DIR}/harness/*.cc
-    ${CMAKE_SOURCE_DIR}/harness/*.h
-    ${CMAKE_SOURCE_DIR}/plugins/*.cc
-    ${CMAKE_SOURCE_DIR}/plugins/*.h)
+    ${PROJECT_SOURCE_DIR}/harness/*.cc
+    ${PROJECT_SOURCE_DIR}/harness/*.h
+    ${PROJECT_SOURCE_DIR}/plugins/*.cc
+    ${PROJECT_SOURCE_DIR}/plugins/*.h)
   add_custom_target(check
     COMMENT "Run lint checks on all source files in tree"
     COMMAND ${CPPLINT} ${CPPLINT_FLAGS} ${_files})

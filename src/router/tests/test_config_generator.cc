@@ -1559,25 +1559,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
-#ifdef __sun
-    ASSERT_THROW_LIKE(
-        config_gen.bootstrap_directory_deployment("./delme",
-          options, default_paths, "delme", "."),
-        std::runtime_error,
-        ": Invalid argument");
-#elif !defined(_WIN32)
-    ASSERT_THROW_LIKE(
-        config_gen.bootstrap_directory_deployment("./delme",
-          options, default_paths, "delme", "."),
-        std::runtime_error,
-        ": Is a directory");
-#else
+
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment("./delme",
         options, default_paths, "delme", "."),
       std::runtime_error,
-      "Permission denied");
-#endif
+      "Invalid master key file");
   }
   delete_dir_recursive("./delme");
   mysql_harness::reset_keyring();
@@ -1926,7 +1913,8 @@ TEST_F(ConfigGeneratorTest, warn_on_no_ssl) {
 
   // run for 2 ssl_mode cases: unspecified and PREFERRED (they are equivalent)
   typedef std::map<std::string, std::string> Opts;
-  for (Opts opt : { Opts{}, Opts{{"ssl_mode", mysqlrouter::MySQLSession::kSslModePreferred}} }) {
+  std::vector <Opts> opts{ Opts{}, Opts{{"ssl_mode", mysqlrouter::MySQLSession::kSslModePreferred}}};
+  for (const Opts& opt :  opts) {
 
     { // have SLL
       mock_mysql->expect_query_one(kQuery).then_return(0, {{"ssl_cipher", "some_cipher"}});

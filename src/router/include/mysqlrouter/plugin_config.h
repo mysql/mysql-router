@@ -55,6 +55,11 @@ public:
    */
   BasePluginConfig() { }
 
+  /**
+   * destructor
+   */
+  virtual ~BasePluginConfig() = default;
+
   /** @brief Gets value of given option as string
    *
    * @param section Instance of ConfigSection

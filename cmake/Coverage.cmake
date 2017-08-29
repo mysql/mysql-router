@@ -15,7 +15,7 @@
 
 option(ENABLE_COVERAGE "Enable code coverage support")
 
-set(GCOV_BASE_DIR ${CMAKE_BINARY_DIR}/coverage CACHE PATH
+set(GCOV_BASE_DIR ${PROJECT_BINARY_DIR}/coverage CACHE PATH
   "GCov coverage base directory")
 set(GCOV_HTML_DIR ${GCOV_BASE_DIR}/html CACHE PATH
   "GCov HTML report output directory")
@@ -24,8 +24,8 @@ set(GCOV_INFO_FILE ${GCOV_BASE_DIR}/coverage.info CACHE FILEPATH
 set(GCOV_XML_FILE ${GCOV_BASE_DIR}/coverage.xml CACHE FILEPATH
   "GCov XML report file name")
 
-set(LCOV_FLAGS -b ${CMAKE_BINARY_DIR} -d ${CMAKE_SOURCE_DIR} -q)
-set(GCOVR_FLAGS -r ${CMAKE_SOURCE_DIR})
+set(LCOV_FLAGS -b ${PROJECT_BINARY_DIR} -d ${PROJECT_SOURCE_DIR} -q)
+set(GCOVR_FLAGS -r ${PROJECT_SOURCE_DIR})
 
 include(TextUtils)
 
@@ -75,7 +75,7 @@ if(ENABLE_COVERAGE)
         COMMAND ${CMAKE_COMMAND} -E make_directory ${GCOV_BASE_DIR}
         COMMAND ${GCOVR} ${GCOVR_FLAGS} -o ${GCOV_XML_FILE} --xml
             -e '/usr/include/.*' -e '.*/tests/.*' -e 'ext/.*' -e '.*/generated/.*'
-            ${CMAKE_BINARY_DIR})
+            ${PROJECT_BINARY_DIR})
        message(STATUS "Target coverage-xml added to generate XML report")
     else()
       message(STATUS "Target coverage-xml not built - gcovr not found")

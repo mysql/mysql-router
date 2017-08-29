@@ -26,6 +26,7 @@ namespace mysqlrouter {
 class HostnameOperationsBase {
 public:
   virtual std::string get_my_hostname() = 0;
+  virtual ~HostnameOperationsBase() = default;
 };
 
 class HostnameOperations: public HostnameOperationsBase {

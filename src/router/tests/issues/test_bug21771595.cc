@@ -90,7 +90,7 @@ TEST_F(Bug21771595, ExceptionMetadataCacheInvalidBindAddress) {
   c << "[metadata_cache]\nbootstrap_server_addresses=mysql://127.0.0.1:13000,mysql://127.0.0.1:99999\n\n";
   c.close();
 
-  auto r = MySQLRouter(g_origin, {"-c", config_path->str()});
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(
     r.start(),
     std::invalid_argument,

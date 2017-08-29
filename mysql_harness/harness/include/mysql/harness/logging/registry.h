@@ -275,7 +275,11 @@ class HARNESS_EXPORT Registry {
   HARNESS_EXPORT
   void unregister_handler(std::string name);
 
-
+  /**
+  * Returns pointer to the default logger sink stream.
+  */
+  HARNESS_EXPORT
+  std::ostream *get_default_logger_stream();
 
 } // namespace logging
 

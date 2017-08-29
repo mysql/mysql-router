@@ -44,6 +44,8 @@ std::string get_alphabet(unsigned alphabet_mask) {
 }
 }
 
+RandomGeneratorInterface::~RandomGeneratorInterface() = default;
+
 std::string RandomGenerator::generate_identifier(unsigned length, unsigned alphabet_mask) /*override*/ {
   std::string result;
   std::random_device rd;

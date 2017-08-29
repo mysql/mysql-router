@@ -14,8 +14,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 include_directories(helpers
-  ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
-  ${CMAKE_SOURCE_DIR}/src/router/include/mysqlrouter
+  ${PROJECT_SOURCE_DIR}/mysql_harness/harness/include
+  ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
+  ${GTEST_INCLUDE_DIRS}
   )
 
 set(helper_sources
@@ -36,16 +37,15 @@ endif()
 target_link_libraries(routertest_helpers harness-library router_lib)
 
 set(helpers_include_dirs
-  ${CMAKE_SOURCE_DIR}/tests/helpers/
-  ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
-  ${CMAKE_BINARY_DIR}/harness
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_SOURCE_DIR}/mysql_harness/ext/gmock/include
-  ${CMAKE_SOURCE_DIR}/mysql_harness/ext/gtest/include
+  ${PROJECT_SOURCE_DIR}/tests/helpers/
+  ${PROJECT_SOURCE_DIR}/mysql_harness/harness/include
+  ${PROJECT_BINARY_DIR}/harness
+  ${PROJECT_BINARY_DIR}/include
+  ${GTEST_INCLUDE_DIRS}
   )
 
 set_target_properties(routertest_helpers PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${STAGE_DIR}/lib
+  LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib
   INCLUDE_DIRECTORIES "${helpers_include_dirs}"
 )
 

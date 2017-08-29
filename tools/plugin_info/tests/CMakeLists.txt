@@ -55,7 +55,7 @@ target_link_libraries(plugin_info_tests harness-library)
 
 set_target_properties(plugin_info_tests PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY
-                      ${STAGE_DIR}/lib)
+                      ${MySQLRouter_BINARY_STAGE_DIR}/lib)
 
 
 target_include_directories(plugin_info_tests PRIVATE ${include_dirs})

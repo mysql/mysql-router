@@ -54,15 +54,15 @@ set(libprotobuf_files
   ${protobuf_source_dir}/src/google/protobuf/wrappers.pb.cc
 )
 
-add_library(libprotobuf ${protobuf_SHARED_OR_STATIC}
+add_library(libprotobuf_3_0 ${protobuf_SHARED_OR_STATIC}
   ${libprotobuf_lite_files} ${libprotobuf_files})
-target_link_libraries(libprotobuf ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARIES})
-target_include_directories(libprotobuf PUBLIC ${protobuf_source_dir}/src)
+target_link_libraries(libprotobuf_3_0 ${CMAKE_THREAD_LIBS_INIT} ${ZLIB_LIBRARIES})
+target_include_directories(libprotobuf_3_0 PUBLIC ${protobuf_source_dir}/src)
 if(MSVC AND protobuf_BUILD_SHARED_LIBS)
-  target_compile_definitions(libprotobuf
+  target_compile_definitions(libprotobuf_3_0
     PUBLIC  PROTOBUF_USE_DLLS
     PRIVATE LIBPROTOBUF_EXPORTS)
 endif()
-set_target_properties(libprotobuf PROPERTIES
+set_target_properties(libprotobuf_3_0 PROPERTIES
     OUTPUT_NAME ${LIB_PREFIX}protobuf
     DEBUG_POSTFIX "${protobuf_DEBUG_POSTFIX}")

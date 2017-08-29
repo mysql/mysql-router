@@ -16,20 +16,20 @@
 include_directories(${PROTOBUF_INCLUDE_DIRS}
   "${CMAKE_CURRENT_SOURCE_DIR}/include/mysqlrouter"
 )
-include(${CMAKE_SOURCE_DIR}/cmake/mysqlx_protobuf.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/mysqlx_protobuf.cmake)
 include(CheckCXXCompilerFlag)
 
 set(PROTOBUF_MYSQLX_FILES
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_datatypes.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_connection.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_expect.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_expr.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_crud.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_sql.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_session.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_notice.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/proto/mysqlx_resultset.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_datatypes.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_connection.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_expect.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_expr.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_crud.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_sql.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_session.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_notice.proto"
+  "${PROTOBUF_MYSQLX_DIR}/mysqlx_resultset.proto"
 )
 
 mysqlx_protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTOBUF_MYSQLX_FILES})
@@ -89,21 +89,22 @@ set(SOURCE_FILES ${PROTO_SRCS} ${PROTO_HDRS})
 set(include_dirs
   ../src/router/include
   #include
-  "${CMAKE_BINARY_DIR}/generated/protobuf"
+  "${PROJECT_BINARY_DIR}/generated/protobuf"
   )
 
-link_directories(${CMAKE_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
+# link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 add_harness_plugin(x_protocol
   SOURCES ${SOURCE_FILES}
   REQUIRES router_lib)
 target_include_directories(x_protocol PRIVATE ${include_dirs})
 
-target_link_libraries(x_protocol PUBLIC optimized ${PROTOBUF_LIBRARY} debug ${PROTOBUF_LIBRARY_DEBUG})
+target_link_libraries(x_protocol PUBLIC ${PROTOBUF_LIBRARY})
 
 
-file(GLOB xprotocol_headers "${CMAKE_BINARY_DIR}/generated/protobuf/*.h")
-install(FILES ${xprotocol_headers}
-  DESTINATION "include/${HARNESS_NAME}/x_protocol")
+# don't install headers until a) a final destination is found and b) API is stable
+# file(GLOB xprotocol_headers "${PROJECT_BINARY_DIR}/generated/protobuf/*.h")
+# install(FILES ${xprotocol_headers}
+#   DESTINATION "include/${HARNESS_NAME}/x_protocol")
 
 #if(ENABLE_TESTS)
   #add_subdirectory(tests/)
