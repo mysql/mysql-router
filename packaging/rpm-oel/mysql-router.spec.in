@@ -22,7 +22,9 @@
 
 %{!?src_base:                 %global src_base mysql-router}
 
-%global src_dir               %{src_base}-%{version}
+%global milestone    dmr
+
+%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
 %if 0%{?suse_version} == 1315
 %global dist            .sles12
@@ -42,11 +44,11 @@
 Summary:       MySQL Router
 Name:          mysql-router%{?product_suffix}
 Version:       @PROJECT_VERSION_TEXT@
-Release:       1%{?commercial:.1}%{?dist}
+Release        0.1@RPM_EXTRA_VERSION@%{?commercial:.1}%{?dist}
 License:       @ORACLE_COPYRIGHT@ Under %{?license_type} license as shown in the Description field.
 Group:         Applications/Databases
 URL:           https://dev.mysql.com/downloads/router/
-Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}.tar.gz
+Source0:       https://cdn.mysql.com/Downloads/router/mysql-router-%{?commercial:commercial-}%{version}@PROJECT_PACKAGE_EXTRAS@.tar.gz
 Source1:       mysqlrouter.service
 Source2:       mysqlrouter.tmpfiles.d
 Source3:       mysqlrouter.init
@@ -100,7 +102,7 @@ This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 
 %prep
-%setup -q
+%setup -q -n %{name}-%{version}@PROJECT_PACKAGE_EXTRAS@
 
 %build
 mkdir release && pushd release
@@ -210,6 +212,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) %{_localstatedir}/run/mysqlrouter
 
 %changelog
+* Fri Sep 01 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 dmr release
+
 * Thu Jun 06 2017 Andrzej Religa <andrzej.religa@oracle.com> - 2.1.4-1
 - added mysqlrouter_plugin_info binary
 
