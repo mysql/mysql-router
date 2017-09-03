@@ -1,0 +1,5 @@
+mysql-router (8.0.3-dmr-1ubuntu17.04) zesty; urgency=low
+
+  * initial version
+
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Sun, 03 Sep 2017 10:36:55 +0200
