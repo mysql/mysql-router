@@ -116,7 +116,7 @@ if(ENABLE_TESTS)
     if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
       set_target_properties(gtest_main gmock_main
         PROPERTIES
-        COMPILE_FLAGS "-Wno-undef")
+        COMPILE_FLAGS "-Wno-undef -Wno-conversion")
     endif()
 
     set(TEST_LIBRARIES gmock gtest gmock_main gtest_main)

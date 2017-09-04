@@ -21,7 +21,7 @@
 #if defined(__GNUC__)
 #  define ATTRIBUTE_GCC_FORMAT(style, fmt_pos, arg_pos) __attribute__((format(style, fmt_pos, arg_pos)))
 #else
-#  define ATTRIBUTE_GCC_FORMAT()
+#  define ATTRIBUTE_GCC_FORMAT(style, fmt_pos, arg_pos)
 #endif
 
 #endif // MYSQL_HARNESS_COMPILER_ATTRIBUTES_INCLUDED

@@ -107,8 +107,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     TestKeyringManager
     TestDIMandUniquePtr
     TestNameResolver
+    TestCommon
     PROPERTIES
-    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef -Wno-conversion")
 endif()
 
 # Use configuration file templates to generate configuration files

@@ -557,7 +557,8 @@ TEST(FunctionalTest, CreateRemove) {
   ASSERT_NO_THROW(g_registry->remove_logger("my_first"));
 }
 
-void expect_no_log(void (*func)(const char*, ...), std::stringstream& buffer) {
+void expect_no_log(void (*func)(const char*, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2),
+                   std::stringstream& buffer) {
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.
   buffer.str("");
@@ -571,7 +572,7 @@ void expect_no_log(void (*func)(const char*, ...), std::stringstream& buffer) {
   EXPECT_THAT((int)buffer.tellp(), Eq(0));
 }
 
-void expect_log(void (*func)(const char*, ...),
+void expect_log(void (*func)(const char*, ...) ATTRIBUTE_GCC_FORMAT(printf, 1, 2),
                 std::stringstream& buffer, const char* kind) {
   // Clear the buffer first and ensure that it was cleared to avoid
   // triggering other errors.

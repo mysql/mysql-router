@@ -45,7 +45,14 @@ endif()
 
 target_link_libraries(mysqlrouter_plugin_info ${common_libraries} ${CMAKE_DL_LIBS})
 
-target_include_directories(mysqlrouter_plugin_info PUBLIC ${CMAKE_SOURCE_DIR}/ext/rapidjson/include/)
+if(EXISTS "${CMAKE_SOURCE_DIR}/extra/rapidjson/")
+  # prefer server-side rapidjson
+  SET(RAPIDJSON_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extra/rapidjson/include/")
+else()
+  SET(RAPIDJSON_INCLUDE_DIRS "${MySQLRouter_SOURCE_DIR}/ext/rapidjson/include/")
+endif()
+
+target_include_directories(mysqlrouter_plugin_info PUBLIC ${RAPIDJSON_INCLUDE_DIRS})
 
 set_target_output_directory(mysqlrouter_plugin_info RUNTIME_OUTPUT_DIRECTORY bin)
 

@@ -62,7 +62,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # triggered all over the place in the headers. It should actually be enabled.
   check_cxx_compiler_flag("-Wundef" COMPILER_HAS_WARNING_UNDEF)
   if(COMPILER_HAS_WARNING_UNDEF)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef -Wno-conversion")
   endif()
 
   # GCC/clang have this option

@@ -305,8 +305,7 @@ class HARNESS_EXPORT DIM { // DIM = Dependency Injection Manager
   // LoaderConfig
   void reset_Config() { reset_generic(instance_Config_); }
   void set_Config(const std::function<mysql_harness::LoaderConfig*(void)>& factory,
-                  const std::function<void(mysql_harness::LoaderConfig*)>& deleter
-                      = std::default_delete<mysql_harness::LoaderConfig>()) {
+                  const std::function<void(mysql_harness::LoaderConfig*)>& deleter) {
     factory_Config_ = factory;
     deleter_Config_ = deleter;
   }

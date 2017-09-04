@@ -35,7 +35,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set_target_properties(
     test_router_uri
     PROPERTIES
-    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef -Wno-conversion")
 endif()
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.conf ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)

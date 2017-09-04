@@ -147,7 +147,7 @@ static inline void set_signal_handlers() {
 // Check if the value is valid regular filename and if it is add to the vector,
 // if it is not throw an exception
 static void check_and_add_conf(std::vector<string> &configs,
-                               const std::string& value) throw(std::runtime_error) {
+                               const std::string& value) {
   mysql_harness::Path cfg_file_path;
   try {
     cfg_file_path = mysql_harness::Path(value);
@@ -553,7 +553,7 @@ void MySQLRouter::start() {
 
   // read config, and also make this config globally-available via DIM
   DIM::instance().reset_Config(); // simplifies unit tests
-  DIM::instance().set_Config([this](){ return make_config(); });
+  DIM::instance().set_Config([this](){ return make_config(); }, std::default_delete<mysql_harness::LoaderConfig>());
   mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
 
   // create logging directory if necessary
@@ -1004,8 +1004,7 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
-                          CmdOptionValueReq::required, "path", [this](const string &value)
-                          throw(std::runtime_error) {
+                          CmdOptionValueReq::required, "path", [this](const string &value) {
 
         if (!config_files_.empty()) {
           throw std::runtime_error("Option -c/--config can only be used once; use -a/--extra-config instead.");
@@ -1019,8 +1018,7 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(CmdOption::OptionNames({"-a", "--extra-config"}),
                           "Read this file after configuration files are read from either "
                               "default locations or from files specified by the --config option.",
-                          CmdOptionValueReq::required, "path", [this](const string &value)
-                          throw(std::runtime_error) {
+                          CmdOptionValueReq::required, "path", [this](const string &value) {
         check_and_add_conf(extra_config_files_, value);
       });
 // These are additional Windows-specific options, added (at the time of writing) in check_service_operations().

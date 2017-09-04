@@ -303,11 +303,14 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
           }
           break;
         case GR_State::Recovering:
-          quorum_count++;
         case GR_State::Unreachable:
         case GR_State::Offline:  // online node with disabled GR maps to this
         case GR_State::Error:
         case GR_State::Other:
+          // This could be done with a fallthrough but latest gcc (7.1) generates a warning
+          // for that and there is no sane and portable way to suppress it.
+          if (GR_State::Recovering ==  status->second.state)
+            quorum_count++;
           member.mode = ServerMode::Unavailable;
           break;
       }

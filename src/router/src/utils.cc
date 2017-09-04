@@ -586,13 +586,30 @@ RET strtoX_checked_common(CONV_FUNC conv_func, const char* value, RET default_va
     return default_value;
 }
 
+
+// We need those wrappers to suppress
+// "error: mangled name for 'RET mysqlrouter::strtoX_checked_common(CONV_FUNC, const char*, RET)
+// [with RET = unsigned int; CONV_FUNC = long unsigned int (*)(const char*, char**, int) throw ()]'
+// will change in C++17 because the exception specification is part of a function type [-Werror=noexcept-type]"
+// on the latest gcc (e.g. Fedora26)
+// It's because std::strtol and std::strtoul have throw() in their declaration and we use them as template params
+
+static long int strtol_wrapper(const char *nptr, char ** endptr, int base) {
+  return std::strtol(nptr, endptr, base);
+}
+
+static unsigned long int strtoul_wrapper(const char *nptr, char **endptr, int base) {
+  return std::strtoul(nptr, endptr, base);
+}
+
 int strtoi_checked(const char* value, int default_value) {
-  return strtoX_checked_common(std::strtol, value, default_value);
+  return strtoX_checked_common(strtol_wrapper, value, default_value);
 }
 
 unsigned strtoui_checked(const char* value, unsigned default_value) {
-  return strtoX_checked_common(std::strtoul, value, default_value);
+  return strtoX_checked_common(strtoul_wrapper, value, default_value);
 }
+
 
 #ifndef _WIN32
 

@@ -21,7 +21,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
   # supress it locally.
   set_target_properties(test-helpers PROPERTIES
-    COMPILE_FLAGS "-Wno-undef")
+    COMPILE_FLAGS "-Wno-undef -Wno-conversion")
 endif()
 target_include_directories(test-helpers
   PUBLIC include

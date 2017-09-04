@@ -39,9 +39,17 @@ IF(HAVE_PEDANTIC)
   add_compile_flags(${json_sources} COMPILE_FLAGS "-Wno-pedantic")
 ENDIF()
 
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/extra/rapidjson/")
+  # prefer server-side rapidjson
+  SET(RAPIDJSON_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extra/rapidjson/include/")
+else()
+  SET(RAPIDJSON_INCLUDE_DIRS "${MySQLRouter_SOURCE_DIR}/ext/rapidjson/include/")
+endif()
+
 set(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/
-  ${CMAKE_SOURCE_DIR}/ext/rapidjson/include/
+  ${RAPIDJSON_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/mysql_harness/harness/include
   )
 
