@@ -1,4 +1,4 @@
-MySQL Router 2.1
+MySQL Router 8.0
 ================
 
 This is a release of MySQL Router.
