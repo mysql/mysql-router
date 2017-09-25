@@ -505,7 +505,7 @@ void MySQLRouting::start_acceptor() {
 
       --ready_fdnum;
 
-      int sock_client;
+      int sock_client = 0;
       struct sockaddr_storage client_addr;
       socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
 
@@ -563,6 +563,10 @@ void MySQLRouting::start_acceptor() {
 
         // if it fails, it will be slower, but cause no harm
       }
+
+      // On some OS'es the socket will be non-blocking as a result of accept()
+      // on non-blocking socket. We need to make sure it's always blocking.
+      routing::set_socket_blocking(sock_client, true);
 
       std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
