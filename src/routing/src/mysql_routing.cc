@@ -393,7 +393,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
 void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
 
-  int sock_client;
+  int sock_client = 0;
   struct sockaddr_storage client_addr;
   socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
   int opt_nodelay = 1;
@@ -488,6 +488,10 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
         log_error("[%s] client setsockopt error: %s", name.c_str(), get_message_error(errno).c_str());
         continue;
       }
+
+      // On some OS'es the socket will be non-blocking as a result of accept()
+      // on non-blocking socket. We need to make sure it's always blocking.
+      routing::set_socket_blocking(sock_client, true);
 
       std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
