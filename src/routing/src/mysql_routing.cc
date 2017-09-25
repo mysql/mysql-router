@@ -489,6 +489,10 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
         continue;
       }
 
+      // On some OS'es the socket will be non-blocking as a result of accept()
+      // on non-blocking socket. We need to make sure it's always blocking.
+      routing::set_socket_blocking(sock_client, true);
+
       std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
   } // while (is_running(env))
