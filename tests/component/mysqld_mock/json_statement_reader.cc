@@ -125,7 +125,7 @@ QueriesJsonReader::statement_info QueriesJsonReader::get_next_statement() {
     result.result_type = statement_result_type::STMT_RES_RESULT;
     pimpl_->read_result_info(stmt, result);
   } else {
-    throw std::runtime_error("Wrong statements document structure: \"stmt\" has to be a string");
+    throw std::runtime_error("Wrong statements document structure: expect \"ok|error|result\"");
   }
 
   return result;

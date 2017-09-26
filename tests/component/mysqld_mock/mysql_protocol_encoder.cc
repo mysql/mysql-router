@@ -81,10 +81,10 @@ MySQLProtocolEncoder::encode_greetings_message(uint8_t seq_no,
   append_int(out_buffer, connection_id);
   append_str(out_buffer, nonce.substr(0,8));
   append_byte(out_buffer, 0x0); // filler
-  append_int(out_buffer, static_cast<uint16_t>(static_cast<uint32_t>(capabilities) & 0xffff)); // cap_1
+  append_int(out_buffer, static_cast<uint16_t>(capabilities & 0xffff)); // cap_1
   append_byte(out_buffer, character_set);
   append_int(out_buffer, status_flags);
-  append_int(out_buffer, static_cast<uint16_t>(static_cast<uint32_t>(capabilities) >> 16)); // cap_2
+  append_int(out_buffer, static_cast<uint16_t>(capabilities >> 16)); // cap_2
   append_byte(out_buffer, 0x0); // auth-plugin-len = 0
   append_str(out_buffer, std::string(10, '\0')); // reserved
   append_str(out_buffer, nonce.substr(8));

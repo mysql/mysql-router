@@ -52,7 +52,7 @@ public:
    * Values for MySQL capabilities bitmask.
    *
    **/
-  enum class MySQLCapabilities {
+  enum class MySQLCapability : uint32_t {
     LONG_PASSWORD = 1 << 0,
     FOUND_ROWS = 1 << 1,
     LONG_FLAG = 1 << 2,
@@ -85,6 +85,22 @@ public:
 
     WONKY_EOF = 1 << 24,
   };
+
+  /** @brief bitfield of MySQLCapability
+   *
+   * - MySQLCapabilities is a bitfield of capabilities
+   * - MySQLCapability the name of each capability flag
+   *
+   * to set multiple capabilities at once one has to cast
+   * the types to the underlying type and 'or' them together
+   *
+   *   MySQLCapabilities capabilities = static_cast<MySQLCapabilities>(MySQLCapability::PROTOCOL_41) |
+   *                                    static_cast<MySQLCapabilities>(MySQLCapability::SECURE_CONNECTION);
+   *
+   * Some extra syntactic sugar may be added to remove the
+   * explicit static_cast<> when the need arises.
+   **/
+  using MySQLCapabilities = std::underlying_type<MySQLCapability>::type;
 
   using msg_buffer = std::vector<byte>;
 
@@ -134,10 +150,10 @@ public:
    * @returns buffer with the encoded message
    **/
   msg_buffer encode_greetings_message(uint8_t seq_no,
-                                      const std::string &mysql_version = "mysql-foo",
+                                      const std::string &mysql_version = "8.0.3",
                                       uint32_t connection_id = 1,
                                       const std::string &nonce = "012345678901234567890",
-                                      MySQLCapabilities capabilities = MySQLCapabilities::PROTOCOL_41,
+                                      MySQLCapabilities capabilities = static_cast<MySQLCapabilities>(MySQLCapability::PROTOCOL_41) | static_cast<MySQLCapabilities>(MySQLCapability::SECURE_CONNECTION),
                                       uint8_t character_set = 0,
                                       uint16_t status_flags = 0);
 
