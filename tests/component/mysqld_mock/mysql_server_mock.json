@@ -1,0 +1,124 @@
+{
+  "title": "MySQL Server Mock Data",
+  "description": "JSON Schema of the input files of the mysql-server-mock",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "type": "object",
+  "additionalProperties": false,
+
+  "properties": {
+    "stmts": {
+      "description": "statement-response pairs which the mock will expect and process one after the other",
+      "type": "array",
+      "items": {
+        "description": "statement and its response",
+        "type": "object",
+        "additionalProperties": false,
+
+        "properties": {
+          "stmt": {
+            "description": "statement text",
+            "type": "string"
+          },
+          "stmt.regex": {
+            "description": "regular expression matching the statement text",
+            "type": "string"
+          },
+          "result": {
+            "description": "resultset for a statement",
+            "type": "object",
+            "additionalProperties": false,
+
+            "properties": {
+              "columns": {
+                "description": "column descriptions",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "description": "column description",
+                  "type": "object",
+                  "additionalProperties": false,
+
+                  "properties": {
+                    "type": {
+                      "description": "datatype of the column",
+                      "enum": [
+                        "STRING",
+                        "LONGLONG"
+                      ]
+                    },
+                    "name": {
+                      "description": "name of the column",
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "rows": {
+                "description": "resultset rows",
+                "type": "array",
+                "items": {
+                  "description": "resultset field",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "ok": {
+            "description": "OK response",
+            "type": "null"
+          },
+          "error": {
+            "description": "Error response",
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "required": ["stmt"]
+              },
+              {
+                "required": ["stmt.regex"]
+              }
+            ]
+          },
+          {
+            "oneOf": [
+              {
+                "required": ["ok"]
+              },
+              {
+                "required": ["result"]
+              },
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+
+        ]
+      }
+    }
+  },
+  "required": ["stmts"]
+}
