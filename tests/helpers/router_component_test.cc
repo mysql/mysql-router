@@ -140,9 +140,13 @@ RouterComponentTest::launch_router(const std::string &params,
 }
 
 RouterComponentTest::CommandHandle
-RouterComponentTest::launch_mysql_server_mock(const std::string& json_file, unsigned port) const {
-  return launch_command(mysqlserver_mock_exec_.str(),
-                        json_file + " " + std::to_string(port), true);
+RouterComponentTest::launch_mysql_server_mock(const std::string& json_file,
+                                              unsigned port,
+                                              bool debug_mode) const {
+  return launch_command(mysqlserver_mock_exec_.str(), json_file
+                        + " " + std::to_string(port)
+                        + " " + (debug_mode ? "1" : "0"),
+                        true);
 }
 
 bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_msec,

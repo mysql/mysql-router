@@ -120,8 +120,9 @@ bool pattern_matching(const std::string &s,
 namespace server_mock {
 
 MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
-                                 unsigned bind_port):
+                                 unsigned bind_port, bool debug_mode):
   bind_port_(bind_port),
+  debug_mode_(debug_mode),
   json_reader_(expected_queries_file),
   protocol_decoder_(&read_packet) {
 }
@@ -264,13 +265,15 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
                                               next_statement.statement);
       }
 
-      // debug trace: show SQL statement that was received vs what was expected
-      std::cout << "vvvv---- received statement ----vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"
-                << statement_received << std::endl
-                << "----\n"
-                << next_statement.statement << std::endl
-                << "^^^^---- expected statement ----^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
-                << (statement_matching ? "[MATCH OK]\n" : "[MATCH FAILED]\n\n\n\n") << std::flush;
+      if (debug_mode_) {
+        // debug trace: show SQL statement that was received vs what was expected
+        std::cout << "vvvv---- received statement ----vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"
+          << statement_received << std::endl
+          << "----\n"
+          << next_statement.statement << std::endl
+          << "^^^^---- expected statement ----^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+          << (statement_matching ? "[MATCH OK]\n" : "[MATCH FAILED]\n\n\n\n") << std::flush;
+      }
 
       if (!statement_matching) {
         auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
@@ -316,7 +319,9 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
   break;
   case statement_result_type::STMT_RES_RESULT: {
     const auto& resultset = statement.resultset;
-    debug_trace_result(resultset);
+    if (debug_mode_) {
+      debug_trace_result(resultset);
+    }
     seq_no = static_cast<uint8_t>(seq_no + 1);
     auto buf = protocol_encoder_.encode_columns_number_message(seq_no++, resultset.columns.size());
     send_packet(client_socket, buf);

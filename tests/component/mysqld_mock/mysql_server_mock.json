@@ -50,6 +50,14 @@
                     "name": {
                       "description": "name of the column",
                       "type": "string"
+                    },
+                    "comment": {
+                      "description": "additional information/comment about the column; ignored by the server mock, for self-documenting only",
+                      "type": "string"
+                    },
+                    "repeat": {
+                      "description": "if set to positive number n, the data for given field will be duplicated n times; useful for generating big packets; supported only for columns with type STRING",
+                      "type": "string"
                     }
                   }
                 }

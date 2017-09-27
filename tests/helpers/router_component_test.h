@@ -209,14 +209,17 @@ class RouterComponentTest {
 
   /** @brief Launches the MySQLServerMock process.
    *
-   * @param   json_file path to the json file containing expected queries definitions
-   * @param   port      number of the port where the mock server will accept the
-   *                    client connections
+   * @param   json_file  path to the json file containing expected queries definitions
+   * @param   port       number of the port where the mock server will accept the
+   *                     client connections
+   * @param   debug_mode if true all the queries and result get printed on the
+   *                     standard output
    *
    * @returns handle to the launched proccess
    */
   CommandHandle launch_mysql_server_mock(const std::string& json_file,
-                                         unsigned port) const;
+                                         unsigned port,
+                                         bool debug_mode = true) const;
 
   /** @brief Removes non-empty directory recursively.
    *
@@ -281,7 +284,7 @@ class RouterComponentTest {
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
                   const char* out_params[MAX_PARAMS]) const;
- 
+
   /** @brief returns a [DEFAULT] section as string
    *
    * @param params map of [DEFAULT] section parameters

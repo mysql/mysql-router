@@ -29,7 +29,7 @@ using namespace server_mock;
 
 void print_usage(const char* name) {
   std::cout << "Usage: \n";
-  std::cout << name << " <expected_json_file_name> [port]\n";
+  std::cout << name << " <expected_json_file_name> [port] [dbg_mode=0|1]\n";
   exit(-1);
 }
 
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
   }
 #endif
 
-  if (argc < 2 || argc > 3) {
+  if (argc < 2 || argc > 4) {
     print_usage(argv[0]);
   }
 
@@ -61,8 +61,13 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  bool debug_mode = true;
+  if (argc > 3) {
+    debug_mode = std::string(argv[3]) == std::string("1");
+  }
+
   try {
-    MySQLServerMock mock(queries_filename, port);
+    MySQLServerMock mock(queries_filename, port, debug_mode);
     std::cout << "Starting MySQLServerMock" << std::endl;
     mock.run();
     std::cout << "MySQLServerMock::run() exited" << std::endl;

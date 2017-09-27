@@ -38,9 +38,12 @@ class MySQLServerMock {
    *                        of the expected SQL statements and responses
    * @param bind_port Number of the port on which the server accepts clients
    *                        connections
+   * @param debug_mode Flag indicating if the handled queries should be printed to
+   *                   the standard output
    */
   MySQLServerMock(const std::string &expected_queries_file,
-                  unsigned bind_port);
+                  unsigned bind_port,
+                  bool debug_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
@@ -68,6 +71,7 @@ class MySQLServerMock {
 
   static constexpr int kListenQueueSize = 5;
   unsigned bind_port_;
+  bool debug_mode_;
   socket_t listener_{socket_t(-1)};
   QueriesJsonReader json_reader_;
   MySQLProtocolEncoder protocol_encoder_;

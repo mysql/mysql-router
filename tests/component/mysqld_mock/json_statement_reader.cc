@@ -34,8 +34,19 @@ namespace {
 using JsonDocument = rapidjson::GenericDocument<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
 using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
 
-std::string get_json_value_as_string(const JsonValue& value) {
-  if (value.IsString()) return value.GetString();
+std::string get_json_value_as_string(const JsonValue& value, size_t repeat = 1) {
+  if (value.IsString()) {
+    const std::string val = value.GetString();
+    std::string result;
+    if (val.empty()) return val;
+    result.reserve(val.length() * repeat);
+
+    for (size_t i = 0; i < repeat; ++i) {
+      result += val;
+    }
+
+    return result;
+  }
   if (value.IsInt()) return std::to_string(value.GetInt());
   if (value.IsUint()) return std::to_string(value.GetUint());
   if (value.IsDouble()) return std::to_string(value.GetDouble());
@@ -187,7 +198,12 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
 
       row_values_type row_values;
       for (size_t j = 0; j < row.Size(); ++j) {
-        row_values.push_back(get_json_value_as_string(row[j]));
+        size_t repeat = 1;
+        auto& column_info = out_statement_info.resultset.columns[j];
+        if (column_info.find("repeat") != column_info.end()) {
+          repeat = std::stoi(column_info["repeat"]);
+        }
+        row_values.push_back(get_json_value_as_string(row[j], repeat));
       }
 
       out_statement_info.resultset.rows.push_back(row_values);

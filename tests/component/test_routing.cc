@@ -34,11 +34,14 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
+  // use the json file that adds additional rows to the metadata to increase the
+  // packet size to +10MB to verify routing of the big packets
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
   // launch the server mock for bootstrapping
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port,
+                                              false /*expecting huge data, can't print on the console*/);
 
   const std::string routing_section =
                       "[routing:basic]\n"
