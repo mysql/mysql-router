@@ -56,7 +56,46 @@ std::string get_json_value_as_string(const JsonValue& value, size_t repeat = 1) 
                            + std::to_string(static_cast<int>(value.GetType()))));
 }
 
+std::string get_json_string_field(const JsonValue& parent,
+                                  const std::string& field,
+                                  const std::string& default_val = "",
+                                  bool required = false) {
+  const bool found = parent.HasMember(field.c_str());
+  if (!found) {
+    if (required) {
+      throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
+    }
+    return default_val;
+  }
+
+  if (!parent[field.c_str()].IsString()) {
+    throw std::runtime_error("Wrong statements document structure: field\"" + field  + "\" has to be string type");
+  }
+
+  return parent[field.c_str()].GetString();
 }
+
+template<class INT_TYPE>
+INT_TYPE get_json_integer_field(const JsonValue& parent,
+                                  const std::string& field,
+                                  const INT_TYPE default_val = 0,
+                                  bool required = false) {
+  const bool found = parent.HasMember(field.c_str());
+  if (!found) {
+    if (required) {
+      throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
+    }
+    return default_val;
+  }
+
+  if (!parent[field.c_str()].IsInt()) {
+    throw std::runtime_error("Wrong statements document structure: field\"" + field  + "\" has to be integer type");
+  }
+
+  return static_cast<INT_TYPE>(parent[field.c_str()].GetInt());
+}
+
+} // namspace {}
 
 namespace server_mock {
 
@@ -156,21 +195,23 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
       throw std::runtime_error("Wrong statements document structure: \"columns\" has to be an array");
     }
 
-    const std::vector<std::string> required_members{"type", "name"};
-
     for (size_t i = 0; i < columns.Size(); ++i) {
       auto& column = columns[i];
-      column_info_type column_info;
-      for (auto it = column.MemberBegin(); it != column.MemberEnd(); ++it) {
-         std::string key = it->name.GetString();
-         column_info[key] = column[key.c_str()].GetString();
-      }
+      column_info_type column_info {
+          get_json_string_field(column, "name", "", true),
+          column_type_from_string(get_json_string_field(column, "type", "", true)),
+          get_json_string_field(column, "orig_name"),
+          get_json_string_field(column, "table"),
+          get_json_string_field(column, "orig_table"),
+          get_json_string_field(column, "schema"),
+          get_json_string_field(column, "catalog", "def"),
+          get_json_integer_field<uint16_t>(column, "flags"),
+          get_json_integer_field<uint8_t>(column, "decimals"),
+          get_json_integer_field<uint32_t>(column, "length"),
+          get_json_integer_field<uint16_t>(column, "character_set", 63),
+          get_json_integer_field<unsigned>(column, "repeat", 1)
+      };
 
-      for (const auto& required: required_members) {
-         if (column_info.count(required) == 0) {
-           throw std::runtime_error("Wrong statements document structure: \"columns\" instance has to have \"" + required + "\"");
-         }
-      }
       out_statement_info.resultset.columns.push_back(column_info);
     }
   }
@@ -198,11 +239,8 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
 
       row_values_type row_values;
       for (size_t j = 0; j < row.Size(); ++j) {
-        size_t repeat = 1;
         auto& column_info = out_statement_info.resultset.columns[j];
-        if (column_info.find("repeat") != column_info.end()) {
-          repeat = std::stoi(column_info["repeat"]);
-        }
+        const size_t repeat = static_cast<size_t>(column_info.repeat);
         row_values.push_back(get_json_value_as_string(row[j], repeat));
       }
 
@@ -211,4 +249,4 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
   }
 }
 
-} // namespace
+} // namespace server_mock

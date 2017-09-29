@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "mysql_protocol_common.h"
+
 namespace server_mock {
 
 /** @class QueriesJsonReader
@@ -48,16 +50,6 @@ class QueriesJsonReader {
   enum class statement_result_type {
      STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
   };
-
-  /** @brief Map for keeping column metadata parameter-values pairs
-   *
-   **/
-  using column_info_type = std::map<std::string, std::string>;
-
-  /** @brief Vector for keeping string representation of the values
-   *         of the single row (ordered by column)
-   **/
-  using row_values_type = std::vector<std::string>;
 
   /** @brief Keeps result data for single SQL statement that returns
    *         resultset.

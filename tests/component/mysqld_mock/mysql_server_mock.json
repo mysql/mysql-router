@@ -28,12 +28,60 @@
           "description": "datatype of the column",
           "enum": [
             "STRING",
-            "LONGLONG"
+            "TINY",
+            "LONGLONG",
+            "LONG"
           ]
         },
         "name": {
           "description": "name of the column",
           "type": "string"
+        },
+        "orig_name": {
+          "description": "original name of the column",
+          "type": "string"
+        },
+        "table": {
+          "description": "name of the column table",
+          "type": "string"
+        },
+        "orig_table": {
+          "description": "original name of the column table",
+          "type": "string"
+        },
+        "schema": {
+          "description": "name of the column table schema",
+          "type": "string"
+        },
+        "catalog": {
+          "description": "name of the catalog",
+          "type": "string"
+        },
+        "flags": {
+          "description": "column flags",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 0
+        },
+        "decimals": {
+          "description": "column decimals",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "default": 0
+        },
+        "length": {
+          "description": "column length",
+          "type": "integer",
+          "minimum": 0
+        },
+        "character_set": {
+          "description": "column character set",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 63
         },
         "comment": {
           "description": "additional information/comment about the column; ignored by the server mock, for self-documenting only",
@@ -41,7 +89,9 @@
         },
         "repeat": {
           "description": "if set to positive number n, the data for given field will be duplicated n times; useful for generating big packets; supported only for columns with type STRING",
-          "type": "string"
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
         }
       }
     },

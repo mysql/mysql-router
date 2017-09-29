@@ -154,7 +154,7 @@
           {
             "type": "STRING",
             "name": "fake",
-            "repeat": "4194304",
+            "repeat": 4194304,
             "comment": "Additional field that we use to force generating of big packets"
           }
         ],

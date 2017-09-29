@@ -108,58 +108,22 @@ MySQLProtocolEncoder::encode_columns_number_message(uint8_t seq_no, uint64_t num
 MySQLProtocolEncoder::msg_buffer
 MySQLProtocolEncoder::encode_column_meta_message(uint8_t seq_no,
                                                 const column_info_type &column_info) {
-  auto get_default_from_map = [](const column_info_type& col_info,
-                                 const std::string &key,
-                                 const std::string def) -> std::string {
-    if (col_info.count(key) == 0) {
-      return def;
-    }
-    return col_info.at(key);
-  };
-
-  return encode_column_meta_message(seq_no,
-                                    column_type_from_string(column_info.at("type")),
-                                    column_info.at("name"),
-                                    get_default_from_map(column_info, "orig_name", ""),
-                                    get_default_from_map(column_info, "table", ""),
-                                    get_default_from_map(column_info, "orig_table", ""),
-                                    get_default_from_map(column_info, "schema", ""),
-                                    get_default_from_map(column_info, "catalog", "def"),
-                                    static_cast<uint16_t>(std::stoul(get_default_from_map(column_info, "flags", "0"))),
-                                    static_cast<uint8_t>(std::stoul(get_default_from_map(column_info, "decimals", "0"))),
-                                    static_cast<uint32_t>(std::stoul(get_default_from_map(column_info, "length", "0"))),
-                                    static_cast<uint16_t>(std::stoul(get_default_from_map(column_info, "character_set", "63")))
-  );
-}
-
-MySQLProtocolEncoder::msg_buffer
-MySQLProtocolEncoder::encode_column_meta_message(uint8_t seq_no, uint8_t type,
-                                                 const std::string &name,
-                                                 const std::string &orig_name,
-                                                 const std::string &table,
-                                                 const std::string &orig_table,
-                                                 const std::string &schema,
-                                                 const std::string &catalog,
-                                                 uint16_t flags,
-                                                 uint8_t decimals,
-                                                 uint32_t length,
-                                                 uint16_t character_set) {
   msg_buffer out_buffer;
   encode_msg_begin(out_buffer);
 
-  append_lenenc_str(out_buffer, catalog);
-  append_lenenc_str(out_buffer, schema);
-  append_lenenc_str(out_buffer, table);
-  append_lenenc_str(out_buffer, orig_table);
-  append_lenenc_str(out_buffer, name);
-  append_lenenc_str(out_buffer, orig_name);
+  append_lenenc_str(out_buffer, column_info.catalog);
+  append_lenenc_str(out_buffer, column_info.schema);
+  append_lenenc_str(out_buffer, column_info.table);
+  append_lenenc_str(out_buffer, column_info.orig_table);
+  append_lenenc_str(out_buffer, column_info.name);
+  append_lenenc_str(out_buffer, column_info.orig_name);
 
   msg_buffer meta_buffer;
-  append_int(meta_buffer, character_set);
-  append_int(meta_buffer, length);
-  append_byte(meta_buffer, type);
-  append_int(meta_buffer, flags);
-  append_byte(meta_buffer, decimals);
+  append_int(meta_buffer, column_info.character_set);
+  append_int(meta_buffer, column_info.length);
+  append_byte(meta_buffer, static_cast<uint8_t>(column_info.type));
+  append_int(meta_buffer, column_info.flags);
+  append_byte(meta_buffer, column_info.decimals);
   append_int(meta_buffer, static_cast<uint16_t>(0));
 
   append_lenenc_int(out_buffer, meta_buffer.size());
@@ -183,7 +147,7 @@ MySQLProtocolEncoder::encode_row_message(uint8_t seq_no,
   }
 
   for (size_t i = 0; i < row_values.size(); ++i) {
-    auto field_type = static_cast<MySQLColumnType>(column_type_from_string(columns_info[i].at("type")));
+    auto field_type = columns_info[i].type;
     switch (field_type) {
       case MySQLColumnType::TINY:
       case MySQLColumnType::LONG:
@@ -267,22 +231,22 @@ void MySQLProtocolEncoder::append_lenenc_str(msg_buffer &buffer, const std::stri
   append_str(buffer, value);
 }
 
-uint8_t MySQLProtocolEncoder::column_type_from_string(const std::string& type) {
+MySQLColumnType column_type_from_string(const std::string& type) {
   int res = 0;
 
   try {
     res =  std::stoi(type);
   }
   catch (const std::invalid_argument&) {
-    if (type == "TINY") return static_cast<uint8_t>(MySQLColumnType::TINY);
-    if (type == "LONG") return static_cast<uint8_t>(MySQLColumnType::LONG);
-    if (type == "LONGLONG") return static_cast<uint8_t>(MySQLColumnType::LONGLONG);
-    if (type == "STRING") return static_cast<uint8_t>(MySQLColumnType::STRING);
+    if (type == "TINY") return MySQLColumnType::TINY;
+    if (type == "LONG") return MySQLColumnType::LONG;
+    if (type == "LONGLONG") return MySQLColumnType::LONGLONG;
+    if (type == "STRING") return MySQLColumnType::STRING;
 
     throw std::invalid_argument("Unknown type: \"" + type + "\"");
   }
 
-  return static_cast<uint8_t>(res);
+  return static_cast<MySQLColumnType>(res);
 }
 
 } // namespace

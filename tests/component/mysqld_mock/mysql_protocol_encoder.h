@@ -22,31 +22,16 @@
 #include <vector>
 #include <stdint.h>
 
+#include "mysql_protocol_common.h"
 #include "json_statement_reader.h"
 
 namespace server_mock {
 
-using byte = uint8_t;
-
-/** @enum MySQLColumnType
- *
- * Supported MySQL Coumn types.
- *
- **/
-enum class MySQLColumnType {
-  TINY =  0x01,
-  LONG = 0x03,
-  LONGLONG = 0x08,
-  STRING = 0xfe
-};
-
 const uint16_t MYSQL_PARSE_ERROR = 1064;
+
 
 class MySQLProtocolEncoder {
 public:
-  using column_info_type = QueriesJsonReader::column_info_type;
-  using row_values_type = QueriesJsonReader::row_values_type;
-
   /** @enum MySQLCapabilities
    *
    * Values for MySQL capabilities bitmask.
@@ -222,19 +207,6 @@ public:
   void append_buffer(msg_buffer &buffer, const msg_buffer &value);
   void append_lenenc_int(msg_buffer &buffer, uint64_t val);
   void append_lenenc_str(msg_buffer &buffer, const std::string &value);
-  uint8_t column_type_from_string(const std::string& type);
-
-  msg_buffer encode_column_meta_message(uint8_t seq_no, uint8_t type,
-                                    const std::string &name = "",
-                                    const std::string &orig_name = "",
-                                    const std::string &table = "",
-                                    const std::string &orig_table = "",
-                                    const std::string &schema = "",
-                                    const std::string &catalog = "def",
-                                    uint16_t flags = 0,
-                                    uint8_t decimals = 0,
-                                    uint32_t length = 0,
-                                    uint16_t character_set = 0x3f);
 };
 
 } // namespace
