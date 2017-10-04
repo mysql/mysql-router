@@ -26,8 +26,6 @@
 
 #include <mysql.h>  // enum mysql_ssl_mode
 
-struct st_mysql;
-
 #ifdef FRIEND_TEST
 class MockMySQLSession;
 #endif
@@ -132,12 +130,12 @@ class MySQLSession {
   virtual unsigned int last_errno();
 
 private:
-  st_mysql *connection_;
+  MYSQL *connection_;
   bool connected_;
   std::string connection_address_;
 
-  virtual st_mysql* raw_mysql() noexcept { return connection_; }
-  static bool check_for_yassl(st_mysql *connection);
+  virtual MYSQL* raw_mysql() noexcept { return connection_; }
+  static bool check_for_yassl(MYSQL *connection);
 
   #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;

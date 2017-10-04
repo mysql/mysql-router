@@ -215,7 +215,7 @@ const char* MySQLSession::ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept {
   return text;
 }
 
-bool MySQLSession::check_for_yassl(st_mysql *connection) {
+bool MySQLSession::check_for_yassl(MYSQL *connection) {
   static bool check_done = false;
   static bool is_yassl = false;
   if (!check_done) {
