@@ -61,6 +61,7 @@ using mysql_harness::logging::log_warning;
 // only available if the system has <tr1/tuple> [if not gtest's own, minimal tr1/tuple is used.
 using testing::Combine;
 #endif
+using testing::ContainsRegex;
 using testing::EndsWith;
 using testing::Eq;
 using testing::Ge;
@@ -73,6 +74,13 @@ using testing::Test;
 using testing::Values;
 using testing::ValuesIn;
 using testing::WithParamInterface;
+
+const std::string kDateRegex =
+#if GTEST_USES_SIMPLE_RE
+"\\d\\d\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d";
+#else
+"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}";
+#endif
 
 //TODO move this and ASSERT_THROW_LIKE from:
 //   tests/helpers/router_test_helpers.h
@@ -377,8 +385,7 @@ TEST_F(LoggingTest, StreamHandler) {
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged after applying format (timestamp, etc)
-  EXPECT_THAT(buffer.str(), StartsWith("1970-01-01 01:00:00 my_module INFO"));
-  EXPECT_THAT(buffer.str(), EndsWith("Message\n"));
+  EXPECT_THAT(buffer.str(), ContainsRegex(kDateRegex + " my_module INFO.*Message\n"));
 
   // clean up
   g_registry->remove_handler("TestStreamHandler");
@@ -416,8 +423,7 @@ TEST_F(LoggingTest, FileHandler) {
   EXPECT_THAT(lines.size(), Eq(1));
 
   // message should be logged after applying format (timestamp, etc)
-  EXPECT_THAT(lines.at(0), StartsWith("1970-01-01 01:00:00 my_module INFO"));
-  EXPECT_THAT(lines.at(0), EndsWith("Message"));
+  EXPECT_THAT(lines.at(0), ContainsRegex(kDateRegex + " my_module INFO.*Message"));
 
   // clean up
   g_registry->remove_handler("TestFileHandler");
