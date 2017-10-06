@@ -26,6 +26,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 #include <cassert>
+#include <chrono>
 #include <memory>
 
 namespace {
@@ -73,6 +74,24 @@ std::string get_json_string_field(const JsonValue& parent,
   }
 
   return parent[field.c_str()].GetString();
+}
+
+double get_json_double_field(const JsonValue& parent,
+                             const std::string& field,
+                             const double default_val = 0.0,
+                             bool required = false) {
+  const bool found = parent.HasMember(field.c_str());
+  if (!found) {
+    if (required) {
+      throw std::runtime_error("Wrong statements document structure: field\"" + field + "\"");
+    }
+    return default_val;
+  }
+
+  if (!parent[field.c_str()].IsDouble()) {
+    throw std::runtime_error("Wrong statements document structure: field\"" + field + "\" has to be double type");
+  }
+  return parent[field.c_str()].GetDouble();
 }
 
 template<class INT_TYPE>
@@ -155,6 +174,14 @@ QueriesJsonReader::statement_info QueriesJsonReader::get_next_statement() {
     throw std::runtime_error("Wrong statements document structure: missing \"stmt\" or \"stmt.regex\"");
   }
 
+  if (stmt.HasMember("exec-time")) {
+    double exec_time = get_json_double_field(stmt, "exec-time", 0.0);
+    result.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+  }
+  else {
+    result.exec_time = get_default_exec_time();
+  }
+
   std::string name{"stmt"};
   if (stmt.HasMember("stmt.regex")) {
     name = "stmt.regex";
@@ -179,6 +206,18 @@ QueriesJsonReader::statement_info QueriesJsonReader::get_next_statement() {
   }
 
   return result;
+}
+
+std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
+
+  if (pimpl_->json_document_.HasMember("defaults")) {
+    auto& defaults = pimpl_->json_document_["defaults"];
+    if (defaults.HasMember("exec-time")) {
+      double exec_time = get_json_double_field(defaults, "exec-time", 0.0);
+      return std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+    }
+  }
+  return std::chrono::microseconds(0);
 }
 
 void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,

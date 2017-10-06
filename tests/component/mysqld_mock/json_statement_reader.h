@@ -18,6 +18,7 @@
 #ifndef MYSQLD_MOCK_JSON_STATEMENT_READER_INCLUDED
 #define MYSQLD_MOCK_JSON_STATEMENT_READER_INCLUDED
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <string>
@@ -70,6 +71,8 @@ class QueriesJsonReader {
     statement_result_type result_type;
     // result data if the expected response is resultset
     resultset_type resultset;
+    // execution time in microseconds
+    std::chrono::microseconds exec_time{0};
   };
 
   /** @brief Returns the data about the next statement from the
@@ -77,6 +80,12 @@ class QueriesJsonReader {
    *         empty statement.
    **/
   statement_info get_next_statement();
+
+  /** @brief Returns the default execution time in microseconds. If
+   *         no default execution time is provided in json file, then
+   *         0 microseconds is returned.
+   **/
+  std::chrono::microseconds get_default_exec_time();
 
   ~QueriesJsonReader();
 private:

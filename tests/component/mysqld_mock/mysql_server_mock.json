@@ -18,6 +18,13 @@
       "additionalProperties": false
     },
 
+    "ExecTime": {
+      "description": "Execution time in milliseconds",
+      "type": "number",
+      "minimum": 0,
+      "default": 0
+    },
+
     "ResultsetColumn": {
       "description": "column description",
       "type": "object",
@@ -142,6 +149,9 @@
           "description": "statement text",
           "type": "string"
         },
+        "exec-time" : {
+          "$ref": "#/definitions/ExecTime"
+        },
         "stmt.regex": {
           "description": "regular expression matching the statement text",
           "type": "string"
@@ -185,6 +195,15 @@
   },
 
   "properties": {
+    "defaults": {
+      "description": "Default options",
+      "type": "object",
+       "properties" : {
+         "exec-time" : {
+           "$ref": "#/definitions/ExecTime"
+         }
+       }
+    },
     "stmts": {
       "description": "RPCs that the mock will expect and process one after the other",
       "type": "array",

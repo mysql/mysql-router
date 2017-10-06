@@ -20,6 +20,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <thread>
 
 #ifndef _WIN32
 #  include <netdb.h>
@@ -277,6 +278,7 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
 
       if (!statement_matching) {
         auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
+        std::this_thread::sleep_for(json_reader_.get_default_exec_time());
         send_error(client_socket, packet_seq, MYSQL_PARSE_ERROR,
             std::string("Unexpected stmt, got: \"") + statement_received +
             "\"; expected: \"" + next_statement.statement + "\"");
@@ -292,6 +294,7 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
       std::cerr << "received unsupported command from the client: "
                 << static_cast<int>(cmd) << "\n";
       auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
+      std::this_thread::sleep_for(json_reader_.get_default_exec_time());
       send_error(client_socket, packet_seq, 1064, "Unsupported command: " + std::to_string(cmd));
     }
   }
@@ -315,6 +318,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
 
   switch (statement.result_type) {
   case statement_result_type::STMT_RES_OK:
+    std::this_thread::sleep_for(statement.exec_time);
     send_ok(client_socket, static_cast<uint8_t>(seq_no+1));
   break;
   case statement_result_type::STMT_RES_RESULT: {
@@ -324,6 +328,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
     }
     seq_no = static_cast<uint8_t>(seq_no + 1);
     auto buf = protocol_encoder_.encode_columns_number_message(seq_no++, resultset.columns.size());
+    std::this_thread::sleep_for(statement.exec_time);
     send_packet(client_socket, buf);
     for (const auto& column: resultset.columns) {
       auto col_buf = protocol_encoder_.encode_column_meta_message(seq_no++, column);
