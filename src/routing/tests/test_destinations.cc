@@ -21,7 +21,9 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "test/helpers.h"
+#include "router_test_helpers.h"
 #include "destination.h"
+#include "dest_metadata_cache.h"
 
 #include "mysqlrouter/datatypes.h"
 #include "routing_mocks.h"
@@ -127,8 +129,6 @@ TEST_F(RouteDestinationTest, RemoveAll)
   ASSERT_EQ(exp, d.size());
 }
 
-
-
 TEST_F(RouteDestinationTest, get_server_socket)
 {
   int error;
@@ -174,6 +174,65 @@ TEST_F(RouteDestinationTest, get_server_socket)
   // so the number of connections to the the destination addresses should be evenly distributed
   for (const auto& server_address: dest_servers_addresses) {
     EXPECT_EQ(connections[server_address], kNumClientThreads/dest_servers_addresses.size());
+  }
+}
+
+TEST_F(RouteDestinationTest, MetadataCacheGroupAllowPrimaryReads)
+{
+  // yes
+  {
+    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=yes&role=SECONDARY");
+    ASSERT_NO_THROW(
+      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
+                                uri.query, Protocol::Type::kClassicProtocol)
+    );
+  }
+
+  // no
+  {
+    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=no&role=SECONDARY");
+    ASSERT_NO_THROW(
+      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
+                                uri.query, Protocol::Type::kClassicProtocol)
+    );
+  }
+
+  // invalid value
+  {
+    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=yes,xxx&role=SECONDARY");
+    ASSERT_THROW_LIKE(
+      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
+                                uri.query, Protocol::Type::kClassicProtocol),
+      std::runtime_error,
+      "Invalid value for allow_primary_reads option: \"yes,xxx\""
+    );
+  }
+}
+
+
+TEST_F(RouteDestinationTest, MetadataCacheGroupMultipleUris)
+{
+  {
+    mysqlrouter::URI uri("metadata-cache://test/default?role=SECONDARY,metadata-cache://test2/default?role=SECONDARY");
+    ASSERT_THROW_LIKE(
+      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
+                                uri.query, Protocol::Type::kClassicProtocol),
+      std::runtime_error,
+      "Invalid value for role option: \"SECONDARY,metadata-cache://test2/default?role\""
+    );
+  }
+}
+
+TEST_F(RouteDestinationTest, MetadataCacheGroupUnknownParam)
+{
+  {
+    mysqlrouter::URI uri("metadata-cache://test/default?role=SECONDARY&xxx=yyy,metadata-cache://test2/default?role=SECONDARY");
+    ASSERT_THROW_LIKE(
+      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
+                                uri.query, Protocol::Type::kClassicProtocol),
+      std::runtime_error,
+     "Unsupported metadata-cache parameter in URI: \"xxx\""
+    );
   }
 }
 

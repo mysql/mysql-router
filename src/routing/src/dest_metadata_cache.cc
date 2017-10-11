@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <set>
 #ifndef _WIN32
 #  include <netdb.h>
 #  include <netinet/tcp.h>
@@ -47,6 +48,8 @@ IMPORT_LOG_FUNCTIONS()
 // seconds until giving up and disconnecting the client
 // TODO: possibly this should be made into a configurable option
 static const int kPrimaryFailoverTimeout = 10;
+
+static const std::set<std::string> supported_params{"role", "allow_primary_reads"};
 
 
 DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache, const std::string &replicaset,
@@ -94,17 +97,40 @@ std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::
 }
 
 void DestMetadataCacheGroup::init() {
+  // check if URI does not contain parameters that we don't understand
+  for (const auto& uri_param: uri_query_) {
+    if (supported_params.count(uri_param.first) == 0) {
+      throw std::runtime_error("Unsupported metadata-cache parameter in URI: \"" + uri_param.first + "\"");
+    }
+  }
 
   auto query_part = uri_query_.find("allow_primary_reads");
   if (query_part != uri_query_.end()) {
     if (routing_mode_ == RoutingMode::ReadOnly) {
-      auto value = query_part->second;
-      std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-      if (value == "yes") {
+      const auto& value = query_part->second;
+      std::string value_lower;
+      std::transform(value.begin(), value.end(), std::back_inserter(value_lower), ::tolower);
+      if (value_lower == "yes") {
         allow_primary_reads_ = true;
+      }
+      else if (value_lower == "no") {
+        // it's a default but we allow it for consistency
+      }
+      else {
+        throw std::runtime_error("Invalid value for allow_primary_reads option: \"" + value + "\"");
       }
     } else {
       log_warning("allow_primary_reads only works with read-only mode");
+    }
+  }
+
+  query_part = uri_query_.find("role");
+  if (query_part != uri_query_.end()) {
+    const auto& value = query_part->second;
+    std::string value_lower;
+    std::transform(value.begin(), value.end(), std::back_inserter(value_lower), ::tolower);
+    if (value_lower != "primary" && value_lower != "secondary") {
+      throw std::runtime_error("Invalid value for role option: \"" + value + "\"");
     }
   }
 }
