@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,12 +17,35 @@
 
 . /usr/share/debconf/confmodule
 
+remove_dirs_from_var() {
+  RUNTIMEDIR=/var/run/mysqlrouter
+  DATADIR=/var/lib/mysqlrouter
+  LOGDIR=/var/log/mysqlrouter
+
+  if [ -d ${RUNTIMEDIR} -o -L ${RUNTIMEDIR} ]; then
+    rm -fr ${RUNTIMEDIR}
+  fi
+
+  if [ -d ${DATADIR} -o -L ${DATADIR} ]; then
+    rm -fr ${DATADIR}
+  fi
+
+  if [ -d ${LOGDIR} -o -L ${LOGDIR} ]; then
+    rm -fr ${LOGDIR}
+  fi
+}
+
 case "$1" in
 	remove)
 		;;
 	purge)
 		set -e
 		db_purge
+
+    # Router stuff in /etc gets automatically removed, but stuff in /var we have
+    # to remove ourselves
+    remove_dirs_from_var
+
 		set +e
 		;;
 esac
