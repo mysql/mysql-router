@@ -271,22 +271,23 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
       IF(TO_EXCLUDE)
         MESSAGE(STATUS "excluding file: ${rel}")
       ELSE()
-	      MAKE_WIX_IDENTIFIER("${rel}" id)
+       MAKE_WIX_IDENTIFIER("${rel}" id)
         FILE(TO_NATIVE_PATH ${f} f_native)
-        IF("${rel}" MATCHES "lib/harness-library.dll" OR "${rel}" MATCHES ".ilk" OR
+        IF("${rel}" MATCHES "lib/harness-library.dll" OR "${rel}" MATCHES ".ilk" OR "${rel}" MATCHES ".log" OR
            "${rel}" MATCHES "lib/bad_one.dll" OR "${rel}" MATCHES "lib/bad_two.dll" OR
            "${rel}" MATCHES "lib/example.dll" OR "${rel}" MATCHES "lib/magic.dll" OR
+           "${rel}" MATCHES "lib/lifecycle" OR
            "${rel}" MATCHES "bin/mysql_server_mock.exe")
           # ignore /lib version of harness-library (it is on bin folder already)
           # also ignore .ilk files and a bunch of DLLs that are useful for testing only.
         ELSE()
-	        GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
-      	  # According to MSDN each DLL or EXE should be in the own component
-        	IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
-        	  FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
-        	  FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
-      	    FILE(APPEND ${file} "  </Component>\n")
-        	  FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
+          GET_FILENAME_COMPONENT(f_ext "${f}" EXT)
+          # According to MSDN each DLL or EXE should be in the own component
+          IF(f_ext MATCHES ".exe" OR f_ext MATCHES ".dll")
+            FILE(APPEND ${file} "  <Component Id='C.${id}' Guid='*' ${Win64}>\n")
+            FILE(APPEND ${file} "    <File Id='F.${id}' KeyPath='yes' Source='${f_native}'/>\n")
+            FILE(APPEND ${file} "  </Component>\n")
+            FILE(APPEND ${file_comp} "  <ComponentRef Id='C.${id}'/>\n")
           ELSE()
             SET(NONEXEFILES  "${NONEXEFILES}\n<File Id='F.${id}' Source='${f_native}'/>" )
           ENDIF()
@@ -299,8 +300,8 @@ FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
     GENERATE_GUID(guid)
     SET(ComponentId "C._files_${COMP_NAME}.${DirectoryRefId}")
     FILE(APPEND ${file}
-    "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' ${Win64}>${NONEXEFILES}\n</Component></DirectoryRef>\n")
-	FILE(APPEND ${file_comp} "  <ComponentRef Id='${ComponentId}'/>\n")
+      "<DirectoryRef Id='${DirectoryRefId}'>\n<Component Guid='${guid}' Id='${ComponentId}' ${Win64}>${NONEXEFILES}\n</Component></DirectoryRef>\n")
+    FILE(APPEND ${file_comp} "  <ComponentRef Id='${ComponentId}'/>\n")
   ENDIF()
   FOREACH(f ${all_files})
     IF(IS_DIRECTORY ${f})
@@ -363,12 +364,12 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_router.wxs.in
 
 SET(EXTRA_CANDLE_ARGS)
 IF("$ENV{EXTRA_CANDLE_ARGS}")
-	SET(EXTRA_CANDLE_ARGS "$ENV{EXTRA_CANDLE_ARGS}")
+  SET(EXTRA_CANDLE_ARGS "$ENV{EXTRA_CANDLE_ARGS}")
 ENDIF()
 
 SET(EXTRA_LIGHT_ARGS)
 IF("$ENV{EXTRA_LIGHT_ARGS}")
-	SET(EXTRA_LIGHT_ARGS "$ENV{EXTRA_LIGHT_ARGS}")
+  SET(EXTRA_LIGHT_ARGS "$ENV{EXTRA_LIGHT_ARGS}")
 ENDIF()
 
 FILE(REMOVE mysql_router.wixobj)
