@@ -239,7 +239,7 @@
     </Component>
   </DirectoryRef>
 
-  <Feature Id="Documentation" Title="MySQL Router Documentation Files" Level="1">
+  <Feature Id="Documentation" Title="MySQL Router Documentation Files" Display="hidden" Level="1">
      <ComponentRef Id="License.txt" />
      <ComponentRef Id="README.txt" />
   </Feature>
