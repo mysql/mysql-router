@@ -289,4 +289,34 @@ void SocketOperations::shutdown(int fd) {
 #endif
 }
 
+void SocketOperations::freeaddrinfo(addrinfo *ai) {
+  return ::freeaddrinfo(ai);
+}
+
+int SocketOperations::getaddrinfo(const char *node, const char *service,
+                                  const addrinfo *hints, addrinfo **res) {
+  return ::getaddrinfo(node, service, hints, res);
+}
+
+int SocketOperations::bind(int fd, const struct sockaddr *addr, socklen_t len) {
+  return ::bind(fd, addr, len);
+}
+
+int SocketOperations::socket(int domain, int type, int protocol) {
+  return ::socket(domain, type, protocol);
+}
+
+int SocketOperations::setsockopt(int fd, int level, int optname,
+                                 const void *optval, socklen_t optlen) {
+#ifndef _WIN32
+  return ::setsockopt(fd, level, optname, optval, optlen);
+#else
+  return ::setsockopt(fd, level, optname, reinterpret_cast<const char*>(optval), optlen);
+#endif
+}
+
+int SocketOperations::listen(int fd, int n) {
+  return ::listen(fd, n);
+}
+
 } // routing

@@ -26,6 +26,9 @@
 
 #ifdef _WIN32
 typedef long ssize_t;
+#  define WIN32_LEAN_AND_MEAN
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
 #endif
 
 namespace routing {
@@ -125,6 +128,14 @@ class SocketOperationsBase {
   virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
   virtual void close(int fd) = 0;
   virtual void shutdown(int fd) = 0;
+  virtual void freeaddrinfo(addrinfo *ai) = 0;
+  virtual int getaddrinfo(const char *node, const char *service, const addrinfo *hints, addrinfo **res) = 0;
+  virtual int bind(int fd, const struct sockaddr *addr, socklen_t len) = 0;
+  virtual int socket(int domain, int type, int protocol) = 0;
+  virtual int setsockopt(int fd, int level, int optname,
+                         const void *optval, socklen_t optlen) = 0;
+  virtual int listen(int fd, int n) = 0;
+
 
   /** @brief Wrapper around socket library write() with a looping logic
    *         making sure the whole buffer got written
@@ -179,7 +190,26 @@ class SocketOperations : public SocketOperationsBase {
   void close(int fd)  override;
 
   /** @brief Thin wrapper around socket library shutdown() */
-  void shutdown(int fd)  override;
+  void shutdown(int fd) override;
+
+  /** @brief Thin wrapper around socket library freeaddrinfo() */
+  void freeaddrinfo(addrinfo *ai) override;
+
+  /** @brief Thin wrapper around socket library getaddrinfo() */
+  int getaddrinfo(const char *node, const char *service, const addrinfo *hints, addrinfo **res) override;
+
+  /** @brief Thin wrapper around socket library bind() */
+  int bind(int fd, const struct sockaddr *addr, socklen_t len) override;
+
+  /** @brief Thin wrapper around socket library socket() */
+  int socket(int domain, int type, int protocol) override;
+
+  /** @brief Thin wrapper around socket library setsockopt() */
+  int setsockopt(int fd, int level, int optname,
+                 const void *optval, socklen_t optlen) override;
+
+  /** @brief Thin wrapper around socket library listen() */
+  int listen(int fd, int n) override;
  private:
   SocketOperations(const SocketOperations&) = delete;
   SocketOperations operator=(const SocketOperations&) = delete;

@@ -59,6 +59,12 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   MOCK_METHOD3(write, ssize_t(int, void*, size_t));
   MOCK_METHOD1(close, void(int));
   MOCK_METHOD1(shutdown, void(int));
+  MOCK_METHOD1(freeaddrinfo, void(addrinfo *ai));
+  MOCK_METHOD4(getaddrinfo, int(const char*, const char*, const addrinfo*, addrinfo**));
+  MOCK_METHOD3(bind, int(int, const struct sockaddr*, socklen_t));
+  MOCK_METHOD3(socket, int(int, int, int));
+  MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
+  MOCK_METHOD2(listen, int(int fd, int n));
 
   void set_errno(int err) {
     // set errno/Windows equivalent. At the time of writing, unit tests

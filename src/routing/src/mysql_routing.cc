@@ -511,49 +511,53 @@ void MySQLRouting::setup_tcp_service() {
 
   errno = 0;
 
-  err = getaddrinfo(bind_address_.addr.c_str(), to_string(bind_address_.port).c_str(), &hints, &servinfo);
+  err = socket_operations_->getaddrinfo(bind_address_.addr.c_str(),
+                                        to_string(bind_address_.port).c_str(), &hints, &servinfo);
   if (err != 0) {
     throw runtime_error(string_format("[%s] Failed getting address information (%s)",
                                       name.c_str(), gai_strerror(err)));
   }
 
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){if (servinfo) socket_operations_->freeaddrinfo(servinfo);});
+
   // Try to setup socket and bind
+  std::string error;
   for (info = servinfo; info != nullptr; info = info->ai_next) {
-    if ((service_tcp_ = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
+    if ((service_tcp_ = socket_operations_->socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
        // in windows, WSAGetLastError() will be called by get_message_error()
-      std::string error = get_message_error(errno);
-      freeaddrinfo(servinfo);
-      throw std::runtime_error(error);
+      error = get_message_error(errno);
+      log_warning("[%s] setup_tcp_service() error from socket(): %s", name.c_str(), error.c_str());
+      continue;
     }
 
 #ifndef _WIN32
     option_value = 1;
-    if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&option_value),
+    if (socket_operations_->setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, &option_value,
             static_cast<socklen_t>(sizeof(int))) == -1) {
-      std::string error = get_message_error(errno);
-      freeaddrinfo(servinfo);
+      error = get_message_error(errno);
+      log_warning("[%s] setup_tcp_service() error from setsockopt(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
       service_tcp_ = 0;
-      throw std::runtime_error(error);
+      continue;
     }
 #endif
 
-    if (::bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
-      std::string error = get_message_error(errno);
-      freeaddrinfo(servinfo);
+    if (socket_operations_->bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
+      error = get_message_error(errno);
+      log_warning("[%s] setup_tcp_service() error from bind(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
       service_tcp_ = 0;
-      throw std::runtime_error(error);
+      continue;
     }
+
     break;
   }
-  freeaddrinfo(servinfo);
 
   if (info == nullptr) {
-    throw runtime_error(string_format("[%s] Failed to setup server socket", name.c_str()));
+    throw runtime_error(string_format("[%s] Failed to setup service socket: %s", name.c_str(), error.c_str()));
   }
 
-  if (listen(service_tcp_, kListenQueueSize) < 0) {
+  if (socket_operations_->listen(service_tcp_, kListenQueueSize) < 0) {
     throw runtime_error(string_format("[%s] Failed to start listening for connections using TCP", name.c_str()));
   }
 }

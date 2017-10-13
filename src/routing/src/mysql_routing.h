@@ -326,6 +326,15 @@ private:
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, make_thread_name);
   FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
+  FRIEND_TEST(TestSetupTcpService, single_addr_ok);
+  FRIEND_TEST(TestSetupTcpService, getaddrinfo_fails);
+  FRIEND_TEST(TestSetupTcpService, socket_fails_for_all_addr);
+  FRIEND_TEST(TestSetupTcpService, socket_fails);
+  FRIEND_TEST(TestSetupTcpService, bind_fails);
+  FRIEND_TEST(TestSetupTcpService, listen_fails);
+#ifndef _WIN32
+  FRIEND_TEST(TestSetupTcpService, setsockopt_fails);
+#endif
 #endif
 };
 
