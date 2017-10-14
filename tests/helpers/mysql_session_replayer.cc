@@ -33,6 +33,7 @@ void MySQLSessionReplayer::connect(const std::string &host, unsigned int port,
                                    const std::string &password,
                                    const std::string &unix_socket,
                                    const std::string &,
+                                   int,
                                    int) {
   if (trace_) {
     std::cout << "connect: " << user << ":" << password << "@" << (unix_socket.length() > 0 ? unix_socket : host + ":" + std::to_string(port)) << std::endl;

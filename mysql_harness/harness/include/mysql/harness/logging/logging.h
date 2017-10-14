@@ -86,6 +86,7 @@ constexpr char kMainLogger[] = "main";
 constexpr char kMainLogHandler[] = "main_log_handler";
 constexpr char kMainConsoleHandler[] = "main_console_handler";
 
+constexpr char kSqlLogger[] = "sql";
 /**
  * Log level values.
  *

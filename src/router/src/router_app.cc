@@ -462,6 +462,9 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config, bool raw
     mysql_harness::logging::init_loggers(*registry, config,
                                          {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
 
+    // register logger for sql domain
+    mysql_harness::logging::init_logger(*registry, "sql", mysql_harness::logging::LogLevel::kDebug);
+
     // attach all loggers to main handler (throws std::runtime_error)
     mysql_harness::logging::create_main_logfile_handler(*registry, kProgramName,
                                                         logging_folder, !raw_mode);
@@ -864,6 +867,18 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
       });
 
+  arg_handler_.add_option(OptionNames({"--connect-timeout"}),
+                          "The time in seconds after which trying to connect to metadata server should timeout. It applies to bootstrap mode and is written to configuration file. It is also used in normal mode.",
+                          CmdOptionValueReq::optional, "",
+                          [this](const  string &connect_timeout) {
+        this->bootstrap_options_["connect-timeout"] = connect_timeout;
+      });
+  arg_handler_.add_option(OptionNames({"--read-timeout"}),
+                          "The time in seconds after which read from metadata server should timeout. It applies to bootstrap mode and is written to configuration file. It is also used in normal mode.",
+                          CmdOptionValueReq::optional, "",
+                          [this](const  string &read_timeout) {
+        this->bootstrap_options_["read-timeout"] = read_timeout;
+      });
 #ifndef _WIN32
   arg_handler_.add_option(OptionNames({"-u", "--user"}),
                           "Run the mysqlrouter as the user having the name user_name.",

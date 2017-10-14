@@ -18,6 +18,8 @@
 #ifndef _ROUTER_MYSQL_SESSION_H_
 #define _ROUTER_MYSQL_SESSION_H_
 
+#include "mysqlrouter/log_filter.h"
+
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -34,7 +36,8 @@ namespace mysqlrouter {
 
 class MySQLSession {
  public:
-  static const int kDefaultConnectionTimeout = 15;
+  static const int kDefaultConnectTimeout = 30;
+  static const int kDefaultReadTimeout = 30;
   typedef std::vector<const char*> Row;
   typedef std::function<bool (const Row&)> RowProcessor;
 
@@ -112,7 +115,8 @@ class MySQLSession {
                        const std::string &password,
                        const std::string &unix_socket,
                        const std::string &default_schema,
-                       int connection_timeout = kDefaultConnectionTimeout); // throws Error
+                       int connect_timeout = kDefaultConnectTimeout,
+                       int read_timeout = kDefaultReadTimeout); // throws Error
   virtual void disconnect();
 
   virtual void execute(const std::string &query); // throws Error, std::logic_error
@@ -133,6 +137,7 @@ private:
   MYSQL *connection_;
   bool connected_;
   std::string connection_address_;
+  SQLLogFilter log_filter_;
 
   virtual MYSQL* raw_mysql() noexcept { return connection_; }
   static bool check_for_yassl(MYSQL *connection);

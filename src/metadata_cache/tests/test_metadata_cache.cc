@@ -38,9 +38,9 @@ public:
   MockNG mf;
   MetadataCache cache;
 
-  MetadataCacheTest() : mf("admin", "admin", 1, 1, 10),
+  MetadataCacheTest() : mf("admin", "admin", 1, 1, 1, 10),
                       cache({mysqlrouter::TCPAddress("localhost", 32275)},
-                              get_instance("admin", "admin", 1, 1, 10,
+                              get_instance("admin", "admin", 1, 1, 1, 10,
                                            mysqlrouter::SSLOptions()),
                               10, mysqlrouter::SSLOptions(), "replicaset-1") {}
 };
@@ -86,7 +86,7 @@ class MetadataCacheTest2 : public ::testing::Test {
       [this](){ return session.get(); }, // provide pointer to session
       [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
     );
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10, mysqlrouter::SSLOptions()));
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, 10, mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset

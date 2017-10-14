@@ -75,15 +75,18 @@ public:
   /** @brief Constructor
    * @param user The user name used to authenticate to the metadata server.
    * @param password The password used to authenticate to the metadata server.
-   * @param connection_timeout The time after which a connection to the
-   *                           metadata server should timeout.
+   * @param connect_timeout The time after which trying to connect to the
+   *                        metadata server should timeout.
+   * @param read_timeout The time after which read from the metadata server
+   *                     should timeout.
    * @param connection_attempts The number of times a connection to the metadata
    *                            server must be attempted, when a connection
    *                            attempt fails.
    * @param ttl The time to live of the data in the cache.
    */
   MockNG(const std::string &user, const std::string &password,
-         int connection_timeout, int connection_attempts, unsigned int ttl,
+         int connect_timeout, int read_timeout,
+         int connection_attempts, unsigned int ttl,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions());
 
   /** @brief Destructor

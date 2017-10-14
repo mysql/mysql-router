@@ -38,6 +38,8 @@ std::string MetadataCachePluginConfig::get_default(const std::string &option) {
   static const std::map<std::string, std::string> defaults{
       {"address",  metadata_cache::kDefaultMetadataAddress},
       {"ttl", to_string(metadata_cache::kDefaultMetadataTTL)},
+      {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
+      {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
   };
   auto it = defaults.find(option);
   if (it == defaults.end()) {

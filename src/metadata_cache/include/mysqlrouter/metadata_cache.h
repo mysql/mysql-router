@@ -49,6 +49,8 @@ extern const std::string kDefaultMetadataUser;
 extern const std::string kDefaultMetadataPassword;
 extern const unsigned int kDefaultMetadataTTL;
 extern const std::string kDefaultMetadataCluster;
+extern const unsigned int kDefaultConnectTimeout;
+extern const unsigned int kDefaultReadTimeout;
 
 enum class METADATA_API ReplicasetStatus {
   AvailableWritable,
@@ -167,8 +169,8 @@ public:
  *
  * Cache name given by cache_name can be empty, but must be unique.
  *
- * The parameters connection_timeout and connection_attempts are used when
- * connected to the metadata server.
+ * The parameters connect_timeout, read_timeout and connection_attempts
+ * are used when querying the metadata server.
  *
  * Throws a std::runtime_error when the cache object was already
  * initialized.
@@ -184,7 +186,8 @@ public:
  */
 void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,
-                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name);
+                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                const std::string &cluster_name, int connect_timeout, int read_timeout);
 
 /**
  * Teardown the metadata cache

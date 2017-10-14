@@ -112,6 +112,9 @@ public:
     bool multi_master;
     std::string bind_address;
 
+    int connect_timeout;
+    int read_timeout;
+
     mysqlrouter::SSLOptions ssl_options;
   };
 
@@ -177,6 +180,8 @@ private:
                            const std::map<std::string, std::string>& options);
 private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
+  int connect_timeout_;
+  int read_timeout_;
 
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;

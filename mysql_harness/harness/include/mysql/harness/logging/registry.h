@@ -241,6 +241,20 @@ class HARNESS_EXPORT Registry {
                     const std::list<std::string>& modules,
                     const std::string& main_app_log_domain);
 
+  /*
+   * Initialize a logger and register it in the Registry..
+   *
+   * Register a logger for a given name and given log level.
+   *
+   * @param registry Registry object, typically managed by DIM
+   * @param logger_name The name under which the logger is registered
+   * @param log_level The log level.
+   *
+   * @throws std::logic_error
+   */
+  HARNESS_EXPORT
+  void init_logger(Registry& registry, const std::string& logger_name, LogLevel log_level);
+
   /**
    * Initialize logfile handler
    *

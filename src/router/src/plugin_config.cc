@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,8 +57,10 @@ string BasePluginConfig::get_option_string(const mysql_harness::ConfigSection *s
   return value;
 }
 
-string BasePluginConfig::get_log_prefix(const string &option) const noexcept {
-  return "option " + option + " in [" + section_name + "]";
+string BasePluginConfig::get_log_prefix(const std::string &option,
+    const mysql_harness::ConfigSection *section) const noexcept {
+  return "option " + option + " in [" +
+      (section ? section->get_section_name(option) : section_name) + "]";
 }
 
 TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,

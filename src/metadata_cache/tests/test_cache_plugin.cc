@@ -61,13 +61,14 @@ public:
                                  kDefaultMetadataPassword,
                                  1,
                                  1,
+                                 1,
                                  kDefaultTTL) {}
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::cache_init(bootstrap_server_vector, kDefaultMetadataUser,
                                kDefaultMetadataPassword, kDefaultTTL, mysqlrouter::SSLOptions(),
-                               kDefaultMetadataReplicaset);
+                               kDefaultMetadataReplicaset, 1, 1);
     int count = 1;
     /**
      * Wait until the plugin is completely initialized. Since

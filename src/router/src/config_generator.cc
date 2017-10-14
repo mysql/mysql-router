@@ -271,7 +271,8 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
-  int connection_timeout_ = 5;
+  connect_timeout_ = MySQLSession::kDefaultConnectTimeout;
+  read_timeout_ = MySQLSession::kDefaultReadTimeout;
   std::string uri;
 
   // check options
@@ -292,6 +293,32 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
     if (!tmp.is_valid()) {
       throw std::runtime_error("Invalid bind-address value " + address);
     }
+  }
+  if (bootstrap_options.find("connect-timeout") != bootstrap_options.end()) {
+    char *end = nullptr;
+    const char *tmp = bootstrap_options.at("connect-timeout").c_str();
+    int connect_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
+
+    if (connect_timeout <= 0 || connect_timeout > 65535 || end != tmp + strlen(tmp)) {
+      throw std::runtime_error(
+          "option connect-timeout needs value between 1 and 65535 inclusive, was "
+          + std::to_string((connect_timeout)));
+    }
+
+    connect_timeout_ = connect_timeout;
+  }
+  if (bootstrap_options.find("read-timeout") != bootstrap_options.end()) {
+    char *end = nullptr;
+    const char *tmp = bootstrap_options.at("read-timeout").c_str();
+    int read_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
+
+    if (read_timeout <= 0 || read_timeout > 65535 || end != tmp + strlen(tmp)) {
+      throw std::runtime_error(
+          "option read-timeout needs value between 1 and 65535 inclusive, was "
+          + std::to_string((read_timeout)));
+    }
+
+    read_timeout_ = read_timeout;
   }
 
   const std::string default_schema = "mysql://";
@@ -354,7 +381,8 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
   try
   {
     set_ssl_options(mysql_.get(), bootstrap_options);
-    mysql_->connect(u.host, u.port, u.username, u.password, socket_name, "", connection_timeout_);
+    mysql_->connect(u.host, u.port, u.username, u.password, socket_name, "",
+                    connect_timeout_, read_timeout_);
   } catch (MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
@@ -1061,6 +1089,8 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "keyring_path=" << options.keyring_file_path << "\n";
   if (!options.keyring_master_key_file_path.empty())
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
+  cfp << "connect_timeout=" << connect_timeout_ << "\n";
+  cfp << "read_timeout=" << read_timeout_ << "\n";
 
   const std::string metadata_key = metadata_cluster;
   cfp << "\n"

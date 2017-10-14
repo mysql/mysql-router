@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -198,6 +198,36 @@ TEST_F(ConfigTest, RemoveTest) {
     // other tests proving the section got removed
     EXPECT_TRUE(config.empty());
   }
+}
+
+TEST_F(ConfigTest, IsEmptyStringWhenOptionNotInSection) {
+  config.add("section_name");
+  Config::SectionList sections = config.get("section_name");
+  ConfigSection* section = sections.front();
+  ASSERT_THAT(section->get_section_name("option_name"), testing::Eq(""));
+  config.clear();
+  EXPECT_TRUE(config.empty());
+}
+
+TEST_F(ConfigTest, IsCurrentSectionWhenOptionInCurrentSection) {
+  config.add("section_name");
+  Config::SectionList sections = config.get("section_name");
+  ConfigSection* section = sections.front();
+  section->set("option_name", "value");
+  ASSERT_THAT(section->get_section_name("option_name"), testing::Eq("section_name"));
+  config.clear();
+  EXPECT_TRUE(config.empty());
+}
+
+TEST_F(ConfigTest, IsDefaultWhenOptionInDefault) {
+  std::stringstream c;
+  c << "[DEFAULT]\ndefault_option=0\n[section_name_1]\noption_1=value_1\noption_2=value_2\noption_3=value_3\n";
+  config.read(c);
+  Config::SectionList sections = config.get("section_name_1");
+  ConfigSection* section = sections.front();
+  ASSERT_THAT(section->get_section_name("default_option"), testing::Eq("default"));
+  config.clear();
+  EXPECT_TRUE(config.empty());
 }
 
 class GoodParseTestAllowKey : public ::testing::TestWithParam<const char*> {

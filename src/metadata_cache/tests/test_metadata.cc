@@ -129,7 +129,8 @@ class MockMySQLSession: public MySQLSession {
                const std::string&,
                const std::string&,
                const std::string&,
-               int = kDefaultConnectionTimeout) override {
+               int = kDefaultConnectTimeout,
+               int = kDefaultReadTimeout) override {
     connect_cnt_++;
 
     std::string host_port = host + ':' + std::to_string(port);
@@ -344,7 +345,7 @@ class MetadataTest : public ::testing::Test {
   std::unique_ptr<MockMySQLSessionFactory> up_session_factory_{new MockMySQLSessionFactory()};
  public:
   MockMySQLSessionFactory& session_factory = *up_session_factory_; // hack: we can do this because unique_ptr will outlive our tests
-  ClusterMetadata metadata{"user", "pass", 0, 0, 0, mysqlrouter::SSLOptions()};
+  ClusterMetadata metadata{"user", "pass", 0, 0, 0, 0, mysqlrouter::SSLOptions()};
 
   // set instances that would be returned by successful metadata.fetch_instances_from_metadata_server()
   // for a healthy 3-node setup. Only some tests need this variable.

@@ -16,6 +16,7 @@
 */
 
 #include "mysqlrouter/mysql_session.h"
+#define MYSQL_ROUTER_LOG_DOMAIN "sql"
 #include "mysql/harness/logging/logging.h"
 
 #include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
@@ -26,6 +27,8 @@
 #include <cstdlib>
 #include <ctype.h>  // not <cctype> because we don't want std::toupper(), which causes problems with std::transform()
 #include <iostream>
+
+IMPORT_LOG_FUNCTIONS()
 
 using namespace mysqlrouter;
 
@@ -157,6 +160,7 @@ MySQLSession::MySQLSession() {
     // not supposed to happen
     throw std::logic_error("Error initializing MySQL connection structure");
   }
+  log_filter_.add_default_sql_patterns();
 }
 
 
@@ -322,7 +326,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                            const std::string &password,
                            const std::string &unix_socket,
                            const std::string &default_schema,
-                           int connection_timeout) {
+                           int connect_timeout,
+                           int read_timeout) {
   disconnect();
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   connected_ = false;
@@ -330,9 +335,9 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   // Following would fail only when invalid values are given. It is not possible
   // for the user to change these values.
   mysql_options(connection_, MYSQL_OPT_CONNECT_TIMEOUT,
-                &connection_timeout);
+                &connect_timeout);
   mysql_options(connection_, MYSQL_OPT_READ_TIMEOUT,
-                &connection_timeout);
+                &read_timeout);
 
   if (unix_socket.length() > 0) {
 #ifdef _WIN32
@@ -368,6 +373,11 @@ void MySQLSession::disconnect() {
 }
 
 void MySQLSession::execute(const std::string &q) {
+  log_debug("Executing query: %s", log_filter_.filter(q).c_str());
+  std::shared_ptr<void> exit_guard(nullptr, [this](void*) {
+    log_debug("Done executing query");
+  });
+
   if (connected_) {
     MOCK_REC_EXECUTE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
@@ -394,6 +404,10 @@ void MySQLSession::execute(const std::string &q) {
  */
 void MySQLSession::query(const std::string &q,
                          const RowProcessor &processor) {
+  log_debug("Executing query: %s", log_filter_.filter(q).c_str());
+  std::shared_ptr<void> exit_guard(nullptr, [this](void*) {
+    log_debug("Done executing query");
+  });
   if (connected_) {
     MOCK_REC_QUERY(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {

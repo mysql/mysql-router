@@ -31,7 +31,8 @@ public:
                        const std::string &password,
                        const std::string &unix_socket,
                        const std::string &default_schema,
-                       int connection_timeout = kDefaultConnectionTimeout) override;
+                       int connect_timeout = kDefaultConnectTimeout,
+                       int read_timeout = kDefaultReadTimeout) override;
   virtual void disconnect() override;
   virtual bool is_connected() noexcept override { return connected_; }
 

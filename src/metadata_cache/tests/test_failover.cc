@@ -51,7 +51,7 @@ public:
       [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
     );
 
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 10, mysqlrouter::SSLOptions()));
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, 10, mysqlrouter::SSLOptions()));
   }
 
   void init_cache() {

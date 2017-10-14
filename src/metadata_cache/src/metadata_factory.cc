@@ -25,8 +25,10 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
- * @param metadata_connection_timeout The time after which a connection to the
- *                                  metadata server should timeout.
+ * @param connect_timeout The time after which trying to connect to the
+ *                        metadata server should timeout.
+ * @param read_timeout The time after which read from metadata server should
+ *                     timeout.
  * @param connection_attempts The number of times a connection to the metadata
  *                            server must be attempted, when a connection
  *                            attempt fails.
@@ -36,12 +38,14 @@ std::shared_ptr<MetaData> meta_data{nullptr};
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
   const std::string &password,
-  int connection_timeout,
+  int connect_timeout,
+  int read_timeout,
   int connection_attempts,
   unsigned int ttl,
   const mysqlrouter::SSLOptions &ssl_options
   ) {
-  meta_data.reset(new ClusterMetadata(user, password, connection_timeout,
-                                      connection_attempts, ttl, ssl_options));
+  meta_data.reset(new ClusterMetadata(user, password, connect_timeout,
+                                      read_timeout, connection_attempts, ttl,
+                                      ssl_options));
   return meta_data;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -186,6 +186,15 @@ class HARNESS_EXPORT ConfigSection {
   OptionRange get_options() const {
     return OptionRange(options_.begin(), options_.end());
   }
+
+  /*
+   * Returns name of the section in which option is specified. The returned
+   * name may be the name of the section or the name of the default section.
+   *
+   * @option option The name of the option
+   * @return The name of the ConfigSection which option is specified.
+   */
+  std::string get_section_name(const std::string& option) const;
 
 #ifndef NDEBUG
   bool assert_default(const ConfigSection* def) const {

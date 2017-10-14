@@ -98,7 +98,8 @@ protected:
    */
   virtual bool is_required(const std::string &option) = 0;
 
-  /** @brief Gets message prefix for option and section
+  /**
+   * @brief Returns message prefix for option and section
    *
    * Gets the message prefix of option and section. The option
    * name will be mentioned as well as the section from the configuration.
@@ -110,9 +111,11 @@ protected:
    * This is useful when reporting errors.
    *
    * @param option Name of the option
+   * @param section Pointer to Instance of ConfigSection, nullptr by default
    * @return Prefix as std::string
    */
-  virtual std::string get_log_prefix(const std::string &option) const noexcept;
+  virtual std::string get_log_prefix(const std::string &option,
+                                     const mysql_harness::ConfigSection *section = nullptr) const noexcept;
 
   /** @brief Gets an unsigned integer using the given option
    *
@@ -148,7 +151,7 @@ protected:
         result != tol || // if casting lost high-order bytes
         (max_value > 0 && result > max_value)) {
       std::ostringstream os;
-      os << get_log_prefix(option) << " needs value between " << min_value << " and "
+      os << get_log_prefix(option, section) << " needs value between " << min_value << " and "
          << to_string(max_value) << " inclusive";
       if (!value.empty()) {
         os << ", was '" << value << "'";

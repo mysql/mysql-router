@@ -29,8 +29,8 @@
 //fetched.
 
 std::shared_ptr<MetaData> get_instance(
-  const std::string &user, const std::string &password, int connection_timeout,
-  int connection_attempts, unsigned int ttl,
+  const std::string &user, const std::string &password, int connect_timeout,
+  int read_timeout, int connection_attempts, unsigned int ttl,
   const mysqlrouter::SSLOptions &ssl_options);
 
 #endif // METADATA_CACHE_METADATA_FACTORY_INCLUDED

@@ -26,7 +26,9 @@ std::shared_ptr<MetaData> meta_data;
  *
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
- * @param connection_timeout The time after which a connection to the
+ * @param connect_timeout The time after which trying to connect to the
+ *                        metadata server should timeout.
+ * @param read_timeout The time after which read from the metadata server should timeout.
  * @param connection_attempts The number of times a connection to metadata must be
  *                            attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
@@ -35,11 +37,12 @@ std::shared_ptr<MetaData> meta_data;
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,
   const std::string &password,
-  int connection_timeout,
+  int connect_timeout,
+  int read_timeout,
   int connection_attempts,
   unsigned int ttl,
   const mysqlrouter::SSLOptions &ssl_options) {
-  meta_data.reset(new MockNG(user, password, connection_timeout,
+  meta_data.reset(new MockNG(user, password, connect_timeout, read_timeout,
                              connection_attempts, ttl, ssl_options));
   return meta_data;
 }

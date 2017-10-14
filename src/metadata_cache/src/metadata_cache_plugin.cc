@@ -117,12 +117,13 @@ static void start(mysql_harness::PluginFuncEnv* env) {
     }
 
     log_info("Starting Metadata Cache");
-
     // Initialize the metadata cache.
     metadata_cache::cache_init(config.bootstrap_addresses, config.user,
                                password, ttl,
                                make_ssl_options(section),
-                               metadata_cluster);
+                               metadata_cluster,
+                               config.connect_timeout,
+                               config.read_timeout);
   } catch (const std::runtime_error &exc) { // metadata_cache::metadata_error inherits from runtime_error
     log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());

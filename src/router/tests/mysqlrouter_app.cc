@@ -728,7 +728,7 @@ TEST_F(AppLoggerTest, TestLogger) {
   // verify that all plugins have a module registered with the logger
   auto loggers = mysql_harness::DIM::instance().get_LoggingRegistry().get_logger_names();
   EXPECT_THAT(loggers, testing::UnorderedElementsAre(
-      mysql_harness::logging::kMainLogger, "magic", "lifecycle", "lifecycle3"));
+      mysql_harness::logging::kMainLogger, "magic", "lifecycle", "lifecycle3", "sql"));
 
   // verify the log contains what we expect it to contain. We're looking for lines like this:
   {

@@ -35,6 +35,8 @@ const std::string kDefaultMetadataAddress{"127.0.0.1:" + mysqlrouter::to_string(
 const std::string kDefaultMetadataUser = "";
 const std::string kDefaultMetadataPassword = "";
 const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick the 1st (and only) cluster
+const unsigned int kDefaultConnectTimeout = 30;
+const unsigned int kDefaultReadTimeout = 30;
 
 /**
  * Initialize the metadata cache.
@@ -52,9 +54,12 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &password,
                   unsigned int ttl,
                   const mysqlrouter::SSLOptions &ssl_options,
-                  const std::string &cluster_name) {
+                  const std::string &cluster_name,
+                  int connect_timeout,
+                  int read_timeout) {
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
-    get_instance(user, password, 1, 1, ttl, ssl_options), ttl, ssl_options, cluster_name));
+    get_instance(user, password, connect_timeout, read_timeout, 1, ttl, ssl_options), ttl,
+                 ssl_options, cluster_name));
   g_metadata_cache->start();
 }
 

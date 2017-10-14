@@ -48,8 +48,10 @@ public:
                               metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
         ttl(get_uint_option<unsigned int>(section, "ttl")),
-        metadata_cluster(get_option_string(section, "metadata_cluster"))
-        { }
+        metadata_cluster(get_option_string(section, "metadata_cluster")),
+        connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
+        read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1))
+  { }
 
   /**
    * @param option name of the option
@@ -65,6 +67,12 @@ public:
   const unsigned int ttl;
   /** @brief Cluster in the metadata */
   const std::string metadata_cluster;
+  /** @brief connect_timeout The time in seconds after which trying to connect
+   * to metadata server timeouts */
+  const unsigned int connect_timeout;
+  /** @brief read_timeout The time in seconds after which read from metadata
+   * server timeouts */
+  const unsigned int read_timeout;
 
 private:
   /** @brief Gets a list of metadata servers.

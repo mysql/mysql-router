@@ -45,8 +45,10 @@ class METADATA_API ClusterMetadata : public MetaData {
    *
    * @param user The user name used to authenticate to the metadata server.
    * @param password The password used to authenticate to the metadata server.
-   * @param connection_timeout The time after which a connection to the
-   *                           metadata server should timeout.
+   * @param connect_timeout The time after which trying to connect to the
+   *                        metadata server should timeout.
+   * @param read_timeout The time after which read from metadata server should
+   *                     timeout.
    * @param connection_attempts The number of times a connection to metadata
    *                            must be attempted, when a connection attempt
    *                            fails.  NOTE: not used so far
@@ -54,8 +56,8 @@ class METADATA_API ClusterMetadata : public MetaData {
    * @param ssl_options SSL related options to use for MySQL connections
    */
   ClusterMetadata(const std::string &user, const std::string &password,
-                  int connection_timeout, int connection_attempts,
-                  unsigned int ttl,
+                  int connect_timeout, int read_timeout,
+                  int connection_attempts, unsigned int ttl,
                   const mysqlrouter::SSLOptions &ssl_options);
 
   /** @brief Destructor
@@ -161,8 +163,10 @@ class METADATA_API ClusterMetadata : public MetaData {
   std::string message_;
 #endif
 
-  // The time after which a connection to the metadata server should timeout.
-  int connection_timeout_;
+  // The time after which trying to connect to the metadata server should timeout.
+  int connect_timeout_;
+  // The time after which read from metadata server should timeout.
+  int read_timeout_;
 
 #if 0 // not used so far
   // The number of times we should try connecting to the metadata server if a

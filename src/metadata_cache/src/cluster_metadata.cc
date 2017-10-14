@@ -58,14 +58,16 @@ std::string get_string(const char *input_str) {
 
 ClusterMetadata::ClusterMetadata(const std::string &user,
                                  const std::string &password,
-                                 int connection_timeout,
+                                 int connect_timeout,
+                                 int read_timeout,
                                  int /*connection_attempts*/,
                                  unsigned int ttl,
                                  const mysqlrouter::SSLOptions &ssl_options) {
   this->ttl_ = ttl;
   this->user_ = user;
   this->password_ = password;
-  this->connection_timeout_ = connection_timeout;
+  this->connect_timeout_ = connect_timeout;
+  this->read_timeout_ = read_timeout;
 #if 0 // not used so far
   this->metadata_uuid_ = "";
   this->message_ = "";
@@ -103,7 +105,7 @@ bool ClusterMetadata::do_connect(MySQLSession& connection, const metadata_cache:
                                ssl_options_.ca, ssl_options_.capath,
                                ssl_options_.crl, ssl_options_.crlpath);
     connection.connect(host, static_cast<unsigned int>(mi.port), user_, password_,
-        "" /* unix-socket */, "" /* default-schema */, connection_timeout_);
+        "" /* unix-socket */, "" /* default-schema */, connect_timeout_, read_timeout_);
     return true;
   } catch (const MySQLSession::Error& e) {
     return false; // error is logged in calling function

@@ -156,6 +156,20 @@ std::string ConfigSection::get(const std::string& option) const {
   throw bad_option("Value for '" + option + "' not found");
 }
 
+std::string ConfigSection::get_section_name(const std::string& option) const {
+  check_option(option);
+  if (!has(option)) {
+    return "";
+  }
+  auto it = options_.find(lower(option));
+  if (it != options_.end()) {
+    return key.empty() ? name : name + ":" + key;
+  }
+  else {
+    return defaults_->get_section_name(option);
+  }
+}
+
 bool ConfigSection::has(const std::string& option) const {
   check_option(option);
   return std::get<1>(do_locate(option));

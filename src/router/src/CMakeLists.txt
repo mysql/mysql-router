@@ -42,6 +42,7 @@ set(lib_source_files
   uri.cc
   datatypes.cc
   plugin_config.cc
+  common/log_filter.cc
   common/my_aes.cc
   common/my_sha1.cc
   common/mysql_session.cc
