@@ -38,6 +38,9 @@
 #  include <fcntl.h>
 #endif
 
+// performance tweaks
+constexpr unsigned kWaitPidCheckInterval = 100;
+
 #ifdef _WIN32
 
 void ProcessLauncher::start() {
@@ -399,7 +402,6 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
   int exited;
   int exitstatus;
   pid_t ret;
-  const unsigned SLEEP_MS = 100;
 
   do
   {
@@ -408,7 +410,7 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
     exited = WIFEXITED(status);
     exitstatus = WEXITSTATUS(status);
     if (ret == 0) {
-      auto sleep_for = std::min(timeout_ms, SLEEP_MS);
+      auto sleep_for = std::min(timeout_ms, kWaitPidCheckInterval);
       if (sleep_for > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         timeout_ms -= sleep_for;

@@ -94,6 +94,13 @@ const size_t MAX_PARAMS{30};
  *
  **/
 class RouterComponentTest {
+
+  // test performance tweaks
+  // shorter timeout -> faster test execution, longer timeout -> increased test stability
+  static constexpr unsigned kDefaultExpectOutputTimeout = 1000;
+  static constexpr unsigned kDefaultWaitForExitTimeout = 1000;
+  static constexpr size_t kReadBufSize = 1024;
+
  protected:
 
   RouterComponentTest();
@@ -110,6 +117,10 @@ class RouterComponentTest {
    public:
     /** @brief Checks if the process wrote the specified string to its output.
      *
+     * This function loops read()ing child process output, until either the
+     * expected output appears, or until timeout is reached. While reading, it
+     * also calls autoresponder to react to any prompts issued by the child process.
+     *
      * @param str         Expected output string
      * @param regex       True if str is a regex pattern
      * @param timeout_ms  Timeout in milliseconds, to wait for the output
@@ -118,13 +129,14 @@ class RouterComponentTest {
      */
     bool expect_output(const std::string& str,
                        bool regex = false,
-                       unsigned timeout_ms = 1000);
+                       unsigned timeout_ms = kDefaultExpectOutputTimeout);
 
     /** @brief Returns the full output that was produced the process till moment
      *         of calling this method.
+     *  TODO: this description does not match what the code does, this needs to be fixed.
      */
     std::string get_full_output() {
-      while (read_output(0)) {}
+      while (read_and_autorespond_to_output(0)) {}
       return execute_output_raw_;
     }
 
@@ -153,17 +165,21 @@ class RouterComponentTest {
       return exit_code_;
     }
 
-    /** @brief Waits for the process to exit.
+    /** @brief Waits for the process to exit, while reading its output and autoresponding to prompts
      *
-     *  If the process did not finish yet waits the given number of milliseconds.
-     *  If the timeout expired it throws runtime_error.
-     *  In case of failure it throws system_error.
+     *  If the process did not finish yet, it waits the given number of milliseconds.
+     *  If the timeout expired, it throws runtime_error.
+     *  In case of failure, it throws system_error.
      *
      * @param timeout_ms maximum amount of time to wait for the process to finish
-     *
+     * @throws std::runtime_error on timeout, std::system_error on failure
      * @returns exit code of the process
      */
-    int wait_for_exit(unsigned timeout_ms = 1000);
+    int wait_for_exit(unsigned timeout_ms = kDefaultWaitForExitTimeout) {
+      // wait_for_exit() is a convenient short name, but a little unclear with respect
+      // to what this function actually does
+      return wait_for_exit_while_reading_and_autoresponding_to_output(timeout_ms);
+    }
 
    private:
     CommandHandle(const std::string &app_cmd,
@@ -176,18 +192,41 @@ class RouterComponentTest {
     bool output_contains(const std::string& str,
                          bool regex = false) const;
 
-    bool read_output(unsigned timeout_ms);
-    void handle_output(const std::string &line);
+    /** @brief read() output from child until timeout expires, optionally autoresponding to prompts
+     *
+     * @param timeout_ms timeout in milliseconds
+     * @param autoresponder_enabled autoresponder is enabled if true (default)
+     * @returns true if at least one byte was read
+     */
+    bool read_and_autorespond_to_output(unsigned timeout_ms, bool autoresponder_enabled = true);
+
+    /** @brief write() predefined responses on found predefined patterns
+     *
+     * @param bytes_read buffer length
+     * @param cmd_output buffer containig output to be scanned for triggers and possibly autoresponded to
+     */
+    void autorespond_to_matching_lines(int bytes_read, char* cmd_output);
+
+    /** @brief write() a predefined response if a predefined pattern is matched
+     *
+     * @param line line of output that will trigger a response, if matched
+     * @returns true if an autoresponse was sent
+     */
+    bool autorespond_on_matching_pattern(const std::string &line);
+
+    /** @brief see wait_for_exit() */
+    int wait_for_exit_while_reading_and_autoresponding_to_output(unsigned timeout_ms);
 
     ProcessLauncher launcher_; // <- this guy's destructor takes care of
                                // killing the spawned process
     std::string execute_output_raw_;
+    std::string last_line_read_;
     std::map<std::string, std::string> output_responses_;
     int exit_code_;
     bool exit_code_set_{false};
 
     friend class RouterComponentTest;
-  };
+  };  // class CommandHandle
 
   /** @brief Gtest class SetUp, prepares the testcase.
    */
@@ -220,6 +259,18 @@ class RouterComponentTest {
   CommandHandle launch_mysql_server_mock(const std::string& json_file,
                                          unsigned port,
                                          bool debug_mode = true) const;
+
+  /** @brief Launches a process.
+   *
+   * @param command       path to executable
+   * @param params        space-separated list of commanline parameters to pass to the executable
+   * @param catch_stderr  if true stderr will also be captured (combined with stdout)
+   *
+   * @returns handle to the launched proccess
+   */
+  CommandHandle launch_command(const std::string &command,
+                               const std::string &params,
+                               bool catch_stderr = true) const;
 
   /** @brief Removes non-empty directory recursively.
    *
@@ -277,10 +328,6 @@ class RouterComponentTest {
   }
 
  private:
-  CommandHandle launch_command(const std::string &command,
-                               const std::string &params,
-                               bool catch_stderr) const;
-
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
                   const char* out_params[MAX_PARAMS]) const;

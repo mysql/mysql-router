@@ -47,6 +47,7 @@
 #include <chrono>
 #include <iterator>
 #include <thread>
+#include <system_error>
 
 using mysql_harness::Path;
 
@@ -210,16 +211,40 @@ void RouterComponentTest::get_params(const std::string &command,
   out_params[i] = nullptr;
 }
 
-int RouterComponentTest::CommandHandle::wait_for_exit(unsigned timeout_ms) {
+int RouterComponentTest::CommandHandle::wait_for_exit_while_reading_and_autoresponding_to_output(unsigned timeout_ms) {
+  namespace ch = std::chrono;
+  ch::time_point<ch::steady_clock> timeout = ch::steady_clock::now() + ch::milliseconds(timeout_ms);
 
-  while (read_output(200)) {}
+  // We alternate between non-blocking read() and non-blocking waitpid() here.
+  // Reading/autoresponding must be done, because the child might be blocked on
+  // them (for example, it might block on password prompt), and therefore won't
+  // exit until we deal with its output.
+  std::exception_ptr eptr;
+  exit_code_set_ = false;
+  while (ch::steady_clock::now() < timeout) {
+    read_and_autorespond_to_output(0);
 
-  timeout_ms -= std::min(200u, timeout_ms);
+    try {
+      // throws std::runtime_error or std::system_error
+      exit_code_ = launcher_.wait(0);
+      exit_code_set_ = true;
+      break;
+    } catch (const std::runtime_error& e) {
+      eptr = std::current_exception();
+    }
 
-  exit_code_ = launcher_.wait(timeout_ms);
-  exit_code_set_ = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
 
-  return exit_code_;
+  if (exit_code_set_) {
+    // the child exited, but there might still be some data left in the pipe to read,
+    // so let's consume it all
+    while (read_and_autorespond_to_output(1, false)); // false = disable autoresponder
+    return exit_code_;
+  } else {
+    // we timed out waiting for child
+    std::rethrow_exception(eptr);
+  }
 }
 
 bool RouterComponentTest::CommandHandle::expect_output(const std::string& str,
@@ -227,7 +252,7 @@ bool RouterComponentTest::CommandHandle::expect_output(const std::string& str,
                                                        unsigned timeout_ms) {
   for (;;) {
     if (output_contains(str, regex)) return true;
-    if (!read_output(timeout_ms)) return false;
+    if (!read_and_autorespond_to_output(timeout_ms)) return false;
   }
 }
 
@@ -242,27 +267,78 @@ bool RouterComponentTest::CommandHandle::output_contains(const std::string& str,
   return pattern_found(execute_output_raw_, str);
 }
 
-bool RouterComponentTest::CommandHandle::read_output(unsigned timeout_ms) {
-  const size_t BUF_SIZE = 1024;
-  char cmd_output[BUF_SIZE] = {0};
-  bool result = launcher_.read(cmd_output, BUF_SIZE-1, timeout_ms) > 0;
+bool RouterComponentTest::CommandHandle::read_and_autorespond_to_output(unsigned timeout_ms,
+                                                                        bool autoresponder_enabled /*= true*/) {
+  char cmd_output[kReadBufSize] = {0};  // hygiene (cmd_output[bytes_read] = 0 would suffice)
 
-  if (result) {
-    handle_output(cmd_output);
+  // blocks until timeout expires (very likely) or until we fill up the entire buffer (unlikely)
+  // throws std::runtime_error on read error
+  int bytes_read = launcher_.read(cmd_output, kReadBufSize-1, timeout_ms); // cmd_output may contain multiple lines
+
+  if (bytes_read > 0) {
+#ifdef _WIN32
+    // On Windows we get \r\n instead of \n, so we need to get rid of the \r everywhere.
+    // As surprising as it is, WIN32API doesn't provide the automatic conversion:
+    // https://stackoverflow.com/questions/18294650/win32-changing-to-binary-mode-childs-stdout-pipe
+    {
+      char* new_end = std::remove(cmd_output, cmd_output + bytes_read, '\r');
+      *new_end = '\0';
+      bytes_read = new_end - cmd_output;
+    }
+#endif
+
     execute_output_raw_ += cmd_output;
+
+    if (autoresponder_enabled)
+      autorespond_to_matching_lines(bytes_read, cmd_output);
+
+    return true;
+  } else {
+    return false;
   }
-  return result;
 }
 
-void RouterComponentTest::CommandHandle::handle_output(const std::string &line) {
+void RouterComponentTest::CommandHandle::autorespond_to_matching_lines(int bytes_read, char* cmd_output) {
+
+  // returned lines do not contain the \n
+  std::vector<std::string> lines = split_str(std::string(cmd_output, cmd_output + bytes_read), '\n');
+  if (lines.empty())
+    return;
+
+  // it is possible that the last line from the previous call did not match because it arrived incomplete.
+  // Here we try an assumption that the first line is a continuation of last line from previous call.
+  if (last_line_read_.size() && autorespond_on_matching_pattern(last_line_read_ + lines.front())) {
+    // indeed, it was a continuation of previous line. So now we must prevent both fragments from being used again
+    lines.erase(lines.begin());
+    last_line_read_.clear();
+
+    if (lines.empty())
+      return;
+  }
+
+  // try matching all but last line
+  for (auto it = lines.cbegin(); it != lines.cend() - 1; ++it)
+    autorespond_on_matching_pattern(*it);
+
+  // try matching the last line
+  if (autorespond_on_matching_pattern(lines.back()))
+    last_line_read_.clear();
+  else
+    // last line failed to match, it may be because it arrived incomplete. Save it for the next time
+    last_line_read_ = lines.back();
+}
+
+bool RouterComponentTest::CommandHandle::autorespond_on_matching_pattern(const std::string &line) {
   for (const auto &response: output_responses_) {
     const std::string &output = response.first;
     if (line.substr(0, output.size()) == output) {
       const char* resp = response.second.c_str();
       launcher_.write(resp, strlen(resp));
-      return;
+      return true;
     }
   }
+
+  return false;
 }
 
 std::map<std::string, std::string> RouterComponentTest::get_DEFAULT_defaults() const {

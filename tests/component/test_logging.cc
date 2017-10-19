@@ -289,7 +289,7 @@ TEST_F(RouterLoggingTest, bad_loglevel_gets_logged) {
   EXPECT_TRUE(find_in_log(logging_folder, matcher));
 }
 
-TEST_F(RouterLoggingTest, DISABLED_very_long_router_name_gets_properly_logged) {
+TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // This test verifies that a very long router name gets truncated in the
   // logged message (this is done because if it doesn't happen, the entire
   // message will exceed log message max length, and then the ENTIRE message
@@ -325,6 +325,7 @@ TEST_F(RouterLoggingTest, DISABLED_very_long_router_name_gets_properly_logged) {
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   g_origin_path = Path(argv[0]).dirname();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
