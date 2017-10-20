@@ -188,7 +188,7 @@ fi
 
 %files
 %defattr(-, root, root, -)
-%doc License.txt README.txt
+%doc License.txt README.txt doc/sample_mysqlrouter.conf
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
@@ -208,6 +208,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) %{_localstatedir}/run/mysqlrouter
 
 %changelog
+* Fri Oct 20 2017 Andrzej Religa <andrzej.religa@oracle.com> - 8.0.4
+- Added sample config file to the rpm package
+
 * Fri Sep 01 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 dmr release
 
