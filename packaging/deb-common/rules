@@ -60,3 +60,5 @@ override_dh_installinit:
 	dh_installinit --name=mysqlrouter -u"defaults 19 21"
 	touch $@
 
+override_dh_install:
+	dh_install --fail-missing
