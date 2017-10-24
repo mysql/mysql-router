@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,9 +14,20 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 usr/bin/mysqlrouter
-usr/lib/*/libmysql*.so.*
-usr/lib/*/mysqlrouter/*
-usr/share/mysql-router/*
+usr/bin/mysqlrouter_plugin_info
+
+usr/lib/*/libmysqlrouter.so.1
+usr/lib/*/libmysqlharness.so.1
+
+usr/lib/*/mysqlrouter/keepalive.so
+usr/lib/*/mysqlrouter/x_protocol.so
+usr/lib/*/mysqlrouter/mysql_protocol.so
+usr/lib/*/mysqlrouter/syslog.so
+usr/lib/*/mysqlrouter/routing.so
+usr/lib/*/mysqlrouter/metadata_cache.so
+usr/lib/*/mysqlrouter/logger.so
+
+usr/share/mysql-router/docs/sample_mysqlrouter.conf
 
 debian/extra/mysqlrouter.conf etc/mysqlrouter
 etc/apparmor.d/usr.bin.mysqlrouter

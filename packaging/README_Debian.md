@@ -91,5 +91,4 @@ Debian-based 64-bit distributions.
             │       └── mysql-router
             └── mysql-router
                 └── docs
-                    ├── License.txt
-                    └── README.txt
+                    └── sample_mysqlrouter.conf
