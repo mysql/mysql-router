@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -85,6 +85,16 @@ protected:
   string action_result;
 };
 
+// We don't actually need it but without it for each call of ASSERT_ macro
+// with CmdOption as one of the params, gtest generates binary printer (hex representation)
+// for the CmdOption that causes Valgrind "conditional jump" errors from vfprintf()
+std::ostream& operator<<(std::ostream& o, const CmdOption& cmd) {
+  for (const auto& name: cmd.names) {
+    o << name << " ";
+  }
+  o << "\n" << cmd.description << "\n" << cmd.metavar << "\n";
+  return o;
+}
 
 TEST(CmdOptionValueReq, CheckConstants) {
   ASSERT_EQ(static_cast<uint8_t>(CmdOptionValueReq::none), 0x01);

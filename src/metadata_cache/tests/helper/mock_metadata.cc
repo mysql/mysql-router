@@ -128,9 +128,9 @@ MockNG::MockNG(const std::string &user, const std::string &password,
   ms8.port = 3306;
   ms8.xport = 33060;
   ms8.mode = metadata_cache::ServerMode::ReadWrite;
-  ms7.role = "master";
-  ms7.weight = 1;
-  ms7.version_token = 0;
+  ms8.role = "master";
+  ms8.weight = 1;
+  ms8.version_token = 0;
 
   ms9.replicaset_name = "replicaset-3";
   ms9.mysql_server_uuid = "instance-9";

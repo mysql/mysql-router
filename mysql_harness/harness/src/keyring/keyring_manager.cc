@@ -85,7 +85,7 @@ public:
     if (f.fail()) {
       throw std::system_error(std::error_code(errno, std::system_category()), "Can't open file "+path_);
     }
-    char buf[sizeof(kMasterKeyFileSignature)];
+    char buf[sizeof(kMasterKeyFileSignature)] = {0};
     f.read(buf, sizeof(buf));
     if (strncmp(buf, kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature)) != 0)
       throw invalid_master_keyfile("Invalid master key file "+path_);

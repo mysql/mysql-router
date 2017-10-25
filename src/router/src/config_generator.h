@@ -64,13 +64,9 @@ class ConfigGenerator {
 public:
   ConfigGenerator(
 #ifndef _WIN32
-          SysUserOperationsBase* sys_user_operations = SysUserOperations::instance()
+    SysUserOperationsBase* sys_user_operations = SysUserOperations::instance()
 #endif
-          )
-  #ifndef _WIN32
-    : sys_user_operations_(sys_user_operations)
-  #endif
-  {}
+  );
   virtual ~ConfigGenerator() = default;
 
   void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);  // throws std::runtime_error

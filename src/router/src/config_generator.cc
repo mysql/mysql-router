@@ -198,6 +198,18 @@ inline std::string get_opt(const std::map<std::string, std::string> &map,
   return iter->second;
 }
 
+ConfigGenerator::ConfigGenerator(
+#ifndef _WIN32
+        SysUserOperationsBase* sys_user_operations
+#endif
+        ):
+    connect_timeout_(MySQLSession::kDefaultConnectTimeout),
+    read_timeout_(MySQLSession::kDefaultReadTimeout)
+ #ifndef _WIN32
+    ,sys_user_operations_(sys_user_operations)
+ #endif
+{}
+
 /*static*/
 void ConfigGenerator::set_ssl_options(MySQLSession* sess,
                                    const std::map<std::string, std::string>& options) {
@@ -272,8 +284,6 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
   // Setup connection timeout
-  connect_timeout_ = MySQLSession::kDefaultConnectTimeout;
-  read_timeout_ = MySQLSession::kDefaultReadTimeout;
   std::string uri;
 
   // check options
