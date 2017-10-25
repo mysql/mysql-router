@@ -30,169 +30,242 @@
 /** @file
  *  @brief Provides simple, yet useful dependency injection mechanism
  *
- *  # INTRODUCTION
+ * # Introduction
  *
- *  Let's start with showing usage, for example class Foo:
+ * Let's start with showing usage, for example class Foo:
  *
- *      class Foo {
- *       public:
- *        Foo();
- *        void do_something();
- *      };
+ * @code
+ *     class Foo {
+ *      public:
+ *       Foo();
+ *       void do_something();
+ *     };
+ * @endcode
  *
- *  We want DIM to make instance(s) of this class available throughout our
- *  application.
+ * We want DIM to make instance(s) of this class available throughout our
+ * application.
  *
- *  // Scenario 1: when Foo is a singleton -------------------------------------
+ * ## Scenario 1: when Foo is a singleton
  *
- *      void init_code() {
- *        DIM::instance().set_Foo([](){ return new Foo; });
- *      }
+ * @code
+ *     void init_code() {
+ *       DIM::instance().set_Foo([](){ return new Foo; });
+ *     }
  *
- *      void use_code() {
- *        Foo& foo = DIM::instance().get_Foo();
+ *     void use_code() {
+ *       Foo& foo = DIM::instance().get_Foo();
  *
- *        // each call works on the same object
- *        foo.do_something();
- *        foo.do_something();
- *        foo.do_something();
- *      }
+ *       // each call works on the same object
+ *       foo.do_something();
+ *       foo.do_something();
+ *       foo.do_something();
+ *     }
+ * @endcode
  *
- *  // Scenario 2: when Foo is not a singleton ---------------------------------
+ * ## Scenario 2: when Foo is not a singleton
  *
- *      void init_code() {
- *        DIM::instance().set_Foo([](){ return new Foo; });
- *      }
+ * @code
+ *     void init_code() {
+ *       DIM::instance().set_Foo([](){ return new Foo; });
+ *     }
  *
- *      void use_code() {
- *        // each call generates a new object
- *        UniquePtr<Foo> foo1 = DIM::instance().new_Foo(); foo->do_something();
- *        UniquePtr<Foo> foo2 = DIM::instance().new_Foo(); foo->do_something();
- *        UniquePtr<Foo> foo3 = DIM::instance().new_Foo(); foo->do_something();
- *      }
+ *     void use_code() {
+ *       // each call generates a new object
+ *       UniquePtr<Foo> foo1 = DIM::instance().new_Foo();
+ *       foo1->do_something();
  *
- *  // Scenario 3: when Foo already exists (typically used in unit tests) ------
+ *       UniquePtr<Foo> foo2 = DIM::instance().new_Foo();
+ *       foo2->do_something();
  *
- *      Foo foo_that_lives_forever;
+ *       UniquePtr<Foo> foo3 = DIM::instance().new_Foo();
+ *       foo3->do_something();
+ *     }
+ * @endcode
  *
- *      void init_code() { // so that DIM does not try to delete it -------vvvvvvvvvvv
- *        DIM::instance().set_Foo([](){ return &foo_that_lives_forever; }, [](Foo*) {});
- *      }
+ * ## Scenario 3: when Foo already exists (typically used in unit tests)
  *
- *      void use_code() {
- *        Foo& foo = DIM::instance().get_Foo();
- *        foo.do_something();
- *      }
+ * @code
+ *     Foo foo_that_lives_forever;
+ *
+ *     void init_code() {
+ *       DIM::instance().set_Foo(
+ *         [](){
+ *           return &foo_that_lives_forever;
+ *         },
+ *         [](Foo*) {}); // so that DIM does not try to delete it
+ *     }
+ *
+ *     void use_code() {
+ *       Foo& foo = DIM::instance().get_Foo();
+ *       foo.do_something();
+ *     }
+ * @endcode
  *
  * Convenient, isn't it?  But to make all this happen, class Foo (boilerplate code) has
- * to be added to DIM class.  Adding a new managed object is done in 4 steps:
+ * to be added to DIM class.
  *
- *   Step 1: add class forward declaration
- *   Step 2: add object factory + deleter setter
- *   Step 3: add singleton object getter or object creator. Adding both usually makes no sense
- *   Step 4: add factory and deleter function objects
+ * # Usage
+ *
+ * Adding a new managed object is done in 4 steps:
+ *
+ * 1. add class forward declaration
+ * 2. add object factory + deleter setter
+ * 3. add singleton object getter or object creator. Adding both usually makes no sense
+ * 4. add factory and deleter function objects
  *
  * Here is the (relevant part of) class DIM for class Foo:
  *
- *   // forward declarations [step 1]
- *   class Foo;
  *
- *   class DIM {
- *     ... constructors, instance(), other support methods ...
+ * @code
+ *     // [step 1]
+ *     // forward declarations
+ *     class Foo;
  *
- *    public:
- *     // factory + deleter setter [step 2]
- *     void set_Foo(const std::function<Foo*(void)>& factory, const std::function<void(Foo*)>& deleter = std::default_delete<Foo>()) { factory_Foo_ = factory; deleter_Foo_ = deleter; }
+ *     class DIM {
+ *       // ... constructors, instance(), other support methods ...
  *
- *     // singleton object getter (shown here, but normally mutually-exclusive with next method) [step 3]
- *     Foo& get_Foo() const { return get_generic<Foo>(factory_Foo_, deleter_Foo_); }
+ *      public:
+ *       // [step 2]
+ *       // factory + deleter setter
+ *       void set_Foo(const std::function<Foo*(void)>& factory,
+ *         const std::function<void(Foo*)>& deleter =
+ *             std::default_delete<Foo>()) {
+ *           factory_Foo_ = factory; deleter_Foo_ = deleter;
+ *       }
  *
- *     // object creator (shown here, but normally mutually-exclusive with previous method) [step 3]
- *     UniquePtr<Foo> new_Foo() const { return new_generic(factory_Foo_, deleter_Foo_); }
+ *       // [step 3]
+ *       // singleton object getter
+ *       // (shown here, but normally mutually-exclusive with next method)
+ *       Foo& get_Foo() const {
+ *         return get_generic<Foo>(factory_Foo_, deleter_Foo_);
+ *       }
  *
- *    private:
- *     // factory and deleter function objects [step 4]
- *     std::function<Foo*(void)> factory_Foo_;  std::function<void(Foo*)> deleter_Foo_;
- *   };
+ *       // object creator
+ *       // (shown here, but normally mutually-exclusive with previous method)
+ *       UniquePtr<Foo> new_Foo() const {
+ *         return new_generic(factory_Foo_, deleter_Foo_);
+ *       }
  *
- *
- *
- *
- *
- * # COMPLEX USAGE EXAMPLE (hint: copy one set of members+methods and modify for your object)
- *
- *
- *   // forward declarations [step 1]
- *   class Foo;
- *   class Bar;
- *   class Baz;
- *
- *   class DIM {
- *     ... constructors, instance(), other support methods ...
- *
- *     // Example: Foo depends on Bar and Baz,
- *     //          Bar depends on Baz and some int,
- *     //          Baz depends on nothing
- *
- *    public:
- *     // factory + deleter setters [step 2]
- *     void set_Foo(const std::function<Foo*(void)>& factory, const std::function<void(Foo*)>& deleter = std::default_delete<Foo>()) { factory_Foo_ = factory; deleter_Foo_ = deleter; }
- *     void set_Bar(const std::function<Bar*(void)>& factory, const std::function<void(Bar*)>& deleter = std::default_delete<Bar>()) { factory_Bar_ = factory; deleter_Bar_ = deleter; }
- *     void set_Baz(const std::function<Baz*(void)>& factory, const std::function<void(Baz*)>& deleter = std::default_delete<Baz>()) { factory_Baz_ = factory; deleter_Baz_ = deleter; }
- *
- *     // singleton object getters (all are shown, but normally mutually-exclusive with next group) [step 3]
- *     Foo& get_Foo() const { return get_generic<Foo>(factory_Foo_, deleter_Foo_); }
- *     Bar& get_Bar() const { return get_generic<Bar>(factory_Bar_, deleter_Bar_); }
- *     Baz& get_Baz() const { return get_generic<Baz>(factory_Baz_, deleter_Baz_); }
- *
- *     // object creators (all are shown, but normally mutually-exclusive with previous group) [step 3]
- *     UniquePtr<Foo> new_Foo() const { return new_generic(factory_Foo_, deleter_Foo_); }
- *     UniquePtr<Bar> new_Bar() const { return new_generic(factory_Bar_, deleter_Bar_); }
- *     UniquePtr<Baz> new_Baz() const { return new_generic(factory_Baz_, deleter_Baz_); }
- *
- *    private:
- *     // factory and deleter function objects [step 4]
- *     std::function<Foo*(void)> factory_Foo_;  std::function<void(Foo*)> deleter_Foo_;
- *     std::function<Bar*(void)> factory_Bar_;  std::function<void(Bar*)> deleter_Bar_;
- *     std::function<Baz*(void)> factory_Baz_;  std::function<void(Baz*)> deleter_Baz_;
- *   };
+ *      private:
+ *       // factory and deleter function objects [step 4]
+ *       std::function<Foo*(void)> factory_Foo_;
+ *       std::function<void(Foo*)> deleter_Foo_;
+ *     };
+ * @endcode
  *
  *
+ * ## Example
  *
- *   // actual classes
- *   struct Baz {
- *     Baz() {}
- *   };
- *   struct Bar {
- *     Bar(Baz, int) {}
- *   };
- *   struct Foo {
- *     Foo(Bar, Baz) {}
- *     void do_something() {}
- *   };
+ * @code
+ *     // forward declarations [step 1]
+ *     class Foo;
+ *     class Bar;
+ *     class Baz;
+ *
+ *     class DIM {
+ *       // ... constructors, instance(), other support methods ...
+ *
+ *       // Example: Foo depends on Bar and Baz,
+ *       //          Bar depends on Baz and some int,
+ *       //          Baz depends on nothing
+ *
+ *      public:
+ *       // factory + deleter setters [step 2]
+ *       void set_Foo(const std::function<Foo*(void)>& factory,
+ *         const std::function<void(Foo*)>& deleter =
+ *             std::default_delete<Foo>()) {
+ *           factory_Foo_ = factory; deleter_Foo_ = deleter;
+ *       }
+ *
+ *       void set_Bar(const std::function<Bar*(void)>& factory,
+ *         const std::function<void(Bar*)>& deleter =
+ *             std::default_delete<Bar>()) {
+ *           factory_Bar_ = factory; deleter_Bar_ = deleter;
+ *       }
+ *
+ *       void set_Baz(const std::function<Baz*(void)>& factory,
+ *         const std::function<void(Baz*)>& deleter =
+ *             std::default_delete<Baz>()) {
+ *           factory_Baz_ = factory; deleter_Baz_ = deleter;
+ *       }
+ *
+ *       // singleton object getters
+ *       // (all are shown, but normally mutually-exclusive
+ *       // with next group) [step 3]
+ *       Foo& get_Foo() const {
+ *         return get_generic<Foo>(factory_Foo_, deleter_Foo_);
+ *       }
+ *       Bar& get_Bar() const {
+ *         return get_generic<Bar>(factory_Bar_, deleter_Bar_);
+ *       }
+ *       Baz& get_Baz() const {
+ *         return get_generic<Baz>(factory_Baz_, deleter_Baz_);
+ *       }
+ *
+ *       // object creators
+ *       // (all are shown, but normally mutually-exclusive
+ *       // with previous group) [step 3]
+ *       UniquePtr<Foo> new_Foo() const {
+ *         return new_generic(factory_Foo_, deleter_Foo_);
+ *       }
+ *       UniquePtr<Bar> new_Bar() const {
+ *         return new_generic(factory_Bar_, deleter_Bar_);
+ *       }
+ *       UniquePtr<Baz> new_Baz() const {
+ *         return new_generic(factory_Baz_, deleter_Baz_);
+ *       }
+ *
+ *      private:
+ *       // factory and deleter function objects [step 4]
+ *       std::function<Foo*(void)> factory_Foo_;
+ *       std::function<void(Foo*)> deleter_Foo_;
+ *       std::function<Bar*(void)> factory_Bar_;
+ *       std::function<void(Bar*)> deleter_Bar_;
+ *       std::function<Baz*(void)> factory_Baz_;
+ *       std::function<void(Baz*)> deleter_Baz_;
+ *     };
  *
  *
  *
- *   // usage
- *   int main() {
- *     int n = 3306;
+ *     // actual classes
+ *     struct Baz {
+ *       Baz() {}
+ *     };
+ *     struct Bar {
+ *       Bar(Baz, int) {}
+ *     };
+ *     struct Foo {
+ *       Foo(Bar, Baz) {}
+ *       void do_something() {}
+ *     };
  *
- *     // init code
- *     DIM& dim = DIM::instance();
- *     dim.set_Foo([&dim]()    { return new Foo(dim.get_Bar(), dim.get_Baz()); });
- *     dim.set_Bar([&dim, n]() { return new Bar(dim.get_Baz(), n);             });
- *     dim.set_Baz([]()        { return new Baz;                               });
  *
- *     // use code (as singleton)
- *     dim.get_Foo().do_something(); // will automatically instantiate Bar and Baz as well
  *
- *     // use code (as new object)
- *     UniquePtr<Foo> foo = dim.new_Foo();
- *     foo->do_something();
- *   }
+ *     // usage
+ *     int main() {
+ *       int n = 3306;
  *
- * # OTHER FEATURES: OBJECT RESET
+ *       // init code
+ *       DIM& dim = DIM::instance();
+ *       dim.set_Foo([&dim]()    {
+ *           return new Foo(dim.get_Bar(), dim.get_Baz()); });
+ *       dim.set_Bar([&dim, n]() {
+ *           return new Bar(dim.get_Baz(), n);             });
+ *       dim.set_Baz([]()        {
+ *           return new Baz;                               });
  *
+ *       // use code (as singleton)
+ *       //
+ *       // will automatically instantiate Bar and Baz as well
+ *       dim.get_Foo().do_something();
+ *
+ *       // use code (as new object)
+ *       UniquePtr<Foo> foo = dim.new_Foo();
+ *       foo->do_something();
+ *     }
+ * @endcode
+ *
+ * # Object Reset
  *
  * There's also an option to reset an object managed by DIM, should you need it. Normally,
  * on the first call to get_Foo(), it will call the factory_Foo_() to create the object
@@ -204,43 +277,72 @@
  * nullptr. The Foo object can no longer be kept inside of get_Foo(), because it has to be
  * modifiable via reset_Foo(). Here's the code:
  *
- *   // Foo-related members. instance_Foo_ is new here, it now stores the Foo object
- *   // (previously, this object was stored as a static variable inside of get_Foo()
- *   std::function<Foo*(void)> factory_Foo_;
- *   std::function<void(Foo*)> deleter_Foo_;
- *   UniquePtr<Foo>            instance_Foo_; // <---- new member
  *
- *   // getter now relies on get_external_generic() to manage the Foo object
- *   Foo& get_Foo() { return get_external_generic(instance_Foo_, factory_Foo_, deleter_Foo_); }
+ * @code
+ *     // Foo-related members.
+ *     //
+ *     // instance_Foo_ is new here, it now stores the Foo object
+ *     //
+ *     // (previously, this object was stored as a static variable
+ *     // inside of get_Foo()
+ *     std::function<Foo*(void)> factory_Foo_;
+ *     std::function<void(Foo*)> deleter_Foo_;
+ *     UniquePtr<Foo>            instance_Foo_; // <---- new member
  *
- *   // this is our new function. After calling it, set_Foo() can be used again to set the
- *   // factory method, which will be triggered on subsequent call to get_Foo() to create
- *   // the new Foo object
- *   void reset_Foo() { reset_generic(instance_Foo_); }
+ *     // getter now relies on get_external_generic() to manage the Foo object
+ *     Foo& get_Foo() {
+ *       return get_external_generic(instance_Foo_,
+ *                                   factory_Foo_,
+ *                                   deleter_Foo_);
+ *     }
  *
- *   // set_Foo remains unaltered
- *   void set_Foo(const std::function<Foo*(void)>& factory,
- *                const std::function<void(Foo*)>& deleter = std::default_delete<Foo>()) {
- *     factory_Foo_ = factory;
- *     deleter_Foo_ = deleter;
- *   }
+ *     // this is our new function.
+ *     //
+ *     // After calling it, set_Foo() can be used again
+ *     // to set the factory method, which will be
+ *     // triggered on subsequent call to get_Foo() to
+ *     // create the new Foo object
+ *     void reset_Foo() { reset_generic(instance_Foo_); }
  *
- * EXAMPLE USAGE:
+ *     // set_Foo remains unaltered
+ *     void set_Foo(const std::function<Foo*(void)>& factory,
+ *         const std::function<void(Foo*)>& deleter =
+ *           std::default_delete<Foo>()) {
+ *       factory_Foo_ = factory;
+ *       deleter_Foo_ = deleter;
+ *     }
+ * @endcode
  *
- *   // init code
- *   DIM& dim = DIM::instance();
- *   dim.set_Foo([]() { return new Foo(42); });
+ * ## Example
  *
- *   // use code
- *   dim.get_Foo().do_something(); // automatically calls set_Foo() which returns new Foo(42)
- *   dim.get_Foo().do_something(); // does not call set_Foo() anymore
- *   dim.get_Foo().do_something(); // does not call set_Foo() anymore
+ * @code
+ *     // init code
+ *     DIM& dim = DIM::instance();
+ *     dim.set_Foo([]() { return new Foo(42); });
  *
- *   dim.set_Foo([]() { return new Foo(555); }); // sets new creating function
- *   dim.get_Foo().do_something(); // but the new set_Foo() is still not called
+ *     // use code
  *
- *   dim.reset_Foo();
- *   dim.get_Foo().do_something(); // automatically calls (new) set_Foo(), which returns new Foo(555)
+ *     // automatically calls set_Foo() which returns new Foo(42)
+ *     dim.get_Foo().do_something();
+ *
+ *     // does not call set_Foo() anymore
+ *     dim.get_Foo().do_something();
+ *
+ *     // does not call set_Foo() anymore
+ *     dim.get_Foo().do_something();
+ *
+ *     // sets new creating function
+ *     dim.set_Foo([]() {
+ *         return new Foo(555);
+ *     });
+ *     // but the new set_Foo() is still not called
+ *     dim.get_Foo().do_something();
+ *
+ *     dim.reset_Foo();
+ *
+ *     // automatically calls (new) set_Foo(), which returns new Foo(555)
+ *     dim.get_Foo().do_something();
+ * @endcode
  *
  */
 
