@@ -48,7 +48,7 @@ class HARNESS_EXPORT KeyringFile : public KeyringMemory {
    * @param[in] file_name Keyring file name.
    * @param[in] key Key used for encryption.
    *
-   * @except std::exception Saving to file failed.
+   * @exception std::exception Saving to file failed.
    */
   void save(const std::string& file_name, const std::string& key) const;
 
@@ -58,7 +58,7 @@ class HARNESS_EXPORT KeyringFile : public KeyringMemory {
    * @param[in] file_name Keyring file name.
    * @param[in] key Key used for decryption.
    *
-   * @except std::exception Loading from file failed.
+   * @exception std::exception Loading from file failed.
    */
   void load(const std::string& file_name, const std::string& key);
 
@@ -67,7 +67,7 @@ class HARNESS_EXPORT KeyringFile : public KeyringMemory {
    *
    * @param[in] file_name Keyring file name.
    *
-   * @except std::exception Loading from file failed.
+   * @exception std::exception Loading from file failed.
    */
   std::string read_header(const std::string& file_name);
 

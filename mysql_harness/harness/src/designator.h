@@ -93,10 +93,10 @@ class Version {
 /**
  * Designator grammar
  *
- * root ::= <name>
- * root ::= <name> "(" <op> <version> ( "," <op> <version> )* ")"
+ * root ::= name
+ * root ::= name "(" op version ( "," op version )* ")"
  * op ::= "<<" | "<=" | "!=" | "==" | ">>" | ">="
- * version ::= <number> "." <number> "." <number>
+ * version ::= number "." number "." number
  */
 
 class HARNESS_EXPORT Designator {

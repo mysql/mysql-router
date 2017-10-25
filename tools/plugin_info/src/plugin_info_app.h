@@ -34,12 +34,12 @@ class Plugin_info_app final {
   /** @class Constructor
    *
    * @brief Normal application operation exepcts 3 parameters:
-   *        <app_name> <path_to_plugin_file> <plugin_name>
+   *        {app_name} {path_to_plugin_file} {plugin_name}
    *        This retrieves the data read from the plugin file to the output stream.
    *
    *        Other supported options are:
-   *        <app_name> --help     outputs application usage to the error stream
-   *        <app_name> --version  outputs application version to the error stream
+   *        {app_name} --help     outputs application usage to the error stream
+   *        {app_name} --version  outputs application version to the error stream
    *
    * @param argc number of parameters passed to the application
    * @param argv array of the parameters passed to the applications

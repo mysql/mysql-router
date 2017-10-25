@@ -92,13 +92,13 @@ class HARNESS_EXPORT Path {
 
   friend HARNESS_EXPORT std::ostream& operator<<(std::ostream& out, FileType type);
 
+  Path() noexcept;
+
  /**
    * Construct a path
    *
    * @param path Non-empty string denoting the path.
    */
-  Path() noexcept;
-
   /** @overload */  // throws std::invalid_argument
   Path(const std::string& path);  // NOLINT(runtime/explicit)
 
@@ -440,10 +440,9 @@ int delete_file(const std::string& path) noexcept;
 HARNESS_EXPORT
 int delete_dir_recursive(const std::string& dir) noexcept;
 
-/** @brief Creates a temporary directory with partially-random name and returns
- * its path.
+/** @brief Creates a temporary directory with partially-random name and returns its path.
  *
- * Creates a directory with a name of form <prefix>-<6 random alphanumerals>.
+ * Creates a directory with a name of form {prefix}-{6 random alphanumerals}.
  * For example, a possible directory name created by a call to get_tmp_dir("foo")
  * might be:
  *   foo-3f9x0z

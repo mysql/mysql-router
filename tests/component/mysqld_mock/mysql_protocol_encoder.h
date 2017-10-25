@@ -32,7 +32,7 @@ const uint16_t MYSQL_PARSE_ERROR = 1064;
 
 class MySQLProtocolEncoder {
 public:
-  /** @enum MySQLCapabilities
+  /** @enum MySQLCapability
    *
    * Values for MySQL capabilities bitmask.
    *
@@ -110,7 +110,7 @@ public:
   /** @brief Encodes MySQL error message
    *
    * @param seq_no      protocol packet sequence number to use
-   * @param error code  code of the reported error
+   * @param error_code  code of the reported error
    * @param sql_state   SQL state to report
    * @param error_msg   error message
    *
@@ -155,8 +155,8 @@ public:
 
   /** @brief Encodes message containing single column metadata.
    *
-   * @param seq_no  protocol packet sequence number to use
-   * @param number  map containing parameters names and values pairs for the column
+   * @param seq_no       protocol packet sequence number to use
+   * @param column_info  map containing parameters names and values pairs for the column
    *
    * @returns buffer with the encoded message
    **/

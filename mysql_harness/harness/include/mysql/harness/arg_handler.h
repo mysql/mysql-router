@@ -129,7 +129,7 @@ class HARNESS_EXPORT CmdArgHandler {
  public:
   /** @brief Constructor
    *
-   * @param allow_rest_arguments whether we allow rest arguments or not
+   * @param allow_rest_arguments_ whether we allow rest arguments or not
    */
   explicit CmdArgHandler(bool allow_rest_arguments_)
       : allow_rest_arguments(allow_rest_arguments_) {}

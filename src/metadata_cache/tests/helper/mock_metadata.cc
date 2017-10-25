@@ -27,7 +27,6 @@
 using namespace std;
 
 /** @brief Constructor
- * @param bootstrap_servers The servers that store the metadata.
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
  * @param connect_timeout The time after which trying to connect to the

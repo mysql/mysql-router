@@ -846,6 +846,8 @@ class HARNESS_EXPORT Loader {
   Plugin *load_from(const std::string& plugin_name,
                     const std::string& library_name);
 
+  Plugin *load(const std::string& plugin_name);
+
   /**
    * Load the named plugin and all dependent plugins.
    *
@@ -859,8 +861,6 @@ class HARNESS_EXPORT Loader {
    * @post After the execution of this procedure, the plugin and all
    * plugins required by that plugin will be loaded.
    */
-  Plugin *load(const std::string& plugin_name);
-
   /** @overload */
   Plugin *load(const std::string& plugin_name, const std::string& key);
 

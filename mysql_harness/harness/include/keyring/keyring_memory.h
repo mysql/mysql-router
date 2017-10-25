@@ -50,7 +50,7 @@ class HARNESS_EXPORT KeyringMemory : public Keyring {
    *
    * @return Serialized keyring data.
    *
-   * @thorw std::exception Serialization failed.
+   * @exception std::exception Serialization failed.
    */
   std::vector<char> serialize(const std::string& key) const;
 
@@ -61,7 +61,7 @@ class HARNESS_EXPORT KeyringMemory : public Keyring {
    * @param[in] buffer Serialized keyring data.
    * @param[in] buffer_size Size of the data.
    *
-   * @thorw std::exception Parsing failed.
+   * @exception std::exception Parsing failed.
    */
   void parse(const std::string& key, const char* buffer,
              std::size_t buffer_size);

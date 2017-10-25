@@ -55,7 +55,7 @@ class HARNESS_EXPORT Keyring {
    *
    * @return Attribute value.
    *
-   * @except std::out_of_range Attribute not found.
+   * @exception std::out_of_range Attribute not found.
    */
   virtual std::string fetch(const std::string &uid,
                             const std::string &attribute) const = 0;

@@ -69,6 +69,9 @@ static void check_option(const std::string& str) {
     throw bad_option("Not a legal option name: '" + str + "'");
 }
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+// doxygen has problems to parse the 'const shared_ptr<const ConfigSection>&'
+// and treats it as 'const const shared_ptr<ConfigSection>&' can't find a match
 ConfigSection::ConfigSection(const std::string& name_arg,
                              const std::string& key_arg,
                              const shared_ptr<const ConfigSection>& defaults)
@@ -78,6 +81,7 @@ ConfigSection::ConfigSection(const ConfigSection& other,
                              const shared_ptr<const ConfigSection>& defaults)
   : name(other.name), key(other.key), defaults_(defaults),
     options_(other.options_) {}
+#endif
 
 void ConfigSection::clear() {
   options_.clear();

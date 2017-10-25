@@ -51,7 +51,8 @@ static const int kPrimaryFailoverTimeout = 10;
 
 static const std::set<std::string> supported_params{"role", "allow_primary_reads"};
 
-
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+// doxygen confuses 'const mysqlrouter::URIQuery &query' with 'std::map<std::string, std::string>'
 DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache, const std::string &replicaset,
   const std::string &mode, const mysqlrouter::URIQuery &query,
   const Protocol::Type protocol) :
@@ -69,6 +70,7 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache
     throw std::runtime_error("Invalid routing mode value '"+mode+"'");
   init();
 }
+#endif
 
 std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::vector<std::string> *server_ids) {
   auto managed_servers = lookup_replicaset(ha_replicaset_).instance_vector;

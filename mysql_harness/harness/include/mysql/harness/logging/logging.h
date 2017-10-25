@@ -16,8 +16,8 @@
 */
 
 /**
- * @file Logging interface for using and extending the logging
- * subsystem.
+ * @file
+ * @brief Logging interface for using and extending the logging subsystem.
  */
 
 #ifndef MYSQL_HARNESS_LOGGING_INCLUDED

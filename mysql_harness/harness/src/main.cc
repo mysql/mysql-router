@@ -16,7 +16,7 @@
 */
 
 /**
- * @mainpage
+ * @file
  *
  * MySQL Harness is an extensible framework that handles loading and
  * unloading of extensions. The built-in features is dependency

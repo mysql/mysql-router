@@ -61,7 +61,7 @@ class MySQLProtocolDecoder {
 
   /** @brief Constructor
    *
-   * @param read_callback Callback to use to read more data from the socket
+   * @param read_clb Callback to use to read more data from the socket
    **/
   MySQLProtocolDecoder(const read_callback& read_clb);
 

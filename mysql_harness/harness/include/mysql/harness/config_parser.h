@@ -128,8 +128,8 @@ class HARNESS_EXPORT ConfigSection {
   using OptionMap = std::map<std::string, std::string>;
   using OptionRange = Range<OptionMap::const_iterator>;
 
-  ConfigSection(const std::string& name,
-                const std::string& key,
+  ConfigSection(const std::string& name_arg,
+                const std::string& key_arg,
                 const std::shared_ptr<const ConfigSection>& defaults);
 
   ConfigSection(const ConfigSection&,
@@ -249,17 +249,6 @@ class HARNESS_EXPORT Config {
    */
   static constexpr const char* DEFAULT_PATTERN = "*.cfg";
 
-  /**
-   * Construct a configuration.
-   *
-   * Construct a configuration instace by reading a configuration file
-   * and overriding the values read from a list of supplied
-   * parameters.
-   *
-   * @param parameters Associative container with parameters.
-   * @param reserved Sequence container of reserved words.
-   */
-
   explicit Config(unsigned int flags = 0U) noexcept;
 
   /** @overload */  // throws bad_option
@@ -269,6 +258,18 @@ class HARNESS_EXPORT Config {
     for (auto item : parameters)
       defaults_->set(item.first, item.second);  // throws bad_option
   }
+
+  /**
+   * Construct a configuration.
+   *
+   * Construct a configuration instace by reading a configuration file
+   * and overriding the values read from a list of supplied
+   * parameters.
+   *
+   * @param parameters Associative container with parameters.
+   * @param reserved Sequence container of reserved words.
+   * @param flags flags.
+   */
 
   /** @overload */  // throws bad_option
   template <class AssocT, class SeqT>
@@ -307,8 +308,6 @@ class HARNESS_EXPORT Config {
    * sections are allowed and will raise an exception.
    *
    * @param input Input stream to read from.
-   * @param path Path to directory or file to read from.
-   * @param pattern Glob pattern for configuration files in the directory.
    *
    * @exception syntax_error Raised if there is a syntax error in the
    * configuration file and the configuration file have to be corrected.
@@ -324,6 +323,10 @@ class HARNESS_EXPORT Config {
   /** @overload */
   void read(const Path& path);
 
+  /*
+   * @param path Path to directory or file to read from.
+   * @param pattern Glob pattern for configuration files in the directory.
+   */
   /** @overload */
   void read(const Path& path, const std::string& pattern);
 
@@ -347,14 +350,16 @@ class HARNESS_EXPORT Config {
   /**
    * Remove section from configuration
    *
-   * @param section Name of section to remove.
-   * @param key Optional key of section to remove.
    * @param section_key section+key to remove.
    *
    * @return true if section was removed, false if section did not exist
    */
   bool remove(const SectionKey& section_key) noexcept;
 
+  /*
+   * @param section Name of section to remove.
+   * @param key Optional key of section to remove.
+   */
   /** @overload */
   bool remove(const std::string& section,
               const std::string& key = std::string()) noexcept;

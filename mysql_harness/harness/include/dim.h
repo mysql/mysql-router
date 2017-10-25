@@ -27,11 +27,10 @@
 
 
 
-/** @class DIM (Dependency Injection Manager)
+/** @file
  *  @brief Provides simple, yet useful dependency injection mechanism
  *
- *  1. INTRODUCTION
- *  ~~~~~~~~~~~~~~~
+ *  # INTRODUCTION
  *
  *  Let's start with showing usage, for example class Foo:
  *
@@ -120,8 +119,8 @@
  *
  *
  *
- * 2. COMPLEX USAGE EXAMPLE (hint: copy one set of members+methods and modify for your object)
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * # COMPLEX USAGE EXAMPLE (hint: copy one set of members+methods and modify for your object)
+ *
  *
  *   // forward declarations [step 1]
  *   class Foo;
@@ -192,8 +191,8 @@
  *     foo->do_something();
  *   }
  *
- * 3. OTHER FEATURES: OBJECT RESET
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * # OTHER FEATURES: OBJECT RESET
+ *
  *
  * There's also an option to reset an object managed by DIM, should you need it. Normally,
  * on the first call to get_Foo(), it will call the factory_Foo_() to create the object
