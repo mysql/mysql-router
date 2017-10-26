@@ -304,7 +304,13 @@ void mysqlrouter::check_innodb_metadata_cluster_session(MySQLSession *mysql,
       throw std::runtime_error("The provided server is not an updatable member of the cluster. Please try again with the Primary member of the replicaset" + (primary.empty() ? std::string(".") : " ("+primary+")."));
     }
   } catch (MySQLSession::Error &e) {
-    if (e.code() == 1146) { // Table doesn't exist
+    /*
+     * If the metadata cache is missing:
+     * - MySQL server before version 8.0 returns error: Table 'mysql_innodb_cluster_metadata.schema_version' doesn't exist (1146)
+     * - MySQL server version 8.0 returns error: Unknown database 'mysql_innodb_cluster_metadata' (1049).
+     * We handle both codes the same way here.
+     */
+    if (e.code() == 1146 || e.code() == 1049) {
       throw std::runtime_error("The provided server does not seem to contain metadata for a MySQL InnoDB cluster");
     }
     throw;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -103,6 +103,17 @@ static MySQLSessionReplayer &q_single_primary_info(MySQLSessionReplayer &m,
   m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   m.then_return(3, {{m.string_or_null(single_primary_mode ? "1" : "0"), m.string_or_null(primary_uuid), m.string_or_null(my_uuid)}});
   return m;
+}
+
+// Unknown database 'mysql_innodb_cluster_metadata' (1049)
+TEST(MetadataCheck, metadata_unknown_database) {
+  MySQLSessionReplayer m;
+
+  q_schema_version(m).then_error("error", 1049); // unknown database
+  ASSERT_THROW_LIKE(
+      mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
+      std::runtime_error,
+      "The provided server does not seem to contain metadata for a MySQL InnoDB cluster");
 }
 
 // check that the server has the metadata in the correct version
