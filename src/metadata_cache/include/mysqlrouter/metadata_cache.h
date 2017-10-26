@@ -183,6 +183,10 @@ public:
  *                            metadata.
  * @param ssl_options SSL relatd options for connection
  * @param cluster_name The name of the cluster to be used.
+ * @param connect_timeout The time in seconds after which trying to connect
+ *                        to metadata server should timeout.
+ * @param read_timeout The time in seconds after which read from metadata
+ *                     server should timeout.
  */
 void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 const std::string &user, const std::string &password,

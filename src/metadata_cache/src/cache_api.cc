@@ -48,6 +48,10 @@ const unsigned int kDefaultReadTimeout = 30;
  * @param ttl The ttl for the contents of the cache
  * @param ssl_options SSL related options for connections
  * @param cluster_name The name of the cluster from the metadata schema
+ * @param connect_timeout The time in seconds after which trying to connect
+ *                        to metadata server timeouts
+ * @param read_timeout The time in seconds after which read from metadata
+ *                     server should timeout.
  */
 void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
