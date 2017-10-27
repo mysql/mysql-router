@@ -459,7 +459,6 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
 {
   do {
     int status;
-
     pid_t ret = ::waitpid(childpid, &status, WNOHANG);
 
     if (ret == 0) {

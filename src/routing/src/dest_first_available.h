@@ -18,6 +18,8 @@
 #ifndef ROUTING_DESTFAILOVER_INCLUDED
 #define ROUTING_DESTFAILOVER_INCLUDED
 
+#include <chrono>
+
 #include "destination.h"
 #include "mysqlrouter/routing.h"
 
@@ -27,7 +29,7 @@ class DestFirstAvailable final : public RouteDestination {
  public:
   using RouteDestination::RouteDestination;
 
-  int get_server_socket(int connect_timeout, int *error) noexcept override;
+  int get_server_socket(std::chrono::milliseconds connect_timeout_ms, int *error) noexcept override;
 };
 
 

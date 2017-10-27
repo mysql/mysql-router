@@ -97,7 +97,7 @@ using mysqlrouter::URI;
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
  *   MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
- *   r.destination_connect_timeout = 1;
+ *   r.destination_connect_timeout = std::chrono::seconds(1);
  *   r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
  *   r.start();
  *
@@ -128,9 +128,9 @@ public:
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
                const string &route_name = string{},
                int max_connections = routing::kDefaultMaxConnections,
-               int destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
+               std::chrono::milliseconds destination_connect_timeout = routing::kDefaultDestinationConnectionTimeout,
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
-               unsigned int connect_timeout = routing::kDefaultClientConnectTimeout,
+               std::chrono::milliseconds connect_timeout = routing::kDefaultClientConnectTimeout,
                unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
                routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance());
 
@@ -183,21 +183,20 @@ public:
    *
    * @return Timeout in seconds as int
    */
-  int get_destination_connect_timeout() const noexcept {
+  std::chrono::milliseconds get_destination_connect_timeout() const noexcept {
     return destination_connect_timeout_;
   }
 
   /** @brief Sets timeout when connecting to destination
    *
-   * Sets timeout connecting with destination servers. Timeout in seconds must be between 1 and
-   * 65535.
+   * Sets timeout connecting with destination servers.
    *
    * Throws std::invalid_argument when an invalid value was provided.
    *
-   * @param seconds Timeout in seconds
+   * @param timeout Timeout
    * @return New value as int
    */
-  int set_destination_connect_timeout(int seconds);
+  std::chrono::milliseconds set_destination_connect_timeout(std::chrono::milliseconds timeout);
 
   /** @brief Sets maximum active connections
    *
@@ -309,11 +308,11 @@ private:
    * tried. It is good to leave this time out to 1 second or higher
    * if using an unstable network.
    */
-  int destination_connect_timeout_;
+  std::chrono::milliseconds destination_connect_timeout_;
   /** @brief Max connect errors blocking hosts when handshake not completed */
   unsigned long long max_connect_errors_;
   /** @brief Timeout waiting for handshake response from client */
-  unsigned int client_connect_timeout_;
+  std::chrono::milliseconds client_connect_timeout_;
   /** @brief Size of buffer to store receiving packets */
   unsigned int net_buffer_length_;
   /** @brief IP address and TCP port for setting up TCP service */

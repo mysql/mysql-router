@@ -76,7 +76,7 @@ using mysqlrouter::is_valid_socket_name;
 static int kListenQueueSize = 1024;
 
 static const char *kDefaultReplicaSetName = "default";
-static const int kAcceptorStopPollInterval_ms = 1000;
+static const std::chrono::milliseconds kAcceptorStopPollInterval_ms { 1000 };
 
 MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
                            const Protocol::Type protocol,
@@ -84,9 +84,9 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
                            const mysql_harness::Path& named_socket,
                            const string &route_name,
                            int max_connections,
-                           int destination_connect_timeout,
+                           std::chrono::milliseconds destination_connect_timeout,
                            unsigned long long max_connect_errors,
-                           unsigned int client_connect_timeout,
+                           std::chrono::milliseconds client_connect_timeout,
                            unsigned int net_buffer_length,
                            SocketOperationsBase *socket_operations)
     : name(route_name),
@@ -244,17 +244,19 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
 
   if (c_ip.second == 0) {
     // Unix socket/Windows Named pipe
-    log_debug("[%s] fd=%d connected %s -> %s:%d",
+    log_debug("[%s] fd=%d connected %s -> %s:%d as fd=%d",
         name.c_str(),
         client,
         bind_named_socket_.c_str(),
-        s_ip.first.c_str(), s_ip.second);
+        s_ip.first.c_str(), s_ip.second,
+        server);
   } else {
-    log_debug("[%s] fd=%d connected %s:%d -> %s:%d",
+    log_debug("[%s] fd=%d connected %s:%d -> %s:%d as fd=%d",
         name.c_str(),
         client,
         c_ip.first.c_str(), c_ip.second,
-        s_ip.first.c_str(), s_ip.second);
+        s_ip.first.c_str(), s_ip.second,
+        server);
   }
 
   ++info_active_routes_;
@@ -275,7 +277,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
     fds[kClientEventIndex].fd = client;
     fds[kServerEventIndex].fd = server;
 
-    const int poll_timeout_ms = handshake_done ? 1000 : static_cast<int>(client_connect_timeout_ * 1000);
+    const std::chrono::milliseconds poll_timeout_ms = handshake_done ? std::chrono::milliseconds(1000) : client_connect_timeout_;
     int res = socket_operations_->poll(fds, sizeof(fds) / sizeof(fds[0]), poll_timeout_ms);
 
     if (res < 0) {
@@ -305,11 +307,15 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
       }
     }
 
-    // we could check if a socket triggered POLLHUP, but in the end the read() will
-    // figure that out soon enough
+    // something happened on the socket: either we have data or the socket was closed.
+    //
+    // closed sockets are signalled in two ways:
+    //
+    // * Linux: POLLIN + read() == 0
+    // * Windows: POLLHUP
 
-    const bool client_is_readable = (fds[kClientEventIndex].revents & POLLIN) != 0;
-    const bool server_is_readable = (fds[kServerEventIndex].revents & POLLIN) != 0;
+    const bool client_is_readable = (fds[kClientEventIndex].revents & (POLLIN|POLLHUP)) != 0;
+    const bool server_is_readable = (fds[kServerEventIndex].revents & (POLLIN|POLLHUP)) != 0;
 
     // Handle traffic from Server to Client
     // Note: In classic protocol Server _always_ talks first
@@ -319,7 +325,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
       const int last_errno = socket_operations_->get_errno();
       if (last_errno > 0) {
         // if read() against closed socket, errno will be 0. Don't log that.
-        extra_msg = string("Copy server-client failed: " + to_string(get_message_error(last_errno)));
+        extra_msg = string("Copy server->client failed: " + to_string(get_message_error(last_errno)));
       }
 
       connection_is_ok = false;
@@ -829,13 +835,14 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   }
 }
 
-int MySQLRouting::set_destination_connect_timeout(int seconds) {
-  if (seconds <= 0 || seconds > UINT16_MAX) {
-    auto err = string_format("[%s] tried to set destination_connect_timeout using invalid value, was '%d'",
-                             name.c_str(), seconds);
-    throw std::invalid_argument(err);
+
+
+std::chrono::milliseconds MySQLRouting::set_destination_connect_timeout(std::chrono::milliseconds timeout) {
+  if (timeout <= std::chrono::milliseconds::zero()) {
+    std::string error_msg("[" + name + "] tried to set destination_connect_timeout using invalid value, was " + std::to_string(timeout.count()) + " ms");
+    throw std::invalid_argument(error_msg);
   }
-  destination_connect_timeout_ = seconds;
+  destination_connect_timeout_ = timeout;
   return destination_connect_timeout_;
 }
 

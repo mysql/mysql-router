@@ -108,7 +108,7 @@ void DestMetadataCacheGroup::init() {
   }
 }
 
-int DestMetadataCacheGroup::get_server_socket(int connect_timeout, int *error) noexcept {
+int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
   while (true) {
     try {
       std::vector<std::string> server_ids;

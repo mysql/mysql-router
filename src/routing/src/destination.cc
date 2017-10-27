@@ -42,7 +42,7 @@ using mysqlrouter::TCPAddress;
 using std::out_of_range;
 
 // Timeout for trying to connect with quarantined servers
-static const int kQuarantinedConnectTimeout = 1;
+static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout {1 * 1000};
 // How long we pause before checking quarantined servers again (seconds)
 static const int kQuarantineCleanupInterval = 3;
 // Make sure Quarantine Manager Thread is run even with nothing in quarantine
@@ -104,7 +104,7 @@ void RouteDestination::clear() {
   destinations_.clear();
 }
 
-int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
+int RouteDestination::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
 
   if (destinations_.empty()) {
     log_warning("No destinations currently available for routing");
@@ -158,7 +158,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
   return -1; // no destination is available
 }
 
-int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect_timeout, const bool log_errors) {
+int RouteDestination::get_mysql_socket(const TCPAddress &addr, const std::chrono::milliseconds connect_timeout, const bool log_errors) {
   return socket_operations_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 

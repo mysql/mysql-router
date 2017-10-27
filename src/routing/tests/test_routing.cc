@@ -46,6 +46,7 @@ using routing::set_socket_blocking;
 using ::testing::ContainerEq;
 using ::testing::Eq;
 using ::testing::Gt;
+using ::testing::Ne;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::StrEq;
@@ -84,11 +85,11 @@ TEST_F(RoutingTests, GetAccessLiteralName) {
 TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultWaitTimeout, 0);
   ASSERT_EQ(routing::kDefaultMaxConnections, 512);
-  ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout, 1);
+  ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout, std::chrono::seconds(1));
   ASSERT_EQ(routing::kDefaultBindAddress, "127.0.0.1");
   ASSERT_EQ(routing::kDefaultNetBufferLength, 16384U);
   ASSERT_EQ(routing::kDefaultMaxConnectErrors, 100ULL);
-  ASSERT_EQ(routing::kDefaultClientConnectTimeout, 9UL);
+  ASSERT_EQ(routing::kDefaultClientConnectTimeout, std::chrono::seconds(9));
 }
 
 #ifndef _WIN32
@@ -275,7 +276,7 @@ private:
 
 
 static int connect_local(uint16_t port) {
-  return routing::SocketOperations::instance()->get_mysql_socket(TCPAddress("127.0.0.1", port), 10, true);
+  return routing::SocketOperations::instance()->get_mysql_socket(TCPAddress("127.0.0.1", port), std::chrono::milliseconds(100), true);
 }
 
 static void disconnect(int sock) {
@@ -399,8 +400,8 @@ TEST_F(RoutingTests, bug_24841281) {
   int sock3 = connect_socket("/tmp/sock");
   int sock4 = connect_socket("/tmp/sock");
 
-  EXPECT_THAT(sock3, Gt(0));
-  EXPECT_THAT(sock4, Gt(0));
+  EXPECT_THAT(sock3, Ne(-1));
+  EXPECT_THAT(sock4, Ne(-1));
 
   call_until([&server]() -> bool { return server.num_connections_ == 2; });
   EXPECT_EQ(2, server.num_connections_);
@@ -544,3 +545,32 @@ TEST_F(RoutingTests, make_thread_name) {
   EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
 }
 
+// This test verifies fix for Bug #23857183 and checks if trying to connect to wrong port
+// fails immediately not via timeout
+TEST_F(RoutingTests, ConnectToServerWrongPort) {
+  const std::chrono::seconds TIMEOUT {4};
+
+  // wrong port number
+  {
+    mysqlrouter::TCPAddress address("127.0.0.1", 10888);
+    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
+    ASSERT_EQ(server, -1);
+  }
+
+// in darwin and solaris, attempting connection to 127.0.0.11 will fail by timeout
+#if !defined(__APPLE__) && !defined(__sun)
+  // wrong port number and IP
+  {
+    mysqlrouter::TCPAddress address("127.0.0.11", 10888);
+    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
+    ASSERT_EQ(server, -1);
+  }
+#endif
+}
+
+int main(int argc, char *argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

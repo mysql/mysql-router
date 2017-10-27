@@ -40,7 +40,7 @@
 
 class MockSocketOperations : public routing::SocketOperationsBase {
  public:
-  int get_mysql_socket(mysqlrouter::TCPAddress addr, int, bool = true) noexcept override {
+  int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds, bool = true) noexcept override {
     get_mysql_socket_call_cnt_++;
     if (get_mysql_socket_fails_todo_) {
       set_errno(ECONNREFUSED);
@@ -65,7 +65,7 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   MOCK_METHOD3(socket, int(int, int, int));
   MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
   MOCK_METHOD2(listen, int(int fd, int n));
-  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, int));
+  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
 
   void set_errno(int err) override {
     // set errno/Windows equivalent. At the time of writing, unit tests

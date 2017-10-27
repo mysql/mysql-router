@@ -65,7 +65,7 @@ public:
     RouteDestination::cleanup_quarantine();
   }
 
-  MOCK_METHOD3(get_mysql_socket, int(const TCPAddress &addr, int connect_timeout, bool log_errors));
+  MOCK_METHOD3(get_mysql_socket, int(const TCPAddress &addr, std::chrono::milliseconds connect_timeout, bool log_errors));
 };
 
 class Bug21962350 : public ::testing::Test {

@@ -53,7 +53,7 @@ public:
   /** @brief Move assignment */
   DestMetadataCacheGroup &operator=(DestMetadataCacheGroup &&) = delete;
 
-  int get_server_socket(int connect_timeout, int *error) noexcept override;
+  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept override;
 
   void add(const std::string &, uint16_t) override { }
 
