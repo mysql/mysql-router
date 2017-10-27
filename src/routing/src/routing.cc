@@ -50,11 +50,11 @@ namespace routing {
 
 const int kDefaultWaitTimeout = 0; // 0 = no timeout used
 const int kDefaultMaxConnections = 512;
-const int kDefaultDestinationConnectionTimeout = 1;
+const std::chrono::seconds kDefaultDestinationConnectionTimeout { 1 };
 const std::string kDefaultBindAddress = "127.0.0.1";
 const unsigned int kDefaultNetBufferLength = 16384;  // Default defined in latest MySQL Server
 const unsigned long long kDefaultMaxConnectErrors = 100;  // Similar to MySQL Server
-const unsigned int kDefaultClientConnectTimeout = 9; // Default connect_timeout MySQL Server minus 1
+const std::chrono::seconds kDefaultClientConnectTimeout { 9 }; // Default connect_timeout MySQL Server minus 1
 
 // unused constant
 // const int kMaxConnectTimeout = INT_MAX / 1000;
@@ -110,15 +110,15 @@ SocketOperations* SocketOperations::instance() {
   return &instance_;
 }
 
-int SocketOperations::poll(struct pollfd *fds, nfds_t nfds, int timeout_ms) {
+int SocketOperations::poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout_ms) {
 #ifdef _WIN32
-  return ::WSAPoll(fds, nfds, timeout_ms);
+  return ::WSAPoll(fds, nfds, timeout_ms.count());
 #else
-  return ::poll(fds, nfds, timeout_ms);
+  return ::poll(fds, nfds, timeout_ms.count());
 #endif
 }
 
-int SocketOperations::connect_non_blocking_wait(int sock, int timeout_ms) {
+int SocketOperations::connect_non_blocking_wait(int sock, std::chrono::milliseconds timeout_ms) {
   struct pollfd fds[] = {
     { sock, POLLOUT, 0 },
   };
@@ -160,7 +160,7 @@ int SocketOperations::connect_non_blocking_status(int sock, int &so_error) {
   return 0;
 }
 
-int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout_ms, bool log) noexcept {
+int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log) noexcept {
   struct addrinfo *servinfo, *info, hints;
 
   memset(&hints, 0, sizeof hints);

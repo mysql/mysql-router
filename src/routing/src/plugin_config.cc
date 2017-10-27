@@ -63,10 +63,10 @@ string RoutingPluginConfig::get_default(const string &option) {
 
   const std::map<string, string> defaults{
       {"bind_address", to_string(routing::kDefaultBindAddress)},
-      {"connect_timeout", to_string(routing::kDefaultDestinationConnectionTimeout)},
+      {"connect_timeout", to_string(std::chrono::duration_cast<std::chrono::seconds>(routing::kDefaultDestinationConnectionTimeout).count())},
       {"max_connections", to_string(routing::kDefaultMaxConnections)},
       {"max_connect_errors", to_string(routing::kDefaultMaxConnectErrors)},
-      {"client_connect_timeout", to_string(routing::kDefaultClientConnectTimeout)},
+      {"client_connect_timeout", to_string(std::chrono::duration_cast<std::chrono::seconds>(routing::kDefaultClientConnectTimeout).count())},
       {"net_buffer_length", to_string(routing::kDefaultNetBufferLength)},
   };
 

@@ -22,6 +22,7 @@
 #include <system_error>
 #include <thread>
 #include <algorithm>
+#include <cerrno>
 
 #ifdef WIN32
 #  include <windows.h>
@@ -431,6 +432,7 @@ void ProcessLauncher::report_error(const char *msg, const char *prefix)
 
 uint64_t ProcessLauncher::get_pid() const
 {
+  static_assert(sizeof(pid_t) <= sizeof(uint64_t), "sizeof(pid_t) > sizeof(uint64_t)");
   return (uint64_t)childpid;
 }
 
@@ -453,7 +455,8 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         timeout_ms -= sleep_for;
       } else {
-        report_error("Timed out waiting for the process to exit");
+        throw std::system_error(ETIMEDOUT, std::generic_category(),
+            std::string("Timed out waiting " + std::to_string(timeout_ms) + " ms for the process " + std::to_string(childpid) + " to exit"));
       }
     } else if (ret == -1)
     {

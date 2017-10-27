@@ -115,11 +115,11 @@ public:
    * -1 when an error occurred, which means that no destination was
    * available.
    *
-   * @param connect_timeout About of seconds before timing out
+   * @param connect_timeout timeout
    * @param error Pointer to int for storing errno
    * @return a socket descriptor
    */
-  virtual int get_server_socket(int connect_timeout, int *error) noexcept;
+  virtual int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept;
 
   /** @brief Gets the number of destinations
    *
@@ -224,11 +224,11 @@ protected:
    * (e.g. a mock counterpart).
    *
    * @param addr information of the server we connect with
-   * @param connect_timeout number of seconds waiting for connection
+   * @param connect_timeout timeout waiting for connection
    * @param log_errors whether to log errors or not
    * @return a socket descriptor
    */
-  virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, int connect_timeout, bool log_errors = true);
+  virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, std::chrono::milliseconds connect_timeout, bool log_errors = true);
 
   /** @brief Gets the id of the next server to connect to.
    *

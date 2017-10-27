@@ -154,7 +154,7 @@ TEST_F(RouteDestinationTest, get_server_socket)
     client_threads.emplace_back(
       new std::thread(
         [&]() {
-          int addr = dest.get_server_socket(0, &error);
+          int addr = dest.get_server_socket(std::chrono::milliseconds::zero(), &error);
           {
             std::unique_lock<std::mutex> lock(connections_mutex);
             // increment the counter for returned address

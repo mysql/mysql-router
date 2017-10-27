@@ -60,7 +60,7 @@ protected:
 
 TEST_F(TestBlockClients, BlockClientHost) {
   unsigned long long max_connect_errors = 2;
-  unsigned int client_connect_timeout = 2;
+  std::chrono::seconds client_connect_timeout(2);
   sockaddr_in6 client_addr1, client_addr2;
   client_addr1.sin6_family = client_addr2.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
@@ -75,7 +75,7 @@ TEST_F(TestBlockClients, BlockClientHost) {
 
   MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
                  "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
-                 1, 1, max_connect_errors, client_connect_timeout);
+                 1, std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 
   ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
   ASSERT_THAT(get_log_stream().str(), HasSubstr("1 connection errors for ::1 (max 2)"));
@@ -97,7 +97,7 @@ TEST_F(TestBlockClients, BlockClientHost) {
 
 TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   unsigned long long max_connect_errors = 2;
-  unsigned int client_connect_timeout = 2;
+  std::chrono::seconds client_connect_timeout(2);
   sockaddr_in6 client_addr1;
   client_addr1.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
@@ -107,7 +107,7 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
 
   MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
                  "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
-                 1, 1, max_connect_errors, client_connect_timeout);
+                 1, std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 
   std::FILE* fd_response = std::fopen("fake_response.data", "w");
 

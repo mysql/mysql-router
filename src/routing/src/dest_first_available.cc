@@ -27,7 +27,7 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-int DestFirstAvailable::get_server_socket(int connect_timeout, int *error) noexcept {
+int DestFirstAvailable::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
   // Say for example, that we have three servers: A, B and C.
   // The active server should be failed-over in such fashion:
   //

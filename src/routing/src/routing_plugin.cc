@@ -183,12 +183,18 @@ static void start(mysql_harness::PluginFuncEnv* env) {
   try {
     RoutingPluginConfig config(section);
     config.section_name = name;
+
+    // connect_timeout is in seconds, we want milli's
+    //
+    std::chrono::milliseconds destination_connect_timeout(config.connect_timeout * 1000);
+    std::chrono::milliseconds client_connect_timeout(config.client_connect_timeout * 1000);
+
     MySQLRouting r(config.mode,                config.bind_address.port,
                    config.protocol,
                    config.bind_address.addr,   config.named_socket,
                    name,                       config.max_connections,
-                   config.connect_timeout,     config.max_connect_errors,
-                   config.client_connect_timeout);
+                   destination_connect_timeout, config.max_connect_errors,
+                   client_connect_timeout);
     try {
       // don't allow rootless URIs as we did already in the get_option_destinations()
       r.set_destinations_from_uri(URI(config.destinations, false));

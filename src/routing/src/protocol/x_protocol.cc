@@ -134,7 +134,7 @@ static bool get_next_message(int sender,
       const int last_errno = socket_operations->get_errno();
       log_error("fd=%d failed reading size of the message: (%d %s %ld)",
           sender,
-          last_errno, get_message_error(last_errno).c_str(), read_res);
+          last_errno, get_message_error(last_errno).c_str(), static_cast<long>(read_res));
       error = true;
       return false;
     } else if (read_res == 0) {
@@ -172,7 +172,7 @@ static bool get_next_message(int sender,
 
       log_error("fd=%d failed reading part of X protocol message: (%d %s %ld)",
           sender,
-          last_errno, get_message_error(last_errno).c_str(), read_res);
+          last_errno, get_message_error(last_errno).c_str(), static_cast<long>(read_res));
 
       error = true;
       return false;

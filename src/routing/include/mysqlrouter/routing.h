@@ -57,7 +57,7 @@ extern const int kDefaultMaxConnections;
  *
  * Constant defining how long we wait to establish connection with the server before we give up.
  */
-extern const int kDefaultDestinationConnectionTimeout;
+extern const std::chrono::seconds kDefaultDestinationConnectionTimeout;
 
 /** @brief Maximum connect or handshake errors per host
  *
@@ -96,7 +96,7 @@ extern const unsigned int kDefaultNetBufferLength;
  * The default value is 9 seconds (default MySQL Server minus 1).
  *
  */
-extern const unsigned int kDefaultClientConnectTimeout;
+extern const std::chrono::seconds kDefaultClientConnectTimeout;
 
 #ifdef _WIN32
   const SOCKET kInvalidSocket = INVALID_SOCKET;// windows defines INVALID_SOCKET already
@@ -141,7 +141,7 @@ class SocketOperationsBase {
  public:
 
   virtual ~SocketOperationsBase() = default;
-  virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept = 0;
+  virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log = true) noexcept = 0;
   virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
   virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
   virtual void close(int fd) = 0;
@@ -171,7 +171,7 @@ class SocketOperationsBase {
   }
   virtual int get_errno() = 0;
   virtual void set_errno(int) = 0;
-  virtual int poll(struct pollfd *fds, nfds_t nfds, int timeout_ms) = 0;
+  virtual int poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout) = 0;
 };
 
 /** @class SocketOperations
@@ -194,11 +194,11 @@ class SocketOperations : public SocketOperationsBase {
    *  -1 - in case of any other error
    *
    * @param addr information of the server we connect with
-   * @param connect_timeout number of seconds waiting for connection
+   * @param connect_timeout timeout waiting for connection
    * @param log whether to log errors or not
    * @return a socket descriptor
    */
-  int get_mysql_socket(mysqlrouter::TCPAddress addr, int connect_timeout, bool log = true) noexcept override;
+  int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds connect_timeout, bool log = true) noexcept override;
 
   /** @brief Thin wrapper around socket library write() */
   ssize_t write(int fd, void *buffer, size_t nbyte) override;
@@ -234,17 +234,17 @@ class SocketOperations : public SocketOperationsBase {
   /**
    * wrapper around poll()/WSAPoll()
    */
-  int poll(struct pollfd *fds, nfds_t nfds, int timeout_ms) override;
+  int poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout) override;
 
   /**
    * wait for a non-blocking connect() to finish
    *
    * @param sock a connected socket
-   * @param timeout_ms time to wait for the connect to complete in milliseconds
+   * @param timeout time to wait for the connect to complete
    *
    * call connect_non_blocking_status() to get the final result
    */
-  int connect_non_blocking_wait(int sock, int timeout_ms);
+  int connect_non_blocking_wait(int sock, std::chrono::milliseconds timeout);
 
   /**
    * get the non-blocking connect() status

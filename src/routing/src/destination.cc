@@ -43,7 +43,7 @@ using std::out_of_range;
 IMPORT_LOG_FUNCTIONS()
 
 // Timeout for trying to connect with quarantined servers
-static const int kQuarantinedConnectTimeout = 1;
+static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout {1 * 1000};
 // How long we pause before checking quarantined servers again (seconds)
 static const int kQuarantineCleanupInterval = 3;
 // Make sure Quarantine Manager Thread is run even with nothing in quarantine
@@ -119,7 +119,7 @@ size_t RouteDestination::get_next_server() {
   return result;
 }
 
-int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcept {
+int RouteDestination::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
   size_t server_pos;
 
   const size_t num_servers = size();
@@ -143,7 +143,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
 
     // Try server
     TCPAddress server_addr = destinations_[server_pos];
-    log_debug("Trying server %s (index %lu)", server_addr.str().c_str(), 
+    log_debug("Trying server %s (index %lu)", server_addr.str().c_str(),
               static_cast<long unsigned>(server_pos));
     auto sock = get_mysql_socket(server_addr, connect_timeout);
     if (sock >= 0) {
@@ -172,7 +172,7 @@ int RouteDestination::get_server_socket(int connect_timeout, int *error) noexcep
   return -1; // no destination is available
 }
 
-int RouteDestination::get_mysql_socket(const TCPAddress &addr, const int connect_timeout, const bool log_errors) {
+int RouteDestination::get_mysql_socket(const TCPAddress &addr, const std::chrono::milliseconds connect_timeout, const bool log_errors) {
   return socket_operations_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 
