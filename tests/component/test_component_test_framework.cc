@@ -30,8 +30,8 @@
  * testcases from their corresponding real testcase. This is why all the following
  * tests are arranged in pairs, with names:
  *
- *   - <test_description>_tester (the test)
- *   - DISABLED_<test_description>_testee (the inlined executable)
+ *   - "<test_description>_tester" (the test)
+ *   - "DISABLED_<test_description>_testee" (the inlined executable)
  *
  * It's a hack, but it works.
  *
