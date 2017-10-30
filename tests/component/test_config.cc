@@ -19,6 +19,7 @@
 #include "router_component_test.h"
 
 Path g_origin_path;
+using testing::StartsWith;
 
 class RouterConfigTest : public RouterComponentTest, public ::testing::Test {
  protected:
@@ -68,6 +69,27 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
+TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithoutKey) {
+  const std::string conf_file = create_config_file("[section1]\n[section1]\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  const std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'section1' already exists"));
+}
+
+TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
+  const std::string conf_file = create_config_file("[section1:key1]\n[section1:key1]\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " +  conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  const std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'section1:key1' already exists"));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -294,14 +294,7 @@ Config::add(const std::string& section, const std::string& key) {
   auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
   if (!result.second) {
     ostringstream buffer;
-    if (key.empty())
-      buffer << "Section '" << section << "' given more than once. "
-             << "Please use keys to give multiple sections. "
-             << "For example '" << section << ":one' and '"
-             << section << ":two' to give two sections for plugin '"
-             << section << "'";
-    else
-      buffer << "Section '" << section << ":" << key << "' already exists";
+    buffer << "Section '" << section << (key.empty() ? "" : (":" + key)) << "' already exists";
     throw bad_section(buffer.str());
   }
 

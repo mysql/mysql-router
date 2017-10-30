@@ -241,9 +241,9 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
-  // Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'.
+  // Error: Configuration error: Section 'logger' already exists
   const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'logger' given more than once. Please use keys to give multiple sections. For example 'logger:one' and 'logger:two' to give two sections for plugin 'logger'."));
+  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'logger' already exists"));
 }
 
 TEST_F(RouterLoggingTest, bad_loglevel) {
