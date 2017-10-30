@@ -36,18 +36,18 @@ remove_dirs_from_var() {
 }
 
 case "$1" in
-	remove)
-		;;
-	purge)
-		set -e
-		db_purge
+  remove)
+    ;;
+  purge)
+    set -e
+    db_purge
 
     # Router stuff in /etc gets automatically removed, but stuff in /var we have
     # to remove ourselves
     remove_dirs_from_var
 
-		set +e
-		;;
+    set +e
+    ;;
 esac
 
 #DEBHELPER#
