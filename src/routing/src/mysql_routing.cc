@@ -477,7 +477,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
       }
 
       if (info_active_routes_.load(std::memory_order_relaxed) >= max_connections_) {
-        protocol_->send_error(sock_client, 1040, "Too many connections", "HY000", name);
+        protocol_->send_error(sock_client, 1040, "Too many connections to MySQL Router", "HY000", name);
         socket_operations_->close(sock_client); // no shutdown() before close()
         log_warning("[%s] reached max active connections (%d max=%d)", name.c_str(),
                    info_active_routes_.load(), max_connections_);

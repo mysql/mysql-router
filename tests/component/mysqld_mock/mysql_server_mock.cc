@@ -209,6 +209,25 @@ void MySQLServerMock::handle_connections() {
   sigaction(SIGINT, &sig_action, NULL);
 #endif
 
+  auto connection_handler = [&](socket_t client_sock) -> void {
+    std::shared_ptr<void> exit_guard(nullptr, [&](void*){close_socket(client_sock);});
+    try {
+      auto buf = protocol_encoder_.encode_greetings_message(0);
+      send_packet(client_sock, buf);
+
+      auto packet = protocol_decoder_.read_message(client_sock);
+      auto packet_seq =  static_cast<uint8_t>(packet.packet_seq + 1);
+      send_ok(client_sock, packet_seq);
+      bool res = process_statements(client_sock);
+      if (!res) {
+        std::cout << "Error processing statements with client: " << client_sock << std::endl;
+      }
+    }
+    catch (const std::exception &e) {
+      std::cerr << "Exception caught in connection loop: " <<  e.what() << std::endl;
+    }
+  };
+
   while (!g_terminate) {
 //    fd_set fds;
 //    FD_ZERO (&fds);
@@ -223,28 +242,8 @@ void MySQLServerMock::handle_connections() {
     if (client_socket < 0) {
       throw std::runtime_error("accept() failed: " + get_socket_errno_str());
     }
-
-    std::shared_ptr<void> exit_guard(nullptr, [&](void*){close_socket(client_socket);});
-
     std::cout << "Accepted client " << client_socket << std::endl;
-
-    try {
-      auto buf = protocol_encoder_.encode_greetings_message(0);
-      send_packet(client_socket, buf);
-
-      auto packet = protocol_decoder_.read_message(client_socket);
-      auto packet_seq =  static_cast<uint8_t>(packet.packet_seq + 1);
-      send_ok(client_socket, packet_seq);
-      bool res = process_statements(client_socket);
-      if (!res) {
-        std::cout << "Leaving accept loop" << std::endl;
-        break;
-      }
-    }
-    catch (const std::exception &e) {
-      std::cerr << "Exception caught in connection loop: "
-                <<  e.what() << std::endl;
-    }
+    std::thread(connection_handler, client_socket).detach();
   }
 }
 

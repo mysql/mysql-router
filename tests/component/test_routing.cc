@@ -17,6 +17,8 @@
 
 #include "gmock/gmock.h"
 #include "router_component_test.h"
+#include "router_test_helpers.h"
+#include "mysql_session.h"
 
 Path g_origin_path;
 
@@ -79,6 +81,46 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ) << "bootstrap output: " << router_bootstrapping.get_full_output();
 }
 
+TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any queries
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
+
+  // launch the server mock
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+
+  // create a config with routing that has max_connections == 2
+  const std::string routing_section =
+                      "[routing:basic]\n"
+                      "bind_port = " + std::to_string(router_port) + "\n"
+                      "mode = read-write\n"
+                      "max_connections = 2\n"
+                      "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n";
+
+  std::string conf_file = create_config_file(routing_section);
+
+  // launch the router with the created configuration
+  auto router_static = launch_router("-c " +  conf_file);
+
+  // wait for server and router to begin accepting the connections
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  ready = wait_for_port_ready(router_port, 1000);
+  EXPECT_TRUE(ready) << router_static.get_full_output();
+
+  // try to create 3 connections, the third should fail
+  // because of the max_connections limit being exceeded
+  mysqlrouter::MySQLSession client1, client2, client3;
+  EXPECT_NO_THROW(client1.connect("127.0.0.1", router_port, "username", "password", "", ""));
+  EXPECT_NO_THROW(client2.connect("127.0.0.1", router_port, "username", "password", "", ""));
+  ASSERT_THROW_LIKE(
+    client3.connect("127.0.0.1", router_port, "username", "password", "", ""),
+    std::runtime_error,
+    "Too many connections to MySQL Router (1040)"
+  );
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
