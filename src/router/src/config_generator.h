@@ -55,6 +55,8 @@ DECLARE_TEST(ConfigGeneratorTest, start_sh);
 DECLARE_TEST(ConfigGeneratorTest, stop_sh);
 #endif
 
+class AutoCleaner;
+
 namespace mysqlrouter {
 class MySQLSession;
 class SysUserOperationsBase;
@@ -144,7 +146,8 @@ private:
       const std::map<std::string, std::string> &default_paths,
       const std::string &keyring_file,
       const std::string &keyring_master_key_file,
-      bool directory_deployment);
+      bool directory_deployment,
+      AutoCleaner& auto_clean);
 
   void init_keyring_file(const std::string &keyring_file,
                          const std::string &keyring_master_key_file);
@@ -181,7 +184,8 @@ private:
 
   bool backup_config_file_if_different(const mysql_harness::Path &config_path,
                                        const std::string &new_file_path,
-                                       const std::map<std::string, std::string> &options);
+                                       const std::map<std::string, std::string> &options,
+                                       AutoCleaner* auto_cleaner = nullptr);
 
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);

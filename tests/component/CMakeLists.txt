@@ -16,3 +16,12 @@
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR} MODULE "component")
 
 add_subdirectory(mysqld_mock)
+
+# When system deployment bootstrap is executed, files are
+# created in locations specified by deployment layout. Both RPM and
+# DEB packages require access to /var/log/mysqlrouter. Since component tests
+# don't have access to it, system bootstrap deployment tests are skipped
+# for both RPM and DEB packages.
+if (INSTALL_LAYOUT STREQUAL "RPM" OR INSTALL_LAYOUT STREQUAL "DEB")
+  add_definitions(-DSKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS)
+endif()

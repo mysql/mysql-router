@@ -125,42 +125,46 @@ static bool is_valid_name(const std::string& name) {
 
 class AutoCleaner {
 public:
-    void add_file_delete(const std::string &f) {
-    _files[f] = File;
+  void add_file_delete(const std::string &f) {
+    files_[f] = std::make_pair(File, "");
   }
 
   void add_directory_delete(const std::string &d, bool recursive = false) {
-    _files[d] = recursive ? DirectoryRecursive : Directory;
+    files_[d] = std::make_pair(recursive ? DirectoryRecursive : Directory, "");
   }
 
   void add_file_revert(const std::string &file) {
+    add_file_revert(file, file + ".bck");
+  }
+
+  void add_file_revert(const std::string &file, const std::string &backup_file) {
     if (mysql_harness::Path(file).is_regular()) {
-      copy_file(file, file+".bck");
-      _files[file] = FileBackup;
+      copy_file(file, backup_file);
+      files_[file] = std::make_pair(FileBackup, backup_file);
     } else {
-      if (mysql_harness::Path(file+".bck").exists())
-        mysql_harness::delete_file(file+".bck");
-      _files[file] = File;
+      if (mysql_harness::Path(backup_file).exists())
+        mysql_harness::delete_file(backup_file);
+      files_[file] = std::make_pair(File, "");
     }
   }
 
   void remove(const std::string &p) {
-    _files.erase(p);
+    files_.erase(p);
   }
 
   void clear() {
-    for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
-      if (f->second == FileBackup)
-        mysql_harness::delete_file(f->first+".bck");
+    for (auto f = files_.rbegin(); f != files_.rend(); ++f) {
+      if (f->second.first == FileBackup)
+        mysql_harness::delete_file(f->second.second);
     }
-    _files.clear();
+    files_.clear();
   }
 
   ~AutoCleaner() {
     // remove in reverse order, so that files are deleted before their
     // contained directories
-    for (auto f = _files.rbegin(); f != _files.rend(); ++f) {
-      switch (f->second) {
+    for (auto f = files_.rbegin(); f != files_.rend(); ++f) {
+      switch (f->second.first) {
         case File:
           mysql_harness::delete_file(f->first);
           break;
@@ -174,8 +178,8 @@ public:
           break;
 
         case FileBackup:
-          copy_file(f->first+".bck", f->first);
-          mysql_harness::delete_file(f->first+".bck");
+          copy_file(f->second.second, f->first);
+          mysql_harness::delete_file(f->second.second);
           break;
       }
     }
@@ -187,7 +191,14 @@ private:
     File,
     FileBackup
   };
-  std::map<std::string, Type> _files;
+
+  /*
+   * The map stores all the files that are scheduled to be auto-removed or
+   * restored from backup if clean() wasn't called.
+   * The key is a name of file to backup, and value is a pair of
+   * backup's type and name of backup file (used only for FileBackup type).
+   */
+  std::map<std::string, std::pair<Type, std::string>> files_;
 };
 
 inline std::string get_opt(const std::map<std::string, std::string> &map,
@@ -411,6 +422,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   auto options(user_options);
   bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path _config_file_path(config_file_path);
+  AutoCleaner auto_clean;
 
   std::string router_name;
   if (user_options.find("name") != user_options.end()) {
@@ -432,15 +444,17 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   if (config_file->fail()) {
     throw std::runtime_error("Could not open " + config_file_path + ".tmp for writing: " + get_strerror(errno));
   }
+  auto_clean.add_file_delete(config_file_path +".tmp");
   bootstrap_deployment(*config_file, _config_file_path,
     router_name, options, default_paths,
     keyring_file_path, keyring_master_key_file,
-    false);
+    false, auto_clean);
   config_file->close();
 
-  if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options)) {
+  if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options, &auto_clean)) {
     if (!quiet)
       log_info("\nExisting configurations backed up to '%s.bak'", config_file_path.c_str());
+    auto_clean.add_file_delete(config_file_path);
   }
 
   // rename the .tmp file to the final file
@@ -451,6 +465,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   }
   mysql_harness::make_file_private(config_file_path);
   set_file_owner(options, config_file_path);
+  auto_clean.clear();
 }
 
 static bool is_directory_empty(mysql_harness::Directory dir) {
@@ -572,7 +587,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
 
   bootstrap_deployment(config_file, config_file_path, router_name, options, default_paths,
                        keyring_path, keyring_master_key_path,
-                       true);
+                       true, auto_clean);
   config_file.close();
 
   if (backup_config_file_if_different(config_file_path, config_file_path.str() + ".tmp", options)) {
@@ -749,7 +764,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     const std::map<std::string, std::string> &default_paths,
     const std::string &keyring_file,
     const std::string &keyring_master_key_file,
-    bool directory_deployment) {
+    bool directory_deployment,
+    AutoCleaner& auto_clean) {
   std::string primary_cluster_name;
   std::string primary_replicaset_servers;
   std::string primary_replicaset_name;
@@ -758,7 +774,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
   bool quiet = user_options.find("quiet") != user_options.end();
   uint32_t router_id = 0;
   std::string username;
-  AutoCleaner auto_clean;
+
   using RandomGen = mysql_harness::RandomGeneratorInterface;
   RandomGen& rg = mysql_harness::DIM::instance().get_RandomGenerator();
 
@@ -880,7 +896,6 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 !quiet);
 
   transaction.commit();
-  auto_clean.clear();
 }
 
 void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
@@ -1568,14 +1583,20 @@ static bool files_equal(const std::string &f1, const std::string &f2) {
 
 bool ConfigGenerator::backup_config_file_if_different(const mysql_harness::Path &config_path,
                                                       const std::string &new_file_path,
-                                                      const std::map<std::string, std::string> &options) {
-  if (config_path.exists()) {
+                                                      const std::map<std::string, std::string> &options,
+                                                      AutoCleaner*  auto_cleaner) {
+  if (config_path.exists() && config_path.is_regular()) {
     // if the old and new config files are the same, don't bother with a backup
     if (!files_equal(config_path.str(), new_file_path)) {
-      std::string file_name = config_path.str()+".bak";
-      copy_file(config_path.str(), file_name);
-      mysql_harness::make_file_private(file_name);
-      set_file_owner(options, file_name);
+      std::string backup_file_name = config_path.str() + ".bak";
+      if (auto_cleaner) {
+        auto_cleaner->add_file_revert(config_path.str(), backup_file_name);
+      }
+      else {
+        copy_file(config_path.str(), backup_file_name);
+      }
+      mysql_harness::make_file_private(backup_file_name);
+      set_file_owner(options, backup_file_name);
       return true;
     }
   }

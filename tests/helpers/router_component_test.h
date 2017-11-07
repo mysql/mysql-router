@@ -327,6 +327,10 @@ class RouterComponentTest {
     origin_dir_ = origin;
   }
 
+  const Path& get_mysqlrouter_exec() const {
+    return mysqlrouter_exec_;
+  }
+
  private:
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
