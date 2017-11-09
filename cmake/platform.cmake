@@ -16,7 +16,9 @@
 # Figure out a nice name for Platform and Architecture
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   string(SUBSTRING ${CMAKE_SYSTEM} 7 2 DARWIN_VERSION)
-  if(DARWIN_VERSION STREQUAL "16")
+  if(DARWIN_VERSION STREQUAL "17")
+    set(PLATFORM_NAME "OS X v10.13")
+  elseif(DARWIN_VERSION STREQUAL "16")
     set(PLATFORM_NAME "OS X v10.12")
   elseif(DARWIN_VERSION STREQUAL "15")
     set(PLATFORM_NAME "OS X v10.11")
