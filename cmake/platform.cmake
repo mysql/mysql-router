@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,9 @@
 # Figure out a nice name for Platform and Architecture
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   string(SUBSTRING ${CMAKE_SYSTEM} 7 2 DARWIN_VERSION)
-  if(DARWIN_VERSION STREQUAL "16")
+  if(DARWIN_VERSION STREQUAL "17")
+    set(PLATFORM_NAME "OS X v10.13")
+  elseif(DARWIN_VERSION STREQUAL "16")
     set(PLATFORM_NAME "OS X v10.12")
   elseif(DARWIN_VERSION STREQUAL "15")
     set(PLATFORM_NAME "OS X v10.11")
