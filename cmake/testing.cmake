@@ -86,7 +86,7 @@ function(add_test_file FILE)
     else()
       # use new-style add_test() ...
       add_test(NAME ${test_name}
-        COMMAND ${runtime_dir}/${test_target})
+        COMMAND ${runtime_dir}/${test_target} --gtest_output=xml:${runtime_dir}/${test_target}.xml)
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
         "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
