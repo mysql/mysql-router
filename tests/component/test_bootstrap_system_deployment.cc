@@ -92,7 +92,12 @@ protected:
  unsigned server_port_;
 };
 
-TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
+/*
+ * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
+ * access directories to which they don't have access. They have to be
+ * disabled until it's figured out for which layouts they may be executed.
+ */
+TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_BootstrapPass) {
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
@@ -107,7 +112,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   EXPECT_EQ(router.wait_for_exit(), 0);
 }
 
-TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_conf_tmp_WhenBootstrapFailed) {
+/*
+ * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
+ * access directories to which they don't have access. They have to be
+ * disabled until it's figured out for which layouts they may be executed.
+ */
+TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_conf_tmp_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
@@ -129,7 +139,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_conf_tmp_WhenBootstra
   EXPECT_FALSE(mysqlrouter_conf_tmp_path.exists());
 }
 
-TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_key_WhenBootstrapFailed) {
+/*
+ * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
+ * access directories to which they don't have access. They have to be
+ * disabled until it's figured out for which layouts they may be executed.
+ */
+TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_key_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
@@ -151,7 +166,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_key_WhenBootstrapFail
   EXPECT_FALSE(mysqlrouter_key_path.exists());
 }
 
-TEST_F(RouterBootstrapSystemDeploymentTest, IsKeyringRevertedWhenBootstrapFail) {
+/*
+ * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
+ * access directories to which they don't have access. They have to be
+ * disabled until it's figured out for which layouts they may be executed.
+ */
+TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_IsKeyringRevertedWhenBootstrapFail) {
   static const char kMasterKeyFileSignature[] = "MRKF";
 
   {
@@ -191,7 +211,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest, IsKeyringRevertedWhenBootstrapFail) 
   EXPECT_THAT(std::strncmp(buf, kMasterKeyFileSignature, 4), testing::Eq(0));
 }
 
-TEST_F(RouterBootstrapSystemDeploymentTest, Keep_mysqlrouter_log_WhenBootstrapFailed) {
+/*
+ * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
+ * access directories to which they don't have access. They have to be
+ * disabled until it's figured out for which layouts they may be executed.
+ */
+TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_Keep_mysqlrouter_log_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
