@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ TEST(TestIPv4Address, FromStringFail) {
     std::string test_addr{"fe80::6e40:8ff:fea2:5d7e"};
     EXPECT_THROW({ IPv4Address ip(test_addr); }, std::invalid_argument);
     try {
-      IPv4Address(test_addr);
+      IPv4Address ip(test_addr);
     } catch (const std::invalid_argument &exc) {
       EXPECT_THAT(exc.what(), HasSubstr("parsing error"));
     }
@@ -69,7 +69,7 @@ TEST(TestIPv4Address, FromStringFail) {
     std::string test_addr{"300.1.2.3"};
     EXPECT_THROW({ IPv4Address ip(test_addr); }, std::invalid_argument);
     try {
-      IPv4Address(test_addr);
+      IPv4Address ip(test_addr);
     } catch (const std::invalid_argument &exc) {
       EXPECT_THAT(exc.what(), HasSubstr("parsing error"));
     }

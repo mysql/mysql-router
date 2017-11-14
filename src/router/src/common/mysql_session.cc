@@ -374,7 +374,7 @@ void MySQLSession::disconnect() {
 
 void MySQLSession::execute(const std::string &q) {
   log_debug("Executing query: %s", log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(nullptr, [this](void*) {
+  std::shared_ptr<void> exit_guard(nullptr, [](void*) {
     log_debug("Done executing query");
   });
 
@@ -405,7 +405,7 @@ void MySQLSession::execute(const std::string &q) {
 void MySQLSession::query(const std::string &q,
                          const RowProcessor &processor) {
   log_debug("Executing query: %s", log_filter_.filter(q).c_str());
-  std::shared_ptr<void> exit_guard(nullptr, [this](void*) {
+  std::shared_ptr<void> exit_guard(nullptr, [](void*) {
     log_debug("Done executing query");
   });
   if (connected_) {
