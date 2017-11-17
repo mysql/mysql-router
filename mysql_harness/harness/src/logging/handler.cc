@@ -123,8 +123,19 @@ FileHandler::FileHandler(const Path& path,
     : StreamHandler(fstream_, format_messages, level),
       fstream_(path.str(), ofstream::app) {
   if (fstream_.fail()) {
-    throw std::runtime_error("Failed to open " + path.str() + ": " +
-                             get_strerror(errno));
+    // get the last-error early as with VS2015 it has been seen
+    // that something in std::system_error() called SetLastError(0)
+    auto last_error =
+#ifdef _WIN32
+      GetLastError()
+#else
+      errno
+#endif
+      ;
+    throw std::system_error(
+        last_error,
+        std::system_category(),
+        "Failed to open " + path.str());
   }
 }
 

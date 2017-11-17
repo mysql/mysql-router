@@ -206,7 +206,7 @@ set(HARNESS_INSTALL_PROGRAM YES
   CACHE BOOL "Whether to install the Harness main program")
 set(HARNESS_INSTALL_PLUGINS YES
   CACHE BOOL "Whether to install the Harness provided plugins")
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${config_} config__)
     set(HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config__} ${MySQLRouter_BINARY_STAGE_DIR}/${config_}/lib

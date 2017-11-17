@@ -37,7 +37,7 @@ TEST_F(RouterUserOptionTest, BootstrapOk) {
   const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   bool ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
                      << server_mock.get_full_output();
@@ -126,7 +126,7 @@ TEST_F(RouterUserOptionTest, BootstrapSucceedWhenServerResponseLessThanReadTimeo
   const auto server_port = port_pool_.get_next_available();
 
   // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
   bool ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
                      << server_mock.get_full_output();

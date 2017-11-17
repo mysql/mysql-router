@@ -39,7 +39,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/*.conf ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
     foreach(config_file ${config_files})
       add_custom_command(TARGET test_router_mysqlrouter_app

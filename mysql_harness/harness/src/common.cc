@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <assert.h> // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
 #include <string.h>
 #include <fstream>
+#include <system_error>
 
 #include "common.h"
 #include "harness_assert.h"
@@ -56,7 +57,7 @@ typedef std::unique_ptr<SID, LocalFreeDeleter> SidPtr;
  */
 static void GetCurrentUserSid(SidPtr& pSID) {
   typedef std::unique_ptr<TOKEN_USER, LocalFreeDeleter> TokenUserPtr;
-  DWORD i, dw_size = 0;
+  DWORD dw_size = 0;
   HANDLE h_token;
   TOKEN_INFORMATION_CLASS token_class = TokenUser;
   // Gets security token of the current process
@@ -149,7 +150,7 @@ static void make_file_private_win32(const std::string& filename) {
     if (!SetFileSecurityA(filename.c_str(), DACL_SECURITY_INFORMATION, psd.get()))
     {
       dw_res = GetLastError();
-      throw std::runtime_error("SetFileSecurity failed: " + std::to_string(dw_res));
+      throw std::system_error(dw_res, std::system_category(), "SetFileSecurity failed: " + std::to_string(dw_res));
     }
     LocalFree((HLOCAL)new_dacl);
   } catch (...) {
@@ -196,7 +197,7 @@ static void set_everyone_group_access_rights(const std::string& file_name,
                                         &old_dacl, NULL, &sec_desc_tmp);
 
     if (result != ERROR_SUCCESS) {
-      throw std::runtime_error("GetNamedSecurityInfo() failed: " +
+      throw std::system_error(result, std::system_category(), "GetNamedSecurityInfo() failed: " +
                                std::to_string(result));
     }
 
@@ -236,7 +237,7 @@ static void set_everyone_group_access_rights(const std::string& file_name,
                                  NULL, NULL, new_dacl.get(), NULL);
 
   if (result != ERROR_SUCCESS) {
-    throw std::runtime_error("SetNamedSecurityInfo() failed: " +
+    throw std::system_error(result, std::system_category(), "SetNamedSecurityInfo() failed: " +
                              std::to_string(result));
   }
 }
@@ -276,8 +277,8 @@ void make_file_private(const std::string& file_name) {
 #ifdef _WIN32
   try {
     make_file_private_win32(file_name);
-  } catch (std::runtime_error &e) {
-    throw std::runtime_error("Could not set permissions for file '" + file_name + "': " + e.what());
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "Could not set permissions for file '" + file_name + "': " + e.what());
   }
 #else
   try {

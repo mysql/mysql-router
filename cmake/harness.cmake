@@ -23,7 +23,11 @@ endif()
 message(STATUS "Adding MySQL Harness from ${WITH_HARNESS}")
 
 set(ENABLE_HARNESS_PROGRAM NO CACHE BOOL "Harness program is not installed")
-set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
+if (WIN32)
+  set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib/ CACHE STRING "Output directory for plugins")
+else()
+  set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/lib/${HARNESS_NAME} CACHE STRING "Output directory for plugins")
+endif()
 set(HARNESS_INSTALL_LIBRARY_DIR "${INSTALL_LIBDIR}" CACHE PATH "Installation directory for Harness libraries")
 
 # binary_dir needed when WITH_HARNESS is out-of-tree

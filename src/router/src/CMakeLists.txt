@@ -53,7 +53,7 @@ if(WIN32)
 endif()
 
 # Disable warnings from 3rd party code that we have no control over
-if(CMAKE_COMPILER_IS_GNUCXX OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_flags(common/my_aes.cc common/my_sha1.cc ${MY_AES_IMPL} COMPILE_FLAGS
       -Wno-sign-conversion
       -Wno-unused-parameter
@@ -97,7 +97,7 @@ target_link_libraries(${MYSQL_ROUTER_TARGET} ${CMAKE_DL_LIBS} router_lib harness
 if(WIN32)
   target_link_libraries(${MYSQL_ROUTER_TARGET} crypt32)
 endif()
-if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   target_link_libraries(${MYSQL_ROUTER_TARGET} -lnsl -lsocket)
 endif()
 
@@ -146,9 +146,13 @@ endif()
 # For testing
 if(ENABLE_TESTS)
   file(GLOB config_files ${CMAKE_CURRENT_SOURCE_DIR}/../tests/*.conf.in)
-  if(NOT WIN32)
+  if(CMAKE_CFG_INTDIR STREQUAL ".")
     set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR})
-    set(ROUTER_PLUGIN_DIR_SUFFIX "lib/mysqlrouter")
+    if(WIN32)
+      set(ROUTER_PLUGIN_DIR_SUFFIX "lib")
+    else()
+      set(ROUTER_PLUGIN_DIR_SUFFIX "lib/mysqlrouter")
+    endif()
     foreach(config_file ${config_files})
       get_filename_component(dest_config_file ${config_file} NAME)
       string(REGEX REPLACE ".in$" "" dest_config_file ${dest_config_file})

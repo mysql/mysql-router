@@ -20,6 +20,7 @@
 #include <fstream>
 #include <memory>
 #include <string.h>
+#include <system_error>
 
 #ifdef _WIN32
 #include <aclapi.h>
@@ -61,7 +62,7 @@ static SecurityDescriptorPtr get_security_descriptor(
 
     // We expect to receive `ERROR_INSUFFICIENT_BUFFER`.
     if (errno != ERROR_INSUFFICIENT_BUFFER) {
-      throw std::runtime_error("GetFileSecurity() failed (" + file_name +
+      throw std::system_error(errno, std::system_category(), "GetFileSecurity() failed (" + file_name +
                                "): " + std::to_string(errno));
     }
   }
@@ -71,7 +72,8 @@ static SecurityDescriptorPtr get_security_descriptor(
 
   if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
                        sec_desc_size, &sec_desc_size) == FALSE) {
-    throw std::runtime_error("GetFileSecurity() failed (" + file_name + "): " +
+    errno = GetLastError();
+    throw std::system_error(errno, std::system_category(), "GetFileSecurity() failed (" + file_name + "): " +
                              std::to_string(GetLastError()));
   }
 
@@ -257,7 +259,7 @@ void KeyringFile::save(const std::string& file_name,
         std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
       break;
     }
-    catch (std::exception& e) {
+    catch (const std::exception&) {
       if (retries-- > 0) {
         Sleep(100);
         continue;
@@ -270,6 +272,15 @@ void KeyringFile::save(const std::string& file_name,
 
   try {
     make_file_private(file_name);
+  } catch (const std::system_error &e) {
+#ifdef _WIN32
+      if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, ignore it
+#endif
+        throw;
+  }
+
+  try {
     // write signature
     file.write(kKeyringFileSignature, sizeof(kKeyringFileSignature));
     // write header
@@ -288,7 +299,15 @@ void KeyringFile::save(const std::string& file_name,
 
 void KeyringFile::load(const std::string& file_name, const std::string& key) {
   // Verify keyring file's access permissions.
-  check_file_access_rights(file_name);
+  try {
+    check_file_access_rights(file_name);
+  } catch (const std::system_error &e) {
+#ifdef _WIN32
+      if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, ignore it
+#endif
+        throw;
+  }
 
   // Read keyring data from file.
   std::ifstream file;
@@ -297,7 +316,7 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
   try {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
-  } catch (std::exception& e) {
+  } catch (const std::exception&) {
     throw std::runtime_error(std::string("Failed to load keyring file: ") +
                              file_name + ": " + get_strerror(errno));
   }
@@ -337,7 +356,15 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
 
 std::string KeyringFile::read_header(const std::string& file_name) {
   // Verify keyring file's access permissions.
-  check_file_access_rights(file_name);
+  try {
+    check_file_access_rights(file_name);
+  } catch (const std::system_error &e) {
+#ifdef _WIN32
+      if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, ignore it
+#endif
+        throw;
+  }
 
   // Read keyring data from file.
   std::ifstream file;
@@ -346,7 +373,7 @@ std::string KeyringFile::read_header(const std::string& file_name) {
   try {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
-  } catch (std::exception& e) {
+  } catch (const std::exception&) {
     throw std::runtime_error(std::string("Failed to open keyring file: ") +
                              file_name + ": " + get_strerror(errno));
   }

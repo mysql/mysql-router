@@ -15,6 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <system_error>
+
 #include "test/helpers.h"
 
 ////////////////////////////////////////
@@ -259,7 +261,15 @@ TEST_F(KeyringFileTest, LoadFromFileWithCorrectPermissions) {
 
     fill_keyring(keyring);
     keyring.save(kKeyringFileName, kAesKey);
-    mysql_harness::make_file_private(kKeyringFileName);
+    try {
+      mysql_harness::make_file_private(kKeyringFileName);
+    } catch (const std::system_error &e) {
+#ifdef _WIN32
+      if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, ignore it
+#endif
+        throw;
+    }
   }
 
   mysql_harness::KeyringFile keyring;
@@ -274,7 +284,17 @@ TEST_F(KeyringFileTest, LoadFromFileWithWrongPermissions) {
 
     fill_keyring(keyring);
     keyring.save(kKeyringFileName, kAesKey);
-    mysql_harness::make_file_public(kKeyringFileName);
+    try {
+      mysql_harness::make_file_public(kKeyringFileName);
+    } catch (const std::system_error &e) {
+#ifdef _WIN32
+      if (e.code() == std::error_code(ERROR_INVALID_FUNCTION, std::system_category())) {
+        // if the filesystem can't set permissions, the test later would fail
+	return;
+      }
+#endif
+      throw;
+    }
   }
 
   mysql_harness::KeyringFile keyring;

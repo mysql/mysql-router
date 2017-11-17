@@ -25,9 +25,11 @@ ELSEIF(MSVC_VERSION EQUAL 1800)
   SET(WIX_MSVC_DIR "VS2013")
 ELSEIF(MSVC_VERSION EQUAL 1600)
   SET(WIX_MSVC_DIR "VS2010")
+ELSEIF(MSVC_VERSION EQUAL 1911)
+  SET(WIX_MSVC_DIR "VS2017")
 ELSE()
   # When next VS is out, add the correct version here
-  MESSAGE(FATAL_ERROR "Unknown VS version")
+  MESSAGE(FATAL_ERROR "Unknown VS version: ${MSVC_VERSION}")
 ENDIF()
 
 
@@ -45,7 +47,7 @@ ENDIF()
 
 LINK_DIRECTORIES(${WIX_MSVC_DIR}/lib/${WIX_ARCH})
 
-SET(WIXCA_SOURCES CustomAction.cpp CustomAction.def 
+SET(WIXCA_SOURCES CustomAction.cpp CustomAction.def
   "${CMAKE_SOURCE_DIR}/src/router/src/windows/nt_servc.cc" )
 
 INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/src/router/src/windows")

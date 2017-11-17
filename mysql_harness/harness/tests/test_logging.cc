@@ -45,6 +45,10 @@ MYSQL_HARNESS_ENABLE_WARNINGS()
 // Standard include files
 #include <stdexcept>
 
+#ifndef _WIN32
+#include <unistd.h> // unlink
+#endif
+
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
 using mysql_harness::logging::LogLevel;
@@ -399,6 +403,7 @@ TEST_F(LoggingTest, FileHandler) {
   // We do not use mktemp or friends since we want this to work on
   // Windows as well.
   Path log_file(g_here.join("log4-" + std::to_string(getpid()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){unlink(log_file.c_str());});
 
   g_registry->add_handler("TestFileHandler", std::make_shared<FileHandler>(log_file));
   logger.attach_handler("TestFileHandler");

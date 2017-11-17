@@ -19,7 +19,7 @@ set(_TEST_RUNTIME_DIR ${PROJECT_BINARY_DIR}/tests)
 # On unix platforms this is just one directory, but on Windows it's per build-type,
 # e.g. build/stage/Debug/lib, build/stage/Release/lib, etc
 function(set_target_output_directory target target_output_directory dirname)
-  if(WIN32)
+  if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       string(TOUPPER ${config_} config__)
       set_property(TARGET ${target} PROPERTY
@@ -33,7 +33,7 @@ endfunction()
 
 # Prepare staging area
 foreach(dir etc;run;log;bin;lib)
-  if(WIN32)
+  if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       file(MAKE_DIRECTORY ${MySQLRouter_BINARY_STAGE_DIR}/${config_}/${dir})
     endforeach()
@@ -77,19 +77,37 @@ function(add_test_file FILE)
     set_target_properties(${test_target}
       PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY ${runtime_dir}/)
-    if(WIN32)
-      # use old-style add_test() to circumvent the 'ctest needs -C ...'-requirement on windows
-      add_test(${test_name} ${runtime_dir}/${CMAKE_BUILD_TYPE}/${test_target})
+    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+      # silence undefined use of macro-vars in gtest.
+      # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
+      # supress it locally.
+      set_target_properties(
+        ${test_target}
+        PROPERTIES
+        COMPILE_FLAGS "-Wno-undef -Wno-conversion")
+    endif()
+
+    if(WITH_VALGRIND)
+      SET(TEST_WRAPPER "valgrind --exit-code=1")
+    endif()
+
+    add_test(NAME ${test_name}
+	    COMMAND ${TEST_WRAPPER} $<TARGET_FILE:${test_target}> --gtest_output=xml:${runtime_dir}/${test_target}.xml)
+
+    SET(TEST_ENV_PREFIX "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR}")
+
+    if (WIN32)
+      # PATH's separator ";" needs to be escaped as CMAKE's test-env is also separated by ; ...
+      STRING(REPLACE ";" "\\;" ESC_ENV_PATH "$ENV{PATH}")
+
+      ## win32 has single and multi-configuration builds
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-        "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};PATH=${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\lib\;${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
+	"${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:mysqlrouter>\;$<TARGET_FILE_DIR:mysql_protocol>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
     else()
-      # use new-style add_test() ...
-      add_test(NAME ${test_name}
-        COMMAND ${runtime_dir}/${test_target} --gtest_output=xml:${runtime_dir}/${test_target}.xml)
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-        "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
+        "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
     endif()
   else()
     message(ERROR "Unknown test type; file '${FILE}'")

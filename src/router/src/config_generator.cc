@@ -463,7 +463,15 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
     //  config_file_path.c_str(), get_strerror(errno));
     throw std::runtime_error("Could not save configuration file to final location");
   }
-  mysql_harness::make_file_private(config_file_path);
+  try {
+    mysql_harness::make_file_private(config_file_path);
+  } catch (const std::system_error &e) {
+#ifdef _WIN32
+    if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, the test later would fail
+#endif
+      throw;
+  }
   set_file_owner(options, config_file_path);
   auto_clean.clear();
 }
@@ -604,7 +612,15 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
        + mysqlrouter::get_last_error());
   }
 
-  mysql_harness::make_file_private(config_file_path.str());
+  try {
+    mysql_harness::make_file_private(config_file_path.str());
+  } catch (const std::system_error &e) {
+#ifdef _WIN32
+    if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+        // if the filesystem can't set permissions, the test later would fail
+#endif
+      throw;
+  }
   set_file_owner(options, config_file_path.str());
 
   // create start/stop scripts
@@ -1595,7 +1611,15 @@ bool ConfigGenerator::backup_config_file_if_different(const mysql_harness::Path 
       else {
         copy_file(config_path.str(), backup_file_name);
       }
-      mysql_harness::make_file_private(backup_file_name);
+      try {
+        mysql_harness::make_file_private(backup_file_name);
+      } catch (const std::system_error &e) {
+#ifdef _WIN32
+        if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+            // if the filesystem can't set permissions, the test later would fail
+#endif
+          throw;
+      }
       set_file_owner(options, backup_file_name);
       return true;
     }

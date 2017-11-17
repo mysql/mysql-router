@@ -63,7 +63,7 @@ Library_file::Library_file(const std::string &file_name, const std::string &plug
   }
   impl_->handle = LoadLibrary(lib_file.real_path().c_str());
   if (impl_->handle == nullptr) {
-    throw_current_error("Could not load plugin file: ");
+    throw_current_error("Could not load plugin file: " + file_name + ". ");
   }
 #endif
 }

@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#define NOMINMAX
+
 #include "process_launcher.h"
 
 #include <chrono>
 #include <string>
 #include <system_error>
 #include <thread>
+#include <algorithm>
 
 #ifdef WIN32
 #  include <windows.h>
@@ -103,7 +106,7 @@ void ProcessLauncher::start() {
     &pi);          // lpProcessInformation
 
   if (!bSuccess)
-    report_error(NULL);
+    report_error(("Failed to start process " + s).c_str());
   else
     is_alive = true;
 
@@ -172,10 +175,45 @@ void ProcessLauncher::close() {
 
 int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms) {
   DWORD dwBytesRead;
-  COMMTIMEOUTS timeouts = { 0, 0, timeout_ms, 0, 0 };
-  SetCommTimeouts(child_out_rd, &timeouts);
+  DWORD dwBytesAvail;
+
+  // at least 1ms
+  auto std_interval_ms = std::max(timeout_ms / 10U, 1U);
+
+  do {
+    // check if there is data in the pipe before issuing a blocking read
+    BOOL bSuccess = PeekNamedPipe(child_out_rd, NULL, 0, NULL, &dwBytesAvail, NULL);
+
+    if (!bSuccess) {
+      DWORD dwCode = GetLastError();
+      if (dwCode == ERROR_NO_DATA || dwCode == ERROR_BROKEN_PIPE)
+        return EOF;
+      else
+        report_error(NULL);
+    }
+
+    // we got data, let's read it
+    if (dwBytesAvail != 0) break;
+
+    if (timeout_ms == 0) {
+      // no data and time left to wait
+      //
+
+      return 0;
+    }
+
+    auto interval_ms = std::min(timeout_ms, std_interval_ms);
+
+    // just wait the whole timeout and try again
+    auto sleep_time = std::chrono::milliseconds(interval_ms);
+
+    std::this_thread::sleep_for(sleep_time);
+
+    timeout_ms -= interval_ms;
+  } while (true);
 
   BOOL bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, NULL);
+
   if (bSuccess == FALSE) {
     DWORD dwCode = GetLastError();
     if (dwCode == ERROR_NO_DATA || dwCode == ERROR_BROKEN_PIPE)

@@ -80,7 +80,7 @@ void Plugin_info_app::print_usage(const char* exec_name) {
 #ifndef _WIN32
   out_stream_err_ << "\t" << exec_name << " /usr/lib/mysqlrouter/routing.so routing" << std::endl;
 #else
-  out_stream_err_ << "\t" << exec_name << " \"c:\Program Files (x86)\\MySQL\\MySQL Router 2.1\\lib\\routing.dll\" routing" << std::endl;
+  out_stream_err_ << "\t" << exec_name << " \"c:\\Program Files (x86)\\MySQL\\MySQL Router 2.1\\lib\\routing.dll\" routing" << std::endl;
 #endif
   out_stream_err_ << "To print help information:" << std::endl;
   out_stream_err_ << "\t" << exec_name << " --help" << std::endl;

@@ -69,7 +69,7 @@ void PluginInfoAppTest::SetUp() {
 
   char *stage_dir_c = std::getenv("STAGE_DIR");
   auto stage_dir = Path(stage_dir_c ? stage_dir_c : "./stage");
-#ifdef _WIN32
+#ifdef CMAKE_INTDIR
   if (!g_origin_path.str().empty()) {
     stage_dir = Path(stage_dir.join(g_origin_path.basename()));
   }
@@ -107,7 +107,7 @@ void PluginInfoAppTest::verify_help_output() {
 #ifndef _WIN32
       "\tmysqlrouter_plugin_info /usr/lib/mysqlrouter/routing.so routing\n"
 #else
-      "\tmysqlrouter_plugin_info \"c:\Program Files (x86)\\MySQL\\MySQL Router 2.1\\lib\\routing.dll\" routing\n"
+      "\tmysqlrouter_plugin_info \"c:\\Program Files (x86)\\MySQL\\MySQL Router 2.1\\lib\\routing.dll\" routing\n"
 #endif
       "To print help information:\n"
       "\tmysqlrouter_plugin_info --help\n"

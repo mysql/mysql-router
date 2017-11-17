@@ -767,7 +767,7 @@ int main(int argc, char *argv[]) {
       g_stage_dir = Path(get_cwd()).join("stage");
     }
   }
-#ifdef _WIN32
+#ifdef CMAKE_INTDIR
   g_stage_dir = g_stage_dir.join(g_origin.basename());
 #endif
 

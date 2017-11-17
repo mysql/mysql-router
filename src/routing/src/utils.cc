@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,9 +34,6 @@
 # include <winsock2.h>
 # include <ws2tcpip.h>
 # include <stdint.h>
-# if _MSC_VER <= 1900
-#   define not !
-# endif
 #endif
 
 void *get_in_addr(struct sockaddr *addr) {
@@ -84,7 +81,7 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
   }
 
   while (std::getline(ss, token, delimiter)) {
-    if (token.empty() && not allow_empty) {
+    if (token.empty() && !allow_empty) {
       // Skip empty
       continue;
     }
@@ -134,7 +131,7 @@ std::string get_message_error(int errcode)
   }
   LPTSTR lpMsgBuf;
 
-  FormatMessage(
+  if (0 != FormatMessage(
     FORMAT_MESSAGE_ALLOCATE_BUFFER |
     FORMAT_MESSAGE_FROM_SYSTEM |
     FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -142,10 +139,13 @@ std::string get_message_error(int errcode)
     errcode,
     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
     (LPTSTR)&lpMsgBuf,
-    0, NULL);
-  std::string msgerr = "SystemError: ";
-  msgerr += lpMsgBuf;
-  LocalFree(lpMsgBuf);
-  return msgerr;
+    0, NULL)) {
+    std::string msgerr = "SystemError: ";
+    msgerr += lpMsgBuf;
+    LocalFree(lpMsgBuf);
+    return msgerr;
+  } else {
+    return "SystemError: " + std::to_string(errcode);
+  }
 #endif
 }

@@ -39,7 +39,7 @@ protected:
     } else {
       stage_dir.reset(new Path(stage_dir_c));
     }
-#ifdef _WIN32
+#ifdef CMAKE_INTDIR
     if (origin_dir) {
       *stage_dir = stage_dir->join(origin_dir->basename());
     } else {

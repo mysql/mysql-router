@@ -203,9 +203,15 @@ class LifecycleTest : public BasicConsoleOutputTest {
       "runtime_folder = {prefix}/var/run/{program}    \n"
       "config_folder  = {prefix}/var/run/{program}    \n"
       "data_folder    = {prefix}/../../../stage/lib/mysqlrouter\n"
-#else
+#elif defined(CMAKE_INTDIR)
       "logging_folder = \n"
       "plugin_folder  = {prefix}/../../../../stage/" CMAKE_INTDIR "/lib\n"
+      "runtime_folder = {prefix}/var/run\n"
+      "config_folder  = {prefix}/etc\n"
+      "data_folder    = {prefix}/var/lib\n"
+#else
+      "logging_folder = \n"
+      "plugin_folder  = {prefix}/../../../stage/lib\n"
       "runtime_folder = {prefix}/var/run\n"
       "config_folder  = {prefix}/etc\n"
       "data_folder    = {prefix}/var/lib\n"
@@ -1778,8 +1784,8 @@ TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
     FAIL() << "Loader::start() should throw bad_plugin";
   } catch (const bad_plugin& e) {
     EXPECT_THAT(e.what(), HasSubstr("nonexistent_plugin"));
-  } catch (...) {
-    FAIL() << "Loader::start() should throw bad_plugin";
+  } catch (const std::exception &e) {
+    FAIL() << "Loader::start() should throw bad_plugin, but got: " << e.what();
   }
 
   // Expect something like so:

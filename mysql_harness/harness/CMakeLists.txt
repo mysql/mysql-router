@@ -128,40 +128,27 @@ if(NOT WIN32)
     OUTPUT_NAME "mysqlharness"
     PREFIX "lib"
     SOVERSION 1)
-  set_target_properties(harness-library PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_DIR}/stage/lib)
 else()
   set_target_properties(harness-archive PROPERTIES
     OUTPUT_NAME "mysqlharness_a"
     PREFIX "lib"
     SOVERSION 1)
+endif()
 
-  # Fix install path in stage dir, so that files get to
-  # stage/${configuration_type}/{bin,etc,lib} instead of
-  # stage/{bin,etc,lib}/${configuration_type}
+# Fix install path in stage dir, so that files get to
+# stage/${configuration_type}/{bin,etc,lib} instead of
+# stage/{bin,etc,lib}/${configuration_type}
+if (NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
     set_target_properties(harness-library PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/bin) # <-- [SEARCH TAG] RUNTIME_OUTPUT_DIRECTORY
-  endforeach()
-
-  get_property(harness_library_location TARGET harness-library PROPERTY LOCATION)
-  foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-    # lib is the location of harness-library for unit tests (since they have no knowledge
-    # of bin folder
-    add_custom_command(TARGET harness-library
-      COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/lib/
-          COMMENT "Copying harness library from: ${harness_library_location}"
+      RUNTIME_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/bin
+      LIBRARY_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/lib
     )
-    if(WIN32)
-      # bin is the location of harness-library to be deployed to MSI (and also for normal
-      # scenarios when router is launched from command line. Only for Windows.
-      add_custom_command(TARGET harness-library
-        COMMAND ${CMAKE_COMMAND} -E copy "${harness_library_location}" ${MySQLRouter_BINARY_STAGE_DIR}/${conf}/bin/
-        COMMENT "Copying harness library from: ${harness_library_location}"
-      )
-    endif()
-    file(MAKE_DIRECTORY "${MySQLRouter_BINARY_STAGE_DIR}/${conf}/lib/")
   endforeach()
+else()
+  set_target_properties(harness-library PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_DIR}/stage/lib
+    RUNTIME_OUTPUT_DIRECTORY ${MySQLRouter_BINARY_DIR}/stage/bin)
 endif()
 
 # don't install headers until a) a final destination is found and b) API is stable

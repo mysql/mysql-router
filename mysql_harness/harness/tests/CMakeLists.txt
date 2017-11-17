@@ -19,7 +19,7 @@ include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} include)
 
 include(HarnessTesting)
 
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(config ${CMAKE_CONFIGURATION_TYPES})
     execute_process(
       COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var
@@ -56,79 +56,61 @@ if(ENABLE_HARNESS_PROGRAM)
     PASS_REGULAR_EXPRESSION "Path.*whatever.cfg.*does not exist")
 endif()
 
-add_harness_test(TestLoader SOURCES test_loader.cc)
-add_harness_test(TestLoaderLifecycle SOURCES test_loader_lifecycle.cc)
-add_harness_test(TestLogger SOURCES test_logging.cc)
+SET(TEST_MODULE harness)
 
-add_harness_test(TestDesignator SOURCES test_designator.cc)
-add_harness_test(TestIterator SOURCES test_iterator.cc)
-add_harness_test(TestUtilities SOURCES test_utilities.cc)
-add_harness_test(TestCommon SOURCES test_common.cc)
+SET(TESTS
+  test_loader.cc
+  test_loader_lifecycle.cc
+  test_logging.cc
+  test_designator.cc
+  test_iterator.cc
+  test_utilities.cc
+  test_common.cc
+  test_config.cc
+  test_filesystem.cc
+  test_ip_address.cc
+  test_bug22104451.cc
+  test_resolver.cc
+  test_random_generator.cc
+)
 
-add_harness_test(TestFilesystem SOURCES test_filesystem.cc)
-add_harness_test(TestConfig SOURCES test_config.cc)
+foreach(TEST ${TESTS})
+  add_test_file(${TEST} MODULE ${TEST_MODULE}
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/mysql_harness/shared/include/
+    LIB_DEPENDS test-helpers)
+endforeach()
 
-# future functionality, currently not used anywhere, still has rough edges
-# and fails sporadically on Linux, fails always on Windows
-#add_harness_test(TestQueue SOURCES test_queue.cc)
+SET(TESTS
+  test_keyring.cc
+  test_keyring_manager.cc
+)
 
-add_harness_test(TestBug22104451 SOURCES test_bug22104451.cc)
+foreach(TEST ${TESTS})
+  add_test_file(${TEST} MODULE ${TEST_MODULE}
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/mysql_harness/shared/include/
+    LIB_DEPENDS test-helpers;${SSL_LIBRARIES})
+endforeach()
 
-add_harness_test(TestIPAddress SOURCES test_ip_address.cc)
-add_harness_test(TestNameResolver SOURCES test_resolver.cc)
-
-add_harness_test(TestKeyring SOURCES test_keyring.cc)
-target_link_libraries(TestKeyring PRIVATE ${SSL_LIBRARIES})
-
-add_harness_test(TestKeyringManager SOURCES test_keyring_manager.cc)
-target_link_libraries(TestKeyringManager PRIVATE ${SSL_LIBRARIES})
-
-add_harness_test(TestDIMandUniquePtr SOURCES test_dim_and_unique_ptr.cc)
-
-add_harness_test(TestRandomGenerator SOURCES test_random_generator.cc)
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  # silence undefined use of macro-vars in gtest.
-  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
-  # supress it locally.
-  set_target_properties(
-    TestIPAddress
-    TestConfig
-    TestKeyring
-    TestRandomGenerator
-    TestLogger
-    TestBug22104451
-    TestFilesystem
-    TestUtilities
-    TestIterator
-    TestLoaderLifecycle
-    TestLoader
-    TestDesignator
-    TestKeyringManager
-    TestDIMandUniquePtr
-    TestNameResolver
-    TestCommon
-    PROPERTIES
-    COMPILE_FLAGS "-Wno-undef -Wno-conversion")
-endif()
+set(OUT_DIR ${PROJECT_BINARY_DIR}/tests/${TEST_MODULE}/)
 
 # Use configuration file templates to generate configuration files
 file(GLOB_RECURSE _templates RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg.in")
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   set(ORIG_HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+
   foreach(config ${CMAKE_CONFIGURATION_TYPES})
     foreach(_template ${_templates})
       string(REGEX REPLACE ".in$" "" _output ${config}/${_template})
-      message(STATUS "Generating ${_output} from ${_template}")
+      message(STATUS "Generating ${_output} in ${OUT_DIR} from ${_template}")
       string(TOUPPER ${config} config_)
       set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config_}})
-      configure_file(${_template} ${_output})
+      configure_file(${_template} ${OUT_DIR}/${_output})
     endforeach()
 
     # Copy plain configuration files
     file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
     foreach(_file ${_files})
-      configure_file(${_file} ${config}/${_file} COPYONLY)
+      configure_file(${_file} ${OUT_DIR}/${config}/${_file} COPYONLY)
     endforeach()
   endforeach()
   set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${OLD_HARNESS_PLUGIN_OUTPUT_DIRECTORY})
@@ -136,12 +118,12 @@ else()
   foreach(_template ${_templates})
     string(REGEX REPLACE ".in$" "" _output ${_template})
     message(STATUS "Generating ${_output} from ${_template}")
-    configure_file(${_template} ${_output})
+    configure_file(${_template} ${OUT_DIR}/${_output})
   endforeach()
 
   # Copy plain configuration files
   file(GLOB_RECURSE _files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*.cfg")
   foreach(_file ${_files})
-    configure_file(${_file} ${_file} COPYONLY)
+    configure_file(${_file} ${OUT_DIR}/${_file} COPYONLY)
   endforeach()
 endif()

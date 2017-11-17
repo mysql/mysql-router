@@ -89,7 +89,7 @@ void RouterComponentTest::SetUp() {
   using mysql_harness::Path;;
   char *stage_dir_c = std::getenv("STAGE_DIR");
   stage_dir_ = Path(stage_dir_c ? stage_dir_c : "./stage");
-#ifdef _WIN32
+#ifdef CMAKE_INTDIR
   if (!origin_dir_.str().empty()) {
     stage_dir_ = Path(stage_dir_.join(origin_dir_.basename()));
   }
@@ -250,9 +250,19 @@ int RouterComponentTest::CommandHandle::wait_for_exit_while_reading_and_autoresp
 bool RouterComponentTest::CommandHandle::expect_output(const std::string& str,
                                                        bool regex,
                                                        unsigned timeout_ms) {
+  auto now = std::chrono::steady_clock::now();
+  auto until = now + std::chrono::milliseconds(timeout_ms);
   for (;;) {
     if (output_contains(str, regex)) return true;
-    if (!read_and_autorespond_to_output(timeout_ms)) return false;
+
+    now = std::chrono::steady_clock::now();
+
+    if (now > until) {
+      return false;
+    }
+
+    if (!read_and_autorespond_to_output(
+          std::chrono::duration_cast<std::chrono::milliseconds>(until - now).count())) return false;
   }
 }
 
@@ -271,7 +281,7 @@ bool RouterComponentTest::CommandHandle::read_and_autorespond_to_output(unsigned
                                                                         bool autoresponder_enabled /*= true*/) {
   char cmd_output[kReadBufSize] = {0};  // hygiene (cmd_output[bytes_read] = 0 would suffice)
 
-  // blocks until timeout expires (very likely) or until we fill up the entire buffer (unlikely)
+  // blocks until timeout expires (very likely) or until at least one byte is read (unlikely)
   // throws std::runtime_error on read error
   int bytes_read = launcher_.read(cmd_output, kReadBufSize-1, timeout_ms); // cmd_output may contain multiple lines
 

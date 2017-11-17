@@ -28,6 +28,8 @@
 #include <fstream>
 #ifndef _WIN32
 #include <sys/stat.h>
+#else
+#include <windows.h>
 #endif
 
 
@@ -117,7 +119,15 @@ public:
           ": "+get_strerror(errno));
     }
     try {
-      make_file_private(path_);
+      try {
+        make_file_private(path_);
+      } catch (const std::system_error &e) {
+#ifdef _WIN32
+        if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
+            // if the filesystem can't set permissions, the test later would fail
+#endif
+          throw;
+      }
     }
     catch (std::exception &e) {
       throw std::runtime_error("Could not set permissions of master key file " + path_ +
@@ -281,7 +291,7 @@ bool init_keyring_with_key(const std::string &keyring_file_path,
   try {
     key_store->load(keyring_file_path, master_key);
     existed = true;
-  } catch (std::exception &e) {
+  } catch (const std::exception &) {
     if (!create_if_needed)
       throw;
     // force initial creation

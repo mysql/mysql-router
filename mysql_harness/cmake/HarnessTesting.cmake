@@ -13,57 +13,34 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-function(add_harness_test NAME)
-  set(_options)
-  set(_single_value)
-  set(_multi_value SOURCES REQUIRES)
-  cmake_parse_arguments(ADD_HARNESS_TEST
-    "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
-
-  add_executable(${NAME} ${ADD_HARNESS_TEST_SOURCES})
-  if(ADD_HARNESS_TEST_REQUIRES)
-    add_dependencies(${NAME} ${ADD_HARNESS_TEST_REQUIRES})
-  endif()
-  target_link_libraries(${NAME}
-    PUBLIC harness-library test-helpers ${TEST_LIBRARIES})
-
-  if(WIN32)
-    # use old-style add_test() to circumvent the 'ctest needs -C ...'-requirement on windows
-    add_test(${NAME} ${CMAKE_BUILD_TYPE}/${NAME})
-    set_tests_properties(${NAME} PROPERTIES
-      ENVIRONMENT
-      "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR};PATH=${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\lib\;${MySQLRouter_BINARY_DIR}\\stage\\${CMAKE_BUILD_TYPE}\\bin\;$ENV{PATH};${TEST_ENVIRONMENT}")
-  else()
-    # use new-style add_test() everywhere else
-    add_test(NAME ${NAME} COMMAND ${NAME})
-  endif()
-endfunction()
-
-
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   function(CONFIGURE_HARNESS_TEST_FILE SOURCE DESTINATION)
     set(HARNESS_PLUGIN_OUTPUT_DIRECTORY_orig ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+    set(OUT_DIR ${PROJECT_BINARY_DIR}/tests/harness/${config_})
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       string(TOUPPER ${config_} config__)
       set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_${config__}})
-      configure_file(${SOURCE} ${config_}/${DESTINATION})
+      configure_file(${SOURCE} ${OUT_DIR}/${config_}/${DESTINATION})
     endforeach()
     set(HARNESS_PLUGIN_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY_orig})
   endfunction()
 
   function(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
+    set(OUT_DIR ${PROJECT_BINARY_DIR}/tests/harness/)
     foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
       add_custom_command(TARGET ${TARGET} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config_}/var/log/${DIRECTORY_NAME})
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}/${config_}/var/log/${DIRECTORY_NAME})
     endforeach()
   endfunction()
 else()
   function(CONFIGURE_HARNESS_TEST_FILE SOURCE DESTINATION)
-    configure_file(${SOURCE} ${DESTINATION})
+    set(OUT_DIR "${PROJECT_BINARY_DIR}/tests/harness")
+    configure_file(${SOURCE} "${OUT_DIR}/${DESTINATION}")
   endfunction()
 
   function(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
+    set(OUT_DIR "${PROJECT_BINARY_DIR}/tests/harness")
     add_custom_command(TARGET ${TARGET} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/var/log/${DIRECTORY_NAME})
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${OUT_DIR}/var/log/${DIRECTORY_NAME}")
   endfunction()
 endif()

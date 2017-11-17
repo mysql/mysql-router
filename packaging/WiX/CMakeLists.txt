@@ -17,12 +17,7 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-# Installed directory layout
-SET(TMP "ProgramFiles(x86)")  # using this string directly in $ENV{} produces errors
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin" "$ENV{${TMP}}/WiX Toolset V3.10/bin")
-
-# Unzipped directory layout
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10" "$ENV{${TMP}}/WiX Toolset V3.10")
+FIND_PATH(WIX_DIR NAMES heat.exe)
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)
@@ -56,7 +51,6 @@ ELSE()
   FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "\n}\n")
   SET(COPYING_RTF "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf")
 ENDIF()
-GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
@@ -66,18 +60,34 @@ ELSE()
   SET(WixWin64 " Win64='no'")
 ENDIF()
 
-foreach(conf ${CMAKE_CONFIGURATION_TYPES})
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${PROJECT_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.conf.sample)
-endforeach()
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
+  foreach(conf ${CMAKE_CONFIGURATION_TYPES})
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${PROJECT_BINARY_DIR}/stage/${conf}/etc/mysqlrouter.conf.sample)
+  endforeach()
+else()
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in  ${PROJECT_BINARY_DIR}/stage/etc/mysqlrouter.conf.sample)
+endif()
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_router_extra.wxs.in
   ${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
-  @ONLY)
+## configure_file doesn't support generator expressions
+SET(WIXCA_LOCATION "$<TARGET_FILE:wixca>")
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio")
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
+  FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in" TMPL_CONTENT)
+  STRING(CONFIGURE "${TMPL_CONTENT}" GEN_CONTENT @ONLY)
+  FILE(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/create_msi.cmake"
+    CONTENT "${GEN_CONTENT}")
+else()
+  FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in" TMPL_CONTENT)
+  STRING(CONFIGURE "${TMPL_CONTENT}" GEN_CONTENT @ONLY)
+  FILE(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake"
+    CONTENT "${GEN_CONTENT}")
+endif()
+
+
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
  SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_CFG_INTDIR}")
 ENDIF()
 
@@ -86,7 +96,7 @@ ADD_CUSTOM_TARGET(
   MSI
   COMMAND set VS_UNICODE_OUTPUT=
   COMMAND ${CMAKE_COMMAND}
-  ${CONFIG_PARAM}  
-  -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
+  ${CONFIG_PARAM}
+  -P  ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/create_msi.cmake
 )
 ADD_DEPENDENCIES(MSI wixca)

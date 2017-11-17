@@ -120,7 +120,7 @@ add_test_dir(issues MODULE issues
   )
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")
-if(WIN32)
+if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(conf ${CMAKE_CONFIGURATION_TYPES})
     set(ROUTER_STAGE_DIR ${MySQLRouter_BINARY_STAGE_DIR}/${conf})
     set(ROUTER_PLUGIN_DIR_SUFFIX "lib")

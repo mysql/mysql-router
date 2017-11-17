@@ -17,16 +17,16 @@ enable_testing()
 
 include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
-add_harness_test(TestPluginKeepalive SOURCES test_plugin_keepalive.cc)
+SET(TESTS
+  test_plugin_keepalive.cc
+)
 
-create_harness_test_directory_post_build(TestPluginKeepalive keepalive)
+foreach(TEST ${TESTS})
+  add_test_file(${TEST} MODULE harness
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/mysql_harness/shared/include/
+    LIB_DEPENDS test-helpers)
+endforeach()
+
+
+create_harness_test_directory_post_build(test_harness_plugin_keepalive keepalive)
 configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  # silence undefined use of macro-vars in gtest.
-  # we can't use #pragma's due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53431 to
-  # supress it locally.
-  set_target_properties(TestPluginKeepalive PROPERTIES
-    COMPILE_FLAGS "-Wno-undef")
-endif()
-

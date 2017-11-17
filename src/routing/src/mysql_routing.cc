@@ -499,10 +499,17 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   log_info("[%s] stopped", name.c_str());
 }
 
+static int get_socket_errno() {
+#ifdef _WIN32
+  return GetLastError();
+#else
+  return errno;
+#endif
+}
+
 void MySQLRouting::setup_tcp_service() {
   struct addrinfo *servinfo, *info, hints;
   int err;
-  int option_value;
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -524,17 +531,16 @@ void MySQLRouting::setup_tcp_service() {
   std::string error;
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((service_tcp_ = socket_operations_->socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-       // in windows, WSAGetLastError() will be called by get_message_error()
-      error = get_message_error(errno);
+      error = get_message_error(get_socket_errno());
       log_warning("[%s] setup_tcp_service() error from socket(): %s", name.c_str(), error.c_str());
       continue;
     }
 
-#ifndef _WIN32
-    option_value = 1;
+#if 1
+    int option_value = 1;
     if (socket_operations_->setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR, &option_value,
             static_cast<socklen_t>(sizeof(int))) == -1) {
-      error = get_message_error(errno);
+      error = get_message_error(get_socket_errno());
       log_warning("[%s] setup_tcp_service() error from setsockopt(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
       service_tcp_ = 0;
@@ -543,7 +549,7 @@ void MySQLRouting::setup_tcp_service() {
 #endif
 
     if (socket_operations_->bind(service_tcp_, info->ai_addr, info->ai_addrlen) == -1) {
-      error = get_message_error(errno);
+      error = get_message_error(get_socket_errno());
       log_warning("[%s] setup_tcp_service() error from bind(): %s", name.c_str(), error.c_str());
       socket_operations_->close(service_tcp_);
       service_tcp_ = 0;

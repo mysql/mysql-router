@@ -83,7 +83,7 @@ endif(MSVC)
 
 target_link_libraries(routing PRIVATE ${PB_LIBRARY})
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   target_link_libraries(routing PRIVATE -lnsl PRIVATE -lsocket)
 endif()
 

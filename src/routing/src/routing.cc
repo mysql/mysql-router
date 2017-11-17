@@ -217,7 +217,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, int connect_timeout, boo
 
   // Handle remaining errors
 #ifdef _WIN32
-  if ((WSAGetLastError() > 0 && WSAGetLastError() != WSAEINPROGRESS) || so_error) {
+  if ((WSAGetLastError() > 0 && WSAGetLastError() != WSAEINPROGRESS && WSAGetLastError() != WSAEWOULDBLOCK) || so_error) {
     this->shutdown(sock);
     this->close(sock);
     err = so_error ? so_error : SOCKET_ERROR;

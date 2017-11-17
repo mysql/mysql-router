@@ -209,7 +209,11 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 #ifndef _WIN32
     EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
 #else
-    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: No such file or directory"));
+    // on Windows emulate (wine) we get ENOTDIR
+    // with native windows we get ENOENT
+    EXPECT_THAT(out.c_str(), ::testing::AllOf(
+          StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: "), ::testing::AnyOf(
+            ::testing::EndsWith("Directory name invalid.\n\n"), ::testing::EndsWith("The system cannot find the path specified.\n\n"))));
 #endif
   }
 }

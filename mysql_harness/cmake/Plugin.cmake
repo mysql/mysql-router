@@ -116,7 +116,7 @@ function(add_harness_plugin NAME)
   endif()
 
   # set library output (and runtime) directories
-  if(WIN32)
+  if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
     foreach(config ${CMAKE_CONFIGURATION_TYPES})
       string(TOUPPER ${config} config)
       set_target_properties(${NAME} PROPERTIES
@@ -126,7 +126,9 @@ function(add_harness_plugin NAME)
     endforeach()
   else()
     set_target_properties(${NAME} PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY})
+      LIBRARY_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY}
+      RUNTIME_OUTPUT_DIRECTORY ${HARNESS_PLUGIN_OUTPUT_DIRECTORY}
+      )
   endif()
 
   # Add install rules to install the interface header files and the

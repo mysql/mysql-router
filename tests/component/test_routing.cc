@@ -58,10 +58,11 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   auto router_static = launch_router("-c " +  conf_file);
 
   // wait for both to begin accepting the connections
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
-  ready = wait_for_port_ready(router_port, 1000);
-  EXPECT_TRUE(ready) << router_static.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(server_port, 1000))
+    << server_mock.get_full_output();
+
+  ASSERT_TRUE(wait_for_port_ready(router_port, 1000))
+    << router_static.get_full_output();
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
@@ -71,14 +72,16 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   router_bootstrapping.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
-  EXPECT_TRUE(router_bootstrapping.expect_output(
-    "MySQL Router  has now been configured for the InnoDB cluster 'test'")
+  ASSERT_EQ(router_bootstrapping.wait_for_exit(5000), 0
   ) << "bootstrap output: " << router_bootstrapping.get_full_output() << std::endl
     << "routing output: "<< router_static.get_full_output() << std::endl
     << "server output: "<< server_mock.get_full_output() << std::endl;
 
-  EXPECT_EQ(router_bootstrapping.wait_for_exit(), 0
-  ) << "bootstrap output: " << router_bootstrapping.get_full_output();
+  ASSERT_TRUE(router_bootstrapping.expect_output(
+    "MySQL Router  has now been configured for the InnoDB cluster 'test'")
+  ) << "bootstrap output: " << router_bootstrapping.get_full_output() << std::endl
+    << "routing output: "<< router_static.get_full_output() << std::endl
+    << "server output: "<< server_mock.get_full_output() << std::endl;
 }
 
 TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
@@ -106,9 +109,10 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
 
   // wait for server and router to begin accepting the connections
   bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  ASSERT_TRUE(ready) << server_mock.get_full_output();
+
   ready = wait_for_port_ready(router_port, 1000);
-  EXPECT_TRUE(ready) << router_static.get_full_output();
+  ASSERT_TRUE(ready) << router_static.get_full_output();
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
