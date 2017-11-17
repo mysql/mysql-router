@@ -234,25 +234,20 @@ void ConfigGenerator::set_ssl_options(MySQLSession* sess,
   std::string ssl_crl = get_opt(options, "ssl_crl", "");
   std::string ssl_crlpath = get_opt(options, "ssl_crlpath", "");
 
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
   std::string ssl_cert = get_opt(options, "ssl_cert", "");
   std::string ssl_key = get_opt(options, "ssl_key", "");
-#endif
 
   // parse ssl_mode option (already validated in cmdline option handling)
   mysql_ssl_mode ssl_enum = MySQLSession::parse_ssl_mode(ssl_mode);
 
-  // set ssl_mode
+  // set ssl mode + server authentication options
   sess->set_ssl_options(ssl_enum, tls_version, ssl_cipher,
                         ssl_ca, ssl_capath, ssl_crl, ssl_crlpath);
 
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
+  // set client authentication options
   if (!ssl_cert.empty() || !ssl_key.empty()) {
     sess->set_ssl_cert(ssl_cert, ssl_key);
   }
-#endif
 }
 
 bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &options) {
@@ -1647,6 +1642,7 @@ void ConfigGenerator::create_account(const std::string &username,
   const std::string create_user = "CREATE USER " + account + " IDENTIFIED "
       + (password_hashed ? "WITH mysql_native_password AS " : "BY ")
       + mysql_->quote(password);
+//    + mysql_->quote(password) + " REQUIRE X509";
 
 
   const std::vector<std::string> queries{

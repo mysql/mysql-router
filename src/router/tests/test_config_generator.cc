@@ -1683,10 +1683,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     const std::vector<std::string> argument_required_options{"--ssl-mode",
         "--ssl-cipher", "--tls-version",
         "--ssl-ca", "--ssl-capath", "--ssl-crl", "--ssl-crlpath",
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
         "--ssl-cert", "--ssl-key"
-#endif
     };
 
     for (auto &opt : argument_required_options) {
@@ -1814,8 +1811,6 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     EXPECT_EQ("TLSv1", router.bootstrap_options_.at("tls_version"));
   }
 
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
   // --ssl-mode = REQUIRED, --ssl-cert, --ssl-key
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv {"-V", "--bootstrap", "0:3310", "--ssl-mode", "required", "--ssl-cert=/some/cert.pem", "--ssl-key=/some/key.pem"};
@@ -1824,7 +1819,6 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     EXPECT_EQ("/some/cert.pem", router.bootstrap_options_.at("ssl_cert"));
     EXPECT_EQ("/some/key.pem", router.bootstrap_options_.at("ssl_key"));
   }
-#endif
 }
 
 TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
@@ -1881,11 +1875,8 @@ TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
       {"ssl_crlpath", "/some/crl/dir"},
       {"ssl_cipher",  "FOO-BAR-SHA678"},
       {"tls_version", "TLSv1"},
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
       {"ssl_cert","/some/cert.pem"},
       {"ssl_key", "/some/key.pem"},
-#endif
     });
     EXPECT_EQ(mock_mysql->last_ssl_ca,      "/some/ca/file");
     EXPECT_EQ(mock_mysql->last_ssl_capath,  "/some/ca/dir");
@@ -1893,11 +1884,8 @@ TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
     EXPECT_EQ(mock_mysql->last_ssl_crlpath, "/some/crl/dir");
     EXPECT_EQ(mock_mysql->last_ssl_cipher,  "FOO-BAR-SHA678");
     EXPECT_EQ(mock_mysql->last_tls_version, "TLSv1");
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
     EXPECT_EQ(mock_mysql->last_ssl_cert,    "/some/cert.pem");
     EXPECT_EQ(mock_mysql->last_ssl_key,     "/some/key.pem");
-#endif
   }
 }
 

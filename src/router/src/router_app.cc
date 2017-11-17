@@ -951,26 +951,17 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath", path);
       });
 
-// 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
-#if 0
   arg_handler_.add_option(OptionNames({"--ssl-cert"}), "Path to client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-cert can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_cert"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
       });
 
   arg_handler_.add_option(OptionNames({"--ssl-key"}), "Path to private key for client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-key can only be used together with -B/--bootstrap");
-
-        bootstrap_options_["ssl_key"] = path;
+        this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
       });
-#endif
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",
