@@ -24,9 +24,9 @@ Path g_origin_path;
 
 
 /*
- * The layout for RPM and DEB uses /var/log/mysqlrouter as INSTALL_LOGDIR.
- * Since tests don't have access to this directory, for RPM and DEB those tests
- * are skipped.
+ * These tests are executed only for STANDALONE layout and are not executed for Windows.
+ * Bootstrap for layouts different than STANDALONE use directories to which
+ * tests don't have access (see install_layout.cmake).
  */
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
@@ -93,11 +93,11 @@ protected:
 };
 
 /*
- * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
- * access directories to which they don't have access. They have to be
- * disabled until it's figured out for which layouts they may be executed.
+ * This test is executed only for STANDALONE layout are is not executed for Windows.
+ * Bootstrap for other layouts uses directories to which tests don't have access
+ * (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_BootstrapPass) {
+TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
@@ -113,11 +113,11 @@ TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_BootstrapPass) {
 }
 
 /*
- * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
- * access directories to which they don't have access. They have to be
- * disabled until it's figured out for which layouts they may be executed.
+ * This test is executed only for STANDALONE layout and is not executed for Windows.
+ * Bootstrap for other layouts uses directories to which tests don't have access
+ * (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_conf_tmp_WhenBootstrapFailed) {
+TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_conf_tmp_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
@@ -140,11 +140,11 @@ TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_conf_tmp_Whe
 }
 
 /*
- * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
- * access directories to which they don't have access. They have to be
- * disabled until it's figured out for which layouts they may be executed.
+ * This test is executed only for STANDALONE layout and is not executed for Windows.
+ * Bootstrap for other layouts uses directories to which tests don't have access
+ * (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_key_WhenBootstrapFailed) {
+TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_key_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
@@ -167,11 +167,11 @@ TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_No_mysqlrouter_key_WhenBoot
 }
 
 /*
- * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
- * access directories to which they don't have access. They have to be
- * disabled until it's figured out for which layouts they may be executed.
+ * This test is executed only for STANDALONE layout and is not executed for Windows.
+ * Bootstrap for other layouts uses directories to which tests don't have access
+ * (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_IsKeyringRevertedWhenBootstrapFail) {
+TEST_F(RouterBootstrapSystemDeploymentTest, IsKeyringRevertedWhenBootstrapFail) {
   static const char kMasterKeyFileSignature[] = "MRKF";
 
   {
@@ -212,11 +212,11 @@ TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_IsKeyringRevertedWhenBootst
 }
 
 /*
- * All tests from RouterBoostrapSystemDeploymentTest fixture tries to
- * access directories to which they don't have access. They have to be
- * disabled until it's figured out for which layouts they may be executed.
+ * This test is executed only for STANDALONE layout and is not executed for Windows.
+ * Bootstrap for other layouts uses directories to which tests don't have access
+ * (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, DISABLED_Keep_mysqlrouter_log_WhenBootstrapFailed) {
+TEST_F(RouterBootstrapSystemDeploymentTest, Keep_mysqlrouter_log_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
