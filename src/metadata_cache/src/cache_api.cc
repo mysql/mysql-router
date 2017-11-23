@@ -29,7 +29,7 @@ static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 namespace metadata_cache {
 
 const uint16_t kDefaultMetadataPort = 32275;
-const unsigned int kDefaultMetadataTTL = 5 * 60;
+const unsigned int kDefaultMetadataTTL = 5;
 const std::string kDefaultMetadataAddress{"127.0.0.1:" + mysqlrouter::to_string(
     kDefaultMetadataPort)};
 const std::string kDefaultMetadataUser = "";

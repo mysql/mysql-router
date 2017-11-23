@@ -42,7 +42,7 @@ const std::string kDefaultMetadataHost = "127.0.0.1";  // 127.0.0.1
 const std::string kDefaultMetadataUser = "admin";  // admin
 const std::string kDefaultMetadataPassword = "";  //
 const int kDefaultMetadataPort = 32275; // 32275
-const unsigned int kDefaultTTL = 1; // reduced from original 10 to speed up test execution, try increasing if tests fail
+const unsigned int kDefaultMetadataTTL = 1; // reduced from original 10 to speed up test execution, try increasing if tests fail
 const std::string kDefaultMetadataReplicaset = "replicaset-1";
 
 const mysqlrouter::TCPAddress bootstrap_server(kDefaultMetadataHost,
@@ -62,12 +62,12 @@ public:
                                  1,
                                  1,
                                  1,
-                                 kDefaultTTL) {}
+                                 kDefaultMetadataTTL) {}
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::cache_init(bootstrap_server_vector, kDefaultMetadataUser,
-                               kDefaultMetadataPassword, kDefaultTTL, mysqlrouter::SSLOptions(),
+                               kDefaultMetadataPassword, kDefaultMetadataTTL, mysqlrouter::SSLOptions(),
                                kDefaultMetadataReplicaset, 1, 1);
     int count = 1;
     /**
