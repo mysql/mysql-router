@@ -37,6 +37,8 @@
 #  include <codecvt>
 #endif
 
+#include <deque>
+
 #include <fcntl.h>
 #include "router_component_test.h"
 
@@ -134,10 +136,36 @@ RouterComponentTest::CommandHandle
 RouterComponentTest::launch_router(const std::string &params,
                                    bool catch_stderr,
                                    bool with_sudo) const {
-  std::string sudo_str(with_sudo ? "sudo --non-interactive " : "");
-  std::string cmd = sudo_str + mysqlrouter_exec_.str();
+  const std::string sudo_cmd = "sudo";
+  const std::string sudo_args = "--non-interactive";
+  const std::string valgrind_cmd = "valgrind";
+  const std::string valgrind_args = "--error-exitcode=1 --quiet";
+  std::deque<std::string> args;
 
-  return launch_command(cmd, params, catch_stderr);
+
+  // build list of arguments
+  if (with_sudo) {
+    args.emplace_back(sudo_cmd);
+    args.emplace_back(sudo_args);
+  }
+
+  if (getenv("WITH_VALGRIND")) {
+    args.emplace_back(valgrind_cmd);
+    args.emplace_back(valgrind_args);
+  }
+
+  args.emplace_back(mysqlrouter_exec_.str());
+  args.emplace_back(params);
+
+  auto it = args.begin();
+  std::string cmd(*it++);      // first element is 'cmd', the others are the args as a string
+  std::string cmd_args(*it++); // we have at least two elements, no need to check
+
+  for (; it < args.end(); it++) {
+    cmd_args += " " + *it;
+  }
+
+  return launch_command(cmd, cmd_args, catch_stderr);
 }
 
 RouterComponentTest::CommandHandle

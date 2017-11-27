@@ -88,13 +88,17 @@ function(add_test_file FILE)
     endif()
 
     if(WITH_VALGRIND)
-      SET(TEST_WRAPPER "valgrind --exit-code=1")
+      FIND_PROGRAM(VALGRIND valgrind)
+      SET(TEST_WRAPPER ${VALGRIND} --error-exitcode=1)
     endif()
 
     add_test(NAME ${test_name}
-	    COMMAND ${TEST_WRAPPER} $<TARGET_FILE:${test_target}> --gtest_output=xml:${runtime_dir}/${test_target}.xml)
+      COMMAND ${TEST_WRAPPER} $<TARGET_FILE:${test_target}> --gtest_output=xml:${runtime_dir}/${test_target}.xml)
 
     SET(TEST_ENV_PREFIX "STAGE_DIR=${MySQLRouter_BINARY_STAGE_DIR};CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR}")
+    if(WITH_VALGRIND)
+      SET(TEST_ENV_PREFIX "${TEST_ENV_PREFIX};WITH_VALGRIND=1")
+    endif()
 
     if (WIN32)
       # PATH's separator ";" needs to be escaped as CMAKE's test-env is also separated by ; ...
@@ -103,7 +107,7 @@ function(add_test_file FILE)
       ## win32 has single and multi-configuration builds
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-	"${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:mysqlrouter>\;$<TARGET_FILE_DIR:mysql_protocol>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
+        "${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:mysqlrouter>\;$<TARGET_FILE_DIR:mysql_protocol>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
     else()
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT

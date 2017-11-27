@@ -38,11 +38,11 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
   // launch the router giving directory instead of config_name
   auto router = launch_router("-c " +  config_dir);
 
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
   EXPECT_TRUE(router.expect_output(
     "Expected configuration file, got directory name: " + config_dir)
   ) << "router output: "<< router.get_full_output() << std::endl;
-
-  EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
@@ -62,11 +62,11 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
   // launch the router giving directory instead of an extra config name
   auto router = launch_router("-c " +  conf_file + " -a " + config_dir);
 
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
   EXPECT_TRUE(router.expect_output(
     "Expected configuration file, got directory name: " + config_dir)
   ) << "router output: "<< router.get_full_output() << std::endl;
-
-  EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
 TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithoutKey) {
@@ -76,8 +76,7 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithoutKey) 
   auto router = launch_router("-c " +  conf_file);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
-  const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'section1' already exists"));
+  EXPECT_THAT(router.get_full_output(), StartsWith("Error: Configuration error: Section 'section1' already exists"));
 }
 
 TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
@@ -87,8 +86,7 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
   auto router = launch_router("-c " +  conf_file);
   EXPECT_EQ(router.wait_for_exit(), 1);
 
-  const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), StartsWith("Error: Configuration error: Section 'section1:key1' already exists"));
+  EXPECT_THAT(router.get_full_output(), StartsWith("Error: Configuration error: Section 'section1:key1' already exists"));
 }
 
 int main(int argc, char *argv[]) {

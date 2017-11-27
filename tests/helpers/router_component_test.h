@@ -98,9 +98,12 @@ class RouterComponentTest {
   // test performance tweaks
   // shorter timeout -> faster test execution, longer timeout -> increased test stability
   static constexpr unsigned kDefaultExpectOutputTimeout = 1000;
-  static constexpr unsigned kDefaultWaitForExitTimeout = 1000;
+
   static constexpr size_t kReadBufSize = 1024;
 
+ public:
+  // wait-timeout should be less than infinite, and long enough that even with valgrind we properly pass the tests
+  static constexpr unsigned kDefaultWaitForExitTimeout = 10 * 1000;
  protected:
 
   RouterComponentTest();
@@ -329,6 +332,10 @@ class RouterComponentTest {
 
   const Path& get_mysqlrouter_exec() const {
     return mysqlrouter_exec_;
+  }
+
+  void set_mysqlrouter_exec(const Path &path) {
+    mysqlrouter_exec_ = path;
   }
 
  private:

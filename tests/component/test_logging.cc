@@ -306,11 +306,10 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
 
   // launch mock server and wait for it to start accepting connections
   RouterComponentTest::CommandHandle server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
-  bool ready = wait_for_port_ready(SERVER_PORT, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  EXPECT_TRUE(wait_for_port_ready(SERVER_PORT, 5000)) << server_mock.get_full_output();
 
-  const std::string name = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
-  assert(name.size() > 255);  // log message max length is 256, we want something that guarrantees the limit would be exceeded
+  constexpr char name[] = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
+  static_assert(sizeof(name) > 255, "too long");  // log message max length is 256, we want something that guarrantees the limit would be exceeded
 
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});

@@ -15,6 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+
 #include "gmock/gmock.h"
 #include "router_component_test.h"
 
@@ -38,8 +40,7 @@ TEST_F(RouterUserOptionTest, BootstrapOk) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
                      << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -51,9 +52,9 @@ TEST_F(RouterUserOptionTest, BootstrapOk) {
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
   // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 0);
   EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 0);
 }
 
 TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
@@ -63,8 +64,7 @@ TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
 
   // do the bootstrap, request using only sockets
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
@@ -78,12 +78,13 @@ TEST_F(RouterUserOptionTest, BootstrapOnlySockets) {
 
 #ifndef _WIN32
   // check if bootstrap output contains sockets info
+  EXPECT_EQ(router.wait_for_exit(), 0);
+
   EXPECT_TRUE(router.expect_output("Read/Write Connections: .*/mysqlx.sock", true /*regex*/)
               && router.expect_output("Read/Only Connections: .*/mysqlxro.sock", true /*regex*/)
     ) << "router: " << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 
-  EXPECT_EQ(router.wait_for_exit(), 0);
 #else
   // on Windows Unix socket functionality in not available
   EXPECT_TRUE(router.expect_output("Error: unknown option '--conf-skip-tcp'")
@@ -102,8 +103,7 @@ TEST_F(RouterUserOptionTest, BootstrapUnsupportedSchemaVersion) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
@@ -113,10 +113,10 @@ TEST_F(RouterUserOptionTest, BootstrapUnsupportedSchemaVersion) {
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
   // check that it failed as expected
+  EXPECT_EQ(router.wait_for_exit(), 1);
   EXPECT_TRUE(router.expect_output("This version of MySQL Router is not compatible with the provided MySQL InnoDB cluster metadata")
     ) << "router: " << router.get_full_output()  << std::endl
       << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
 TEST_F(RouterUserOptionTest, BootstrapSucceedWhenServerResponseLessThanReadTimeout) {
@@ -127,8 +127,7 @@ TEST_F(RouterUserOptionTest, BootstrapSucceedWhenServerResponseLessThanReadTimeo
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
                      << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -140,9 +139,10 @@ TEST_F(RouterUserOptionTest, BootstrapSucceedWhenServerResponseLessThanReadTimeo
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'", false, 3000)
+  // default-wait-timeout + the 2 seconds that exec_time needs
+  EXPECT_EQ(router.wait_for_exit(kDefaultWaitForExitTimeout + std::chrono::seconds(2).count()), 0);
+  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'", false, 0)
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 0);
 }
 
 TEST_F(RouterUserOptionTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
@@ -153,8 +153,7 @@ TEST_F(RouterUserOptionTest, BootstrapFailWhenServerResponseExceedsReadTimeout) 
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << "Timed out waiting for mock server port ready" << std::endl
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
                      << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -166,9 +165,9 @@ TEST_F(RouterUserOptionTest, BootstrapFailWhenServerResponseExceedsReadTimeout) 
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
   // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 1);
   EXPECT_TRUE(router.expect_output("Error: Error executing MySQL query: Lost connection to MySQL server during query (2013)", false, 3000)
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 1);
 }
 
 

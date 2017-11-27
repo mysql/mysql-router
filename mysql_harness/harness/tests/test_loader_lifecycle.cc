@@ -1495,8 +1495,8 @@ TEST_F(LifecycleTest, send_signals) {
 
   // nothing should happen - all signals but the ones we care about should be ignored
   // (here we only test a few, the rest is assumed to behave the same)
-  raise(SIGFPE);
   raise(SIGUSR1);
+  raise(SIGALRM);
 
   // signal shutdown after 10ms, main_loop() should block until then
   auto call_SIGINT = []() {

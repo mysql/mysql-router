@@ -26,19 +26,19 @@ INTERNAL_DOCS          = YES
 CASE_SENSE_NAMES       = NO
 
 RECURSIVE              = YES
-INPUT                  = @CMAKE_SOURCE_DIR@/README.md @CMAKE_SOURCE_DIR@/
-STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@/
-EXCLUDE                = @CMAKE_SOURCE_DIR@/mysql_harness/ext
-EXCLUDE               += @CMAKE_SOURCE_DIR@/ext
-EXCLUDE               += @CMAKE_SOURCE_DIR@/packaging
-EXCLUDE               += @CMAKE_SOURCE_DIR@/cmake
+INPUT                  = @MySQLRouter_SOURCE_DIR@/README.md @MySQLRouter_SOURCE_DIR@/
+STRIP_FROM_PATH        = @MySQLRouter_SOURCE_DIR@/
+EXCLUDE                = @MySQLRouter_SOURCE_DIR@/mysql_harness/ext
+EXCLUDE               += @MySQLRouter_SOURCE_DIR@/ext
+EXCLUDE               += @MySQLRouter_SOURCE_DIR@/packaging
+EXCLUDE               += @MySQLRouter_SOURCE_DIR@/cmake
 EXCLUDE_PATTERNS       =
 EXCLUDE_PATTERNS      += *.txt
-USE_MDFILE_AS_MAINPAGE = @CMAKE_SOURCE_DIR@/README.md
+USE_MDFILE_AS_MAINPAGE = @MySQLRouter_SOURCE_DIR@/README.md
 
-HTML_HEADER            = @CMAKE_SOURCE_DIR@/doc/router_header.html
-HTML_FOOTER            = @CMAKE_SOURCE_DIR@/doc/router_footer.html
-HTML_EXTRA_STYLESHEET  = @CMAKE_SOURCE_DIR@/doc/router_doxygen.css
+HTML_HEADER            = @MySQLRouter_SOURCE_DIR@/doc/router_header.html
+HTML_FOOTER            = @MySQLRouter_SOURCE_DIR@/doc/router_footer.html
+HTML_EXTRA_STYLESHEET  = @MySQLRouter_SOURCE_DIR@/doc/router_doxygen.css
 
 ALIASES               += devnote="<div class=\"devnote\">\n\internal \n"
 ALIASES               += enddevnote="\endinternal \n</div>"
@@ -48,3 +48,6 @@ WARN_AS_ERROR          = YES
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 PREDEFINED             = DOXYGEN_SHOULD_SKIP_THIS
+
+# allow to include every file
+EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@

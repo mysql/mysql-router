@@ -58,10 +58,10 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   auto router_static = launch_router("-c " +  conf_file);
 
   // wait for both to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
     << server_mock.get_full_output();
 
-  ASSERT_TRUE(wait_for_port_ready(router_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
     << router_static.get_full_output();
 
   // launch another router to do the bootstrap connecting to the mock server
@@ -72,7 +72,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   router_bootstrapping.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
-  ASSERT_EQ(router_bootstrapping.wait_for_exit(5000), 0
+  ASSERT_EQ(router_bootstrapping.wait_for_exit(), 0
   ) << "bootstrap output: " << router_bootstrapping.get_full_output() << std::endl
     << "routing output: "<< router_static.get_full_output() << std::endl
     << "server output: "<< server_mock.get_full_output() << std::endl;
@@ -108,11 +108,8 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   auto router_static = launch_router("-c " +  conf_file);
 
   // wait for server and router to begin accepting the connections
-  bool ready = wait_for_port_ready(server_port, 1000);
-  ASSERT_TRUE(ready) << server_mock.get_full_output();
-
-  ready = wait_for_port_ready(router_port, 1000);
-  ASSERT_TRUE(ready) << router_static.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(server_port, 5000)) << server_mock.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << router_static.get_full_output();
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded

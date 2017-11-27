@@ -328,6 +328,9 @@ static bool call_until(std::function<bool ()> f, int timeout = 2) {
   while (time(NULL) - start < timeout) {
     if (f())
       return true;
+
+    // wait a bit and let other threads run
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
   return false;
 }
@@ -372,21 +375,22 @@ TEST_F(RoutingTests, bug_24841281) {
 
   int sock1;
   // router is running in a thread, so we need to sync it
-  call_until([&]() -> bool { sock1 = connect_local(router_port); return sock1 > 0; });
+  EXPECT_TRUE(call_until([&]() -> bool { sock1 = connect_local(router_port); return sock1 > 0; }))
+    << "timed out connecting to router_port";
   int sock2 = connect_local(router_port);
 
-  EXPECT_TRUE(sock1 > 0);
-  EXPECT_TRUE(sock2 > 0);
+  EXPECT_THAT(sock1, ::testing::Gt(0));
+  EXPECT_THAT(sock2, ::testing::Gt(0));
 
-  call_until([&server]() -> bool { return server.num_connections_ == 2; });
-  EXPECT_EQ(2, server.num_connections_);
-
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
-  EXPECT_EQ(2, routing.info_active_routes_.load());
+  EXPECT_TRUE(call_until([&server]() -> bool { return server.num_connections_ == 2; }))
+    << "timed out, got " << server.num_connections_ << " connections";
+  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; }))
+    << "timed out, got " << routing.info_active_routes_.load() << " active routes";
 
   disconnect(sock1);
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
-  EXPECT_EQ(1, routing.info_active_routes_.load());
+
+  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; }))
+    << "timed out, got " << routing.info_active_routes_.load() << " active routes";
 
   {
     int sock11 = connect_local(router_port);
@@ -395,8 +399,8 @@ TEST_F(RoutingTests, bug_24841281) {
     EXPECT_TRUE(sock11 > 0);
     EXPECT_TRUE(sock12 > 0);
 
-    call_until([&server]() -> bool { return server.num_connections_ == 3; });
-    EXPECT_EQ(3, server.num_connections_);
+    EXPECT_TRUE(call_until([&server]() -> bool { return server.num_connections_ == 3; }))
+      << "timed out: " << server.num_connections_;
 
     call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 3; });
     EXPECT_EQ(3, routing.info_active_routes_.load());

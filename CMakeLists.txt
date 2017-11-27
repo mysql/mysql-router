@@ -70,6 +70,10 @@ MESSAGE(STATUS "SSL_LIBRARIES:    ${SSL_LIBRARIES}")
 MESSAGE(STATUS "SSL_DEFINES:      ${SSL_DEFINES}")
 MESSAGE(STATUS "SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
 
+IF(UNIX)
+  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+ENDIF()
+
 # Required tools, libraries, etc..
 include(cmake/testing.cmake)  # does not enable testing
 include(cmake/platform.cmake)
