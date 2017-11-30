@@ -109,6 +109,9 @@ class RouterComponentTest {
   RouterComponentTest();
   virtual ~RouterComponentTest() = default;
 
+  static void rewrite_js_to_tracefile(const std::string &infile_name, const std::string &outfile_name,
+                                      const std::map<std::string, std::string> &env_vars);
+
   /** @class CommandHandle
    *
    * Object of this class gets return from launch_* method and can be
@@ -192,6 +195,7 @@ class RouterComponentTest {
      launcher_.start();
     }
 
+  protected:
     bool output_contains(const std::string& str,
                          bool regex = false) const;
 
@@ -246,8 +250,8 @@ class RouterComponentTest {
    * @returns handle to the launched proccess
    */
   CommandHandle launch_router(const std::string &params,
-                     bool catch_stderr = true,
-                     bool with_sudo = false) const;
+                              bool catch_stderr = true,
+                              bool with_sudo = false) const;
 
   /** @brief Launches the MySQLServerMock process.
    *
@@ -314,6 +318,18 @@ class RouterComponentTest {
   const Path &get_data_dir() const {
     return data_dir_;
   }
+
+  /** @brief replace the 'process.env.{id}' in the input stream
+     *
+     * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}' references.
+     *
+     * replaces all references of process.env.{id} with the "environment variables" provided
+     * in env_vars, line-by-line
+     */
+  static void replace_process_env(std::istream &ins,
+                                  std::ostream &outs,
+                                  const std::map<std::string, std::string> &env_vars);
+
 
   /** @brief returns a map with default [DEFAULT] section parameters
    *

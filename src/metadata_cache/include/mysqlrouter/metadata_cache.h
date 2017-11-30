@@ -159,78 +159,108 @@ public:
   const std::vector<metadata_cache::ManagedInstance> instance_vector;
 };
 
-/** @brief Initialize a MetadataCache object and start caching
- *
- * The metadata_cache::cache_init function will initialize a MetadataCache object
- * using the given arguments and store it globally using the given cache_name.
- *
- * Parameters host, port, user, password are used to setup the connection with
- * the metadata server.
- *
- * Cache name given by cache_name can be empty, but must be unique.
- *
- * The parameters connect_timeout, read_timeout and connection_attempts
- * are used when querying the metadata server.
- *
- * Throws a std::runtime_error when the cache object was already
- * initialized.
- *
- * @param bootstrap_servers The list of metadata servers from.
- * @param user MySQL Metadata username
- * @param password MySQL Metadata password
- * @param ttl The time to live for the cached data
- * @param metadata_replicaset The replicaset that is used to maintain the
- *                            metadata.
- * @param ssl_options SSL relatd options for connection
- * @param cluster_name The name of the cluster to be used.
- * @param connect_timeout The time in seconds after which trying to connect
- *                        to metadata server should timeout.
- * @param read_timeout The time in seconds after which read from metadata
- *                     server should timeout.
- */
-void METADATA_API cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
-                const std::string &user, const std::string &password,
-                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
-                const std::string &cluster_name, int connect_timeout, int read_timeout);
+METADATA_API class MetadataCacheAPIBase {
+ public:
 
-/**
- * Teardown the metadata cache
- */
-void METADATA_API cache_stop() noexcept;
+  /** @brief Initialize a MetadataCache object and start caching
+   *
+   * The metadata_cache::cache_init function will initialize a MetadataCache object
+   * using the given arguments and store it globally using the given cache_name.
+   *
+   * Parameters host, port, user, password are used to setup the connection with
+   * the metadata server.
+   *
+   * Cache name given by cache_name can be empty, but must be unique.
+   *
+   * The parameters connection_timeout and connection_attempts are used when
+   * connected to the metadata server.
+   *
+   * Throws a std::runtime_error when the cache object was already
+   * initialized.
+   *
+   * @param bootstrap_servers The list of metadata servers from.
+   * @param user MySQL Metadata username
+   * @param password MySQL Metadata password
+   * @param ttl The time to live for the cached data
+   * @param ssl_options SSL relatd options for connection
+   * @param cluster_name The name of the cluster to be used.
+   * @param connect_timeout The time in seconds after which trying to connect
+   *                        to metadata server should time out.
+   * @param read_timeout The time in seconds after which read from metadata
+   *                     server should time out.
+   */
+  virtual void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+                          const std::string &user, const std::string &password,
+                          unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                          const std::string &cluster_name,
+                          int connect_timeout, int read_timeout) = 0;
 
-/** @brief Returns list of managed server in a HA replicaset
- *
- * Returns a list of MySQL servers managed by the topology for the given
- * HA replicaset.
- *
- * @param replicaset_name ID of the HA replicaset
- * @return List of ManagedInstance objects
- */
-LookupResult METADATA_API lookup_replicaset(const std::string &replicaset_name);
+  /**
+   * @brief Teardown the metadata cache
+   */
+  virtual void cache_stop() noexcept = 0;
+
+  /** @brief Returns list of managed server in a HA replicaset
+   * * Returns a list of MySQL servers managed by the topology for the given
+   * HA replicaset.
+   *
+   * @param replicaset_name ID of the HA replicaset
+   * @return List of ManagedInstance objects
+   */
+  virtual LookupResult lookup_replicaset(const std::string &replicaset_name) = 0;
 
 
-/** @brief Update the status of the instance
- *
- * Called when an instance from a replicaset cannot be reached for one reason or
- * another. When a primary instance becomes unreachable, the rate of refresh of
- * the metadata cache increases to once per second until a new primary is detected.
- *
- * @param instance_id - the mysql_server_uuid that identifies the server instance
- * @param status - the status of the instance
- */
-void METADATA_API mark_instance_reachability(const std::string &instance_id,
-                                             InstanceStatus status);
+  /** @brief Update the status of the instance
+   *
+   * Called when an instance from a replicaset cannot be reached for one reason or
+   * another. When a primary instance becomes unreachable, the rate of refresh of
+   * the metadata cache increases to once per second until a new primary is detected.
+   *
+   * @param instance_id - the mysql_server_uuid that identifies the server instance
+   * @param status - the status of the instance
+   */
+  virtual void mark_instance_reachability(const std::string &instance_id,
+                                          InstanceStatus status) = 0;
 
-/** @brief Wait until there's a primary member in the replicaset
- *
- * To be called when the master of a single-master replicaset is down and
- * we want to wait until one becomes elected.
- *
- * @param timeout - amount of time to wait for a failover, in seconds
- * @return true if a primary member exists
- */
-bool METADATA_API wait_primary_failover(const std::string &replicaset_name,
-                                        int timeout);
+  /** @brief Wait until there's a primary member in the replicaset
+   *
+   * To be called when the master of a single-master replicaset is down and
+   * we want to wait until one becomes elected.
+   *
+   * @param replicaset_name - the name of the replicaset
+   * @param timeout - amount of time to wait for a failover, in seconds
+   * @return true if a primary member exists
+   */
+  virtual bool wait_primary_failover(const std::string &replicaset_name,
+                                          int timeout) = 0;
+
+  virtual  ~MetadataCacheAPIBase() {}
+};
+
+METADATA_API class MetadataCacheAPI: public MetadataCacheAPIBase {
+ public:
+  static METADATA_API MetadataCacheAPI* instance();
+
+  void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+                  const std::string &user, const std::string &password,
+                  unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                  const std::string &cluster_name,
+                  int connect_timeout, int read_timeout) override;
+
+  void cache_stop() noexcept override;
+
+  LookupResult lookup_replicaset(const std::string &replicaset_name) override;
+
+  void mark_instance_reachability(const std::string &instance_id,
+                                  InstanceStatus status)  override;
+
+  bool wait_primary_failover(const std::string &replicaset_name,
+                             int timeout) override;
+ private:
+  MetadataCacheAPI() {}
+  MetadataCacheAPI(const MetadataCacheAPI&) = delete;
+  MetadataCacheAPI& operator=(const MetadataCacheAPI&) = delete;
+};
 
 } // namespace metadata_cache
 

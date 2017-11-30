@@ -268,9 +268,9 @@ void MetadataCache::mark_instance_reachability(const std::string &instance_id,
       break;
   }
 
-  // We only care about loss of primary for the purpose of triggering
-  // faster refreshes if we're in single primary mode
-  if (replicaset && replicaset->single_primary_mode) {
+  // If the instance got marked as invalid we want to trigger metadata-cache update ASAP
+  // to aviod keeping try to route to that instance
+  if (replicaset) {
     std::lock_guard<std::mutex> lplock(lost_primary_replicasets_mutex_);
     switch (status) {
       case metadata_cache::InstanceStatus::Reachable:

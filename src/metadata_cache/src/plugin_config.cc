@@ -33,7 +33,7 @@ using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using std::invalid_argument;
 
-std::string MetadataCachePluginConfig::get_default(const std::string &option) {
+std::string MetadataCachePluginConfig::get_default(const std::string &option) const {
 
   static const std::map<std::string, std::string> defaults{
       {"address",  metadata_cache::kDefaultMetadataAddress},
@@ -48,7 +48,7 @@ std::string MetadataCachePluginConfig::get_default(const std::string &option) {
   return it->second;
 }
 
-bool MetadataCachePluginConfig::is_required(const std::string &option) {
+bool MetadataCachePluginConfig::is_required(const std::string &option) const {
   const std::vector<std::string> required{
       "user",
   };

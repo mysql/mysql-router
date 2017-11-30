@@ -40,6 +40,21 @@
 
 namespace mysqlrouter {
 
+/** Exception that gets thrown when the configuarion option is missing
+ */
+class option_not_present : public std::invalid_argument {
+public:
+  using std::invalid_argument::invalid_argument;
+};
+
+/** Exception that gets thrown when the configuarion option is present
+ *  but it is empty value
+ */
+class option_empty : public std::invalid_argument {
+public:
+  using std::invalid_argument::invalid_argument;
+};
+
 /** @class BasePluginConfig
  * @brief Retrieve and manage plugin configuration
  *
@@ -62,11 +77,15 @@ public:
 
   /** @brief Gets value of given option as string
    *
+   * @throws option_not_present if the required option is missing
+   * @throws option_empty if the required option is present but empty
+   *
    * @param section Instance of ConfigSection
    * @param option name of the option
    * @return Option value as std::string
+   *
    */
-  std::string get_option_string(const mysql_harness::ConfigSection *section, const std::string &option);
+  std::string get_option_string(const mysql_harness::ConfigSection *section, const std::string &option) const;
 
   /** @brief Name of the section */
   std::string section_name;
@@ -90,13 +109,13 @@ protected:
    * @param option name of the option
    * @return default value for given option as std::string
    */
-  virtual std::string get_default(const std::string &option) = 0;
+  virtual std::string get_default(const std::string &option) const = 0;
 
   /** @brief Returns whether the given option is required
    *
    * @return bool
    */
-  virtual bool is_required(const std::string &option) = 0;
+  virtual bool is_required(const std::string &option) const = 0;
 
   /**
    * @brief Returns message prefix for option and section

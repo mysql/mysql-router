@@ -256,7 +256,7 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
       },
 
       {
-        typeid(std::invalid_argument),
+        typeid(mysqlrouter::option_not_present),
         "option user in [metadata_cache] is required",
       }
     },

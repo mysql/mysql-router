@@ -110,9 +110,10 @@ class MySQLRouting {
 public:
   /** @brief Default constructor
    *
-   * @param mode access mode, RO or RW
+   * @param routing_strategy routing strategy
    * @param port TCP port for listening for incoming connections
    * @param protocol protocol for the routing
+   * @param access_mode access mode of the servers
    * @param bind_address bind_address Bind to particular IP address
    * @param named_socket Bind to Unix socket/Windows named pipe
    * @param route_name Name of connection routing (can be empty string)
@@ -123,8 +124,10 @@ public:
    * @param net_buffer_length send/receive buffer size
    * @param socket_operations object handling the operations on network sockets
    */
-  MySQLRouting(routing::AccessMode mode, uint16_t port,
+  MySQLRouting(routing::RoutingStrategy routing_strategy,
+               uint16_t port,
                const Protocol::Type protocol,
+               const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
                const string &bind_address = string{"0.0.0.0"},
                const mysql_harness::Path& named_socket = mysql_harness::Path(),
                const string &route_name = string{},
@@ -272,8 +275,12 @@ private:
    */
   static std::string make_thread_name(const std::string& config_name, const std::string& prefix);
 
-  /** @brief Mode to use when getting next destination */
-  routing::AccessMode mode_;
+  /** @brief Routing strategy to use when getting next destination */
+  routing::RoutingStrategy routing_strategy_;
+
+  /** @brief Access mode of the servers in the routing */
+  routing::AccessMode access_mode_;
+
   /** @brief Maximum active connections
    *
    * Maximum number of incoming connections that will be accepted

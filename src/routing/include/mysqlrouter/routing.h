@@ -112,8 +112,29 @@ enum class AccessMode {
   kReadOnly = 2,
 };
 
-void get_access_mode_names(std::string*);
-AccessMode get_access_mode(const std::string&);
+/** @brief Routing strategies supported by Routing plugin */
+enum class RoutingStrategy {
+  kUndefined = 0,
+  kFirstAvailable = 1,
+  kNextAvailable = 2,
+  kRoundRobin = 3,
+  kRoundRobinWithFallback = 4,
+};
+
+/** @brief Get comma separated list of all access mode names
+ *
+ */
+std::string get_access_mode_names();
+
+/** @brief Returns AccessMode for its literal representation
+ *
+ * If no AccessMode is found for given string,
+ * AccessMode::kUndefined is returned.
+ *
+ * @param value literal representation of the access mode
+ * @return AccessMode for the given string or AccessMode::kUndefined
+ */
+AccessMode get_access_mode(const std::string& value);
 
 /** @brief Returns literal name of given access mode
  *
@@ -124,6 +145,36 @@ AccessMode get_access_mode(const std::string&);
  * @return Name of access mode as std::string or empty string
  */
 std::string get_access_mode_name(AccessMode access_mode) noexcept;
+
+/** @brief Get comma separated list of all routing stategy names
+ *         for a given routing type (metadata cache or static)
+ *
+ *
+ * @param metadata_cache bool flag indicating if the list should contain
+ *                       strategies supported for metadata_cache
+ *                        or static routing
+ */
+std::string get_routing_strategy_names(bool metadata_cache);
+
+/** @brief Returns RoutingStrategy for its literal representation
+ *
+ * If no RoutingStrategy is found for given string,
+ * RoutingStrategy::kUndefined is returned.
+ *
+ * @param value literal representation of the access mode
+ * @return RoutingStrategy for the given string or RoutingStrategy::kUndefined
+ */
+RoutingStrategy get_routing_strategy(const std::string& value);
+
+/** @brief Returns literal name of given routing strategy
+ *
+ * Returns literal name of given routing strategy as a std:string. When
+ * the routing strategy is not found, empty string is returned.
+ *
+ * @param routing_strategy Routing strategy to look up
+ * @return Name of routing strategy as std::string or empty string
+ */
+std::string get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept;
 
 /**
  * Sets blocking flag for given socket

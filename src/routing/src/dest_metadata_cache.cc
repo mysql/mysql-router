@@ -30,7 +30,6 @@
 
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
-#include "mysqlrouter/metadata_cache.h"
 #include "mysql/harness/logging/logging.h"
 
 using mysqlrouter::to_string;
@@ -40,7 +39,6 @@ using std::chrono::duration_cast;
 using std::chrono::system_clock;
 using std::chrono::seconds;
 
-using metadata_cache::lookup_replicaset;
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()
 
@@ -51,127 +49,265 @@ static const int kPrimaryFailoverTimeout = 10;
 
 static const std::set<std::string> supported_params{"role", "allow_primary_reads"};
 
+namespace {
+
+DestMetadataCacheGroup::ServerRole get_server_role_from_uri(const mysqlrouter::URIQuery &uri) {
+  if (uri.find("role") == uri.end())
+    throw runtime_error("Missing 'role' in routing destination specification");
+
+  const std::string name =  uri.at("role");
+  std::string name_lc = name;
+  std::transform(name.begin(), name.end(), name_lc.begin(), ::tolower);
+
+  if (name_lc == "primary")
+    return DestMetadataCacheGroup::ServerRole::Primary;
+  else if (name_lc == "secondary")
+    return DestMetadataCacheGroup::ServerRole::Secondary;
+  else if (name_lc == "primary_and_secondary")
+    return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
+
+  throw std::runtime_error("Invalid server role in metadata cache routing '"+name+"'");
+}
+
+std::string get_server_role_name(const DestMetadataCacheGroup::ServerRole role) {
+  switch (role) {
+   case DestMetadataCacheGroup::ServerRole::Primary:
+    return "primary";
+   case DestMetadataCacheGroup::ServerRole::Secondary:
+    return "secondary";
+   case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
+    return "primary_and_secondary";
+  }
+
+  return "unknown";
+}
+
+routing::RoutingStrategy get_default_routing_strategy(const DestMetadataCacheGroup::ServerRole role) {
+  switch (role) {
+   case DestMetadataCacheGroup::ServerRole::Primary:
+   case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
+   case DestMetadataCacheGroup::ServerRole::Secondary:
+    return routing::RoutingStrategy::kRoundRobin;
+  }
+
+  return routing::RoutingStrategy::kUndefined;
+}
+
+
+/** @brief check that mode (if present) is correct for the role */
+bool mode_is_valid(const routing::AccessMode mode, const DestMetadataCacheGroup::ServerRole role) {
+  // no mode given, that's ok, nothing to check
+  if (mode == routing::AccessMode::kUndefined) {
+    return true;
+  }
+
+  switch (role) {
+   case DestMetadataCacheGroup::ServerRole::Primary:
+    return mode == routing::AccessMode::kReadWrite;
+   case DestMetadataCacheGroup::ServerRole::Secondary:
+   case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
+    return mode == routing::AccessMode::kReadOnly;
+   default:; //
+    /* fall-through, no acces mode is valid for that role */
+  }
+
+  return false;
+}
+
+} // namespace {
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 // doxygen confuses 'const mysqlrouter::URIQuery &query' with 'std::map<std::string, std::string>'
-DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache, const std::string &replicaset,
-  const std::string &mode, const mysqlrouter::URIQuery &query,
-  const Protocol::Type protocol) :
-    RouteDestination(protocol),
+DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache,
+                                               const std::string &replicaset,
+                                               const routing::RoutingStrategy routing_strategy,
+                                               const mysqlrouter::URIQuery &query,
+                                               const Protocol::Type protocol,
+                                               const routing::AccessMode access_mode,
+                                               metadata_cache::MetadataCacheAPIBase* cache_api,
+                                               routing::SocketOperationsBase *sock_ops) :
+    RouteDestination(protocol, sock_ops),
     cache_name_(metadata_cache),
     ha_replicaset_(replicaset),
     uri_query_(query),
-    allow_primary_reads_(false),
-    current_pos_(0) {
-  if (mode == "read-only")
-    routing_mode_ = ReadOnly;
-  else if (mode == "read-write")
-    routing_mode_ = ReadWrite;
-  else
-    throw std::runtime_error("Invalid routing mode value '"+mode+"'");
+    current_pos_(0),
+    routing_strategy_(routing_strategy),
+    access_mode_(access_mode),
+    server_role_(get_server_role_from_uri(query)),
+    cache_api_(cache_api) {
+
   init();
 }
 #endif
 
-std::vector<mysqlrouter::TCPAddress> DestMetadataCacheGroup::get_available(std::vector<std::string> *server_ids) {
-  auto managed_servers = lookup_replicaset(ha_replicaset_).instance_vector;
-  std::vector<mysqlrouter::TCPAddress> available;
+DestMetadataCacheGroup::AvailableDestinations DestMetadataCacheGroup::get_available() {
+  auto managed_servers = cache_api_->lookup_replicaset(ha_replicaset_).instance_vector;
+  DestMetadataCacheGroup::AvailableDestinations result;
+
+  bool primary_fallback{false};
+  if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
+    // if there are no secondaries available we fall-back to primaries
+    auto secondary = std::find_if(managed_servers.begin(), managed_servers.end(),
+            [](const metadata_cache::ManagedInstance& i)
+            {
+              return i.mode == metadata_cache::ServerMode::ReadOnly;
+            });
+
+    primary_fallback = secondary == managed_servers.end();
+  }
+
   for (auto &it: managed_servers) {
     if (!(it.role == "HA")) {
       continue;
     }
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? static_cast<uint16_t>(it.xport) : static_cast<uint16_t>(it.port);
-    if (routing_mode_ == RoutingMode::ReadOnly && it.mode == metadata_cache::ServerMode::ReadOnly) {
-      // Secondary read-only
-      available.push_back(mysqlrouter::TCPAddress(it.host, port));
-      if (server_ids)
-        server_ids->push_back(it.mysql_server_uuid);
-    } else if ((routing_mode_ == RoutingMode::ReadWrite &&
-                it.mode == metadata_cache::ServerMode::ReadWrite) ||
-               allow_primary_reads_) {
-      // Primary and secondary read-write/write-only
-      available.push_back(mysqlrouter::TCPAddress(it.host, port));
-      if (server_ids)
-        server_ids->push_back(it.mysql_server_uuid);
+
+    // role=PRIMARY_AND_SECONDARY
+    if ((server_role_ == ServerRole::PrimaryAndSecondary) &&
+        (it.mode == metadata_cache::ServerMode::ReadWrite || it.mode == metadata_cache::ServerMode::ReadOnly)) {
+      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.id.push_back(it.mysql_server_uuid);
+      continue;
+    }
+
+    // role=SECONDARY
+    if (server_role_ == ServerRole::Secondary && it.mode == metadata_cache::ServerMode::ReadOnly) {
+      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.id.push_back(it.mysql_server_uuid);
+      continue;
+    }
+
+    // role=PRIMARY
+    if ((server_role_ == ServerRole::Primary || primary_fallback)
+         && it.mode == metadata_cache::ServerMode::ReadWrite) {
+      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.id.push_back(it.mysql_server_uuid);
+      continue;
     }
   }
 
-  return available;
+  return result;
 }
 
 void DestMetadataCacheGroup::init() {
   // check if URI does not contain parameters that we don't understand
   for (const auto& uri_param: uri_query_) {
     if (supported_params.count(uri_param.first) == 0) {
-      throw std::runtime_error("Unsupported metadata-cache parameter in URI: \"" + uri_param.first + "\"");
+      throw std::runtime_error("Unsupported 'metadata-cache' parameter in URI: '" + uri_param.first + "'");
     }
   }
 
+  // if the routing strategy is set we don't allow mode to be set
+  if (routing_strategy_ != routing::RoutingStrategy::kUndefined &&
+      access_mode_ != routing::AccessMode::kUndefined ) {
+    throw std::runtime_error("option 'mode' is not allowed together with 'routing_strategy' option");
+  }
+
+  bool routing_strategy_default{false};
+  // if the routing_strategy is not set we go with the default based on the role
+  if (routing_strategy_ == routing::RoutingStrategy::kUndefined) {
+    routing_strategy_ = get_default_routing_strategy(server_role_);
+    routing_strategy_default = true;
+  }
+
+  // check that mode (if present) is correct for the role
+  // we don't actually use it but support it for backward compatibility
+  // and parity with STANDALONE routing destinations
+  if (!mode_is_valid(access_mode_, server_role_)) {
+    throw std::runtime_error("mode '" + routing::get_access_mode_name(access_mode_) +
+                             "' is not valid for 'role=" + get_server_role_name(server_role_) + "'");
+  }
+
+  // this is for backward compatibility
+  // old(allow_primary_reads + role=SECONDARY) = new (role=PRIMARY_AND_SECONDARY)
   auto query_part = uri_query_.find("allow_primary_reads");
   if (query_part != uri_query_.end()) {
-    if (routing_mode_ == RoutingMode::ReadOnly) {
-      const auto& value = query_part->second;
-      std::string value_lower;
-      std::transform(value.begin(), value.end(), std::back_inserter(value_lower), ::tolower);
-      if (value_lower == "yes") {
-        allow_primary_reads_ = true;
-      }
-      else if (value_lower == "no") {
-        // it's a default but we allow it for consistency
-      }
-      else {
-        throw std::runtime_error("Invalid value for allow_primary_reads option: \"" + value + "\"");
-      }
-    } else {
-      log_warning("allow_primary_reads only works with read-only mode");
+    if (server_role_ != ServerRole::Secondary) {
+      throw std::runtime_error("allow_primary_reads is supported only for SECONDARY routing");
+    }
+    if (!routing_strategy_default) {
+      throw std::runtime_error("allow_primary_reads is only supported for backward compatibility: "
+                               "without routing_strategy but with mode defined, use role=PRIMARY_AND_SECONDARY instead");
+    }
+    auto value = query_part->second;
+    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+    if (value == "yes") {
+      server_role_ = ServerRole::PrimaryAndSecondary;
+    }
+    else if (value == "no") {
+      // it's a default but we allow it for consistency
+    }
+    else {
+      throw std::runtime_error("Invalid value for allow_primary_reads option: '" + query_part->second + "'");
     }
   }
 
-  query_part = uri_query_.find("role");
-  if (query_part != uri_query_.end()) {
-    const auto& value = query_part->second;
-    std::string value_lower;
-    std::transform(value.begin(), value.end(), std::back_inserter(value_lower), ::tolower);
-    if (value_lower != "primary" && value_lower != "secondary") {
-      throw std::runtime_error("Invalid value for role option: \"" + value + "\"");
-    }
+  // validate routing strategy:
+  switch (routing_strategy_) {
+    case routing::RoutingStrategy::kRoundRobinWithFallback:
+      if (server_role_ != ServerRole::Secondary) {
+        throw std::runtime_error("Strategy 'round-robin-with-fallback' is supported only for SECONDARY routing");
+      }
+    break;
+    case routing::RoutingStrategy::kFirstAvailable:
+    case routing::RoutingStrategy::kRoundRobin:
+      break;
+    default:
+      throw std::runtime_error("Unsupported routing strategy: "
+                               + routing::get_routing_strategy_name(routing_strategy_));
   }
+}
+
+size_t DestMetadataCacheGroup::get_next_server(
+    const DestMetadataCacheGroup::AvailableDestinations& available) {
+  std::lock_guard<std::mutex> lock(mutex_update_);
+  size_t result = 0;
+
+  switch (routing_strategy_) {
+  case routing::RoutingStrategy::kFirstAvailable:
+    result = current_pos_;
+    break;
+  case routing::RoutingStrategy::kRoundRobin:
+  case routing::RoutingStrategy::kRoundRobinWithFallback:
+    result = current_pos_;
+    if (result >= available.address.size()) {
+      result = 0;
+      current_pos_ = 0;
+    }
+    ++current_pos_;
+    if (current_pos_ >= available.address.size()) {
+      current_pos_ = 0;
+    }
+    break;
+  default:
+    assert(0);
+    // impossible we verify this in init()
+    ;
+  }
+
+  return result;
 }
 
 int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
   while (true) {
     try {
-      std::vector<std::string> server_ids;
-      auto available = get_available(&server_ids);
-      if (available.empty()) {
-        log_warning("No available %s servers found for '%s'",
-            routing_mode_ == RoutingMode::ReadWrite ? "RW" : "RO",
-            ha_replicaset_.c_str());
+      auto available = get_available();
+      if (available.address.empty()) {
+        log_warning("No available servers found for '%s' %s routing",
+            ha_replicaset_.c_str(),
+            server_role_ == ServerRole::Primary ? "primary" : "secondary");
         return -1;
       }
 
-      size_t next_up = 0;
-      {
-        std::lock_guard<std::mutex> lock(mutex_update_);
-        // round-robin between available nodes
-        next_up = current_pos_;
-        if (next_up >= available.size()) {
-          next_up = 0;
-          current_pos_ = 0;
-        }
-        ++current_pos_;
-        if (current_pos_ >= available.size()) {
-          current_pos_ = 0;
-        }
-      }
-
-      int fd = get_mysql_socket(available.at(next_up), connect_timeout);
+      size_t next_up = get_next_server(available);
+      int fd = get_mysql_socket(available.address.at(next_up), connect_timeout);
       if (fd < 0) {
         // Signal that we can't connect to the instance
-        metadata_cache::mark_instance_reachability(server_ids.at(next_up),
+        cache_api_->mark_instance_reachability(available.id.at(next_up),
             metadata_cache::InstanceStatus::Unreachable);
         // if we're looking for a primary member, wait for there to be at least one
-        if (routing_mode_ == RoutingMode::ReadWrite &&
-            metadata_cache::wait_primary_failover(ha_replicaset_,
+        if (server_role_ == ServerRole::Primary &&
+            cache_api_->wait_primary_failover(ha_replicaset_,
                 kPrimaryFailoverTimeout)) {
           log_info("Retrying connection for '%s' after possible failover",
                    ha_replicaset_.c_str());

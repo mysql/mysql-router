@@ -75,6 +75,7 @@ protected:
     bind_address = "127.0.0.1:15508";
     destinations = "127.0.0.1:3306";
     socket = rundir + "/unix_socket";
+    routing_strategy = "round-robin";
     mode = "read-only";
     connect_timeout = "1";
     client_connect_timeout = "9";
@@ -102,6 +103,7 @@ protected:
         {"bind_address",            std::ref(bind_address)},
         {"socket",                  std::ref(socket)},
         {"destinations",            std::ref(destinations)},
+        {"routing_strategy",        std::ref(routing_strategy)},
         {"mode",                    std::ref(mode)},
         {"connect_timeout",         std::ref(connect_timeout)},
         {"client_connect_timeout",  std::ref(client_connect_timeout)},
@@ -145,6 +147,7 @@ protected:
   string bind_address;
   string destinations;
   string socket;
+  string routing_strategy;
   string mode;
   string connect_timeout;
   string client_connect_timeout;
@@ -192,15 +195,16 @@ TEST_F(RoutingPluginTests, StartCorrectSection) {
   ASSERT_THAT(cmd_result.output, HasSubstr("[routing:break]"));
 }
 
-TEST_F(RoutingPluginTests, StartMissingMode) {
-  reset_config({"mode"});
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("option mode in [routing:tests] needs to be specified; valid are"));
-}
-
 TEST_F(RoutingPluginTests, StartCaseInsensitiveMode) {
   mode = "Read-Only";
+  reset_config({}, true);
+  auto cmd_result = cmd_exec(cmd, true);
+  ASSERT_THAT(cmd_result.output,
+              Not(HasSubstr("valid are")));
+}
+
+TEST_F(RoutingPluginTests, StartCaseInsensitiveRoutingStrategy) {
+  routing_strategy = "First-Available";
   reset_config({}, true);
   auto cmd_result = cmd_exec(cmd, true);
   ASSERT_THAT(cmd_result.output,

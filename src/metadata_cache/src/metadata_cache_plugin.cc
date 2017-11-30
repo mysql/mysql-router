@@ -118,7 +118,7 @@ static void start(mysql_harness::PluginFuncEnv* env) {
 
     log_info("Starting Metadata Cache");
     // Initialize the metadata cache.
-    metadata_cache::cache_init(config.bootstrap_addresses, config.user,
+    metadata_cache::MetadataCacheAPI::instance()->cache_init(config.bootstrap_addresses, config.user,
                                password, ttl,
                                make_ssl_options(section),
                                metadata_cluster,
@@ -140,7 +140,7 @@ static void start(mysql_harness::PluginFuncEnv* env) {
 
   // keep it running until Harness tells us to shut down
   wait_for_stop(env, 0);
-  metadata_cache::cache_stop();
+  metadata_cache::MetadataCacheAPI::instance()->cache_stop();
 }
 
 extern "C" {

@@ -47,7 +47,6 @@ using std::make_pair;
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
-using mysql_harness::utility::serial_comma;
 using mysql_harness::utility::strip;
 using mysql_harness::utility::strip_copy;
 
@@ -99,20 +98,4 @@ TEST(TestUtilities, FindRangeFirst) {
   auto rng4 = find_range_first(assoc, "xyzzy");
   EXPECT_EQ(rng4.first, assoc.end());
   EXPECT_EQ(0, distance(rng4.first, rng4.second));
-}
-
-TEST(TestUtilities, SerialComma) {
-  const int primes[]{2, 3, 5, 7, 11};
-
-  auto expect_output = [&primes](int count, const std::string& expect) {
-    std::stringstream buffer;
-    buffer << "Primes are ";
-    serial_comma(buffer, &primes[0], &primes[count]);
-    EXPECT_EQ(buffer.str(), "Primes are " + expect);
-  };
-
-  expect_output(1, "2");
-  expect_output(2, "2 and 3");
-  expect_output(3, "2, 3, and 5");
-  expect_output(5, "2, 3, 5, 7, and 11");
 }

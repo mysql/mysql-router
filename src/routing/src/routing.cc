@@ -19,6 +19,7 @@
 #include "mysqlrouter/utils.h"
 #include "router_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "common.h"
 #include "utils.h"
 
 #include <cstring>
@@ -60,31 +61,57 @@ const std::chrono::seconds kDefaultClientConnectTimeout { 9 }; // Default connec
 // const int kMaxConnectTimeout = INT_MAX / 1000;
 
 
-const char* const kAccessModeNames[] = {
+// keep in-sync with enum AccessMode
+const std::vector<const char*> kAccessModeNames {
   nullptr, "read-write", "read-only"
 };
 
-constexpr size_t kAccessModeCount =
-    sizeof(kAccessModeNames)/sizeof(*kAccessModeNames);
-
 AccessMode get_access_mode(const std::string& value) {
-  for (unsigned int i = 1 ; i < kAccessModeCount ; ++i)
+  for (unsigned int i = 1 ; i < kAccessModeNames.size() ; ++i)
     if (strcmp(kAccessModeNames[i], value.c_str()) == 0)
       return static_cast<AccessMode>(i);
   return AccessMode::kUndefined;
 }
 
-void get_access_mode_names(std::string* valid) {
-  unsigned int i = 1;
-  while (i < kAccessModeCount) {
-    valid->append(kAccessModeNames[i]);
-    if (++i < kAccessModeCount)
-      valid->append(", ");
-  }
+std::string get_access_mode_names() {
+  // +1 to skip undefined
+  return mysql_harness::serial_comma(kAccessModeNames.begin()+1, kAccessModeNames.end());
 }
 
 std::string get_access_mode_name(AccessMode access_mode) noexcept {
   return kAccessModeNames[static_cast<int>(access_mode)];
+}
+
+// keep in-sync with enum RoutingStrategy
+const std::vector<const char*> kRoutingStrategyNames {
+  nullptr, "first-available", "next-available", "round-robin", "round-robin-with-fallback"
+};
+
+
+RoutingStrategy get_routing_strategy(const std::string& value) {
+  for (unsigned int i = 1 ; i < kRoutingStrategyNames.size() ; ++i)
+    if (strcmp(kRoutingStrategyNames[i], value.c_str()) == 0)
+      return static_cast<RoutingStrategy>(i);
+  return RoutingStrategy::kUndefined;
+}
+
+std::string get_routing_strategy_names(bool metadata_cache) {
+  // round-robin-with-fallback is not supported for static routing
+  const std::vector<const char*> kRoutingStrategyNamesStatic {
+    "first-available", "next-available", "round-robin"
+  };
+
+  // next-available is not supported for metadata-cache routing
+  const std::vector<const char*> kRoutingStrategyNamesMetadataCache {
+    "first-available", "round-robin", "round-robin-with-fallback"
+  };
+
+  const auto& v = metadata_cache ? kRoutingStrategyNamesMetadataCache: kRoutingStrategyNamesStatic;
+  return mysql_harness::serial_comma(v.begin(), v.end());
+}
+
+std::string get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept {
+  return kRoutingStrategyNames[static_cast<int>(routing_strategy)];
 }
 
 void set_socket_blocking(int sock, bool blocking) {

@@ -1175,7 +1175,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << endpoint_option(options, options.rw_endpoint) << "\n"
       << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=PRIMARY\n"
-      << "mode=read-write\n"
+      << "routing_strategy=round-robin\n"
       << "protocol=classic\n"
       << "\n";
   }
@@ -1185,7 +1185,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << endpoint_option(options, options.ro_endpoint) << "\n"
       << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=SECONDARY\n"
-      << "mode=read-only\n"
+      << "routing_strategy=round-robin\n"
       << "protocol=classic\n"
       << "\n";
   }
@@ -1195,7 +1195,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << endpoint_option(options, options.rw_x_endpoint) << "\n"
       << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=PRIMARY\n"
-      << "mode=read-write\n"
+      << "routing_strategy=round-robin\n"
       << "protocol=x\n"
       << "\n";
   }
@@ -1205,7 +1205,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << endpoint_option(options, options.ro_x_endpoint) << "\n"
       << "destinations=metadata-cache://" << metadata_key << "/"
           << metadata_replicaset << "?role=SECONDARY\n"
-      << "mode=read-only\n"
+      << "routing_strategy=round-robin\n"
       << "protocol=x\n"
       << "\n";
   }

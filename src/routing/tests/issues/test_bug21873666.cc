@@ -56,7 +56,9 @@ protected:
 };
 
 TEST_F(Bug21771595, ConstructorDefaults) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test");
   ASSERT_EQ(r.get_destination_connect_timeout(), routing::kDefaultDestinationConnectionTimeout);
   ASSERT_EQ(r.get_max_connections(), routing::kDefaultMaxConnections);
 }
@@ -65,14 +67,18 @@ TEST_F(Bug21771595, Constructor) {
   auto expect_max_connections = routing::kDefaultMaxConnections - 10;
   auto expect_connect_timeout = routing::kDefaultDestinationConnectionTimeout + std::chrono::seconds(10);
 
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test",
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test",
                  expect_max_connections, expect_connect_timeout);
   ASSERT_EQ(r.get_destination_connect_timeout(), expect_connect_timeout);
   ASSERT_EQ(r.get_max_connections(), expect_max_connections);
 }
 
 TEST_F(Bug21771595, GetterSetterDestinationConnectionTimeout) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test");
   ASSERT_EQ(r.get_destination_connect_timeout(), routing::kDefaultDestinationConnectionTimeout);
   auto expected = routing::kDefaultDestinationConnectionTimeout + std::chrono::seconds(1);
   ASSERT_EQ(r.set_destination_connect_timeout(expected), expected);
@@ -80,7 +86,9 @@ TEST_F(Bug21771595, GetterSetterDestinationConnectionTimeout) {
 }
 
 TEST_F(Bug21771595, GetterSetterMaxConnections) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test");
   ASSERT_EQ(r.get_max_connections(), routing::kDefaultMaxConnections);
   auto expected = routing::kDefaultMaxConnections + 1;
   ASSERT_EQ(r.set_max_connections(expected), expected);
@@ -88,7 +96,9 @@ TEST_F(Bug21771595, GetterSetterMaxConnections) {
 }
 
 TEST_F(Bug21771595, InvalidSetterDestinationConnectTimeout) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test");
   ASSERT_THROW(r.set_destination_connect_timeout(std::chrono::seconds(-1)), std::invalid_argument);
   // ASSERT_THROW(r.set_destination_connect_timeout(UINT16_MAX+1), std::invalid_argument);
   try {
@@ -97,12 +107,16 @@ TEST_F(Bug21771595, InvalidSetterDestinationConnectTimeout) {
     ASSERT_THAT(exc.what(), HasSubstr(
       "tried to set destination_connect_timeout using invalid value, was 0 ms"));
   }
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test", 1, std::chrono::seconds(-1)),
+  ASSERT_THROW(MySQLRouting(routing::RoutingStrategy::kRoundRobin,
+                            7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                            "127.0.0.1", mysql_harness::Path(), "test", 1, std::chrono::seconds(-1)),
       std::invalid_argument);
 }
 
 TEST_F(Bug21771595, InvalidMaxConnections) {
-  MySQLRouting r(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                 "127.0.0.1", mysql_harness::Path(), "test");
   ASSERT_THROW(r.set_max_connections(-1), std::invalid_argument);
   ASSERT_THROW(r.set_max_connections(UINT16_MAX+1), std::invalid_argument);
   try {
@@ -111,14 +125,20 @@ TEST_F(Bug21771595, InvalidMaxConnections) {
     ASSERT_THAT(exc.what(), HasSubstr(
       "tried to set max_connections using invalid value, was '0'"));
   }
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 7001, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test", 0, std::chrono::seconds(1)),
+  ASSERT_THROW(MySQLRouting(routing::RoutingStrategy::kRoundRobin,
+                            7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                            "127.0.0.1", mysql_harness::Path(), "test", 0, std::chrono::seconds(1)),
     std::invalid_argument);
 }
 
 TEST_F(Bug21771595, InvalidPort) {
-  ASSERT_THROW(MySQLRouting(routing::AccessMode::kReadOnly, 0, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test"), std::invalid_argument);
+  ASSERT_THROW(MySQLRouting(routing::RoutingStrategy::kRoundRobin,
+                            0, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                            "127.0.0.1", mysql_harness::Path(), "test"), std::invalid_argument);
   try {
-    MySQLRouting r(routing::AccessMode::kReadOnly, (uint16_t)-1, Protocol::Type::kClassicProtocol, "127.0.0.1", mysql_harness::Path(), "test");
+    MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
+                   (uint16_t)-1, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
+                   "127.0.0.1", mysql_harness::Path(), "test");
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), HasSubstr("Invalid bind address, was '127.0.0.1', port -1"));
   }

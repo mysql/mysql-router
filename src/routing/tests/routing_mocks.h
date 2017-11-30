@@ -15,6 +15,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifndef ROUTING_MOCKS_INCLUDED
+#define ROUTING_MOCKS_INCLUDED
+
 #ifdef _WIN32
 #  include "Winsock2.h"
 #endif
@@ -31,12 +34,10 @@
 #  if __has_warning("-Wsign-conversion")
 #    pragma clang diagnostic ignored "-Wsign-conversion"
 #  endif
-#  include "gmock/gmock.h"
-#  include "gtest/gtest.h"
-#else
-#  include "gmock/gmock.h"
-#  include "gtest/gtest.h"
 #endif
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
 
 class MockSocketOperations : public routing::SocketOperationsBase {
  public:
@@ -104,3 +105,6 @@ class MockSocketOperations : public routing::SocketOperationsBase {
 #ifdef __clang__
 #  pragma clang diagnostic pop
 #endif
+
+
+#endif // ROUTING_MOCKS_INCLUDED

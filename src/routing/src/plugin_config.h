@@ -42,6 +42,11 @@ using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
 
 class RoutingPluginConfig final : public mysqlrouter::BasePluginConfig {
+private:
+  // is this [routing] entry for static routing or metadata-cache ?
+  // it's mutable because we discover it while calling getter for
+  // option destinations
+  mutable bool metadata_cache_;
 public:
   /** @brief Constructor
    *
@@ -52,9 +57,9 @@ public:
   /**
    * @param option option to get
    */
-  std::string get_default(const std::string &option);
+  std::string get_default(const std::string &option) const override;
 
-  bool is_required(const std::string &option);
+  bool is_required(const std::string &option) const override;
 
   /** @brief `protocol` option read from configuration section */
   const Protocol::Type protocol;
@@ -70,6 +75,8 @@ public:
   const int connect_timeout;
   /** @brief `mode` option read from configuration section */
   const routing::AccessMode mode;
+  /** @brief `routing_strategy` option read from configuration section */
+  routing::RoutingStrategy routing_strategy;
   /** @brief `max_connections` option read from configuration section */
   const int max_connections;
   /** @brief `max_connect_errors` option read from configuration section */
@@ -82,10 +89,12 @@ public:
 protected:
 
 private:
-  routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const std::string &option);
+
+  routing::AccessMode get_option_mode(const mysql_harness::ConfigSection *section, const std::string &option) const;
+  routing::RoutingStrategy get_option_routing_strategy(const mysql_harness::ConfigSection *section, const std::string &option) const;
   std::string get_option_destinations(const mysql_harness::ConfigSection *section, const std::string &option,
-                                      const Protocol::Type &protocol_type);
-  Protocol::Type get_protocol(const mysql_harness::ConfigSection *section, const std::string &option);
+                                      const Protocol::Type &protocol_type) const;
+  Protocol::Type get_protocol(const mysql_harness::ConfigSection *section, const std::string &option) const;
 };
 
 #endif // PLUGIN_CONFIG_ROUTING_INCLUDED

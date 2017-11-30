@@ -25,6 +25,7 @@
 #  include <sys/types.h>
 #  include <unistd.h>
 #else
+#  define USE_STD_REGEX
 #  define WIN32_LEAN_AND_MEAN
 #  define NOMINMAX
 #  include <winsock2.h>
@@ -51,6 +52,11 @@
 #include <thread>
 #include <system_error>
 
+#ifdef USE_STD_REGEX
+#  include <regex>
+#else
+#  include <regex.h>
+#endif
 using mysql_harness::Path;
 
 namespace {
@@ -172,6 +178,7 @@ RouterComponentTest::CommandHandle
 RouterComponentTest::launch_mysql_server_mock(const std::string& json_file,
                                               unsigned port,
                                               bool debug_mode) const {
+
   return launch_command(mysqlserver_mock_exec_.str(), json_file
                         + " " + std::to_string(port)
                         + " " + (debug_mode ? "1" : "0"),
@@ -186,6 +193,11 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
+  // Valgrind needs way more time
+  if (getenv("WITH_VALGRIND")) {
+    timeout_msec *= 10;
+  }
+
   int status = getaddrinfo(hostname.c_str(),
                            std::to_string(port).c_str(),
                            &hints, &ainfo);
@@ -195,7 +207,7 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
   }
   std::shared_ptr<void> exit_freeaddrinfo(nullptr, [&](void*){freeaddrinfo(ainfo);});
 
-  const unsigned MSEC_STEP = 100;
+  const unsigned MSEC_STEP = 10;
   do {
     auto sock_id = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
     if (sock_id < 0) {
@@ -238,6 +250,79 @@ void RouterComponentTest::get_params(const std::string &command,
   }
   out_params[i] = nullptr;
 }
+
+/* static */
+void RouterComponentTest::replace_process_env(std::istream &ins, std::ostream &outs, const std::map<std::string, std::string> &env_vars) {
+  std::string line;
+  const char* regex = "^(.*)process\\.env\\.([A-Za-z_][A-Za-z0-9_]*)(.*)$";
+
+#ifdef USE_STD_REGEX
+  std::regex js_process_env_regex(regex);
+  while (std::getline(ins, line)) {
+    std::smatch m;
+    if (std::regex_match(line, m, js_process_env_regex)) {
+      try {
+        outs << m[1].str() << "\"" << env_vars.at(m[2].str()) << "\"" << m[3].str() << std::endl;
+      } catch (const std::out_of_range &e) {
+        throw std::runtime_error("Envvar " + m[2].str() + " requested, but isn't defined");
+      }
+    } else {
+      outs << line << std::endl;
+    }
+  }
+#else
+  regex_t r;
+  int r_err;
+  char r_errbuf[256];
+
+  r_err = regcomp(&r, regex, REG_EXTENDED);
+
+  if (r_err) {
+    regerror(r_err, NULL, r_errbuf, sizeof(r_errbuf));
+    throw std::runtime_error(std::string("compiling regex ") + regex + " failed: " + std::string(r_errbuf));
+  }
+
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){regfree(&r);});
+
+  const size_t expected_nsub = 3;
+
+  if (r.re_nsub != expected_nsub) {
+    throw std::runtime_error(std::string("compiling regex ") + regex + " resulted in " + std::to_string(r.re_nsub) + " captures, expected " + std::to_string(expected_nsub));
+  }
+
+  while (std::getline(ins, line)) {
+    regmatch_t m[expected_nsub + 1];
+    r_err = regexec(&r, line.c_str(), sizeof(m)/sizeof(m[0]), m, 0);
+
+    if (r_err == 0) {
+      std::string m_1 = std::string(line.c_str() + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+      std::string m_2 = std::string(line.c_str() + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+      std::string m_3 = std::string(line.c_str() + m[3].rm_so, m[3].rm_eo - m[3].rm_so);
+      try {
+        outs << m_1 << "\"" << env_vars.at(m_2) << "\"" << m_3 << std::endl;
+      } catch (const std::out_of_range &e) {
+        throw std::runtime_error("Envvar " + m_2 + " requested, but isn't defined");
+      }
+    } else if (r_err == REG_NOMATCH) {
+      outs << line << std::endl;
+    } else {
+      regerror(r_err, NULL, r_errbuf, sizeof(r_errbuf));
+      throw std::runtime_error(std::string("executing regex ") + regex + " failed: " + std::string(r_errbuf));
+    }
+  }
+#endif
+}
+
+/* static */
+void RouterComponentTest::rewrite_js_to_tracefile(const std::string &infile_name,
+                                                  const std::string &outfile_name,
+                                                  const std::map<std::string, std::string> &env_vars) {
+  std::ifstream js_file(infile_name);
+  std::ofstream json_file(outfile_name);
+
+  replace_process_env(js_file, json_file, env_vars);
+}
+
 
 int RouterComponentTest::CommandHandle::wait_for_exit_while_reading_and_autoresponding_to_output(unsigned timeout_ms) {
   namespace ch = std::chrono;
@@ -403,6 +488,8 @@ std::string RouterComponentTest::make_DEFAULT_section(const std::map<std::string
         + l("runtime_folder")
         + l("config_folder")
         + l("data_folder")
+        + l("keyring_path")
+        + l("master_key_path")
         + "\n"
     : std::string("[DEFAULT]\n")
         + "logging_folder =\n"

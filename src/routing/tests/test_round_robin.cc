@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "test/helpers.h"
-#include "router_test_helpers.h"
-#include "destination.h"
-#include "dest_metadata_cache.h"
+// TODO: what is needed ?
+//#include "router_test_helpers.h"
+//
+#include "dest_round_robin.h"
 
 #include "mysqlrouter/datatypes.h"
 #include "routing_mocks.h"
@@ -35,24 +36,25 @@
 using mysqlrouter::TCPAddress;
 using ::testing::StrEq;
 
-class RouteDestinationTest : public ::testing::Test {
+class RoundRobinDestinationTest : public ::testing::Test {
 protected:
   virtual void SetUp() {}
 
   MockSocketOperations mock_socket_operations_;
 };
 
-TEST_F(RouteDestinationTest, Constructor)
+
+TEST_F(RoundRobinDestinationTest, Constructor)
 {
-  RouteDestination d;
+  DestRoundRobin d;
   size_t exp = 0;
   ASSERT_EQ(exp, d.size());
 }
 
-TEST_F(RouteDestinationTest, Add)
+TEST_F(RoundRobinDestinationTest, Add)
 {
   size_t exp;
-  RouteDestination d;
+  DestRoundRobin d;
   exp = 1;
   d.add("addr1", 1);
   ASSERT_EQ(exp, d.size());
@@ -66,10 +68,10 @@ TEST_F(RouteDestinationTest, Add)
   ASSERT_EQ(exp, d.size());
 }
 
-TEST_F(RouteDestinationTest, Remove)
+TEST_F(RoundRobinDestinationTest, Remove)
 {
   size_t exp;
-  RouteDestination d;
+  DestRoundRobin d;
   d.add("addr1", 1);
   d.add("addr99", 99);
   d.add("addr2", 2);
@@ -83,9 +85,9 @@ TEST_F(RouteDestinationTest, Remove)
   ASSERT_EQ(exp, d.size());
 }
 
-TEST_F(RouteDestinationTest, Get)
+TEST_F(RoundRobinDestinationTest, Get)
 {
-  RouteDestination d;
+  DestRoundRobin d;
   ASSERT_THROW(d.get("addr1", 1), std::out_of_range);
   d.add("addr1", 1);
   ASSERT_NO_THROW(d.get("addr1", 1));
@@ -99,10 +101,10 @@ TEST_F(RouteDestinationTest, Get)
   EXPECT_EQ(addr.port, 1);
 }
 
-TEST_F(RouteDestinationTest, Size)
+TEST_F(RoundRobinDestinationTest, Size)
 {
   size_t exp;
-  RouteDestination d;
+  DestRoundRobin d;
   exp = 0;
   ASSERT_EQ(exp, d.size());
   d.add("addr1", 1);
@@ -113,10 +115,10 @@ TEST_F(RouteDestinationTest, Size)
   ASSERT_EQ(exp, d.size());
 }
 
-TEST_F(RouteDestinationTest, RemoveAll)
+TEST_F(RoundRobinDestinationTest, RemoveAll)
 {
   size_t exp;
-  RouteDestination d;
+  DestRoundRobin d;
 
   d.add("addr1", 1);
   d.add("addr2", 2);
@@ -129,12 +131,25 @@ TEST_F(RouteDestinationTest, RemoveAll)
   ASSERT_EQ(exp, d.size());
 }
 
-TEST_F(RouteDestinationTest, get_server_socket)
+
+/**
+ * @test DestRoundRobin spawns the quarantine thread and
+ *       joins it in the destructor. Make sure the destructor
+ *       does not block/dealock and forces the thread close (bug#27145261).
+ */
+TEST_F(RoundRobinDestinationTest, SpawnAndJoinQuarantineThread)
+{
+  DestRoundRobin d;
+  d.start();
+}
+
+
+TEST_F(RoundRobinDestinationTest, get_server_socket)
 {
   int error;
 
   // create round-robin (read-only) destination and add a few servers
-  RouteDestination dest(Protocol::get_default(), &mock_socket_operations_);
+  DestRoundRobin dest(Protocol::get_default(), &mock_socket_operations_);
   std::vector<int> dest_servers_addresses { 11, 12, 13 };
   for (const auto& server_address: dest_servers_addresses) {
     dest.add(std::to_string(server_address), 1 /*port - doesn't matter here*/);
@@ -174,65 +189,6 @@ TEST_F(RouteDestinationTest, get_server_socket)
   // so the number of connections to the the destination addresses should be evenly distributed
   for (const auto& server_address: dest_servers_addresses) {
     EXPECT_EQ(connections[server_address], kNumClientThreads/dest_servers_addresses.size());
-  }
-}
-
-TEST_F(RouteDestinationTest, MetadataCacheGroupAllowPrimaryReads)
-{
-  // yes
-  {
-    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=yes&role=SECONDARY");
-    ASSERT_NO_THROW(
-      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
-                                uri.query, Protocol::Type::kClassicProtocol)
-    );
-  }
-
-  // no
-  {
-    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=no&role=SECONDARY");
-    ASSERT_NO_THROW(
-      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
-                                uri.query, Protocol::Type::kClassicProtocol)
-    );
-  }
-
-  // invalid value
-  {
-    mysqlrouter::URI uri("metadata-cache://test/default?allow_primary_reads=yes,xxx&role=SECONDARY");
-    ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
-                                uri.query, Protocol::Type::kClassicProtocol),
-      std::runtime_error,
-      "Invalid value for allow_primary_reads option: \"yes,xxx\""
-    );
-  }
-}
-
-
-TEST_F(RouteDestinationTest, MetadataCacheGroupMultipleUris)
-{
-  {
-    mysqlrouter::URI uri("metadata-cache://test/default?role=SECONDARY,metadata-cache://test2/default?role=SECONDARY");
-    ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
-                                uri.query, Protocol::Type::kClassicProtocol),
-      std::runtime_error,
-      "Invalid value for role option: \"SECONDARY,metadata-cache://test2/default?role\""
-    );
-  }
-}
-
-TEST_F(RouteDestinationTest, MetadataCacheGroupUnknownParam)
-{
-  {
-    mysqlrouter::URI uri("metadata-cache://test/default?role=SECONDARY&xxx=yyy,metadata-cache://test2/default?role=SECONDARY");
-    ASSERT_THROW_LIKE(
-      DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name", "read-only",
-                                uri.query, Protocol::Type::kClassicProtocol),
-      std::runtime_error,
-     "Unsupported metadata-cache parameter in URI: \"xxx\""
-    );
   }
 }
 

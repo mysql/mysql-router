@@ -22,6 +22,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "destination.h"
+#include "dest_round_robin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysqlrouter/routing.h"
@@ -53,14 +54,14 @@ using ::testing::Return;
 using ::testing::Eq;
 using ::testing::_;
 
-class MockRouteDestination : public RouteDestination {
+class MockRouteDestination : public DestRoundRobin {
 public:
   void add_to_quarantine(const size_t index) noexcept {
-    RouteDestination::add_to_quarantine(index);
+    DestRoundRobin::add_to_quarantine(index);
   }
 
   void cleanup_quarantine() noexcept {
-    RouteDestination::cleanup_quarantine();
+    DestRoundRobin::cleanup_quarantine();
   }
 
   MOCK_METHOD3(get_mysql_socket, int(const TCPAddress &addr, std::chrono::milliseconds connect_timeout, bool log_errors));

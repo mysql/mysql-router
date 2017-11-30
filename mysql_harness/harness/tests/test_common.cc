@@ -107,3 +107,20 @@ TEST(TestCommon, truncate_string) {
     EXPECT_THAT(r1, StrEq("12345..."));
   }
 }
+
+TEST(TestCommon, SerialComma) {
+  using mysql_harness::serial_comma;
+
+  constexpr int primes[]{2, 3, 5, 7, 11};
+
+  auto expect_output = [&primes](int count, const std::string& expect) {
+    std::string res = "Primes are ";
+    res += serial_comma(&primes[0], &primes[count]);
+    EXPECT_EQ(res, "Primes are " + expect);
+  };
+
+  expect_output(1, "2");
+  expect_output(2, "2 and 3");
+  expect_output(3, "2, 3, and 5");
+  expect_output(5, "2, 3, 5, 7, and 11");
+}

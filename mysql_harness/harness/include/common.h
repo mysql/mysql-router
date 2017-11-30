@@ -113,6 +113,77 @@ const std::string& truncate_string(const std::string& input, size_t max_len = 80
 HARNESS_EXPORT
 std::string truncate_string_r(const std::string& input, size_t max_len = 80);
 
+
+/**
+ * Emit a range of elements using the serial comma.
+ *
+ * This function can be used to output a range of elements using a
+ * serial comma (also known as the Oxford comma). To emit a list of
+ * the first five prime numbers as "The first five prime numbers are
+ * 2, 3, 5, 7, and 11":
+ *
+ * @code
+ * std::vector<int> primes{2, 3, 5, 7, 11};
+ * std::cout << "The first five prime numbers are ";
+ * serial_comma(std::cout, primes.begin(), primes.end());
+ * std::cout << std::endl;
+ * @endcode
+ *
+ * @param out Output stream
+ * @param start Input iterator to start of range.
+ * @param finish Input iterator to one-after-end of range.
+ * @param delim Delimiter to use. Defaults to "and".
+ */
+template <class InputIt>
+void serial_comma(std::ostream& out, InputIt start, InputIt finish,
+                  const std::string& delim = "and") {
+  auto elements = std::distance(start, finish);
+  if (elements == 1) {
+    out << *start;
+  } else if (elements == 2) {
+    out << *start++;
+    out << " " << delim << " " << *start;
+  } else {
+    while (elements-- > 0) {
+      out << *start++;
+      if (elements > 0)
+        out << ", ";
+      if (elements == 1)
+        out << delim << " ";
+    }
+  }
+}
+
+/**
+ * Returns string containing list of the elements using the serial comma.
+ *
+ * This function can be used to output a range of elements using a
+ * serial comma (also known as the Oxford comma). To return a list of
+ * the first five prime numbers as "The first five prime numbers are
+ * 2, 3, 5, 7, and 11":
+ *
+ * @code
+ * std::vector<int> primes{2, 3, 5, 7, 11};
+ * std::cout << "The first five prime numbers are "
+ *           << serial_comma(primes.begin(), primes.end()) << std::endl;
+ * @endcode
+ *
+ * @param start Input iterator to start of range.
+ * @param finish Input iterator to one-after-end of range.
+ * @param delim Delimiter to use. Defaults to "and".
+ *
+ * @return string containing list of the elements
+ */
+template <class InputIt>
+std::string serial_comma(InputIt start, InputIt finish,
+                         const std::string& delim = "and") {
+
+  std::stringstream out;
+  serial_comma(out, start, finish, delim);
+
+  return out.str();
+}
+
 } // namespace mysql_harness
 
 /**

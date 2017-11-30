@@ -33,13 +33,14 @@ using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::to_string;
 
-//master:
+
 /** @brief Constructor
  *
  * @param section from configuration file provided as ConfigSection
  */
 RoutingPluginConfig::RoutingPluginConfig(const mysql_harness::ConfigSection *section)
     : BasePluginConfig(section),
+      metadata_cache_(false),
       protocol(get_protocol(section, "protocol")),
       destinations(get_option_destinations(section, "destinations", protocol)),
       bind_port(get_option_tcp_port(section, "bind_port")),
@@ -47,6 +48,7 @@ RoutingPluginConfig::RoutingPluginConfig(const mysql_harness::ConfigSection *sec
       named_socket(get_option_named_socket(section, "socket")),
       connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
       mode(get_option_mode(section, "mode")),
+      routing_strategy(get_option_routing_strategy(section, "routing_strategy")),
       max_connections(get_uint_option<uint16_t>(section, "max_connections", 1)),
       max_connect_errors(get_uint_option<uint32_t>(section, "max_connect_errors", 1, UINT32_MAX)),
       client_connect_timeout(get_uint_option<uint32_t>(section, "client_connect_timeout", 2, 31536000)),
@@ -59,7 +61,7 @@ RoutingPluginConfig::RoutingPluginConfig(const mysql_harness::ConfigSection *sec
 }
 
 
-string RoutingPluginConfig::get_default(const string &option) {
+string RoutingPluginConfig::get_default(const string &option) const {
 
   const std::map<string, string> defaults{
       {"bind_address", to_string(routing::kDefaultBindAddress)},
@@ -77,31 +79,65 @@ string RoutingPluginConfig::get_default(const string &option) {
   return it->second;
 }
 
-bool RoutingPluginConfig::is_required(const string &option) {
+bool RoutingPluginConfig::is_required(const string &option) const {
   const vector<string> required{
-      "mode",
-      "destinations",
+    "destinations",
+    // at least one of those is required, we handle this logic in get_option_ methods:
+    "routing_strategy",
+    "mode",
   };
 
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
 routing::AccessMode RoutingPluginConfig::get_option_mode(
-    const mysql_harness::ConfigSection *section, const string &option) {
+    const mysql_harness::ConfigSection *section, const string &option) const {
   string value;
-  string valid;
-
-  routing::get_access_mode_names(&valid);
-
   try {
     value = get_option_string(section, option);
-    std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-  } catch (const invalid_argument) {
-    throw invalid_argument(get_log_prefix(option) + " needs to be specified; valid are " + valid);
+  }
+  catch (const mysqlrouter::option_not_present&) {
+    // no mode given, that's fine, it is no longer required
+    return routing::AccessMode::kUndefined;
   }
 
+  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+
+  // if the mode is given it still needs to be valid
   routing::AccessMode result = routing::get_access_mode(value);
   if (result == routing::AccessMode::kUndefined) {
+    const string valid = routing::get_access_mode_names();
+    throw invalid_argument(get_log_prefix(option) + " is invalid; valid are " +
+                           valid + " (was '" + value + "')");
+  }
+  return result;
+}
+
+routing::RoutingStrategy RoutingPluginConfig::get_option_routing_strategy(
+    const mysql_harness::ConfigSection *section, const string &option) const {
+  string value;
+  try {
+    value = get_option_string(section, option);
+  }
+  catch (const mysqlrouter::option_not_present&) {
+    // routing_strategy option is not given
+    // this is fine as long as mode is set which means that we deal with an old configuration
+    // which we still want to support
+
+    if (mode == routing::AccessMode::kUndefined) {
+      throw;
+    }
+
+    /** @brief `mode` option read from configuration section */
+    return routing::RoutingStrategy::kUndefined;
+  }
+
+  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+
+  auto result = routing::get_routing_strategy(value);
+  if (result == routing::RoutingStrategy::kUndefined ||
+      ((result == routing::RoutingStrategy::kRoundRobinWithFallback) && !metadata_cache_)) {
+    const string valid = routing::get_routing_strategy_names(metadata_cache_);
     throw invalid_argument(get_log_prefix(option) + " is invalid; valid are " +
                            valid + " (was '" + value + "')");
   }
@@ -109,7 +145,7 @@ routing::AccessMode RoutingPluginConfig::get_option_mode(
 }
 
 Protocol::Type RoutingPluginConfig::get_protocol(const mysql_harness::ConfigSection *section,
-                                                 const std::string &option) {
+                                                 const std::string &option) const {
   std::string name;
   try {
     name = section->get(option);
@@ -124,13 +160,13 @@ Protocol::Type RoutingPluginConfig::get_protocol(const mysql_harness::ConfigSect
 
 string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigSection *section,
                                                     const string &option,
-                                                    const Protocol::Type &protocol_type) {
+                                                    const Protocol::Type &protocol_type) const {
   bool required = is_required(option);
   string value;
 
   try {
     value = section->get(option);
-  } catch (const mysql_harness::bad_option &exc) {
+  } catch (const mysql_harness::bad_option&) {
     if (required) {
       throw invalid_argument(get_log_prefix(option) + " is required");
     }
@@ -157,9 +193,10 @@ string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigS
         false  // allow_path_rootless
         );
     if (uri.scheme == "metadata-cache") {
+      metadata_cache_ = true;
     } else {
       throw invalid_argument(
-          get_log_prefix(option) + " has an invalid URI scheme '" + uri.scheme + "' for URI " + value);
+        get_log_prefix(option) + " has an invalid URI scheme '" + uri.scheme + "' for URI " + value);
     }
     return value;
   } catch (URIError &) {

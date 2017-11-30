@@ -66,7 +66,7 @@ public:
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
-    metadata_cache::cache_init(bootstrap_server_vector, kDefaultMetadataUser,
+    metadata_cache::MetadataCacheAPI::instance()->cache_init(bootstrap_server_vector, kDefaultMetadataUser,
                                kDefaultMetadataPassword, kDefaultMetadataTTL, mysqlrouter::SSLOptions(),
                                kDefaultMetadataReplicaset, 1, 1);
     int count = 1;
@@ -77,7 +77,7 @@ public:
      */
     while (instance_vector_1.size() != 3) {
       try {
-        instance_vector_1 = metadata_cache::lookup_replicaset(
+        instance_vector_1 = cache_api_->lookup_replicaset(
           kDefaultTestReplicaset_1).instance_vector;
       } catch (const std::runtime_error &exc) {
         /**
@@ -95,15 +95,17 @@ public:
   }
 
   void TearDown() override {
-    metadata_cache::cache_stop();
+    metadata_cache::MetadataCacheAPI::instance()->cache_stop();
   }
+
+  metadata_cache::MetadataCacheAPIBase* cache_api_{metadata_cache::MetadataCacheAPI::instance()};
 };
 
 /**
  * Test that looking up an invalid replicaset returns a empty list.
  */
 TEST_F(MetadataCachePluginTest, InvalidReplicasetTest) {
-  EXPECT_TRUE(metadata_cache::lookup_replicaset("InvalidReplicaset").
+  EXPECT_TRUE(cache_api_->lookup_replicaset("InvalidReplicaset").
               instance_vector.empty());
 }
 
@@ -111,7 +113,7 @@ TEST_F(MetadataCachePluginTest, InvalidReplicasetTest) {
  * Test that the list of servers that are part of a replicaset is accurate.
  */
 TEST_F(MetadataCachePluginTest, ValidReplicasetTest_1) {
-  std::vector<ManagedInstance> instance_vector_1 = metadata_cache::lookup_replicaset(
+  std::vector<ManagedInstance> instance_vector_1 = cache_api_->lookup_replicaset(
     kDefaultTestReplicaset_1).instance_vector;
 
   EXPECT_EQ(instance_vector_1[0], mf.ms1);

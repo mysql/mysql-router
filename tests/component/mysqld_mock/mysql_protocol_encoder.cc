@@ -147,18 +147,10 @@ MySQLProtocolEncoder::encode_row_message(uint8_t seq_no,
   }
 
   for (size_t i = 0; i < row_values.size(); ++i) {
-    auto field_type = columns_info[i].type;
-    switch (field_type) {
-      case MySQLColumnType::TINY:
-      case MySQLColumnType::LONG:
-      case MySQLColumnType::LONGLONG:
-      case MySQLColumnType::STRING:
-        append_lenenc_str(out_buffer, row_values[i]);
-        break;
-      default:
-        throw std::runtime_error("Unsupported MySQL field type "
-                                 + std::to_string(static_cast<int>(field_type)));
-    }
+    if (row_values[i].empty())
+      append_byte(out_buffer, 0xfb); // NULL
+    else
+      append_lenenc_str(out_buffer, row_values[i]);
   }
 
   encode_msg_end(out_buffer, seq_no);
@@ -238,10 +230,32 @@ MySQLColumnType column_type_from_string(const std::string& type) {
     res =  std::stoi(type);
   }
   catch (const std::invalid_argument&) {
+    if (type == "DECIMAL") return MySQLColumnType::DECIMAL;
     if (type == "TINY") return MySQLColumnType::TINY;
+    if (type == "SHORT") return MySQLColumnType::SHORT;
     if (type == "LONG") return MySQLColumnType::LONG;
+    if (type == "INT24") return MySQLColumnType::INT24;
     if (type == "LONGLONG") return MySQLColumnType::LONGLONG;
+    if (type == "DECIMAL") return MySQLColumnType::DECIMAL;
+    if (type == "NEWDECIMAL") return MySQLColumnType::NEWDECIMAL;
+    if (type == "FLOAT") return MySQLColumnType::FLOAT;
+    if (type == "DOUBLE") return MySQLColumnType::DOUBLE;
+    if (type == "BIT") return MySQLColumnType::BIT;
+    if (type == "TIMESTAMP") return MySQLColumnType::TIMESTAMP;
+    if (type == "DATE") return MySQLColumnType::DATE;
+    if (type == "TIME") return MySQLColumnType::TIME;
+    if (type == "DATETIME") return MySQLColumnType::DATETIME;
+    if (type == "YEAR") return MySQLColumnType::YEAR;
     if (type == "STRING") return MySQLColumnType::STRING;
+    if (type == "VAR_STRING") return MySQLColumnType::VAR_STRING;
+    if (type == "BLOB") return MySQLColumnType::BLOB;
+    if (type == "SET") return MySQLColumnType::SET;
+    if (type == "ENUM") return MySQLColumnType::ENUM;
+    if (type == "GEOMETRY") return MySQLColumnType::GEOMETRY;
+    if (type == "NULL") return MySQLColumnType::NULL_;
+    if (type == "TINYBLOB") return MySQLColumnType::TINY_BLOB;
+    if (type == "LONGBLOB") return MySQLColumnType::LONG_BLOB;
+    if (type == "MEDIUMBLOB") return MySQLColumnType::MEDIUM_BLOB;
 
     throw std::invalid_argument("Unknown type: \"" + type + "\"");
   }

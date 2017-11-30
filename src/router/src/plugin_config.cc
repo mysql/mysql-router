@@ -35,7 +35,7 @@ string BasePluginConfig::get_section_name(const mysql_harness::ConfigSection *se
   return name;
 }
 
-string BasePluginConfig::get_option_string(const mysql_harness::ConfigSection *section, const string &option) {
+string BasePluginConfig::get_option_string(const mysql_harness::ConfigSection *section, const string &option) const {
   bool required = is_required(option);
   string value;
 
@@ -43,13 +43,13 @@ string BasePluginConfig::get_option_string(const mysql_harness::ConfigSection *s
     value = section->get(option);
   } catch (const mysql_harness::bad_option &exc) {
     if (required) {
-      throw invalid_argument(get_log_prefix(option) + " is required");
+      throw option_not_present(get_log_prefix(option) + " is required");
     }
   }
 
   if (value.empty()) {
     if (required) {
-      throw invalid_argument(get_log_prefix(option) + " is required and needs a value");
+      throw option_empty(get_log_prefix(option) + " needs a value");
     }
     value = get_default(option);
   }

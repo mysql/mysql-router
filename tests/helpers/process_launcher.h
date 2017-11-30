@@ -16,6 +16,8 @@
 #ifndef _PROCESS_LAUNCHER_H_
 #define _PROCESS_LAUNCHER_H_
 
+#include <utility>
+
 #ifdef WIN32
 #  define _CRT_SECURE_NO_WARNINGS 1
 #  ifdef UNICODE
@@ -27,22 +29,83 @@
 #endif
 #include <stdint.h>
 
+/** a alive, spawned process
+ *
+ * @todo
+ *
+ * refactor ProcessLauchner and SpawnedProcess into:
+ *
+ * - ProcessLauncher having ownly the spawn/launch() method and no state
+ * - Process as a thin wrapper around 'pid' and operators on it
+ * - SpawnedProcess being a Process with stdin/stdout/stderr
+ * - a way to declare ownership over the 'pid' (if owned, kill pid in destructor)
+ *
+ * For now, this mostly exists to make the move-constructor of ProcessLauncher easier to implement.
+ */
+class SpawnedProcess {
+public:
+  SpawnedProcess(const char *pcmd_line, const char ** pargs, bool predirect_stderr = true) :
+    cmd_line{pcmd_line},
+    args{pargs},
+#ifdef _WIN32
+    child_in_rd{INVALID_HANDLE_VALUE},
+    child_in_wr{INVALID_HANDLE_VALUE},
+    child_out_rd{INVALID_HANDLE_VALUE},
+    child_out_wr{INVALID_HANDLE_VALUE},
+    // pi
+    // si
+#else
+    childpid{-1},
+    fd_in{-1, -1},
+    fd_out{-1, -1},
+#endif
+    redirect_stderr{predirect_stderr}
+  {}
+
+protected:
+  const char *cmd_line;
+  const char **args;
+#ifdef WIN32
+  HANDLE child_in_rd;
+  HANDLE child_in_wr;
+  HANDLE child_out_rd;
+  HANDLE child_out_wr;
+  PROCESS_INFORMATION pi;
+  STARTUPINFO si;
+#else
+  pid_t childpid;
+  int fd_in[2];
+  int fd_out[2];
+#endif
+  bool redirect_stderr;
+};
+
+
 // Launches a process as child of current process and exposes the stdin & stdout of the child process
 // (implemented thru pipelines) so the client of this class can read from the child's stdout and write to the child's stdin.
 // For usage, see unit tests.
 //
-class ProcessLauncher {
+class ProcessLauncher : public SpawnedProcess {
 public:
-
   /**
    * Creates a new process and launch it.
    * Argument 'args' must have a last entry that is NULL.
    * If redirect_stderr is true, the child's stderr is redirected to the same stream than child's stdout.
    */
-  ProcessLauncher(const char *pcmd_line, const char ** pargs, bool predirect_stderr = true) : is_alive(false) {
-    this->cmd_line = pcmd_line;
-    this->args = pargs;
-    this->redirect_stderr = predirect_stderr;
+  ProcessLauncher(const char *pcmd_line, const char ** pargs, bool predirect_stderr = true) :
+    SpawnedProcess(pcmd_line, pargs, predirect_stderr),
+    is_alive{false}
+  {}
+
+  // copying a Process results in multiple destructors trying
+  // to kill the same alive process. Disable it.
+  ProcessLauncher(const ProcessLauncher &that) = delete;
+
+  ProcessLauncher(ProcessLauncher &&rhs) : SpawnedProcess(std::move(rhs)), is_alive(std::move(rhs.is_alive)) {
+    // make sure destructor on the other object doesn't try to kill
+    // the process-id we just moved
+
+    rhs.is_alive = false;
   }
 
   ~ProcessLauncher() { if (is_alive) close(); }
@@ -107,22 +170,7 @@ private:
   /** Closes child process */
   void close();
 
-  const char *cmd_line;
-  const char **args;
   bool is_alive;
-#ifdef WIN32
-  HANDLE child_in_rd;
-  HANDLE child_in_wr;
-  HANDLE child_out_rd;
-  HANDLE child_out_wr;
-  PROCESS_INFORMATION pi;
-  STARTUPINFO si;
-#else
-  pid_t childpid;
-  int fd_in[2];
-  int fd_out[2];
-#endif
-  bool redirect_stderr;
 };
 
 #endif // _PROCESS_LAUNCHER_H_

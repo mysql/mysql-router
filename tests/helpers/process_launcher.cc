@@ -355,12 +355,18 @@ void ProcessLauncher::close()
   if(::kill(childpid, SIGTERM) < 0 && errno != ESRCH) {
     report_error(NULL, "close()");
   }
-  if(errno != ESRCH)
-  {
-    sleep(1);
-    if(::kill(childpid, SIGKILL) < 0 && errno != ESRCH)
-      report_error(NULL, "kill()");
-  }
+
+  try {
+     wait(100);
+   } catch(const std::system_error &e) {
+     if(errno != ESRCH)
+     {
+       sleep(1);
+       if(::kill(childpid, SIGKILL) < 0 && errno != ESRCH)
+         report_error(NULL, "kill()");
+     }
+     wait();
+   }
 
   ::close(fd_out[0]);
   ::close(fd_in[1]);

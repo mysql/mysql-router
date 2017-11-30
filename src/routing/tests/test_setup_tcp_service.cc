@@ -70,7 +70,8 @@ class TestSetupTcpService : public ::testing::Test {
 };
 
 TEST_F(TestSetupTcpService, single_addr_ok) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -98,7 +99,8 @@ TEST_F(TestSetupTcpService, single_addr_ok) {
 }
 
 TEST_F(TestSetupTcpService, getaddrinfo_fails) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -111,7 +113,8 @@ TEST_F(TestSetupTcpService, getaddrinfo_fails) {
 }
 
 TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -133,7 +136,8 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
 }
 
 TEST_F(TestSetupTcpService, socket_fails) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -165,7 +169,8 @@ TEST_F(TestSetupTcpService, socket_fails) {
 
 #ifndef _WIN32
 TEST_F(TestSetupTcpService, setsockopt_fails) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -199,7 +204,8 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
 #endif
 
 TEST_F(TestSetupTcpService, bind_fails) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);
@@ -234,7 +240,8 @@ TEST_F(TestSetupTcpService, bind_fails) {
 }
 
 TEST_F(TestSetupTcpService, listen_fails) {
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kFirstAvailable, 7001,
+                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
                  &socket_op);

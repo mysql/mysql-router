@@ -56,8 +56,8 @@ public:
   /**
    * @param option name of the option
    */
-  std::string get_default(const std::string &option);
-  bool is_required(const std::string &option);
+  std::string get_default(const std::string &option) const override;
+  bool is_required(const std::string &option) const override;
 
   /** @brief MySQL Metadata host to connect with */
   const std::vector<mysqlrouter::TCPAddress> bootstrap_addresses;

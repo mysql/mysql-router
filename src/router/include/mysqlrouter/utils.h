@@ -68,7 +68,7 @@ class Ofstream : public std::ofstream {
   virtual void open(const std::string& filename, std::ios_base::openmode mode = std::ios_base::out) = 0;
 };
 
-/** @class RealOfstream 
+/** @class RealOfstream
  *  @brief simple std::ofstream adapter, needed for DI purposes
  *
  * This class is just a simple adapter for std::ofstream. It forwards all calls to std::ofstream
@@ -284,7 +284,7 @@ int mkdir(const std::string& dir, perm_mode mode);
 void copy_file(const std::string &from, const std::string &to);
 
 /** @brief renames file, returns 0 if succeed, or positive error code if fails.
- * 
+ *
  * The function will overwrite the 'to' file if already exists.
  */
 int rename_file(const std::string &from, const std::string &to);

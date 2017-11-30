@@ -23,6 +23,8 @@ set(ROUTING_SOURCE_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/destination.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_metadata_cache.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_first_available.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_next_available.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/dest_round_robin.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/routing.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/classic_protocol.cc
   ${ROUTING_SOURCE_FILES_X_PROTOCOL}

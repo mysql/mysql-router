@@ -56,10 +56,10 @@ public:
   RouteDestination(Protocol::Type protocol = Protocol::get_default(),
                    routing::SocketOperationsBase *sock_ops =
                      routing::SocketOperations::instance()) // default = "real" (not mock) implementation
-      : current_pos_(0), stopping_(false), socket_operations_(sock_ops), protocol_(protocol) {}
+      : current_pos_(0), socket_operations_(sock_ops), protocol_(protocol) {}
 
   /** @brief Destructor */
-  virtual ~RouteDestination();
+  virtual ~RouteDestination() {}
 
   RouteDestination(const RouteDestination &other) = delete;
   RouteDestination(RouteDestination &&other) = delete;
@@ -119,7 +119,7 @@ public:
    * @param error Pointer to int for storing errno
    * @return a socket descriptor
    */
-  virtual int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept;
+  virtual int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept = 0;
 
   /** @brief Gets the number of destinations
    *
@@ -137,22 +137,10 @@ public:
     return destinations_.empty();
   }
 
-  /** @brief Returns number of quarantined servers
-   *
-   * @return size_t
-   */
-  size_t size_quarantine();
-
-  /** @brief Start the destination threads
+  /** @brief Start the destination threads (if any)
    *
    */
-  virtual void start() {
-    if (!quarantine_thread_.joinable()) {
-      quarantine_thread_ = std::thread(&RouteDestination::quarantine_manager_thread, this);
-    } else {
-      log_debug("Tried to restart quarantine thread");
-    }
-  }
+  virtual void start() {}
 
   AddrVector::iterator begin() {
     return destinations_.begin();
@@ -171,49 +159,6 @@ public:
   }
 
 protected:
-  /** @brief Returns whether destination is quarantined
-   *
-   * Uses the given index to check whether the destination is
-   * quarantined.
-   *
-   * @param index index of the destination to check
-   * @return True if destination is quarantined
-   */
-  virtual bool is_quarantined(const size_t index) {
-    return std::find(quarantined_.begin(), quarantined_.end(), index) != quarantined_.end();
-  }
-
-  /** @brief Adds server to quarantine
-   *
-   * Adds the given server address to the quarantine list. The index argument
-   * is the index of the server in the destination list.
-   *
-   * @param index Index of the destination
-   */
-  virtual void add_to_quarantine(size_t index) noexcept;
-
-  /** @brief Worker checking and removing servers from quarantine
-   *
-   * This method is meant to run in a thread and calling the
-   * `cleanup_quarantine()` method.
-   *
-   * The caller is responsible for locking and unlocking the
-   * mutex `mutex_quarantine_`.
-   *
-   */
-  virtual void quarantine_manager_thread() noexcept;
-
-  /** @brief Checks and removes servers from quarantine
-   *
-   * This method removes servers from quarantine while trying to establish
-   * a connection. It is used in a seperate thread and will update the
-   * quarantine list, and will keep trying until the list is empty.
-   * A conditional variable is used to notify the thread servers were
-   * quarantined.
-   *
-   */
-  virtual void cleanup_quarantine() noexcept;
-
   /** @brief Returns socket descriptor of connected MySQL server
    *
    * Returns a socket descriptor for the connection to the MySQL Server or
@@ -242,26 +187,8 @@ protected:
   /** @brief Destination which will be used next */
   std::atomic<size_t> current_pos_;
 
-  /** @brief Whether we are stopping */
-  std::atomic_bool stopping_;
-
   /** @brief Mutex for updating destinations and iterator */
   std::mutex mutex_update_;
-
-  /** @brief List of destinations which are quarantined */
-  std::vector<size_t> quarantined_;
-
-  /** @brief Conditional variable blocking quarantine manager thread */
-  std::condition_variable condvar_quarantine_;
-
-  /** @brief Mutex for quarantine manager thread */
-  std::mutex mutex_quarantine_manager_;
-
-  /** @brief Mutex for updating quarantine */
-  std::mutex mutex_quarantine_;
-
-  /** @brief Quarantine manager thread */
-  std::thread quarantine_thread_;
 
   /** @brief socket operation methods (facilitates dependency injection)*/
   routing::SocketOperationsBase *socket_operations_;

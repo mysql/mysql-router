@@ -48,6 +48,7 @@ std::string get_json_value_as_string(const JsonValue& value, size_t repeat = 1) 
 
     return result;
   }
+  if (value.IsNull()) return "";
   if (value.IsInt()) return std::to_string(value.GetInt());
   if (value.IsUint()) return std::to_string(value.GetUint());
   if (value.IsDouble()) return std::to_string(value.GetDouble());

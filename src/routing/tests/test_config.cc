@@ -51,7 +51,8 @@ string g_cwd;
 Path g_origin;
 
 // Used in tests; does not change for each test.
-const string kDefaultRoutingConfig = "\ndestinations=127.0.0.1:3306\nmode=read-only\n";
+const string kDefaultRoutingConfig = "\ndestinations=127.0.0.1:3306\nrouting_strategy=first-available\n";
+const string kDefaultRoutingConfigStrategy = "\ndestinations=127.0.0.1:3306\nbind_address=127.0.0.1\nbind_port=6000\n";
 
 class TestConfig : public ConsoleOutputTest {
 protected:
@@ -123,6 +124,80 @@ TEST_F(TestConfig, InvalidDefaultPort) {
   MySQLRouter r(g_origin, {"-c", config_path->str()});
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
       "option bind_port in [routing] needs value between 1 and 65535 inclusive, was '23123124123123'");
+}
+
+TEST_F(TestConfig, InvalidMode) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\nmode=invalid";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option mode in [routing] is invalid; valid are read-write and read-only (was 'invalid')");
+}
+
+TEST_F(TestConfig, InvalidStrategyOption) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\nrouting_strategy=invalid";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option routing_strategy in [routing] is invalid; valid are first-available, "
+      "next-available, and round-robin (was 'invalid')");
+}
+
+TEST_F(TestConfig, EmptyStrategyOption) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\nrouting_strategy=";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option routing_strategy in [routing] needs a value");
+}
+
+TEST_F(TestConfig, EmptyMode) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\nmode=";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option mode in [routing] needs a value");
+}
+
+TEST_F(TestConfig, NoStrategyOptionAndNoMode) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\n";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option routing_strategy in [routing] is required");
+}
+
+TEST_F(TestConfig, UnsupportedStrategyOption) {
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[routing]\nrouting_strategy=round-robin-with-fallback";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument,
+      "option routing_strategy in [routing] is invalid; valid are first-available, "
+      "next-available, and round-robin (was 'round-robin-with-fallback')");
 }
 
 int main(int argc, char *argv[]) {

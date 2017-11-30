@@ -336,14 +336,16 @@ TEST_F(RoutingTests, bug_24841281) {
   std::string sock_path = tmp_dir() + "/sock";
 
   // check that connecting to a TCP socket or a UNIX socket works
-  MySQLRouting routing(routing::AccessMode::kReadWrite, router_port,
-               Protocol::Type::kXProtocol, "0.0.0.0", mysql_harness::Path(sock_path),
-               "routing:testroute",
-               routing::kDefaultMaxConnections,
-               routing::kDefaultDestinationConnectionTimeout,
-               routing::kDefaultMaxConnectErrors,
-               routing::kDefaultClientConnectTimeout,
-               routing::kDefaultNetBufferLength);
+  MySQLRouting routing(routing::RoutingStrategy::kNextAvailable, router_port,
+                 Protocol::Type::kXProtocol,
+                 routing::AccessMode::kReadWrite,
+                 "0.0.0.0", mysql_harness::Path(sock_path),
+                 "routing:testroute",
+                 routing::kDefaultMaxConnections,
+                 routing::kDefaultDestinationConnectionTimeout,
+                 routing::kDefaultMaxConnectErrors,
+                 routing::kDefaultClientConnectTimeout,
+                 routing::kDefaultNetBufferLength);
   routing.set_destinations_from_csv("127.0.0.1:"+std::to_string(server_port));
   mysql_harness::PluginFuncEnv env(nullptr, nullptr, true);
   std::thread thd(&MySQLRouting::start, &routing, &env);
@@ -437,7 +439,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
 TEST_F(RoutingTests, set_destinations_from_uri) {
 
-  MySQLRouting routing(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kXProtocol);
+  MySQLRouting routing(routing::RoutingStrategy::kFirstAvailable, 7001, Protocol::Type::kXProtocol);
 
   // valid metadata-cache uri
   {
@@ -478,32 +480,31 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
 
 TEST_F(RoutingTests, set_destinations_from_cvs) {
 
-  MySQLRouting routing(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kXProtocol);
+  MySQLRouting routing(routing::RoutingStrategy::kNextAvailable, 7001, Protocol::Type::kXProtocol);
 
   // valid address list
   {
-    std::string cvs = "127.0.0.1:2002,127.0.0.1:2004";
+    const std::string cvs = "127.0.0.1:2002,127.0.0.1:2004";
     EXPECT_NO_THROW(routing.set_destinations_from_csv(cvs));
   }
 
-  // invalid access mode
+  // no routing strategy, should go with default
   {
-    MySQLRouting routing_inv(routing::AccessMode::kUndefined, 7001, Protocol::Type::kXProtocol);
-    std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
-    EXPECT_THROW(routing_inv.set_destinations_from_csv(csv),
-                 std::runtime_error);
+    MySQLRouting routing_inv(routing::RoutingStrategy::kUndefined, 7001, Protocol::Type::kXProtocol);
+    const std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
+    EXPECT_NO_THROW(routing_inv.set_destinations_from_csv(csv));
   }
 
   // no address
   {
-    std::string csv = "";
+    const std::string csv = "";
     EXPECT_THROW(routing.set_destinations_from_csv(csv),
                  std::runtime_error);
   }
 
   // invalid address
   {
-    std::string csv = "127.0.0.1.2:2222";
+    const std::string csv = "127.0.0.1.2:2222";
     EXPECT_THROW(routing.set_destinations_from_csv(csv),
                  std::runtime_error);
   }
@@ -515,13 +516,15 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   // an exception if these are the same
   {
     const std::string address = "127.0.0.1";
-    MySQLRouting routing_classic(routing::AccessMode::kReadWrite, 3306, Protocol::Type::kClassicProtocol, address);
+    MySQLRouting routing_classic(routing::RoutingStrategy::kNextAvailable, 3306,
+                                 Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1"), std::runtime_error);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1:3306"), std::runtime_error);
     EXPECT_NO_THROW(routing_classic.set_destinations_from_csv("127.0.0.1:33060"));
 
 
-    MySQLRouting routing_x(routing::AccessMode::kReadWrite, 33060, Protocol::Type::kXProtocol, address);
+    MySQLRouting routing_x(routing::RoutingStrategy::kNextAvailable, 33060,
+                           Protocol::Type::kXProtocol, routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1"), std::runtime_error);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1:33060"), std::runtime_error);
     EXPECT_NO_THROW(routing_x.set_destinations_from_csv("127.0.0.1:3306"));

@@ -27,6 +27,7 @@
 
 #include "dim.h"
 #include "utilities.h"
+#include "common.h"
 
 #include <algorithm>
 #include <cassert>
@@ -39,7 +40,7 @@ using mysql_harness::Path;
 using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::Logger;
 using mysql_harness::logging::Record;
-using mysql_harness::utility::serial_comma;
+using mysql_harness::serial_comma;
 
 // TODO one day we'll improve this and move it to a common spot
 #define harness_assert(COND) if (!(COND)) abort();

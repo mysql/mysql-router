@@ -20,6 +20,8 @@
 
 #include "common.h"
 #include "dest_first_available.h"
+#include "dest_next_available.h"
+#include "dest_round_robin.h"
 #include "dest_metadata_cache.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
@@ -67,6 +69,7 @@ using mysql_harness::get_strerror;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 using routing::AccessMode;
+using routing::RoutingStrategy;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
@@ -79,8 +82,9 @@ static int kListenQueueSize = 1024;
 static const char *kDefaultReplicaSetName = "default";
 static const std::chrono::milliseconds kAcceptorStopPollInterval_ms { 1000 };
 
-MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
+MySQLRouting::MySQLRouting(routing::RoutingStrategy routing_strategy, uint16_t port,
                            const Protocol::Type protocol,
+                           const routing::AccessMode access_mode,
                            const string &bind_address,
                            const mysql_harness::Path& named_socket,
                            const string &route_name,
@@ -91,7 +95,8 @@ MySQLRouting::MySQLRouting(routing::AccessMode mode, uint16_t port,
                            unsigned int net_buffer_length,
                            SocketOperationsBase *socket_operations)
     : name(route_name),
-      mode_(mode),
+      routing_strategy_(routing_strategy),
+      access_mode_(access_mode),
       max_connections_(set_max_connections(max_connections)),
       destination_connect_timeout_(set_destination_connect_timeout(destination_connect_timeout)),
       max_connect_errors_(max_connect_errors),
@@ -390,8 +395,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
       throw runtime_error(
           string_format("Setting up TCP service using %s: %s", bind_address_.str().c_str(), exc.what()));
     }
-    log_info("[%s] started: listening on %s; %s", name.c_str(), bind_address_.str().c_str(),
-             routing::get_access_mode_name(mode_).c_str());
+    log_info("[%s] started: listening on %s", name.c_str(), bind_address_.str().c_str());
   }
 #ifndef _WIN32
   if (bind_named_socket_.is_set()) {
@@ -402,8 +406,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
       throw runtime_error(
           string_format("Setting up named socket service '%s': %s", bind_named_socket_.c_str(), exc.what()));
     }
-    log_info("[%s] started: listening using %s; %s", name.c_str(), bind_named_socket_.c_str(),
-             routing::get_access_mode_name(mode_).c_str());
+    log_info("[%s] started: listening using %s", name.c_str(), bind_named_socket_.c_str());
   }
 #endif
   if (bind_address_.port > 0 || bind_named_socket_.is_set()) {
@@ -714,22 +717,55 @@ retry:
 
 void MySQLRouting::set_destinations_from_uri(const URI &uri) {
   if (uri.scheme == "metadata-cache") {
-    // Syntax: metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY
+    // Syntax: metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY|PRIMARY_AND_SECONDARY
     std::string replicaset_name = kDefaultReplicaSetName;
-    std::string role;
 
     if (uri.path.size() > 0 && !uri.path[0].empty())
       replicaset_name = uri.path[0];
-    if (uri.query.find("role") == uri.query.end())
-      throw runtime_error("Missing 'role' in routing destination specification");
 
     destination_.reset(new DestMetadataCacheGroup(uri.host, replicaset_name,
-                                                  get_access_mode_name(mode_),
-                                                  uri.query, protocol_->get_type()));
+                                                  routing_strategy_,
+                                                  uri.query, protocol_->get_type(),
+                                                  access_mode_));
   } else {
     throw runtime_error(string_format("Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
                                       uri.scheme.c_str()));
   }
+}
+
+namespace {
+
+routing::RoutingStrategy get_default_routing_strategy(const routing::AccessMode access_mode) {
+  switch (access_mode) {
+   case routing::AccessMode::kReadOnly:
+    return routing::RoutingStrategy::kRoundRobin;
+   case routing::AccessMode::kReadWrite:
+    return routing::RoutingStrategy::kFirstAvailable;
+   default:; // fall-through
+  }
+
+  // safe default if access_mode is also not specified
+  return routing::RoutingStrategy::kFirstAvailable;
+}
+
+RouteDestination* create_standalone_destination(const routing::RoutingStrategy strategy,
+                                                const Protocol::Type protocol,
+                                                routing::SocketOperationsBase *sock_ops) {
+  switch (strategy) {
+    case RoutingStrategy::kFirstAvailable:
+      return new DestFirstAvailable(protocol, sock_ops);
+    case RoutingStrategy::kNextAvailable:
+      return new DestNextAvailable(protocol, sock_ops);
+    case RoutingStrategy::kRoundRobin:
+      return new DestRoundRobin(protocol, sock_ops);
+    case RoutingStrategy::kUndefined:
+    case RoutingStrategy::kRoundRobinWithFallback:
+      ; // unsupported, fall through
+  }
+
+  throw std::runtime_error("Wrong routing strategy " +
+                           std::to_string(static_cast<int>(strategy)));
+}
 }
 
 void MySQLRouting::set_destinations_from_csv(const string &csv) {
@@ -737,14 +773,16 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   std::string part;
   std::pair<std::string, uint16_t> info;
 
-
-  if (AccessMode::kReadOnly == mode_) {
-    destination_.reset(new RouteDestination(protocol_->get_type(), socket_operations_));
-  } else if (AccessMode::kReadWrite == mode_) {
-    destination_.reset(new DestFirstAvailable(protocol_->get_type(), socket_operations_));
-  } else {
-    throw std::runtime_error("Unknown mode");
+  // if no routing_strategy is defined for standalone routing
+  // we set the default based on the mode
+  if (routing_strategy_ == RoutingStrategy::kUndefined) {
+    routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
+
+  destination_.reset(create_standalone_destination(routing_strategy_,
+                                                   protocol_->get_type(),
+                                                   socket_operations_));
+
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
     info = mysqlrouter::split_addr_port(part);

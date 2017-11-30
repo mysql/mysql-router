@@ -21,6 +21,7 @@
 #include "destination.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/metadata_cache.h"
 
 #include <thread>
 
@@ -29,17 +30,21 @@
 
 class DestMetadataCacheGroup final : public RouteDestination {
 public:
-   enum RoutingMode {
-     ReadWrite,
-     ReadOnly
+   enum ServerRole {
+     Primary,
+     Secondary,
+     PrimaryAndSecondary
    };
 
    /** @brief Constructor */
    DestMetadataCacheGroup(const std::string &metadata_cache,
                           const std::string &replicaset,
-                          const std::string &mode,
+                          const routing::RoutingStrategy routing_strategy,
                           const mysqlrouter::URIQuery &query,
-                          const Protocol::Type protocol);
+                          const Protocol::Type protocol,
+                          const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
+                          metadata_cache::MetadataCacheAPIBase* cache_api = metadata_cache::MetadataCacheAPI::instance(),
+                          routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance());
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;
@@ -77,7 +82,7 @@ public:
    * Metadata Cache.
    */
   void prepare() noexcept {
-    destinations_ = get_available(nullptr);
+    destinations_ = get_available().address;
   }
 
   /** @brief empty implementation
@@ -104,18 +109,6 @@ private:
   /** @brief The HA Group which will be used for looking up managed servers */
   const std::string ha_replicaset_;
 
-  /** @brief Routing mode, usually set to read-only or read-write
-   *
-   * For example, given following Metadata Cache configuration:
-   *
-   *     [routing:metadata_read_only]
-   *     ..
-   *     destination = metadata-cache://ham/replicaset/homepage
-   *
-   * 'homepage' will be value of `ha_replicaset_`.
-   */
-  RoutingMode routing_mode_;
-
   /** @brief Query part of the URI given as destination in the configuration
    *
    * For example, given following Metadata Cache configuration:
@@ -135,6 +128,11 @@ private:
    */
   void init();
 
+  struct AvailableDestinations{
+    AddrVector address;
+    std::vector<std::string> id;
+  };
+
   /** @brief Gets available destinations from Metadata Cache
    *
    * This method gets the destinations using Metadata Cache information. It uses
@@ -142,11 +140,19 @@ private:
    * servers.
    *
    */
-  std::vector<mysqlrouter::TCPAddress> get_available(std::vector<std::string> *server_ids);
+  AvailableDestinations get_available();
 
-  /** @brief Whether we allow a read operations going to the primary (master) */
-  bool allow_primary_reads_;
+  size_t get_next_server(const DestMetadataCacheGroup::AvailableDestinations& available);
+
   size_t current_pos_;
+
+  routing::RoutingStrategy routing_strategy_;
+
+  routing::AccessMode access_mode_;
+
+  ServerRole server_role_;
+
+  metadata_cache::MetadataCacheAPIBase* cache_api_;
 };
 
 

@@ -197,7 +197,7 @@ void MySQLServerMock::handle_connections() {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
 
-  std::cout << "Starting to handle connections" << std::endl;
+  std::cout << "Starting to handle connections on port: " << bind_port_ << std::endl;
 
 #ifndef _WIN32
   // Install the signal handler for SIGTERM.

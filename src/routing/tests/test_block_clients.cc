@@ -73,7 +73,9 @@ TEST_F(TestBlockClients, BlockClientHost) {
   auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
   auto client_ip_array2 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr2));
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kNextAvailable,
+                 7001, Protocol::Type::kClassicProtocol,
+                 routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 
@@ -105,7 +107,9 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   p[15] = 1;
   auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
 
-  MySQLRouting r(routing::AccessMode::kReadWrite, 7001, Protocol::Type::kClassicProtocol,
+  MySQLRouting r(routing::RoutingStrategy::kNextAvailable,
+                 7001, Protocol::Type::kClassicProtocol,
+                 routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 

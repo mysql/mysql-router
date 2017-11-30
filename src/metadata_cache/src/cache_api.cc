@@ -38,6 +38,11 @@ const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick
 const unsigned int kDefaultConnectTimeout = 30;
 const unsigned int kDefaultReadTimeout = 30;
 
+MetadataCacheAPI* MetadataCacheAPI::instance() {
+  static MetadataCacheAPI instance_;
+  return &instance_;
+}
+
 /**
  * Initialize the metadata cache.
  *
@@ -53,7 +58,7 @@ const unsigned int kDefaultReadTimeout = 30;
  * @param read_timeout The time in seconds after which read from metadata
  *                     server should timeout.
  */
-void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
                   unsigned int ttl,
@@ -70,7 +75,7 @@ void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
 /**
  * Teardown the metadata cache
  */
-void cache_stop() noexcept {
+void MetadataCacheAPI::cache_stop() noexcept {
   if (g_metadata_cache) // might be NULL if cache_init() failed very early
     g_metadata_cache->stop();
 }
@@ -84,7 +89,7 @@ void cache_stop() noexcept {
  * @return An object that encapsulates a list of managed MySQL servers.
  *
  */
-LookupResult lookup_replicaset(const std::string &replicaset_name) {
+LookupResult MetadataCacheAPI::lookup_replicaset(const std::string &replicaset_name) {
 
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
@@ -94,7 +99,7 @@ LookupResult lookup_replicaset(const std::string &replicaset_name) {
 }
 
 
-void mark_instance_reachability(const std::string &instance_id,
+void MetadataCacheAPI::mark_instance_reachability(const std::string &instance_id,
                                 InstanceStatus status) {
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
@@ -103,7 +108,7 @@ void mark_instance_reachability(const std::string &instance_id,
   g_metadata_cache->mark_instance_reachability(instance_id, status);
 }
 
-bool wait_primary_failover(const std::string &replicaset_name, int timeout) {
+bool MetadataCacheAPI::wait_primary_failover(const std::string &replicaset_name, int timeout) {
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
   }

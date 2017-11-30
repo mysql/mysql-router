@@ -74,8 +74,8 @@ public:
   /** @brief Update the status of the instance
    *
    * Called when an instance from a replicaset cannot be reached for one reason or
-   * another. When a primary instance becomes unreachable, the rate of refresh of
-   * the metadata cache increases to once per second until a new primary is detected.
+   * another. When an instance becomes unreachable, the rate of refresh of
+   * the metadata cache increases to once per second until a (potentialy new) primary is detected.
    *
    * @param instance_id - the mysql_server_uuid that identifies the server instance
    * @param status - the status of the instance
