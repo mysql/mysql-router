@@ -339,7 +339,6 @@ TEST_F(RouterBootstrapTest, BootstrapUnsupportedSchemaVersion) {
   );
 }
 
-
 /**
  * @test
  *       verify that bootstrap will fail-over to another node if the initial
@@ -629,7 +628,6 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
       },
       3000);
 }
-
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

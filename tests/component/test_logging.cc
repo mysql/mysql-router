@@ -62,6 +62,7 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
 
     return false;
   }
+  TcpPortPool port_pool_;
 
   static const unsigned SERVER_PORT = 4417;
 
@@ -326,6 +327,100 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), HasSubstr("Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255)."));
 }
+
+TEST_F(RouterLoggingTest, IsDebugLogsDisabledIfNoBootstrapConfigFile) {
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+
+  const std::string bootstrap_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
+                     << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " -d " + bootstrap_dir);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 0);
+  EXPECT_THAT(router.get_full_output(), testing::Not(testing::HasSubstr("Executing query:")));
+}
+
+TEST_F(RouterLoggingTest, IsDebugLogsEnabledIfBootstrapConfigFile) {
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+
+  const std::string bootstrap_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+
+  const std::string bootstrap_conf = get_tmp_dir();
+  std::shared_ptr<void> conf_exit_guard(nullptr, [&](void*){purge_dir(bootstrap_conf);});
+
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
+                     << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  std::string logger_section = "[logger]\nlevel = DEBUG\n";
+  std::string conf_file = create_config_file(logger_section, nullptr,
+      bootstrap_conf, "bootstrap.conf");
+
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + "--force -d " + bootstrap_dir + " -c " + conf_file);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 0)  << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+  EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
+}
+
+TEST_F(RouterLoggingTest, IsDebugLogsToFileIfLoggingDir) {
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+
+  const std::string bootstrap_dir = get_tmp_dir();
+  const std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+
+  std::string bootstrap_conf = get_tmp_dir();
+  std::shared_ptr<void> conf_exit_guard(nullptr, [&](void*){purge_dir(bootstrap_conf);});
+
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
+                     << server_mock.get_full_output();
+
+  // create config with logging_folder set to that directory
+  std::map<std::string, std::string> params = { {"logging_folder", ""} };
+  params.at("logging_folder") = bootstrap_conf;
+  const std::string conf_file = create_config_file("[logger]\nlevel = DEBUG\n", &params);
+
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + "--force -d " + bootstrap_dir + " -c " + conf_file);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 0)  << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+
+  auto matcher = [](const std::string& line) -> bool {
+    return line.find("Executing query:") != line.npos;
+  };
+  EXPECT_TRUE(find_in_log(bootstrap_conf, matcher));
+}
+
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

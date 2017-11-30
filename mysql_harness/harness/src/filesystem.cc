@@ -19,6 +19,7 @@
 
 #include <cstring>
 #include <ostream>
+#include <fstream>
 
 using std::string;
 
@@ -106,6 +107,11 @@ bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
   return type() != FileType::FILE_NOT_FOUND
     && type() != FileType::STATUS_ERROR;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  return exists() && std::ifstream(real_path().str()).good();
 }
 
 void Path::append(const Path& other) {

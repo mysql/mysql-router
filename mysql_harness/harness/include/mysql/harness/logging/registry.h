@@ -253,7 +253,7 @@ class HARNESS_EXPORT Registry {
    * @throws std::logic_error
    */
   HARNESS_EXPORT
-  void init_logger(Registry& registry, const std::string& logger_name, LogLevel log_level);
+  void init_logger(Registry& registry, const mysql_harness::Config& config, const std::string& logger_name);
 
   /**
    * Initialize logfile handler

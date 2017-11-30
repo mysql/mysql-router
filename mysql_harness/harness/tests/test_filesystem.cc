@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <vector>
+#include <fstream>
 
 using std::cout;
 using std::endl;
@@ -149,6 +150,47 @@ TEST(TestFilesystem, TestDirectory) {
     decltype(expect) result(directory.glob("tests-bad*.cfg"), directory.end());
     EXPECT_SETEQ(expect, result);
   }
+}
+
+// unfortunately it's not (reasonably) possible to make folders read-only on Windows,
+// therefore we can run the following 2 tests only on Unix
+// https://support.microsoft.com/en-us/help/326549/you-cannot-view-or-change-the-read-only-or-the-system-attributes-of-fo
+TEST(TestFilesystem, IsReadableIfFileCanBeRead) {
+#ifndef _WIN32
+
+  // create temporary file
+  const std::string directory = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){mysql_harness::delete_dir_recursive(directory);});
+
+  mysql_harness::Path path = mysql_harness::Path(directory).join("/tmp_file");
+  std::ofstream file(path.str());
+
+  if (!file.good())
+    throw(std::runtime_error("Could not create file " + path.str()));
+
+  // make file readable
+  chmod(path.c_str(), S_IRUSR);
+  ASSERT_TRUE(path.is_readable());
+#endif
+}
+
+TEST(TestFilesystem, IsNotReadableIfFileCanNotBeRead) {
+#ifndef _WIN32
+
+  // create temporary file
+  const std::string directory = mysql_harness::get_tmp_dir("tmp");
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){mysql_harness::delete_dir_recursive(directory);});
+
+  mysql_harness::Path path = mysql_harness::Path(directory).join("/tmp_file");
+  std::ofstream file(path.str());
+
+  if (!file.good())
+    throw(std::runtime_error("Could not create file " + path.str()));
+
+  // make file readable
+  chmod(path.c_str(), S_IWUSR | S_IXUSR);
+  ASSERT_FALSE(path.is_readable());
+#endif
 }
 
 int main(int argc, char *argv[]) {

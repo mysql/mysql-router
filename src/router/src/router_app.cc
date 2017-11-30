@@ -27,6 +27,7 @@
 #include "router_app.h"
 #include "config_generator.h"
 #include "mysql_session.h"
+#include "config_files.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -235,11 +236,25 @@ void MySQLRouter::init(const vector<string>& arguments) {
     }
 #endif
 
+    // default configuration for boostrap is not supported
+    // extra configuration for bootstrap is not supported
+    ConfigFiles config_files({}, config_files_, {});
+
+    if (!config_files.empty()) {
+      DIM::instance().reset_Config(); // simplifies unit tests
+      DIM::instance().set_Config([this, &config_files](){ return make_config({}, config_files); }, std::default_delete<mysql_harness::LoaderConfig>());
+      mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
+
+      // reinit logger (right now the logger is configured to log to STDERR, here
+      //                we re-configure it with settings from config file)
+      init_main_logger(config, true); // true = raw logging mode
+    }
+
     bootstrap(bootstrap_uri_);
     return;
   }
 
-  available_config_files_ = check_config_files();
+  check_config_files();
   can_start_ = true;
 }
 
@@ -463,7 +478,7 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig& config, bool raw
                                          {MYSQL_ROUTER_LOG_DOMAIN}, MYSQL_ROUTER_LOG_DOMAIN);
 
     // register logger for sql domain
-    mysql_harness::logging::init_logger(*registry, "sql", mysql_harness::logging::LogLevel::kDebug);
+    mysql_harness::logging::init_logger(*registry, config, "sql");
 
     // attach all loggers to main handler (throws std::runtime_error)
     mysql_harness::logging::create_main_logfile_handler(*registry, kProgramName,
@@ -516,9 +531,8 @@ void MySQLRouter::init_plugin_loggers(mysql_harness::LoaderConfig& config) {
 }
 
 // throws std::runtime_error
-mysql_harness::LoaderConfig* MySQLRouter::make_config() {
-  std::map<std::string, std::string> params = get_default_paths();
-  std::string err_msg = "Configuration error: %s.";
+mysql_harness::LoaderConfig* MySQLRouter::make_config(const std::map<std::string, std::string> params, ConfigFiles config_files) {
+  constexpr const char* err_msg = "Configuration error: %s.";
 
   try {
     // LoaderConfig ctor throws bad_option (std::runtime_error)
@@ -527,14 +541,14 @@ mysql_harness::LoaderConfig* MySQLRouter::make_config() {
                                         mysql_harness::Config::allow_keys));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
-    for (const mysql_harness::Path& config_file: get_used_config_files())
+    for (const mysql_harness::Path& config_file: config_files.available_config_files())
       config->read(config_file);
 
     return config.release();
   } catch (const mysql_harness::syntax_error &err) {
-    throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
+    throw std::runtime_error(string_format(err_msg, err.what()));
   } catch (const std::runtime_error &err) {
-    throw std::runtime_error(string_format(err_msg.c_str(), err.what()));
+    throw std::runtime_error(string_format(err_msg, err.what()));
   }
 }
 
@@ -554,9 +568,12 @@ void MySQLRouter::start() {
     return;
   }
 
+  // default configuration for boostrap is not supported
+  // extra configuration for bootstrap is not supported
+  ConfigFiles config_files(default_config_files_, config_files_, extra_config_files_);
   // read config, and also make this config globally-available via DIM
   DIM::instance().reset_Config(); // simplifies unit tests
-  DIM::instance().set_Config([this](){ return make_config(); }, std::default_delete<mysql_harness::LoaderConfig>());
+  DIM::instance().set_Config([this, &config_files](){ return make_config(get_default_paths(), config_files); }, std::default_delete<mysql_harness::LoaderConfig>());
   mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
 
   // create logging directory if necessary
@@ -682,73 +699,11 @@ string MySQLRouter::get_version_line() noexcept {
 }
 
 vector<string> MySQLRouter::check_config_files() {
-  vector<string> result;
-
-  size_t nr_of_none_extra = 0;
-
-  auto config_file_containers = {
-    &default_config_files_,
-    &config_files_,
-    &extra_config_files_
-  };
-
-  auto check_file = [](const std::string &file_name) -> bool {
-    std::ifstream file_check;
-    file_check.open(file_name);
-    return  file_check.is_open();
-  };
-
-  auto use_ini_extension = [](const std::string &file_name) -> std::string {
-    auto pos = file_name.find_last_of(".conf");
-    if (pos == std::string::npos || (pos != file_name.length() - 1)) {
-      return std::string();
-    }
-    return file_name.substr(0, pos - 4) + ".ini";
-  };
-
-  std::string paths_attempted;
-  for (vector<string> *vec: config_file_containers) {
-    for (auto &file: *vec) {
-      auto pos = std::find(result.begin(), result.end(), file);
-      if (pos != result.end()) {
-        throw std::runtime_error(string_format("Duplicate configuration file: %s.", file.c_str()));
-      }
-      if (check_file(file)) {
-        result.push_back(file);
-        if (vec != &extra_config_files_) {
-          nr_of_none_extra++;
-        }
-        continue;
-      }
-
-      // if this is a default path we also check *.ini version to be backward compatible
-      // with the previous router versions that used *.ini
-      std::string file_ini;
-      if (vec == &default_config_files_) {
-        file_ini = use_ini_extension(file);
-        if (!file_ini.empty() && check_file(file_ini)) {
-          result.push_back(file_ini);
-          nr_of_none_extra++;
-          continue;
-        }
-      }
-
-      paths_attempted.append(file).append(path_sep);
-      if (!file_ini.empty())
-          paths_attempted.append(file_ini).append(path_sep);
-    }
-  }
-
-  // Can not have extra configuration files when we do not have other configuration files
-  if (!extra_config_files_.empty() && nr_of_none_extra == 0) {
-    throw std::runtime_error("Extra configuration files only work when other configuration files are available.");
-  }
-
-  if (result.empty()) {
-    throw std::runtime_error("No valid configuration file available. See --help for more information (looked at paths '" + paths_attempted + "').");
-  }
-
-  return result;
+  ConfigFiles config_files(default_config_files_, config_files_, extra_config_files_);
+  if (config_files.empty())
+    throw std::runtime_error("No valid configuration file available. See --help for more information (looked at paths '"
+        + config_files.paths_attempted() + "').");
+  return config_files.available_config_files();
 }
 
 void MySQLRouter::save_bootstrap_option_not_empty(const std::string& option_name, const std::string& save_name,

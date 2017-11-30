@@ -41,6 +41,8 @@ using std::vector;
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
 
+class ConfigFiles;
+
 /** @class MySQLRouter
  *  @brief Manage the MySQL Router application.
  *
@@ -235,17 +237,6 @@ public:
     return extra_config_files_;
   }
 
-  /** @brief Gets list of used configuration files
-   *
-   * Returns a list of configuration files which were used to read
-   * the configuration.
-   *
-   * @return std::vector<string>
-   */
-  const std::vector<std::string>&  get_used_config_files() const noexcept {
-    return available_config_files_;
-  }
-
 #if !defined(_MSC_VER) && !defined(UNIT_TESTS)
   // MSVC produces different symbols for private vs public methods, which mean
   // the #define private public trick for unit-testing private methods doesn't
@@ -385,30 +376,25 @@ private:
   void init_loader(mysql_harness::LoaderConfig& config);
 
   // throws std::runtime_error
-  mysql_harness::LoaderConfig* make_config();
+  mysql_harness::LoaderConfig* make_config(const std::map<std::string, std::string> params, ConfigFiles config_files);
 
   std::map<std::string, std::string> get_default_paths() const;
 
   /** @brief Tuple describing the MySQL Router version, with major, minor and patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
+  // TODO move these to class ConfigFiles
   /** @brief Vector with default configuration file locations as strings **/
   std::vector<std::string> default_config_files_;
+  // TODO move these to class ConfigFiles
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<std::string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line arguments **/
+  // TODO move these to class ConfigFiles
   std::vector<string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
-  /** @brief Vector with available and usable configuration files
-   *
-   * @devnote
-   * config_files_ is a vector but it should only contain 1 element since the command line
-   * option for passing these configuration files can only be used once. We use a vector
-   * to make it ourselves easier when looping through all types of configuration files.
-   * @enddevnote
-   */
-  std::vector<std::string> available_config_files_;
+
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;
   /** @brief Harness loader **/

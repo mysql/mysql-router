@@ -150,6 +150,14 @@ class HARNESS_EXPORT Path {
    */
   bool exists() const;
 
+  /*
+   * @brief Checks if path exists and can be opened for reading.
+   *
+   * @return true if path exists and can be opened for reading,
+   *         false otherwise.
+   */
+  bool is_readable() const;
+
   /**
    * Get the directory name of the path.
    *

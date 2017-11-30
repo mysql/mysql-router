@@ -35,6 +35,7 @@ add_definitions(${SSL_DEFINES})
 
 
 set(lib_source_files
+  config_files.cc
   config_generator.cc
   cluster_metadata.cc
   router_app.cc

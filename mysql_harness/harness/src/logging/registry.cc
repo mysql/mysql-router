@@ -237,8 +237,8 @@ void create_main_logfile_handler(Registry& registry,
   }
 }
 
-void init_logger(Registry& registry, const std::string& logger_name, LogLevel log_level) {
-  registry.create_logger(logger_name, log_level);
+void init_logger(Registry& registry, const Config& config, const std::string& logger_name) {
+  registry.create_logger(logger_name, get_default_log_level(config));
 }
 
 void init_loggers(Registry& registry,
