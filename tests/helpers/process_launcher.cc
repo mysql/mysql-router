@@ -43,7 +43,8 @@
 #endif
 
 // performance tweaks
-constexpr unsigned kWaitPidCheckInterval = 100;
+constexpr unsigned kWaitPidCheckInterval = 10;
+constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
 
 #ifdef _WIN32
 
@@ -346,31 +347,43 @@ void ProcessLauncher::start()
     ::close(fd_out[1]);
     ::close(fd_in[0]);
 
+    fd_out[1] = -1;
+    fd_in[0] = -1;
+
     is_alive = true;
   }
 }
 
 void ProcessLauncher::close()
 {
-  if(::kill(childpid, SIGTERM) < 0 && errno != ESRCH) {
-    report_error(NULL, "close()");
+  if (is_alive) {
+    // only try to kill the pid, if we started it. Not that we hurt someone else.
+    if(::kill(childpid, SIGTERM) < 0) {
+      if (errno != ESRCH) {
+        throw std::system_error(errno, std::system_category(), strerror(errno));
+      }
+    } else {
+      try {
+        // wait for it shutdown before using the big hammer
+        wait(std::chrono::duration_cast<std::chrono::milliseconds>(kTerminateWaitInterval).count());
+      } catch(const std::system_error &e) {
+        if(e.code() != std::error_code(ESRCH, std::system_category())) {
+          if(::kill(childpid, SIGKILL) < 0) {
+            if (errno != ESRCH) {
+              throw std::system_error(errno, std::system_category(), strerror(errno));
+            }
+          }
+        }
+        wait();
+      }
+    }
   }
 
-  try {
-     wait(100);
-   } catch(const std::system_error &e) {
-     if(errno != ESRCH)
-     {
-       sleep(1);
-       if(::kill(childpid, SIGKILL) < 0 && errno != ESRCH)
-         report_error(NULL, "kill()");
-     }
-     wait();
-   }
+  if (fd_out[0] != -1) ::close(fd_out[0]);
+  if (fd_in[1] != -1) ::close(fd_in[1]);
 
-  ::close(fd_out[0]);
-  ::close(fd_in[1]);
-  wait();
+  fd_out[0] = -1;
+  fd_in[1] = -1;
   is_alive = false;
 }
 
@@ -444,17 +457,11 @@ uint64_t ProcessLauncher::get_pid() const
 
 int ProcessLauncher::wait(unsigned int timeout_ms)
 {
-  int status;
-  int exited;
-  int exitstatus;
-  pid_t ret;
+  do {
+    int status;
 
-  do
-  {
-    ret = ::waitpid(childpid, &status, WNOHANG);
+    pid_t ret = ::waitpid(childpid, &status, WNOHANG);
 
-    exited = WIFEXITED(status);
-    exitstatus = WEXITSTATUS(status);
     if (ret == 0) {
       auto sleep_for = std::min(timeout_ms, kWaitPidCheckInterval);
       if (sleep_for > 0) {
@@ -464,22 +471,21 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
         throw std::system_error(ETIMEDOUT, std::generic_category(),
             std::string("Timed out waiting " + std::to_string(timeout_ms) + " ms for the process " + std::to_string(childpid) + " to exit"));
       }
-    } else if (ret == -1)
-    {
-      if (errno == ECHILD) {
-        break; // no children left
-      }
-      if((exited == 0) || (exitstatus != 0))
-      {
-        report_error(NULL, "waitpid()");
-      }
+    } else if (ret == -1) {
+      throw std::system_error(errno, std::generic_category(),
+          std::string("waiting for process " + std::to_string(childpid) + "failed"));
     } else {
-      break;
+      if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+      } else if (WIFSIGNALED(status)) {
+        throw std::runtime_error(std::string("Process " + std::to_string(childpid) + " got signal " + std::to_string(WTERMSIG(status))));
+      } else {
+        // it neither exited, not received a signal.
+        throw std::runtime_error(std::string("Process " + std::to_string(childpid) + " ... not idea"));
+      }
     }
   }
   while(true);
-
-  return exitstatus;
 }
 
 uint64_t ProcessLauncher::get_fd_write() const
