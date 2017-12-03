@@ -85,32 +85,6 @@
       }
     },
     {
-      "stmt": "SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "single_primary_mode"
-          },
-          {
-            "type": "STRING",
-            "name": "primary_member"
-          },
-          {
-            "type": "STRING",
-            "name": "my_uuid"
-          }
-        ],
-        "rows": [
-          [
-            1,
-            "b66e4c6f-e15f-11e6-90b0-507b9d70900f",
-            "b66e4c6f-e15f-11e6-90b0-507b9d70900f"
-          ]
-        ]
-      }
-    },
-    {
       "stmt": "show status like 'ssl_cipher'",
       "result": {
         "columns": [
@@ -154,19 +128,19 @@
         ],
         "rows": [
           [
-            "test",
+            "mycluster",
             "default",
             "pm",
             "localhost:5500"
           ],
           [
-            "test",
+            "mycluster",
             "default",
             "pm",
             "localhost:5510"
           ],
           [
-            "test",
+            "mycluster",
             "default",
             "pm",
             "localhost:5520"
@@ -176,7 +150,7 @@
     },
     {
       "stmt": "START TRANSACTION",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '.*' LIMIT 1",
@@ -199,39 +173,43 @@
     },
     {
       "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts.*",
-      "ok": null
+      "ok": {
+        "last_insert_id": 1
+      }
     },
     {
       "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
-      "ok": null
+      "ok": {
+        "last_insert_id": 1
+      }
     },
     {
       "stmt.regex": "^DROP USER IF EXISTS mysql_router.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "^CREATE USER mysql_router.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "^GRANT SELECT ON performance_schema.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "^GRANT SELECT ON performance_schema.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
-      "ok": null
+      "ok": {}
     },
     {
       "stmt": "COMMIT",
-      "ok": null
+      "ok": {}
     }
   ]
 }

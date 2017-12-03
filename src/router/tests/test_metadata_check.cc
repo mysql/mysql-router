@@ -350,7 +350,7 @@ TEST(MetadataCheck, non_primary) {
   q_metadata_only_our_group(m, "1", "1");
   q_member_state(m, "ONLINE");
   q_quorum(m, "1", "1");
-  q_single_primary_info(m).then_error("error", 1234);
+  q_single_primary_info(m).then_error("this shouldn't be returned-error", 1234);
   ASSERT_THROW_LIKE(mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
       "The provided server is not an updatable member of the cluster. Please try again with the Primary member of the replicaset.");

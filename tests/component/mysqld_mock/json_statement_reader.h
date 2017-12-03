@@ -28,6 +28,61 @@
 
 namespace server_mock {
 
+
+struct Response {
+  virtual ~Response() {};
+};
+
+/** @brief Keeps result data for single SQL statement that returns
+ *         resultset.
+ **/
+struct ResultsetResponse : public Response {
+  std::vector<column_info_type> columns;
+  std::vector<row_values_type> rows;
+};
+
+struct OkResponse : public Response {
+  OkResponse(unsigned int last_insert_id_=0, unsigned int warning_count_=0) : last_insert_id(last_insert_id_), warning_count(warning_count_) {}
+
+  unsigned int last_insert_id;
+  unsigned int warning_count;
+};
+
+struct ErrorResponse : public Response {
+  ErrorResponse(unsigned int code_, std::string msg_, std::string sql_state_="HY000") : code(code_), msg(msg_), sql_state(sql_state_) {}
+
+  unsigned int code;
+  std::string msg;
+  std::string sql_state;
+};
+
+
+/** @class StatementAndResponse
+ *
+ * @brief Keeps single SQL statement data.
+ **/
+struct StatementAndResponse {
+  /** @enum statement_response_type
+   *
+   * Response expected for given SQL statement.
+   **/
+  enum class statement_response_type {
+     STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
+  };
+
+  // true if statement is a regex
+  bool statement_is_regex{false};
+  // SQL statement
+  std::string statement;
+  // exected response type for the statement
+  statement_response_type response_type;
+
+  std::unique_ptr<Response> response;
+
+  // execution time in microseconds
+  std::chrono::microseconds exec_time{0};
+};
+
 /** @class QueriesJsonReader
  *
  * @brief  Responsible for reading the json file with
@@ -44,42 +99,11 @@ class QueriesJsonReader {
    **/
   QueriesJsonReader(const std::string &filename);
 
-  /** @enum statement_result_type
-   *
-   * Response expected for given SQL statement.
-   **/
-  enum class statement_result_type {
-     STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
-  };
-
-  /** @brief Keeps result data for single SQL statement that returns
-   *         resultset.
-   **/
-  struct resultset_type {
-    std::vector<column_info_type> columns;
-    std::vector<row_values_type> rows;
-  };
-
-  /** @brief Keeps single SQL statement data.
-   **/
-  struct statement_info {
-    // true if statement is a regex
-    bool statement_is_regex{false};
-    // SQL statement
-    std::string statement;
-    // exected response type for the statement
-    statement_result_type result_type;
-    // result data if the expected response is resultset
-    resultset_type resultset;
-    // execution time in microseconds
-    std::chrono::microseconds exec_time{0};
-  };
-
   /** @brief Returns the data about the next statement from the
    *         json file. If there is no more statements it returns
    *         empty statement.
    **/
-  statement_info get_next_statement();
+  StatementAndResponse get_next_statement();
 
   /** @brief Returns the default execution time in microseconds. If
    *         no default execution time is provided in json file, then

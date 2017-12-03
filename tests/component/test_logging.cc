@@ -301,7 +301,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // than the stuff that follows it).
   // Router should report the error on STDERR and exit
 
-  const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
   // launch mock server and wait for it to start accepting connections

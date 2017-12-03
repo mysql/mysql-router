@@ -209,33 +209,42 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
   throw std::logic_error("No result returned for metadata query");
 }
 
-static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_primary) {
+static void get_group_member_config(MySQLSession *mysql, int &ret_single_primary_mode, std::string &ret_primary_server_uuid, std::string &ret_my_server_uuid) {
   std::string q = "SELECT @@group_replication_single_primary_mode=1 as single_primary_mode, "
                   "       (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member, "
                   "        @@server_uuid as my_uuid";
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (!result) {
+    throw std::logic_error("Expected resultset, got nothing for: " + q);
+  }
+
+  if (result->size() != 3) {
+    throw std::out_of_range("Invalid number of values returned from query for primary: "
+                            "expected 3 got " + std::to_string(result->size()));
+  }
+
+  ret_single_primary_mode = strtoi_checked((*result)[0]);
+  ret_primary_server_uuid = (*result)[1];
+  ret_my_server_uuid = (*result)[2];
+}
+
+static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_primary) {
+  int single_primary_mode;
+  std::string my_server_uuid;
+
   try {
-    std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
-    if (result) {
-      if (result->size() != 3) {
-        throw std::out_of_range("Invalid number of values returned from query for primary: "
-                                "expected 3 got " + std::to_string(result->size()));
-      }
-      int single_primary_mode = strtoi_checked((*result)[0]);
-      if (!single_primary_mode || strcmp((*result)[1], (*result)[2]) == 0)
-        return true;
-      // log_info("Single Primary Mode = %s, Current member is %sprimary",
-      //           single_primary_mode ? "ON" : "OFF",
-      //           is_primary ? "" : "NOT ");
-      ret_primary = (*result)[1];
-      return false;
-    }
-  } catch (const std::out_of_range &e) {
+    get_group_member_config(mysql, single_primary_mode, ret_primary, my_server_uuid);
+  } catch (const std::logic_error &e) {
+    // logic-error and out-of-range errors should be forwarded to the upper layers
+    //
+    // note: out-of-range is a logic-error
     throw;
-  } catch (const std::exception &e) {
-    // log_error("Error querying for group_replication state: %s", e.what());
+  } catch (...) {
     return false;
   }
-  throw std::logic_error("No result returned for metadata query");
+
+  return (single_primary_mode == 0 || ret_primary == my_server_uuid);
 }
 
 static bool check_metadata_is_supported(MySQLSession *mysql,
@@ -271,6 +280,29 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
   }
   throw std::logic_error("No result returned for metadata query");
 }
+
+void mysqlrouter::require_innodb_metadata_is_ok(MySQLSession *mysql) {
+  std::tuple<int,int,int> mdversion;
+
+  if (!check_version(mysql, mdversion)) {
+    throw std::runtime_error("This version of MySQL Router is not compatible with the provided MySQL InnoDB cluster metadata.");
+  }
+
+  if (!check_metadata_is_supported(mysql, mdversion)) {
+    throw std::runtime_error("The provided server contains an unsupported InnoDB cluster metadata.");
+  }
+}
+
+void mysqlrouter::require_innodb_group_replication_is_ok(MySQLSession *mysql) {
+  if (!check_group_replication_online(mysql)) {
+    throw std::runtime_error("The provided server is currently not an ONLINE member of a InnoDB cluster.");
+  }
+
+  if (!check_group_has_quorum(mysql)) {
+    throw std::runtime_error("The provided server is currently not in a InnoDB cluster group with quorum and thus may contain inaccurate or outdated data.");
+  }
+}
+
 
 void mysqlrouter::check_innodb_metadata_cluster_session(MySQLSession *mysql,
                                                         bool read_only_ok) {
@@ -356,17 +388,12 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
       + " is associated with a different host ('"+(*row)[1]+"' vs '"+hostname+"')");
 }
 
-inline std::string str(const mysqlrouter::ConfigGenerator::Options::Endpoint &ep) {
-  if (ep.port > 0)
-    return std::to_string(ep.port);
-  else if (!ep.socket.empty())
-    return ep.socket;
-  else
-    return "null";
-}
-
 void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
-    const mysqlrouter::ConfigGenerator::Options &options) {
+    const std::string &rw_endpoint,
+    const std::string &ro_endpoint,
+    const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint) {
+
   sqlstring query("UPDATE mysql_innodb_cluster_metadata.routers"
                   " SET attributes = "
                   "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,"
@@ -375,10 +402,10 @@ void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
                   "    'RWXEndpoint', ?),"
                   "    'ROXEndpoint', ?)"
                   " WHERE router_id = ?");
-  query << str(options.rw_endpoint);
-  query << str(options.ro_endpoint);
-  query << str(options.rw_x_endpoint);
-  query << str(options.ro_x_endpoint);
+  query << rw_endpoint;
+  query << ro_endpoint;
+  query << rw_x_endpoint;
+  query << ro_x_endpoint;
   query << router_id;
   query << sqlstring::end;
 

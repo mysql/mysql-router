@@ -25,6 +25,7 @@
 
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
+#include "rapidjson/error/en.h"
 #include <cassert>
 #include <chrono>
 #include <memory>
@@ -124,8 +125,11 @@ struct QueriesJsonReader::Pimpl {
   JsonDocument json_document_;
   size_t current_stmt_{0u};
 
-  void read_result_info(const JsonValue& stmt,
-                        statement_info &out_statement_info);
+  std::unique_ptr<Response> read_result_info(const JsonValue& stmt);
+
+  std::unique_ptr<Response> read_ok_info(const JsonValue& stmt);
+
+  std::unique_ptr<Response> read_error_info(const JsonValue& stmt);
 
   Pimpl(): json_document_() {}
 };
@@ -150,6 +154,11 @@ QueriesJsonReader::QueriesJsonReader(const std::string &filename):
 
   pimpl_->json_document_.ParseStream(is);
 
+  if (pimpl_->json_document_.HasParseError()) {
+    throw std::runtime_error("Parsing " + filename + " failed at pos " + std::to_string(pimpl_->json_document_.GetErrorOffset()) + ": "
+        + RAPIDJSON_NAMESPACE::GetParseError_En(pimpl_->json_document_.GetParseError()));
+  }
+
   if (!pimpl_->json_document_.HasMember("stmts")) {
     throw std::runtime_error("Wrong statements document structure: missing \"stmts\"");
   }
@@ -164,11 +173,11 @@ QueriesJsonReader::QueriesJsonReader(const std::string &filename):
 // about pimpl unknown size in std::unique_ptr
 QueriesJsonReader::~QueriesJsonReader() {}
 
-QueriesJsonReader::statement_info QueriesJsonReader::get_next_statement() {
-  statement_info result;
+StatementAndResponse QueriesJsonReader::get_next_statement() {
+  StatementAndResponse response;
 
   const JsonValue& stmts = pimpl_->json_document_["stmts"];
-  if (pimpl_->current_stmt_ >= stmts.Size()) return result;
+  if (pimpl_->current_stmt_ >= stmts.Size()) return response;
 
   auto& stmt = stmts[pimpl_->current_stmt_++];
   if (!stmt.HasMember("stmt") && !stmt.HasMember("stmt.regex")) {
@@ -177,36 +186,38 @@ QueriesJsonReader::statement_info QueriesJsonReader::get_next_statement() {
 
   if (stmt.HasMember("exec-time")) {
     double exec_time = get_json_double_field(stmt, "exec-time", 0.0);
-    result.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+    response.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
   }
   else {
-    result.exec_time = get_default_exec_time();
+    response.exec_time = get_default_exec_time();
   }
 
   std::string name{"stmt"};
   if (stmt.HasMember("stmt.regex")) {
     name = "stmt.regex";
-    result.statement_is_regex = true;
+    response.statement_is_regex = true;
   }
 
   if (!stmt[name.c_str()].IsString()) {
     throw std::runtime_error("Wrong statements document structure: \"stmt\" has to be a string");
   }
 
-  result.statement = stmt[name.c_str()].GetString();
+  response.statement = stmt[name.c_str()].GetString();
 
   if (stmt.HasMember("ok")) {
-    result.result_type = statement_result_type::STMT_RES_OK;
+    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_OK;
+    response.response = pimpl_->read_ok_info(stmt);
   } else if (stmt.HasMember("error")) {
-    result.result_type = statement_result_type::STMT_RES_ERROR;
+    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_ERROR;
+    response.response = pimpl_->read_error_info(stmt);
   } else if (stmt.HasMember("result")) {
-    result.result_type = statement_result_type::STMT_RES_RESULT;
-    pimpl_->read_result_info(stmt, result);
+    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_RESULT;
+    response.response = pimpl_->read_result_info(stmt);
   } else {
     throw std::runtime_error("Wrong statements document structure: expect \"ok|error|result\"");
   }
 
-  return result;
+  return response;
 }
 
 std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
@@ -221,12 +232,13 @@ std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
   return std::chrono::microseconds(0);
 }
 
-void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
-                                                statement_info &out_statement_info) {
+std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt) {
   // only asserting as this should have been checked before if we got here
   assert(stmt.HasMember("result"));
 
   const auto& result = stmt["result"];
+
+  std::unique_ptr<ResultsetResponse> response(new ResultsetResponse);
 
   // read columns
   if (result.HasMember("columns")) {
@@ -252,7 +264,7 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
           get_json_integer_field<unsigned>(column, "repeat", 1)
       };
 
-      out_statement_info.resultset.columns.push_back(column_info);
+      response->columns.push_back(column_info);
     }
   }
 
@@ -263,7 +275,7 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
       throw std::runtime_error("Wrong statements document structure: \"rows\" has to be an array");
     }
 
-    auto columns_size = out_statement_info.resultset.columns.size();
+    auto columns_size = response->columns.size();
 
     for (size_t i = 0; i < rows.Size(); ++i) {
       auto& row = rows[i];
@@ -279,14 +291,45 @@ void QueriesJsonReader::Pimpl::read_result_info(const JsonValue &stmt,
 
       row_values_type row_values;
       for (size_t j = 0; j < row.Size(); ++j) {
-        auto& column_info = out_statement_info.resultset.columns[j];
+        auto& column_info = response->columns[j];
         const size_t repeat = static_cast<size_t>(column_info.repeat);
-        row_values.push_back(get_json_value_as_string(row[j], repeat));
+        if (row[j].IsNull()) {
+          row_values.push_back(std::make_pair(false, ""));
+        } else {
+          row_values.push_back(std::make_pair(true, get_json_value_as_string(row[j], repeat)));
+        }
       }
 
-      out_statement_info.resultset.rows.push_back(row_values);
+      response->rows.push_back(row_values);
     }
   }
+
+  return std::move(response);
 }
+
+std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_ok_info(const JsonValue &stmt) {
+  // only asserting as this should have been checked before if we got here
+  assert(stmt.HasMember("ok"));
+
+  const auto& f_ok = stmt["ok"];
+
+  return std::unique_ptr<Response>(new OkResponse(
+    get_json_integer_field<unsigned int>(f_ok, "last_insert_id", 0),
+    get_json_integer_field<unsigned int>(f_ok, "warnings", 0)));
+}
+
+std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_error_info(const JsonValue &stmt) {
+  // only asserting as this should have been checked before if we got here
+  assert(stmt.HasMember("error"));
+
+  const auto& f_error = stmt["error"];
+
+  return std::unique_ptr<Response>(new ErrorResponse(
+    get_json_integer_field<unsigned int>(f_error, "code", 0, true),
+    get_json_string_field(f_error, "message", "unknown error-msg"),
+    get_json_string_field(f_error, "sql_state", "HY000")));
+}
+
+
 
 } // namespace server_mock

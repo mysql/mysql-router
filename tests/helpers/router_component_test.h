@@ -146,6 +146,15 @@ class RouterComponentTest {
       return execute_output_raw_;
     }
 
+    /**
+     * get the current output of the process.
+     *
+     * doesn't check if there is new content.
+     */
+    std::string get_current_output() const {
+      return execute_output_raw_;
+    }
+
     /** @brief Register the response that should be written to the process' input descriptor
      *         when the given string appears on it output while executing expect_output().
      *
@@ -320,12 +329,12 @@ class RouterComponentTest {
   }
 
   /** @brief replace the 'process.env.{id}' in the input stream
-     *
-     * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}' references.
-     *
-     * replaces all references of process.env.{id} with the "environment variables" provided
-     * in env_vars, line-by-line
-     */
+   *
+   * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}' references.
+   *
+   * replaces all references of process.env.{id} with the "environment variables" provided
+   * in env_vars, line-by-line
+   */
   static void replace_process_env(std::istream &ins,
                                   std::ostream &outs,
                                   const std::map<std::string, std::string> &env_vars);

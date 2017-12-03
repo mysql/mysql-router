@@ -147,10 +147,11 @@ MySQLProtocolEncoder::encode_row_message(uint8_t seq_no,
   }
 
   for (size_t i = 0; i < row_values.size(); ++i) {
-    if (row_values[i].empty())
+    if (row_values[i].first) {
+      append_lenenc_str(out_buffer, row_values[i].second);
+    } else {
       append_byte(out_buffer, 0xfb); // NULL
-    else
-      append_lenenc_str(out_buffer, row_values[i]);
+    }
   }
 
   encode_msg_end(out_buffer, seq_no);

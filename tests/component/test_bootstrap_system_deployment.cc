@@ -64,7 +64,7 @@ protected:
  }
 
  RouterComponentTest::CommandHandle run_server_mock() {
-   const std::string json_stmts = get_data_dir().join("bootstrapper.json").str();
+   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
    server_port_ = port_pool_.get_next_available();
 
    // launch mock server and wait for it to start accepting connections
@@ -100,7 +100,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
 
   // check if the bootstraping was successful
   EXPECT_EQ(router.wait_for_exit(), 0);
-  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
+  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'mycluster'")
     ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
 }
 

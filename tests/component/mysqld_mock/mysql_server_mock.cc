@@ -21,6 +21,7 @@
 #include <functional>
 #include <iostream>
 #include <thread>
+#include <system_error>
 
 #ifndef _WIN32
 #  include <netdb.h>
@@ -31,6 +32,7 @@
 #  include <sys/select.h>
 #  include <sys/socket.h>
 #  include <sys/types.h>
+#  include <netinet/tcp.h>
 #  include <unistd.h>
 #  include <regex.h>
 #else
@@ -64,8 +66,7 @@ void send_packet(socket_t client_socket, const uint8_t *data, size_t size, int f
   while (buffer_offset < size) {
     if ((sent = send(client_socket, reinterpret_cast<const char*>(data) + buffer_offset,
                      size-buffer_offset, flags)) < 0) {
-      throw std::runtime_error("Error calling send(); errno= "
-                               + get_socket_errno_str());
+      throw std::system_error(get_socket_errno(), std::system_category(), "send() failed");
     }
     buffer_offset += static_cast<size_t>(sent);
   }
@@ -83,9 +84,11 @@ void read_packet(socket_t client_socket, uint8_t *data, size_t size, int flags =
   while (buffer_offset < size) {
     received = recv(client_socket, reinterpret_cast<char*>(data)+buffer_offset,
                     size-buffer_offset, flags);
-    if (received <= 0) {
-      throw(std::runtime_error("error calling recv (ret=" + std::to_string(received)  + ") errno: "
-                             + get_socket_errno_str()));
+    if (received < 0) {
+      throw std::system_error(get_socket_errno(), std::system_category(), "recv() failed");
+    } else if (received == 0) {
+      // connection closed by client
+      throw std::runtime_error("recv() failed: Connection Closed");
     }
     buffer_offset += static_cast<size_t>(received);
   }
@@ -240,8 +243,16 @@ void MySQLServerMock::handle_connections() {
 
     socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
     if (client_socket < 0) {
+      // if we got interrupted at shutdown, just leave
+      if (g_terminate) break;
+
       throw std::runtime_error("accept() failed: " + get_socket_errno_str());
     }
+
+    // if it doesn't work, no problem.
+    int one = 1;
+    setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
+
     std::cout << "Accepted client " << client_socket << std::endl;
     std::thread(connection_handler, client_socket).detach();
   }
@@ -301,54 +312,60 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
   return true;
 }
 
-static void debug_trace_result(const QueriesJsonReader::resultset_type& resultset) {
+static void debug_trace_result(const ResultsetResponse *resultset) {
   std::cout << "QUERY RESULT:\n";
-  for (size_t i = 0; i < resultset.rows.size(); ++i) {
-    for (const std::string& cell : resultset.rows[i])
-      std::cout << "  |  " << cell;
+  for (size_t i = 0; i < resultset->rows.size(); ++i) {
+    for (const auto& cell : resultset->rows[i])
+      std::cout << "  |  " << (cell.first ? cell.second : "NULL");
     std::cout << "  |\n";
   }
   std::cout << "\n\n\n" << std::flush;
 }
 
 void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
-                    const QueriesJsonReader::statement_info& statement) {
-  using statement_result_type = QueriesJsonReader::statement_result_type;
+                    const StatementAndResponse& statement) {
+  using statement_response_type = StatementAndResponse::statement_response_type;
 
-  switch (statement.result_type) {
-  case statement_result_type::STMT_RES_OK:
+  switch (statement.response_type) {
+  case statement_response_type::STMT_RES_OK: {
+    OkResponse *response = dynamic_cast<OkResponse *>(statement.response.get());
     std::this_thread::sleep_for(statement.exec_time);
-    send_ok(client_socket, static_cast<uint8_t>(seq_no+1));
+    send_ok(client_socket, static_cast<uint8_t>(seq_no+1), 0, response->last_insert_id, 0, response->warning_count);
+  }
   break;
-  case statement_result_type::STMT_RES_RESULT: {
-    const auto& resultset = statement.resultset;
+  case statement_response_type::STMT_RES_RESULT: {
+    ResultsetResponse *response = dynamic_cast<ResultsetResponse *>(statement.response.get());
     if (debug_mode_) {
-      debug_trace_result(resultset);
+      debug_trace_result(response);
     }
     seq_no = static_cast<uint8_t>(seq_no + 1);
-    auto buf = protocol_encoder_.encode_columns_number_message(seq_no++, resultset.columns.size());
+    auto buf = protocol_encoder_.encode_columns_number_message(seq_no++, response->columns.size());
     std::this_thread::sleep_for(statement.exec_time);
     send_packet(client_socket, buf);
-    for (const auto& column: resultset.columns) {
+    for (const auto& column: response->columns) {
       auto col_buf = protocol_encoder_.encode_column_meta_message(seq_no++, column);
       send_packet(client_socket, col_buf);
     }
     buf = protocol_encoder_.encode_eof_message(seq_no++);
     send_packet(client_socket, buf);
 
-    for (size_t i = 0; i < resultset.rows.size(); ++i) {
-      auto res_buf = protocol_encoder_.encode_row_message(seq_no++, resultset.columns, resultset.rows[i]);
+    for (size_t i = 0; i < response->rows.size(); ++i) {
+      auto res_buf = protocol_encoder_.encode_row_message(seq_no++, response->columns, response->rows[i]);
       send_packet(client_socket, res_buf);
     }
     buf = protocol_encoder_.encode_eof_message(seq_no++);
     send_packet(client_socket, buf);
   }
   break;
-  case statement_result_type::STMT_RES_ERROR:
-    // TODO: handle if needed
+  case statement_response_type::STMT_RES_ERROR: {
+    ErrorResponse *response = dynamic_cast<ErrorResponse *>(statement.response.get());
+
+    send_error(client_socket, static_cast<uint8_t>(seq_no+1), response->code, response->msg);
+  }
+  break;
   default:;
     throw std::runtime_error("Unsupported command in handle_statement(): " +
-      std::to_string((int)statement.result_type));
+      std::to_string((int)statement.response_type));
   }
 }
 
@@ -361,12 +378,12 @@ void MySQLServerMock::send_error(socket_t client_socket, uint8_t seq_no,
   send_packet(client_socket, buf);
 }
 
-void MySQLServerMock::send_ok(socket_t client_socket, uint8_t seq_no) {
-  // TODO: for now hardcoding affected_rows and last_insert_id to 1
-  // as this can be verified (MySQLRouter does that sometimes) by the
-  // client when it does the INSERT statement
-  // need to add a way to enable defining that in json file
-  auto buf = protocol_encoder_.encode_ok_message(seq_no, 1, 1);
+void MySQLServerMock::send_ok(socket_t client_socket, uint8_t seq_no,
+    uint64_t affected_rows,
+    uint64_t last_insert_id,
+    uint16_t server_status,
+    uint16_t warning_count) {
+  auto buf = protocol_encoder_.encode_ok_message(seq_no, affected_rows, last_insert_id, server_status, warning_count);
   send_packet(client_socket, buf);
 }
 

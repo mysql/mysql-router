@@ -60,14 +60,18 @@ class MySQLServerMock {
   bool process_statements(socket_t client_socket);
 
   void handle_statement(socket_t client_socket, uint8_t seq_no,
-                        const QueriesJsonReader::statement_info& statement);
+                        const StatementAndResponse& statement);
 
   void send_error(socket_t client_socket, uint8_t seq_no,
                   uint16_t error_code,
                   const std::string &error_msg,
                   const std::string &sql_state = "HY000");
 
-  void send_ok(socket_t client_socket, uint8_t seq_no);
+  void send_ok(socket_t client_socket, uint8_t seq_no,
+      uint64_t affected_rows=0,
+      uint64_t last_insert_id=0,
+      uint16_t server_status=0,
+      uint16_t warning_count=0);
 
   static constexpr int kListenQueueSize = 5;
   unsigned bind_port_;

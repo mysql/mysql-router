@@ -9,13 +9,46 @@
   "definitions": {
     "Ok": {
       "description": "OK response",
-      "type": "null"
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_insert_id": {
+          "description": "last insert id",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "warning_count": {
+          "description": "number of warnings",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      }
     },
 
     "Error": {
       "description": "Error response",
       "type": "object",
-      "additionalProperties": false
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "sql_state": {
+          "description": "SQL state",
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 5,
+          "default": "HY000"
+        },
+        "code": {
+          "description": "error code",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     },
 
     "ExecTime": {
@@ -29,15 +62,37 @@
       "description": "column description",
       "type": "object",
       "additionalProperties": false,
+      "required": ["type"],
 
       "properties": {
         "type": {
           "description": "datatype of the column",
           "enum": [
-            "STRING",
             "TINY",
+            "SHORT",
+            "LONG",
+            "INT24",
             "LONGLONG",
-            "LONG"
+            "DECIMAL",
+            "NEWDECIMAL",
+            "FLOAT",
+            "DOUBLE",
+            "BIT",
+            "TIMESTAMP",
+            "DATE",
+            "TIME",
+            "DATETIME",
+            "YEAR",
+            "STRING",
+            "VAR_STRING",
+            "BLOB",
+            "SET",
+            "ENUM",
+            "GEOMETRY",
+            "NULL",
+            "TINYBLOB",
+            "LONGBLOB",
+            "MEDIUMBLOB"
           ]
         },
         "name": {

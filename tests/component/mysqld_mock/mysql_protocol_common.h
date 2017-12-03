@@ -78,10 +78,10 @@ struct column_info_type {
   unsigned repeat;
 };
 
-/** @brief Vector for keeping string representation of the values
+/** @brief Vector for keeping has_value|string representation of the values
  *         of the single row (ordered by column)
  **/
-using row_values_type = std::vector<std::string>;
+using row_values_type = std::vector<std::pair<bool, std::string>>;
 
 MySQLColumnType column_type_from_string(const std::string& type);
 

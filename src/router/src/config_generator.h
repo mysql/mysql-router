@@ -26,6 +26,8 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "unique_ptr.h"
+#include "random_generator.h"
+#include "mysqlrouter/mysql_session.h"
 
 namespace mysql_harness {
   class Path;
@@ -149,6 +151,16 @@ private:
       bool directory_deployment,
       AutoCleaner& auto_clean);
 
+  std::tuple<std::string>
+  try_bootstrap_deployment(uint32_t &router_id, std::string &username,
+      const std::string &router_name,
+      mysql_harness::RandomGeneratorInterface& rg,
+      const std::map<std::string, std::string> &user_options,
+      const std::string &rw_endpoint,
+      const std::string &ro_endpoint,
+      const std::string &rw_x_endpoint,
+      const std::string &ro_x_endpoint);
+
   void init_keyring_file(const std::string &keyring_file,
                          const std::string &keyring_master_key_file);
 
@@ -156,6 +168,9 @@ private:
                                std::string &metadata_cluster,
                                std::string &metadata_replicaset,
                                bool &multi_master);
+
+  std::vector<std::tuple<std::string, unsigned long>> fetch_group_replication_hosts();
+
   void create_config(std::ostream &config_file,
                      uint32_t router_id,
                      const std::string &router_name,
@@ -193,6 +208,12 @@ private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
   int connect_timeout_;
   int read_timeout_;
+
+  std::string gr_initial_hostname_;
+  unsigned int gr_initial_port_;
+  std::string gr_initial_username_;
+  std::string gr_initial_password_;
+  std::string gr_initial_socket_;
 
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;

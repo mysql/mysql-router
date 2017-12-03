@@ -29,7 +29,7 @@
 #endif
 #include <stdint.h>
 
-/** a alive, spawned process
+/** an alive, spawned process
  *
  * @todo
  *
@@ -61,6 +61,8 @@ public:
 #endif
     redirect_stderr{predirect_stderr}
   {}
+
+  virtual ~SpawnedProcess() {}
 
 protected:
   const char *cmd_line;
@@ -99,9 +101,10 @@ public:
 
   // copying a Process results in multiple destructors trying
   // to kill the same alive process. Disable it.
-  ProcessLauncher(const ProcessLauncher &that) = delete;
+  ProcessLauncher(const ProcessLauncher &) = delete;
+  ProcessLauncher operator=(const ProcessLauncher &) = delete;
 
-  ProcessLauncher(ProcessLauncher &&rhs) : SpawnedProcess(std::move(rhs)), is_alive(std::move(rhs.is_alive)) {
+  ProcessLauncher(ProcessLauncher &&rhs) : SpawnedProcess(rhs), is_alive(std::move(rhs.is_alive)) {
     // make sure destructor on the other object doesn't try to kill
     // the process-id we just moved
 

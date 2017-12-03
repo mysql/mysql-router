@@ -171,6 +171,7 @@ static void common_pass_group_has_quorum(MySQLSessionReplayer *m) {
   });
 }
 
+#if 0
 static void common_pass_member_is_primary(MySQLSessionReplayer *m) {
   m->expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
   m->then_return(3, {
@@ -178,6 +179,7 @@ static void common_pass_member_is_primary(MySQLSessionReplayer *m) {
     {m->string_or_null("0"), m->string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m->string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
   });
 }
+#endif
 
 static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
   m->clear_expects();
@@ -185,7 +187,7 @@ static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
   common_pass_metadata_supported(m);
   common_pass_group_replication_online(m);
   common_pass_group_has_quorum(m);
-  common_pass_member_is_primary(m);
+  // common_pass_member_is_primary(m);
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
@@ -433,8 +435,16 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
       {mock_mysql->string_or_null("0"), mock_mysql->string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
     });
 
-    ASSERT_THROW_LIKE(
-      config_gen.init(kServerUrl, {}),
+    ASSERT_THROW_LIKE({
+        // bypass the config-gen init as we actually only test check_innodb_metadata_cluster_session()
+        // which isn't used by config-gen anymore
+        mysql_harness::UniquePtr<mysqlrouter::MySQLSession> mysql_ = mysql_harness::DIM::instance().new_MySQLSession();
+
+        mysqlrouter::URI u = mysqlrouter::URIParser::parse(kServerUrl, false);
+        mysql_->connect(u.host, u.port, u.username, u.password, "", "", 5);
+
+        mysqlrouter::check_innodb_metadata_cluster_session(mysql_.get(), false);
+      },
       std::out_of_range,
       "Invalid number of values returned from query for primary: "
       "expected 3 got 2"
