@@ -59,61 +59,12 @@
 std::string g_cwd;
 mysql_harness::Path g_origin;
 
-class ConfigGeneratorTest : public ConsoleOutputTest {
-protected:
-  virtual void SetUp() {
-    mysql_harness::DIM::instance().set_RandomGenerator(
-      [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
-      [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
-    );
-    set_origin(g_origin);
-    ConsoleOutputTest::SetUp();
-    config_path.reset(new Path(g_cwd));
-    config_path->append("Bug24570426.conf");
-
-    default_paths["logging_folder"] = "";
-  }
-
-  std::unique_ptr<Path> config_path;
-  std::map<std::string, std::string> default_paths;
-};
-
 using ::testing::Return;
 using namespace testing;
 using mysqlrouter::ConfigGenerator;
-
-
-static void common_pass_metadata_checks(MySQLSessionReplayer &m) {
-  m.expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
-  m.then_return(2, {
-      // major, minor
-      {m.string_or_null("1"), m.string_or_null("0")}
-    });
-
-  m.expect_query_one("SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours");
-  m.then_return(2, {
-      // has_one_replicaset, replicaset_is_ours
-      {m.string_or_null("1"), m.string_or_null()}
-    });
-
-  m.expect_query_one("SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid");
-  m.then_return(1, {
-      // member_state
-      {m.string_or_null("ONLINE")}
-    });
-
-  m.expect_query_one("SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members");
-  m.then_return(2, {
-      // num_onlines, num_total
-      {m.string_or_null("3"), m.string_or_null("3")}
-    });
-
-  m.expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
-  m.then_return(3, {
-      // single_primary_mode, primary_member, my_uuid
-      {m.string_or_null("0"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m.string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
-    });
-}
+const std::string kServerUrl = "mysql://test:test@127.0.0.1:3060";
+using mysqlrouter::delete_recursive;
+using mysqlrouter::delete_file;
 
 void set_mock_mysql(MySQLSessionReplayer* ptr) {
   mysql_harness::DIM::instance().set_MySQLSession(
@@ -164,9 +115,85 @@ public:
   bool should_throw_ = false;
 };
 
-TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
-  MySQLSessionReplayer mock_mysql;
+class ConfigGeneratorTest : public ConsoleOutputTest {
+protected:
+  virtual void SetUp() {
+    mysql_harness::DIM::instance().set_RandomGenerator(
+      [](){ static mysql_harness::FakeRandomGenerator rg; return &rg; },
+      [](mysql_harness::RandomGeneratorInterface*){}  // don't delete our static!
+    );
 
+    mock_mysql.reset(new ReplayerWithMockSSL());
+    mysql_harness::DIM::instance().set_MySQLSession(
+      [this](){ return mock_mysql.get(); },
+      [](mysqlrouter::MySQLSession*){}   // don't try to delete it
+    );
+
+    set_origin(g_origin);
+    ConsoleOutputTest::SetUp();
+    config_path.reset(new Path(g_cwd));
+    config_path->append("Bug24570426.conf");
+
+    default_paths["logging_folder"] = "";
+  }
+
+  std::unique_ptr<Path> config_path;
+  std::map<std::string, std::string> default_paths;
+  std::unique_ptr<ReplayerWithMockSSL> mock_mysql;
+};
+
+static void common_pass_schema_version(MySQLSessionReplayer *m) {
+  m->expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
+  m->then_return(2, {
+    // major, minor
+    {m->string_or_null("1"), m->string_or_null("0")}
+  });
+}
+
+static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
+  m->expect_query_one("SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours");
+  m->then_return(2, {
+    // has_one_replicaset, replicaset_is_ours
+    {m->string_or_null("1"), m->string_or_null()}
+  });
+}
+
+static void common_pass_group_replication_online(MySQLSessionReplayer *m) {
+  m->expect_query_one("SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid");
+  m->then_return(1, {
+    // member_state
+    {m->string_or_null("ONLINE")}
+  });
+}
+
+static void common_pass_group_has_quorum(MySQLSessionReplayer *m) {
+  m->expect_query_one("SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members");
+  m->then_return(2, {
+    // num_onlines, num_total
+    {m->string_or_null("3"), m->string_or_null("3")}
+  });
+}
+
+#if 0
+static void common_pass_member_is_primary(MySQLSessionReplayer *m) {
+  m->expect_query_one("SELECT @@group_replication_single_primary_mode=1 as single_primary_mode,        (SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member') as primary_member,         @@server_uuid as my_uuid");
+  m->then_return(3, {
+    // single_primary_mode, primary_member, my_uuid
+    {m->string_or_null("0"), m->string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf"), m->string_or_null("2d52f178-98f4-11e6-b0ff-8cc844fc24bf")}
+  });
+}
+#endif
+
+static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
+  m->clear_expects();
+  common_pass_schema_version(m);
+  common_pass_metadata_supported(m);
+  common_pass_group_replication_online(m);
+  common_pass_group_has_quorum(m);
+  // common_pass_member_is_primary(m);
+}
+
+TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
   std::string primary_replicaset_name_;
@@ -174,10 +201,10 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
 
-    mock_mysql.expect_query("").then_return(4, {
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "pm", "somehost:3306"}});
 
     config_gen.fetch_bootstrap_servers(
@@ -192,10 +219,10 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
 
-    mock_mysql.expect_query("").then_return(4, {
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "mm", "somehost:3306"}});
 
     config_gen.fetch_bootstrap_servers(
@@ -210,10 +237,10 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
 
-    mock_mysql.expect_query("").then_return(4, {
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "xxx", "somehost:3306"}});
 
     ASSERT_THROW(
@@ -225,8 +252,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
-  MySQLSessionReplayer mock_mysql;
-
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
   std::string primary_replicaset_name_;
@@ -234,14 +259,14 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
 
     // "F.cluster_name, "
     // "R.replicaset_name, "
     // "R.topology_type, "
     // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
-    mock_mysql.expect_query("").then_return(4, {
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "pm", "somehost:3306"},
         {"mycluster", "myreplicaset", "pm", "otherhost:3306"},
         {"mycluster", "myreplicaset", "pm", "sumhost:3306"}});
@@ -258,8 +283,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
-  MySQLSessionReplayer mock_mysql;
-
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
   std::string primary_replicaset_name_;
@@ -267,9 +290,9 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
-    mock_mysql.expect_query("").then_return(4, {
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "pm", "somehost:3306"},
         {"mycluster", "anotherreplicaset", "pm", "otherhost:3306"}});
 
@@ -282,9 +305,9 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
-    mock_mysql.expect_query("").then_return(4, {
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("").then_return(4, {
         {"mycluster", "myreplicaset", "pm", "somehost:3306"},
         {"anothercluster", "anotherreplicaset", "pm", "otherhost:3306"}});
 
@@ -298,8 +321,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
 
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
-  MySQLSessionReplayer mock_mysql;
-
   std::string primary_cluster_name_;
   std::string primary_replicaset_servers_;
   std::string primary_replicaset_name_;
@@ -307,10 +328,10 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 
   {
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql);
-    config_gen.init(&mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
 
-    mock_mysql.expect_query("").then_return(4, {});
+    mock_mysql->expect_query("").then_return(4, {});
     // no replicasets/clusters defined
     ASSERT_THROW(
       config_gen.fetch_bootstrap_servers(
@@ -324,48 +345,42 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 TEST_F(ConfigGeneratorTest, create_acount) {
   // using password directly
   {
-    MySQLSessionReplayer mock_mysql;
-
     ::testing::InSequence s;
-    common_pass_metadata_checks(mock_mysql);
-    mock_mysql.expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("CREATE USER cluster_user@'%' IDENTIFIED BY 'secret'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql->expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED BY 'secret'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
-    config_gen.init(&mock_mysql);
+    config_gen.init(kServerUrl, {});
     config_gen.create_account("cluster_user", "secret");
   }
   // using hashed password
   {
-    MySQLSessionReplayer mock_mysql;
-
     ::testing::InSequence s;
-    common_pass_metadata_checks(mock_mysql);
-    mock_mysql.expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("CREATE USER cluster_user@'%' IDENTIFIED WITH mysql_native_password "
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql->expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED WITH mysql_native_password "
                               "AS '*89C1E57BE94931A2C11EB6C76E4C254799853B8D'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
-    mock_mysql.expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
-    config_gen.init(&mock_mysql);
+    config_gen.init(kServerUrl, {});
     config_gen.create_account("cluster_user", "*89C1E57BE94931A2C11EB6C76E4C254799853B8D", true);
   }
 }
 
 
 TEST_F(ConfigGeneratorTest, create_config_single_master) {
-  StrictMock<MySQLSessionReplayer> mock_mysql;
-
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mock_mysql);
-  config_gen.init(&mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
   ConfigGenerator::Options options = config_gen.fill_options(false, user_options);
 
   {
@@ -711,13 +726,12 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
 
 TEST_F(ConfigGeneratorTest, create_config_multi_master) {
   std::stringstream output;
-  StrictMock<MySQLSessionReplayer> mock_mysql;
 
   std::map<std::string, std::string> user_options;
 
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mock_mysql);
-  config_gen.init(&mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
   ConfigGenerator::Options options = config_gen.fill_options(true, user_options);
   config_gen.create_config(output,
                       123, "myrouter", "",
@@ -758,11 +772,9 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
 }
 
 TEST_F(ConfigGeneratorTest, fill_options) {
-  StrictMock<MySQLSessionReplayer> mock_mysql;
-
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mock_mysql);
-  config_gen.init(&mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
 
   ConfigGenerator::Options options;
   {
@@ -960,7 +972,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   }
 }
 
-//XXX TODO: add recursive directory delete function
+////XXX TODO: add recursive directory delete function
 
 namespace {
 enum action_t{ACTION_EXECUTE, ACTION_QUERY, ACTION_ERROR};
@@ -1007,18 +1019,18 @@ static void expect_bootstrap_queries(MySQLSessionReplayer &m, const char *cluste
   }
 }
 
-void bootstrap_name_test(const std::string &dir,
-                         const std::string &name,
-                         bool expect_fail,
-                         const std::map<std::string, std::string> &default_paths) {
-  StrictMock<MySQLSessionReplayer> mysql;
+static void bootstrap_name_test(MySQLSessionReplayer *mock_mysql,
+                                const std::string &dir,
+                                const std::string &name,
+                                bool expect_fail,
+                                const std::map<std::string, std::string> &default_paths) {
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mysql);
-  config_gen.init(&mysql);
+  common_pass_metadata_checks(mock_mysql);
+  config_gen.init(kServerUrl, {});
   if (!expect_fail)
-    expect_bootstrap_queries(mysql, "mycluster");
+    expect_bootstrap_queries(*mock_mysql, "mycluster");
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -1035,20 +1047,20 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   mysqlrouter::delete_recursive(dir);
 
   // Bug#24807941
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), dir, "myname", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "myname", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), dir, "myname", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(bootstrap_name_test(dir, "", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), dir, "", false, default_paths));
   mysqlrouter::delete_recursive(dir);
   mysql_harness::reset_keyring();
 
   ASSERT_THROW_LIKE(
-    bootstrap_name_test(dir, "system", true, default_paths),
+    bootstrap_name_test(mock_mysql.get(), dir, "system", true, default_paths),
     std::runtime_error,
     "Router name 'system' is reserved");
   mysqlrouter::delete_recursive(dir);
@@ -1060,7 +1072,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   };
   for (std::string &name : bad_names) {
     ASSERT_THROW_LIKE(
-      bootstrap_name_test(dir, name, true, default_paths),
+      bootstrap_name_test(mock_mysql.get(), dir, name, true, default_paths),
       std::runtime_error,
       "Router name '"+name+"' contains invalid characters.");
     mysqlrouter::delete_recursive(dir);
@@ -1068,7 +1080,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   }
 
   ASSERT_THROW_LIKE(
-    bootstrap_name_test(dir, "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname", true, default_paths),
+    bootstrap_name_test(mock_mysql.get(), dir, "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname", true, default_paths),
     std::runtime_error,
     "too long (max 255).");
   mysqlrouter::delete_recursive(dir);
@@ -1085,13 +1097,11 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
   ASSERT_FALSE(mysql_harness::Path("./bug24808634/delme.key").exists());
   // cleanup on failure when dir didn't exist before
   {
-    MySQLSessionReplayer mysql;
-
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    mysql.expect_query("SELECT F.cluster_name").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
-    mysql.expect_execute("START TRANSACTION").then_error("boo!", 1234);
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("SELECT F.cluster_name").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+    mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
@@ -1109,12 +1119,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // this should succeed, so that we can test that cleanup doesn't delete existing stuff
   {
-    MySQLSessionReplayer mysql;
-
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    expect_bootstrap_queries(mysql, "mycluster");
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    expect_bootstrap_queries(*mock_mysql.get(), "mycluster");
 
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
@@ -1130,14 +1138,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // don't cleanup on failure if dir already existed before
   {
-    MySQLSessionReplayer mysql;
-
     ConfigGenerator config_gen;
-      common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    mysql.expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
     // force a failure during account creationg
-    mysql.expect_execute("").then_error("boo!", 1234);
+    mock_mysql->expect_execute("").then_error("boo!", 1234);
 
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
@@ -1155,12 +1161,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   // don't cleanup on failure in early validation if dir already existed before
   {
-    MySQLSessionReplayer mysql;
-
     ConfigGenerator config_gen;
-      common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    mysql.expect_query("").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["name"] = "force\nfailure";
@@ -1177,73 +1181,71 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
   mysqlrouter::delete_file("./bug24808634/delme.key");
 }
 
-TEST_F(ConfigGeneratorTest, bug25391460) {
-  const std::string dir = "./bug25391460";
-  mysqlrouter::delete_recursive(dir);
+//TEST_F(ConfigGeneratorTest, bug25391460) {
+//  const std::string dir = "./bug25391460";
+//  mysqlrouter::delete_recursive(dir);
 
-  // Bug#24807941
-  {
-    MySQLSessionReplayer mysql;
+//  // Bug#24807941
+//  {
+//    ConfigGenerator config_gen;
+//    common_pass_metadata_checks(mock_mysql.get());
+//    expect_bootstrap_queries(*mock_mysql.get(), "mycluster");
+//    config_gen.init(kServerUrl, {});
+//    mock_mysql->expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
 
-    ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    expect_bootstrap_queries(mysql, "mycluster");
-    config_gen.init(&mysql);
-    mysql.expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+//    std::map<std::string, std::string> options;
+//    options["quiet"] = "1";
+//    options["use-sockets"] = "1";
+//    ASSERT_NO_THROW(
+//      config_gen.bootstrap_directory_deployment(dir,
+//            options, default_paths, "delme", "delme.key"));
+//    ASSERT_TRUE(mysql_harness::Path(dir).exists());
+//    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
+//  }
 
-    std::map<std::string, std::string> options;
-    options["quiet"] = "1";
-    options["use-sockets"] = "1";
-    ASSERT_NO_THROW(
-      config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths, "delme", "delme.key"));
-    ASSERT_TRUE(mysql_harness::Path(dir).exists());
-    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
-  }
+//  // now read the config file and check that all socket paths are
+//  // .../bug25391460/mysql*.sock instead of .../bug25391460/socketsdir/mysql*.sock
+//  std::ifstream cf;
+//  std::string basedir = mysql_harness::Path(dir).real_path().str();
+//  cf.open(mysql_harness::Path(dir).join("mysqlrouter.conf").str());
+//  while (!cf.eof()) {
+//    std::string line;
+//    cf >> line;
+//    if (line.compare(0, 7, "socket=") == 0) {
+//      line = line.substr(7);
+//      // check prefix/basedir
+//      EXPECT_EQ(basedir, line.substr(0, basedir.length()));
+//      std::string suffix = line.substr(basedir.length()+1);
+//      // check filename extension
+//      EXPECT_EQ(".sock", suffix.substr(suffix.length()-strlen(".sock")));
+//      std::string::size_type end = suffix.rfind('/');
+//      if (end == std::string::npos)
+//        end = suffix.rfind('\\');
+//      // check that the file is directly under the deployment directory
+//      EXPECT_EQ(suffix.substr(end+1), suffix);
+//    }
+//  }
 
-  // now read the config file and check that all socket paths are
-  // .../bug25391460/mysql*.sock instead of .../bug25391460/socketsdir/mysql*.sock
-  std::ifstream cf;
-  std::string basedir = mysql_harness::Path(dir).real_path().str();
-  cf.open(mysql_harness::Path(dir).join("mysqlrouter.conf").str());
-  while (!cf.eof()) {
-    std::string line;
-    cf >> line;
-    if (line.compare(0, 7, "socket=") == 0) {
-      line = line.substr(7);
-      // check prefix/basedir
-      EXPECT_EQ(basedir, line.substr(0, basedir.length()));
-      std::string suffix = line.substr(basedir.length()+1);
-      // check filename extension
-      EXPECT_EQ(".sock", suffix.substr(suffix.length()-strlen(".sock")));
-      std::string::size_type end = suffix.rfind('/');
-      if (end == std::string::npos)
-        end = suffix.rfind('\\');
-      // check that the file is directly under the deployment directory
-      EXPECT_EQ(suffix.substr(end+1), suffix);
-    }
-  }
+//  mysql_harness::reset_keyring();
+//  mysqlrouter::delete_recursive(dir);
+//}
 
-  mysql_harness::reset_keyring();
-  mysqlrouter::delete_recursive(dir);
-}
-
-static void bootstrap_overwrite_test(const std::string &dir,
+static void bootstrap_overwrite_test(MySQLSessionReplayer *mock_mysql,
+                                     const std::string &dir,
                                      const std::string &name,
                                      bool force,
                                      const char *cluster_name,
                                      bool expect_fail,
                                      const std::map<std::string, std::string> &default_paths) {
-  StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-  config_gen.init(&mysql);
+  common_pass_metadata_checks(mock_mysql);
+  config_gen.init(kServerUrl, {});
   if (!expect_fail)
-    expect_bootstrap_queries(mysql, cluster_name);
+    expect_bootstrap_queries(*mock_mysql, cluster_name);
   else
-    mysql.expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
+    mock_mysql->expect_query("").then_return(4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -1279,9 +1281,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 
   SCOPED_TRACE("bootstrap_overwrite1");
   // same    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1289,9 +1291,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   SCOPED_TRACE("bootstrap_overwrite2");
   dir = "./configtest2";
   // same    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "myname", false, "kluster", true, default_paths),
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "kluster", true, default_paths),
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -1301,9 +1303,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest3";
   SCOPED_TRACE("bootstrap_overwrite3");
   // same    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1311,9 +1313,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest4";
   SCOPED_TRACE("bootstrap_overwrite4");
   // same    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "kluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", true, "kluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1321,9 +1323,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest5";
   SCOPED_TRACE("bootstrap_overwrite5");
   // diff    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1331,9 +1333,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest6";
   SCOPED_TRACE("bootstrap_overwrite6");
   // diff    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_THROW_LIKE(bootstrap_overwrite_test(dir, "xmyname", false, "kluster", true, default_paths),
+  ASSERT_THROW_LIKE(bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname", false, "kluster", true, default_paths),
                     std::runtime_error,
                     "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -1343,9 +1345,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest7";
   SCOPED_TRACE("bootstrap_overwrite7");
   // diff    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
@@ -1353,28 +1355,28 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = "./configtest8";
   SCOPED_TRACE("bootstrap_overwrite8");
   // diff    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(dir, "xmyname", true, "kluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname", true, "kluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_EQ(mysqlrouter::delete_recursive(dir), 0);
 }
 
 
-static void test_key_length(const std::string &key,
+static void test_key_length(MySQLSessionReplayer *mock_mysql,
+                            const std::string &key,
                             const std::map<std::string, std::string> &default_paths) {
   using std::placeholders::_1;
-  StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
   mysqlrouter::set_prompt_password([key](const std::string&) -> std::string {
     return key;
   });
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mysql);
-  config_gen.init(&mysql);
-  expect_bootstrap_queries(mysql, "mycluster");
+  common_pass_metadata_checks(mock_mysql);
+  config_gen.init(kServerUrl, {});
+  expect_bootstrap_queries(*mock_mysql, "mycluster");
 
   std::map<std::string, std::string> options;
   options["name"] = "test";
@@ -1387,21 +1389,21 @@ TEST_F(ConfigGeneratorTest, key_too_long) {
   ASSERT_FALSE(mysql_harness::Path("key_too_long").exists());
 
   // bug #24942008, keyring key too long
-  ASSERT_NO_THROW(test_key_length(std::string(250, 'x'), default_paths));
+  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), std::string(250, 'x'), default_paths));
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(test_key_length(std::string(255, 'x'), default_paths));
+  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), std::string(255, 'x'), default_paths));
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(std::string(256, 'x'), default_paths),
+  ASSERT_THROW_LIKE(test_key_length(mock_mysql.get(), std::string(256, 'x'), default_paths),
     std::runtime_error,
     "too long");
   mysqlrouter::delete_recursive("key_too_long");
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(std::string(5000, 'x'), default_paths),
+  ASSERT_THROW_LIKE(test_key_length(mock_mysql.get(), std::string(5000, 'x'), default_paths),
     std::runtime_error,
     "too long");
   mysqlrouter::delete_recursive("key_too_long");
@@ -1414,13 +1416,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
   // reconfiguring with an empty master key file throws an error referencing
   // the temporary file name instead of the actual name
   {
-    StrictMock<MySQLSessionReplayer> mysql;
     ::testing::InSequence s;
 
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    expect_bootstrap_queries(mysql, "mycluster");
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    expect_bootstrap_queries(*mock_mysql, "mycluster");
 
     std::map<std::string, std::string> options;
     options["name"] = "foo";
@@ -1433,13 +1434,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
   {
     mysqlrouter::delete_file("delme/emptyfile");
     std::ofstream f("delme/emptyfile");
-    StrictMock<MySQLSessionReplayer> mysql;
     ::testing::InSequence s;
 
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    expect_bootstrap_queries(mysql, "mycluster");
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    expect_bootstrap_queries(*mock_mysql, "mycluster");
 
     std::map<std::string, std::string> options;
     options["name"] = "foo";
@@ -1460,13 +1460,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
   mysql_harness::reset_keyring();
   // directory name but no filename
   {
-    StrictMock<MySQLSessionReplayer> mysql;
     ::testing::InSequence s;
 
     ConfigGenerator config_gen;
-    common_pass_metadata_checks(mysql);
-    config_gen.init(&mysql);
-    expect_bootstrap_queries(mysql, "mycluster");
+    common_pass_metadata_checks(mock_mysql.get());
+    config_gen.init(kServerUrl, {});
+    expect_bootstrap_queries(*mock_mysql, "mycluster");
 
     std::map<std::string, std::string> options;
     options["name"] = "foo";
@@ -1498,13 +1497,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
 TEST_F(ConfigGeneratorTest, full_test) {
   mysqlrouter::delete_recursive("./delme");
 
-  StrictMock<MySQLSessionReplayer> mysql;
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
-  common_pass_metadata_checks(mysql);
-  config_gen.init(&mysql);
-  expect_bootstrap_queries(mysql, "mycluster");
+  common_pass_metadata_checks(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
+  expect_bootstrap_queries(*mock_mysql, "mycluster");
 
   std::map<std::string, std::string> options;
   options["name"] = "foo";
@@ -1719,41 +1717,39 @@ TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
 
   // These tests verify that MySQLSession::set_ssl_options() gets called with appropriate
   // SSL options before making connection to metadata server during bootstrap
-
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
+  set_mock_mysql(mock_mysql.get());
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
   // mode
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {{"ssl_mode", "DISABLED"}});   // DISABLED + uppercase
-    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_DISABLED);
+    EXPECT_EQ(mock_mysql->last_ssl_mode, SSL_MODE_DISABLED);
   }
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {{"ssl_mode", "preferred"}});  // PREFERRED + lowercase
-    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_PREFERRED);
+    EXPECT_EQ(mock_mysql->last_ssl_mode, SSL_MODE_PREFERRED);
   }
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {{"ssl_mode", "rEqUIrEd"}});   // REQUIRED + mixedcase
-    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_REQUIRED);
+    EXPECT_EQ(mock_mysql->last_ssl_mode, SSL_MODE_REQUIRED);
   }
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {{"ssl_mode", "VERIFY_CA"}});
-    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_VERIFY_CA);
+    EXPECT_EQ(mock_mysql->last_ssl_mode, SSL_MODE_VERIFY_CA);
   }
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {{"ssl_mode", "VERIFY_IDENTITY"}});
-    EXPECT_EQ(mock_mysql.last_ssl_mode, SSL_MODE_VERIFY_IDENTITY);
+    EXPECT_EQ(mock_mysql->last_ssl_mode, SSL_MODE_VERIFY_IDENTITY);
   }
   {
     // invalid ssl_mode should get handled at arg-passing stage, and so we have a unit test for that
@@ -1762,7 +1758,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
 
   // other fields
   {
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
     ConfigGenerator config_gen;
     config_gen.init("", {
       {"ssl_ca",      "/some/ca/file"},
@@ -1777,16 +1773,16 @@ TEST_F(ConfigGeneratorTest, ssl_stage2_bootstrap_connection) {
       {"ssl_key", "/some/key.pem"},
 #endif
     });
-    EXPECT_EQ(mock_mysql.last_ssl_ca,      "/some/ca/file");
-    EXPECT_EQ(mock_mysql.last_ssl_capath,  "/some/ca/dir");
-    EXPECT_EQ(mock_mysql.last_ssl_crl,     "/some/crl/file");
-    EXPECT_EQ(mock_mysql.last_ssl_crlpath, "/some/crl/dir");
-    EXPECT_EQ(mock_mysql.last_ssl_cipher,  "FOO-BAR-SHA678");
-    EXPECT_EQ(mock_mysql.last_tls_version, "TLSv1");
+    EXPECT_EQ(mock_mysql->last_ssl_ca,      "/some/ca/file");
+    EXPECT_EQ(mock_mysql->last_ssl_capath,  "/some/ca/dir");
+    EXPECT_EQ(mock_mysql->last_ssl_crl,     "/some/crl/file");
+    EXPECT_EQ(mock_mysql->last_ssl_crlpath, "/some/crl/dir");
+    EXPECT_EQ(mock_mysql->last_ssl_cipher,  "FOO-BAR-SHA678");
+    EXPECT_EQ(mock_mysql->last_tls_version, "TLSv1");
 // 2017.01.26: Disabling this code, since it's not part of GA v2.1.2.  It should be re-enabled later
 #if 0
-    EXPECT_EQ(mock_mysql.last_ssl_cert,    "/some/cert.pem");
-    EXPECT_EQ(mock_mysql.last_ssl_key,     "/some/key.pem");
+    EXPECT_EQ(mock_mysql->last_ssl_cert,    "/some/cert.pem");
+    EXPECT_EQ(mock_mysql->last_ssl_key,     "/some/key.pem");
 #endif
   }
 }
@@ -1828,8 +1824,9 @@ TEST_F(ConfigGeneratorTest, warn_on_no_ssl) {
 
   constexpr char kQuery[] = "show status like 'ssl_cipher'";
   ConfigGenerator config_gen;
-  MySQLSessionReplayer mock_mysql;
-  config_gen.mysql_ = &mock_mysql;
+  common_pass_metadata_checks(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
+  //config_gen.mysql_ = mock_mysql.get();
 
   // anything other than PREFERRED (or empty, which defaults to PREFERRED) should never warn.
   // warn_on_no_ssl() shouldn't even bother querying the database.
@@ -1845,49 +1842,49 @@ TEST_F(ConfigGeneratorTest, warn_on_no_ssl) {
   for (Opts opt : { Opts{}, Opts{{"ssl_mode", mysqlrouter::MySQLSession::kSslModePreferred}} }) {
 
     { // have SLL
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", "some_cipher"}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"ssl_cipher", "some_cipher"}});
       EXPECT_TRUE(config_gen.warn_on_no_ssl(opt));
     }
 
     { // don't have SLL - empty string
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", ""}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"ssl_cipher", ""}});
       EXPECT_FALSE(config_gen.warn_on_no_ssl(opt));
     }
 
     { // don't have SLL - null string
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher", nullptr}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"ssl_cipher", nullptr}});
       EXPECT_FALSE(config_gen.warn_on_no_ssl(opt));
     }
 
     // CORNERCASES FOLLOW
 
     { // query failure
-      mock_mysql.expect_query_one(kQuery).then_error("boo!", 1234);
+      mock_mysql->expect_query_one(kQuery).then_error("boo!", 1234);
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
 
     { // bogus query result - no columns
-      mock_mysql.expect_query_one(kQuery).then_return(0, {});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {});
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
 
     { // bogus query result - null column
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{nullptr}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{nullptr}});
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
 
     { // bogus query result - 1 column
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"foo"}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"foo"}});
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
 
     { // bogus query result - 1 column (ssl_cipher)
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"ssl_cipher"}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"ssl_cipher"}});
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
 
     { // bogus query result - 2 columns, but first is not ssl_cipher
-      mock_mysql.expect_query_one(kQuery).then_return(0, {{"foo", "bar"}});
+      mock_mysql->expect_query_one(kQuery).then_return(0, {{"foo", "bar"}});
       EXPECT_THROW(config_gen.warn_on_no_ssl(opt), std::runtime_error);
     }
   }
@@ -1895,23 +1892,22 @@ TEST_F(ConfigGeneratorTest, warn_on_no_ssl) {
 
 
 TEST_F(ConfigGeneratorTest, warn_no_ssl_false) {
-  MySQLSessionReplayer mock_mysql;
 
   const std::vector<std::string> prefered_values{"PREFERRED", "preferred", "Preferred"};
   for (size_t i = 0u; i < prefered_values.size(); ++i)
   {
     ConfigGenerator config_gen;
 
-    common_pass_metadata_checks(mock_mysql);
-    mock_mysql.expect_query_one("show status like 'ssl_cipher'");
-    mock_mysql.then_return(2, {
-        {mock_mysql.string_or_null("ssl_cipher"), mock_mysql.string_or_null("")}
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql->expect_query_one("show status like 'ssl_cipher'");
+    mock_mysql->then_return(2, {
+        {mock_mysql->string_or_null("ssl_cipher"), mock_mysql->string_or_null("")}
       });
 
     std::map<std::string, std::string> options;
     options["ssl_mode"] = prefered_values[i];
 
-    config_gen.init(&mock_mysql);
+    config_gen.init(kServerUrl, {});
     const bool res = config_gen.warn_on_no_ssl(options);
 
     ASSERT_FALSE(res);
@@ -1919,17 +1915,15 @@ TEST_F(ConfigGeneratorTest, warn_no_ssl_false) {
 }
 
 TEST_F(ConfigGeneratorTest, warn_no_ssl_true) {
-  MySQLSessionReplayer mock_mysql;
-
   {
     ConfigGenerator config_gen;
 
-    common_pass_metadata_checks(mock_mysql);
+    common_pass_metadata_checks(mock_mysql.get());
 
     std::map<std::string, std::string> options;
     options["ssl_mode"] = "DISABLED";
 
-    config_gen.init(&mock_mysql);
+    config_gen.init(kServerUrl, {});
     const bool res = config_gen.warn_on_no_ssl(options);
 
     ASSERT_TRUE(res);
@@ -1959,13 +1953,12 @@ const uint16_t kDefaultMysqlPort = 0;
 
 // passing a unix-socket path to --bootstrap should raise a runtime_error
 TEST_F(ConfigGeneratorTest, bootstrap_from_unixsocket) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
+  set_mock_mysql(mock_mysql.get());
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return kDefaultPassword; });
 
-  mock_mysql.expect_connect("", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+  mock_mysql->expect_connect("", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
 
-  common_pass_metadata_checks(mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_THROW({
@@ -1975,72 +1968,60 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_unixsocket) {
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_ipv6) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("::1", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("::1", kDefaultMysqlPort, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   config_gen.init("[::1]", {});
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_ipv6_with_port) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("::1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("::1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   config_gen.init("[::1]:3306", {});
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_hostname) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("127.0.0.1", 0, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("127.0.0.1", 0, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   config_gen.init("localhost", {});
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_hostname_with_port) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   config_gen.init("localhost:3306", {});
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_uri) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("127.0.0.1", 3306, kDefaultUsername, kDefaultPassword, kEmptyUnixSocket);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   config_gen.init("mysql://localhost:3306/", {});
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_from_uri_unixsocket) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("localhost", 3306, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("localhost", 3306, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_NO_THROW({
@@ -2050,11 +2031,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_uri_unixsocket) {
 
 // a invalid URI (port too large) should trigger a expection
 TEST_F(ConfigGeneratorTest, bootstrap_from_invalid_uri) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  common_pass_metadata_checks(mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_THROW({
@@ -2065,11 +2044,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_invalid_uri) {
 
 // if socket-name is specified, the hostname in the bootstrap-uri has to be 'localhost'
 TEST_F(ConfigGeneratorTest, bootstrap_fail_if_socket_and_hostname) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  common_pass_metadata_checks(mock_mysql);
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_THROW({
@@ -2080,12 +2057,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_fail_if_socket_and_hostname) {
 
 // if socket-name is specified and hostname is 'localhost' then  bootstrap should work
 TEST_F(ConfigGeneratorTest, bootstrap_if_socket_and_localhost) {
-  StrictMock<ReplayerWithMockSSL> mock_mysql;
-  set_mock_mysql(&mock_mysql);
   mysqlrouter::set_prompt_password([](const std::string&) -> std::string { return ""; });
 
-  mock_mysql.expect_connect("localhost", 0, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
-  common_pass_metadata_checks(mock_mysql);
+  mock_mysql->expect_connect("localhost", 0, kDefaultUsername, kDefaultPassword, "/tmp/mysql.sock");
+  common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_NO_THROW({
@@ -2093,17 +2068,17 @@ TEST_F(ConfigGeneratorTest, bootstrap_if_socket_and_localhost) {
       });
 }
 
-static void bootstrap_password_test(const std::string &dir,
+static void bootstrap_password_test(MySQLSessionReplayer* mysql,
+                           const std::string &dir,
                            const std::map<std::string, std::string> &default_paths,
                            const std::vector<query_entry_t> &bootstrap_queries,
                            std::string password_retries = "5",
                            bool force_password_validation = false) {
-  StrictMock<MySQLSessionReplayer> mysql;
-  ConfigGenerator config_gen;
   ::testing::InSequence s;
+  ConfigGenerator config_gen;
   common_pass_metadata_checks(mysql);
-  config_gen.init(&mysql);
-  expect_bootstrap_queries(mysql, "mycluster", bootstrap_queries);
+  config_gen.init(kServerUrl, {});
+  expect_bootstrap_queries(*mysql, "mycluster", bootstrap_queries);
 
   std::map<std::string, std::string> options;
   options["name"] = "name";
@@ -2138,7 +2113,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_force_password_validatio
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
-  bootstrap_password_test(kDirName, default_paths, bootstrap_queries, "5", true /*force_password_validation*/);
+  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "5", true /*force_password_validation*/);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
@@ -2166,7 +2141,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
-  bootstrap_password_test(kDirName, default_paths, bootstrap_queries);
+  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok)  {
@@ -2202,7 +2177,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok)  {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
-  bootstrap_password_test(kDirName, default_paths, bootstrap_queries);
+  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
@@ -2231,7 +2206,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
   bootstrap_queries.push_back( {"ROLLBACK", ACTION_EXECUTE } );
 
   try {
-    bootstrap_password_test(kDirName, default_paths, bootstrap_queries, std::to_string(kPasswordRetries));
+    bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, std::to_string(kPasswordRetries));
     FAIL() << "Expecting exception";
   }
   catch (const std::runtime_error& exc) {
@@ -2266,7 +2241,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value too small
   {
     try {
-      bootstrap_password_test(kDirName, default_paths, bootstrap_queries, "0");
+      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "0");
       FAIL() << "Expecting exception";
     }
     catch (const std::runtime_error& exc) {
@@ -2277,7 +2252,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value too big
   {
     try {
-      bootstrap_password_test(kDirName, default_paths, bootstrap_queries, "999999");
+      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "999999");
       FAIL() << "Expecting exception";
     }
     catch (const std::runtime_error& exc) {
@@ -2288,7 +2263,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value wrong type
   {
     try {
-      bootstrap_password_test(kDirName, default_paths, bootstrap_queries, "foo");
+      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "foo");
       FAIL() << "Expecting exception";
     }
     catch (const std::runtime_error& exc) {
@@ -2299,7 +2274,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value empty
   {
     try {
-      bootstrap_password_test(kDirName, default_paths, bootstrap_queries, "");
+      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "");
       FAIL() << "Expecting exception";
     }
     catch (const std::runtime_error& exc) {

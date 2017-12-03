@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <ctype.h>  // not <cctype> because we don't want std::toupper(), which causes problems with std::transform()
 #include <iostream>
+#include <chrono>
 
 using namespace mysqlrouter;
 
@@ -40,7 +41,8 @@ using namespace mysqlrouter;
    to make MySQLSession dump all calls to it, along with its results, so that
    they can be replayed later with a MySQLSessionReplayer object.
  */
-#define MOCK_RECORDER
+// #define MOCK_RECORDER
+// #define MOCK_RECORDER_JSON
 
 #if defined(NDEBUG)
 #ifdef MOCK_RECORDER
@@ -55,9 +57,216 @@ using namespace mysqlrouter;
 /*static*/ const char MySQLSession::kSslModeVerifyIdentity[]  = "VERIFY_IDENTITY";
 
 #ifdef MOCK_RECORDER
-class MockRecorder {
+#ifdef MOCK_RECORDER_JSON
+
+#define RAPIDJSON_HAS_STDSTRING 1
+
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/filewritestream.h"
+#include <cstdio>
+
+using StreamWriter = RAPIDJSON_NAMESPACE::PrettyWriter<RAPIDJSON_NAMESPACE::FileWriteStream>;
+
+class Writer : public StreamWriter {
 public:
-  MockRecorder() : record_(false) {
+  Writer(std::FILE *f) : StreamWriter(f_stream_), f_stream_(f, buf_, sizeof(buf_)) {}
+private:
+  RAPIDJSON_NAMESPACE::FileWriteStream f_stream_;
+  char buf_[1024];
+};
+
+static const char *type_names[] = {
+  "TINY",
+  "SHORT",
+  "LONG",
+  "INT24",
+  "LONGLONG",
+  "DECIMAL",
+  "NEWDECIMAL",
+  "FLOAT",
+  "DOUBLE",
+  "BIT",
+  "TIMESTAMP",
+  "DATE",
+  "TIME",
+  "DATETIME",
+  "YEAR",
+  "STRING",
+  "VAR_STRING",
+  "BLOB",
+  "SET",
+  "ENUM",
+  "GEOMETRY",
+  "NULL",
+  "TINYBLOB",
+  "LONGBLOB",
+  "MEDIUMBLOB",
+};
+
+int type_names_ndx(enum_field_types type) {
+  switch (type) {
+  case MYSQL_TYPE_TINY: return 0;
+  case MYSQL_TYPE_SHORT: return 1;
+  case MYSQL_TYPE_LONG: return 2;
+  case MYSQL_TYPE_INT24: return 3;
+  case MYSQL_TYPE_LONGLONG: return 4;
+  case MYSQL_TYPE_DECIMAL: return 5;
+  case MYSQL_TYPE_NEWDECIMAL: return 6;
+  case MYSQL_TYPE_FLOAT: return 7;
+  case MYSQL_TYPE_DOUBLE: return 8;
+  case MYSQL_TYPE_BIT: return 9;
+  case MYSQL_TYPE_TIMESTAMP: return 10;
+  case MYSQL_TYPE_DATE: return 11;
+  case MYSQL_TYPE_TIME: return 12;
+  case MYSQL_TYPE_DATETIME: return 13;
+  case MYSQL_TYPE_YEAR: return 14;
+  case MYSQL_TYPE_STRING: return 15;
+  case MYSQL_TYPE_VAR_STRING: return 16;
+  case MYSQL_TYPE_BLOB: return 17;
+  case MYSQL_TYPE_SET: return 18;
+  case MYSQL_TYPE_ENUM: return 19;
+  case MYSQL_TYPE_GEOMETRY: return 20;
+  case MYSQL_TYPE_NULL: return 21;
+  case MYSQL_TYPE_TINY_BLOB: return 22;
+  case MYSQL_TYPE_LONG_BLOB: return 23;
+  case MYSQL_TYPE_MEDIUM_BLOB: return 24;
+  default:
+    throw std::invalid_argument("invalid protocol field type: " + std::to_string(type));
+  }
+}
+
+class MySQLServerMockRecorder {
+public:
+  MySQLServerMockRecorder(FILE *f) : writer_(f) {
+    writer_.StartObject();
+    writer_.Key("stmts");
+    writer_.StartArray();
+
+    // we never close it ...
+  }
+
+  ~MySQLServerMockRecorder() {
+    writer_.EndArray();
+    writer_.EndObject();
+  }
+
+  void execute(const std::string &q) {
+    exec_start_ = std::chrono::steady_clock::now();
+
+    writer_.StartObject();
+
+    writer_.Key("stmt");
+    writer_.String(q);
+  }
+
+  void query(const std::string &q) {
+    execute(q);
+  }
+
+  void query_one(const std::string &q) {
+    execute(q);
+  }
+
+  void write_exec_time() {
+    writer_.Key("exec_time");
+    writer_.Double(
+        std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - exec_start_).count());
+  }
+
+  void execute_done(uint64_t last_insert_id, uint64_t warning_count) {
+    write_exec_time();
+
+    writer_.Key("ok");
+    writer_.StartObject();
+    if (last_insert_id) {
+      writer_.Key("last_insert_id");
+      writer_.Uint(last_insert_id);
+    }
+    if (warning_count) {
+      writer_.Key("warning_count");
+      writer_.Uint(warning_count);
+    }
+    writer_.EndObject();
+
+    writer_.EndObject();
+  }
+
+  void result_error(const char *error, unsigned int code, const char *sql_state, MySQLSession &) {
+    write_exec_time();
+
+    writer_.Key("error");
+    writer_.StartObject();
+    writer_.Key("code");
+    writer_.Uint(code);
+
+    writer_.Key("message");
+    writer_.String(error);
+
+    writer_.Key("sql_state");
+    writer_.String(sql_state);
+
+    writer_.EndObject();
+
+    writer_.EndObject();
+  }
+
+  void result_rows_begin(unsigned int num_fields, MYSQL_FIELD *fields) {
+    write_exec_time();
+
+    nfields_ = num_fields;
+
+    writer_.Key("result");
+
+    writer_.StartObject();
+    writer_.Key("columns");
+
+    writer_.StartArray();
+    for (unsigned int i = 0; i < num_fields; i++) {
+      writer_.StartObject();
+      writer_.Key("name");
+      writer_.String(fields[i].name);
+
+      writer_.Key("type");
+      // the compiler should be smart enough to convert the strlen() into a sizeof()
+      writer_.String(type_names[type_names_ndx(fields[i].type)],
+          strlen(type_names[type_names_ndx(fields[i].type)]));
+      writer_.EndObject();
+    }
+    writer_.EndArray();
+
+    writer_.Key("rows");
+    writer_.StartArray();
+  }
+
+  void result_rows_add(MYSQL_ROW row, MySQLSession &) {
+    writer_.StartArray();
+    for (unsigned int i = 0; i < nfields_; i++) {
+      if (row[i])
+        writer_.String(row[i]);
+      else
+        writer_.Null();
+    }
+    writer_.EndArray();
+  }
+
+  void result_rows_end() {
+    writer_.EndArray();
+    writer_.EndObject();
+    writer_.EndObject();
+  }
+
+private:
+  std::chrono::steady_clock::time_point exec_start_;
+  unsigned int nfields_;
+  Writer writer_;
+};
+
+static MySQLServerMockRecorder g_mock_recorder(fopen(getenv("MYSQL_ROUTER_RECORD_MOCK") ? getenv("MYSQL_ROUTER_RECORD_MOCK") : "/dev/null", "wb"));
+#else
+class GoogleMockRecorder {
+public:
+  GoogleMockRecorder() : record_(false) {
     const char *outfile = std::getenv("MYSQL_ROUTER_RECORD_MOCK");
     if (outfile) {
       std::cerr << "Enabled mock recording...\n";
@@ -78,11 +287,11 @@ public:
     outf_ << "  m.expect_query_one(\"" << q << "\");\n";
   }
 
-  void execute_done(uint64_t last_insert_id) {
+  void execute_done(uint64_t last_insert_id, uint64_t /* warning_count */) {
     outf_ << "  m.then_ok("<< last_insert_id << ");\n";
   }
 
-  void result_error(const char *error, unsigned int code, MySQLSession &s) {
+  void result_error(const char *error, unsigned int code, const char* /* sql_state */, MySQLSession &s) {
     outf_ << "  m.then_error(" << s.quote(error, '\"') << ", " << code << ");\n\n";
   }
 
@@ -129,22 +338,23 @@ private:
   bool record_;
 };
 
-static MockRecorder g_mock_recorder;
+static GoogleMockRecorder g_mock_recorder;
+#endif
 
 #define MOCK_REC_EXECUTE(q) g_mock_recorder.execute(q)
-#define MOCK_REC_OK(lid) g_mock_recorder.execute_done(lid)
+#define MOCK_REC_OK(lid, warning_count) g_mock_recorder.execute_done(lid, warning_count)
 #define MOCK_REC_QUERY(q) g_mock_recorder.query(q)
 #define MOCK_REC_QUERY_ONE(q) g_mock_recorder.query_one(q)
-#define MOCK_REC_ERROR(e, c, m) g_mock_recorder.result_error(e, c, m)
+#define MOCK_REC_ERROR(e, c, s, m) g_mock_recorder.result_error(e, c, s, m)
 #define MOCK_REC_BEGIN(nf,f) g_mock_recorder.result_rows_begin(nf, f)
 #define MOCK_REC_END() g_mock_recorder.result_rows_end()
 #define MOCK_REC_ROW(r, m) g_mock_recorder.result_rows_add(r, m)
 #else // !MOCK_RECORDER
 #define MOCK_REC_EXECUTE(q) do {} while(0)
-#define MOCK_REC_OK(lid) do {} while(0)
+#define MOCK_REC_OK(lid, warning_count) do {} while(0)
 #define MOCK_REC_QUERY(q) do {} while(0)
 #define MOCK_REC_QUERY_ONE(q) do {} while(0)
-#define MOCK_REC_ERROR(e, c, m) do {} while(0)
+#define MOCK_REC_ERROR(e, c, s, m) do {} while(0)
 #define MOCK_REC_BEGIN(nf,f) do {} while(0)
 #define MOCK_REC_END() do {} while(0)
 #define MOCK_REC_ROW(r, m) do {} while(0)
@@ -162,6 +372,7 @@ MySQLSession::MySQLSession() {
 
 MySQLSession::~MySQLSession() {
   mysql_close(connection_);
+
   delete connection_;
 }
 
@@ -323,7 +534,6 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
                            const std::string &unix_socket,
                            const std::string &default_schema,
                            int connection_timeout) {
-  disconnect();
   unsigned int protocol = MYSQL_PROTOCOL_TCP;
   connected_ = false;
 
@@ -363,6 +573,12 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 }
 
 void MySQLSession::disconnect() {
+  // close the socket and free internal data
+  mysql_close(connection_);
+
+  // initialize the connection handle again as _close() is also free()ing
+  // a lot of internal data.
+  mysql_init(connection_);
   connected_ = false;
   connection_address_.clear();
 }
@@ -374,11 +590,11 @@ void MySQLSession::execute(const std::string &q) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), mysql_sqlstate(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
-    MOCK_REC_OK(mysql_insert_id(connection_));
+    MOCK_REC_OK(mysql_insert_id(connection_), mysql_warning_count(connection_));
     if (res)
       mysql_free_result(res);
   } else
@@ -400,7 +616,7 @@ void MySQLSession::query(const std::string &q,
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), mysql_sqlstate(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
@@ -429,7 +645,7 @@ void MySQLSession::query(const std::string &q,
       std::stringstream ss;
       ss << "Error fetching query results: ";
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), mysql_sqlstate(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
   } else
@@ -457,7 +673,7 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
       std::stringstream ss;
       ss << "Error executing MySQL query";
       ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), mysql_sqlstate(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
@@ -483,7 +699,7 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
       std::stringstream ss;
       ss << "Error fetching query results: ";
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
-      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), *this);
+      MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_), mysql_sqlstate(connection_), *this);
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
   }

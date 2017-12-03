@@ -46,6 +46,8 @@ public:
   virtual const char *last_error() override;
   virtual unsigned int last_errno() override;
 
+  void clear_expects() { call_info_.clear(); }
+
 public:
   class string {
   public:

@@ -29,7 +29,7 @@
 #include "router_app.h"
 #include "sha1.h"
 
-// #include "logger.h"
+#include "logger.h"
 #ifdef _WIN32
 #include <Windows.h>
 #define strcasecmp _stricmp
@@ -45,6 +45,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <functional>
 
 #include "cluster_metadata.h"
 
@@ -65,6 +66,8 @@ static const std::string kSystemRouterName = "system";
 
 static const int kMetadataServerPasswordLength = 16;
 static const int kMaxRouterNameLength = 255; // must match metadata router.name column
+
+static const int kConnectionTimeout = 5;
 
 static const char *kKeyringAttributePassword = "password";
 
@@ -185,13 +188,6 @@ private:
   std::map<std::string, Type> _files;
 };
 
-
-void ConfigGenerator::init(MySQLSession *session) {
-  mysql_ = session; // TODO migrate to DIM and get rid of mysql_ and mysql_owned_
-
-  check_innodb_metadata_cluster_session(session, false);
-}
-
 inline std::string get_opt(const std::map<std::string, std::string> &map,
                        const std::string &key, const std::string &default_value) {
   auto iter = map.find(key);
@@ -273,7 +269,6 @@ bool ConfigGenerator::warn_on_no_ssl(const std::map<std::string, std::string> &o
 }
 
 void ConfigGenerator::init(const std::string &server_url, const std::map<std::string, std::string> &bootstrap_options) {
-  // Setup connection timeout
   int connection_timeout_ = 5;
   std::string uri;
 
@@ -353,25 +348,27 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
     u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
   }
 
-  UniquePtr<MySQLSession> s(DIM::instance().new_MySQLSession());
+  mysql_ = DIM::instance().new_MySQLSession();
   try
   {
-    set_ssl_options(s.get(), bootstrap_options);
+    set_ssl_options(mysql_.get(), bootstrap_options);
 
-    s->connect(u.host, u.port, u.username, u.password, socket_name, "", connection_timeout_);
-  } catch (MySQLSession::Error &e) {
+    mysql_->connect(u.host, u.port, u.username, u.password, socket_name, "", connection_timeout_);
+  } catch (const MySQLSession::Error &e) {
     std::stringstream err;
     err << "Unable to connect to the metadata server: " << e.what();
     throw std::runtime_error(err.str());
   }
-  mysql_deleter_ = s.get_deleter(); // \.
-  init(s.release());                //  > TODO get rid of mysql_* variables
-  mysql_owned_ = true;              // /       (replace by DIM semantics)
-}
 
-ConfigGenerator::~ConfigGenerator() {
-  if (mysql_owned_)
-    mysql_deleter_(mysql_);
+  // check if the current server meta-data server
+  require_innodb_metadata_is_ok(mysql_.get());
+  require_innodb_group_replication_is_ok(mysql_.get());
+
+  gr_initial_username_ = u.username;
+  gr_initial_password_ = u.password;
+  gr_initial_hostname_ = u.host;
+  gr_initial_port_ = u.port;
+  gr_initial_socket_ = socket_name;
 }
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
@@ -708,7 +705,235 @@ std::string compute_password_hash(const std::string &password) {
   return ss.str();
 }
 
+inline std::string str(const mysqlrouter::ConfigGenerator::Options::Endpoint &ep) {
+  if (ep.port > 0)
+    return std::to_string(ep.port);
+  else if (!ep.socket.empty())
+    return ep.socket;
+  else
+    return "null";
 }
+
+
+}
+
+/**
+ * Error codes for MySQL Errors
+ *
+ * @todo extend to all MySQL Error codes and move into a place where other can
+ * access it too
+ */
+enum class MySQLErrorc {
+  kSyntaxError = 1064,
+  kSuperReadOnly = 1290,
+  kLostConnection = 2013,
+};
+
+// make MySQLErrorc compatible to std::error_code
+namespace std {
+  template <>
+    struct is_error_code_enum<MySQLErrorc> : true_type {};
+}
+
+namespace detail {
+  struct MySQLErrorCategory : std::error_category {
+    const char *name() const noexcept override;
+    std::string message(int ev) const override;
+  };
+
+  const char *MySQLErrorCategory::name() const noexcept {
+    return "MySQLError";
+  }
+
+  std::string MySQLErrorCategory::message(int ev) const {
+    switch(static_cast<MySQLErrorc>(ev)) {
+    case MySQLErrorc::kSuperReadOnly:
+      return "server is super-read-only";
+    case MySQLErrorc::kSyntaxError:
+      return "Syntax Error in Statement";
+    case MySQLErrorc::kLostConnection:
+      return "Lost connection to MySQL server during query";
+    default:
+      return "unknown error-code";
+    }
+  }
+}
+
+// compile-time initialized error-category for MySQL Errors
+const detail::MySQLErrorCategory theMySQLErrorCategory {};
+
+/**
+ * identifies the MySQL error category
+ */
+const std::error_category &mysql_error_category() {
+  return theMySQLErrorCategory;
+}
+
+/**
+ * map MySQL Error codes to a std::error_code
+ */
+std::error_code make_error_code(MySQLErrorc e) {
+  return std::error_code(static_cast<int>(e), mysql_error_category());
+}
+
+
+/**
+ * Group Replication-aware decorator for MySQL Sessions
+ */
+class GrAwareDecorator {
+public:
+  GrAwareDecorator(MySQLSession &sess,
+      const std::string &gr_initial_username,
+      const std::string &gr_initial_password,
+      const std::string &gr_initial_hostname,
+      unsigned long gr_initial_port,
+      const std::string &gr_initial_socket,
+      unsigned long connection_timeout,
+      std::set<std::error_code> failure_codes = { make_error_code(MySQLErrorc::kSuperReadOnly), make_error_code(MySQLErrorc::kLostConnection) }): mysql_(sess),
+  gr_initial_username_(gr_initial_username),
+  gr_initial_password_(gr_initial_password),
+  gr_initial_hostname_(gr_initial_hostname),
+  gr_initial_port_(gr_initial_port),
+  gr_initial_socket_(gr_initial_socket),
+  connection_timeout_(connection_timeout),
+  failure_codes_(failure_codes) {}
+
+  template<class R> R failover_on_failure(std::function<R()> wrapped_func);
+private:
+  std::vector<std::tuple<std::string, unsigned long>> fetch_group_replication_hosts();
+
+  MySQLSession &mysql_;
+  const std::string &gr_initial_username_;
+  const std::string &gr_initial_password_;
+  const std::string &gr_initial_hostname_;
+  unsigned long gr_initial_port_;
+  const std::string &gr_initial_socket_;
+  unsigned long connection_timeout_;
+  std::set<std::error_code> failure_codes_;
+};
+
+
+/**
+ * group replication aware failover
+ *
+ * @param wrapped_func function will be called
+ *
+ * assumes:
+ *
+ * - actively connected mysql_ session
+ * - all nodes in the group have the same user/pass combination
+ * - wrapped_func throws MySQLSession::Error with .code in .failure_codes
+ */
+template<class R>
+R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
+  bool fetched_gr_servers = false;
+  std::vector<std::tuple<std::string, unsigned long>> gr_servers;
+
+  // init it once, even though we'll never use it
+  auto gr_servers_it = gr_servers.begin();
+
+  do {
+    try {
+       return wrapped_func();
+    } catch (const MySQLSession::Error &e) {
+      // code not in failure-set
+      std::error_code ec = make_error_code(static_cast<MySQLErrorc>(e.code()));
+
+      std::cout << "Executing statements failed with: '" << ec.message().c_str()
+                << "' (" << e.code() << "), trying to connect to another node"
+                << std::endl;
+
+      if (failure_codes_.find(ec) == failure_codes_.end()) {
+        throw;
+      }
+
+      do {
+        if (!fetched_gr_servers) {
+          // lazy fetch the GR members
+          //
+          fetched_gr_servers = true;
+
+          std::cout << "Fetching Group Replication Members" << std::endl;
+
+          for (auto &gr_node: fetch_group_replication_hosts()) {
+            auto const &gr_host = std::get<0>(gr_node);
+            auto gr_port = std::get<1>(gr_node);
+
+            // if we connected through TCP/IP, ignore the initial host
+            if (gr_initial_socket_.size() == 0 && (gr_host == gr_initial_hostname_ && gr_port == gr_initial_port_)) {
+              continue;
+            }
+
+            //log_debug("added GR node: %s:%ld", gr_host.c_str(), gr_port);
+            gr_servers.emplace_back(gr_host, gr_port);
+          }
+
+          // get a new iterator as the old one is now invalid
+          gr_servers_it = gr_servers.begin();
+        } else {
+          std::advance(gr_servers_it, 1);
+        }
+
+        if (gr_servers_it == gr_servers.end()) {
+          throw std::runtime_error("no more nodes to fail-over too, giving up.");
+        }
+
+        if (mysql_.is_connected()) {
+          std::cout << "disconnecting from mysql-server" << std::endl;
+          mysql_.disconnect();
+        }
+
+        auto const &tp = *gr_servers_it;
+
+        auto const &gr_host = std::get<0>(tp);
+        auto gr_port = std::get<1>(tp);
+
+        std::cout << "trying to connecting to mysql-server at " << gr_host.c_str()
+                  << ":"  << gr_port << std::endl;
+
+        try {
+          mysql_.connect(gr_host, (unsigned int)gr_port, gr_initial_username_, gr_initial_password_, "", "", (int)connection_timeout_);
+        } catch (const std::exception &inner_e) {
+          std::cout << "Failed connecting to " << gr_host.c_str() << ":" << gr_port << ": "
+                   << e.what() << ", trying next" << std::endl;
+        }
+        // if this fails, we should just skip it and go to the next
+      } while (!mysql_.is_connected());
+    }
+  } while(true);
+}
+
+std::vector<std::tuple<std::string, unsigned long>>
+GrAwareDecorator::fetch_group_replication_hosts() {
+  std::ostringstream query;
+
+  // Query the name of the replicaset, the servers in the replicaset and the
+  // router credentials using the URL of a server in the replicaset.
+  //
+  // order by member_role (in 8.0 and later) to sort PRIMARY over SECONDARY
+  query <<
+    "SELECT member_host, member_port "
+    "  FROM performance_schema.replication_group_members "
+    " /*!80002 ORDER BY member_role */";
+
+  try {
+    std::vector<std::tuple<std::string, unsigned long>> gr_servers;
+
+    mysql_.query(query.str(),
+        [&gr_servers] (const std::vector<const char*> &row)->bool {
+          gr_servers.push_back(std::make_tuple(std::string(row[0]), std::stoul(row[1])));
+          return true; // don't stop
+        }
+    );
+
+    return gr_servers;
+  } catch (MySQLSession::Error &e) {
+    // log_error("MySQL error: %s (%u)", e.what(), e.code());
+    // log_error("    Failed query: %s", query.str().c_str());
+    throw std::runtime_error(std::string("Error querying metadata: ") + e.what());
+  }
+}
+
 
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     const mysql_harness::Path &config_file_path, const std::string &router_name,
@@ -757,52 +982,40 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
       std::cout << " system MySQL Router instance...\n";
     }
   }
-  MySQLSession::Transaction transaction(mysql_);
-  MySQLInnoDBClusterMetadata metadata(mysql_);
 
-  // if reconfiguration
-  if (router_id > 0) {
-    std::string attributes;
-    // if router data is valid
-    try {
-      metadata.check_router_id(router_id);
-    } catch (std::exception &e) {
-      std::cerr << "WARNING: " << e.what() << "\n";
-      // TODO: abort here and suggest --force to force reconfiguration?
-      router_id = 0;
-      username.clear();
-    }
-  }
-  // router not registered yet (or router_id was invalid)
-  if (router_id == 0) {
-    assert(username.empty());
-    try {
-      router_id = metadata.register_router(router_name, force);
-      if (router_id > kMaxRouterId)
-        throw std::runtime_error("router_id (" + std::to_string(router_id)
-            + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
-      username = "mysql_router" + std::to_string(router_id) + "_"
-          + rg.generate_identifier(kNumRandomChars, RandomGen::AlphabetDigits|RandomGen::AlphabetLowercase);
-    } catch (MySQLSession::Error &e) {
-      if (e.code() == 1062) { // duplicate key
-        throw std::runtime_error(
-            "It appears that a router instance named '" + router_name +
-            "' has been previously configured in this host. If that instance"
-            " no longer exists, use the --force option to overwrite it."
-        );
-      }
-      throw std::runtime_error(std::string("While registering router instance in metadata server: ")+e.what());
-    }
-  }
+  std::string password;
 
-  // Create or recreate the account used by this router instance to access
-  // metadata server
-  assert(router_id);
-  assert(!username.empty());
-  std::string password = create_account(user_options, username);
+  Options options(fill_options(multi_master, user_options));
+
+  GrAwareDecorator gr_aware(*mysql_,
+      gr_initial_username_,
+      gr_initial_password_,
+      gr_initial_hostname_,
+      gr_initial_port_,
+      gr_initial_socket_,
+      kConnectionTimeout);
+
+  {
+    const std::string rw_endpoint = str(options.rw_endpoint);
+    const std::string ro_endpoint = str(options.ro_endpoint);
+    const std::string rw_x_endpoint = str(options.rw_x_endpoint);
+    const std::string ro_x_endpoint = str(options.ro_x_endpoint);
+
+    std::tie(password) = gr_aware.failover_on_failure<std::tuple<std::string>>([&]() {
+        return try_bootstrap_deployment(router_id, username,
+          router_name,
+          rg,
+          user_options,
+          rw_endpoint,
+          ro_endpoint,
+          rw_x_endpoint,
+          ro_x_endpoint);
+        });
+  }
 
   {
     mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+
     keyring->store(username, kKeyringAttributePassword, password);
     try {
       mysql_harness::flush_keyring();
@@ -811,10 +1024,8 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     }
   }
 
-  Options options(fill_options(multi_master, user_options));
   options.keyring_file_path = keyring_file;
   options.keyring_master_key_file_path = keyring_master_key_file;
-  metadata.update_router_info(router_id, options);
 
 #ifndef _WIN32
   /* Currently at this point the logger is not yet initialized but while bootstraping
@@ -845,8 +1056,77 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 options,
                 !quiet);
 
+    auto_clean.clear();
+}
+
+std::tuple<std::string>
+ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &username,
+    const std::string &router_name,
+    mysql_harness::RandomGeneratorInterface& rg,
+    const std::map<std::string, std::string> &user_options,
+    const std::string &rw_endpoint,
+    const std::string &ro_endpoint,
+    const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint) {
+
+  using RandomGen = mysql_harness::RandomGeneratorInterface;
+
+  bool force = user_options.find("force") != user_options.end();
+
+  MySQLSession::Transaction transaction(mysql_.get());
+  MySQLInnoDBClusterMetadata metadata(mysql_.get());
+
+  // if reconfiguration
+  if (router_id > 0) {
+    std::string attributes;
+    // if router data is valid
+    try {
+      metadata.check_router_id(router_id);
+    } catch (const std::exception &e) {
+      std::cout << "WARNING: " << e.what() << std::endl;
+      // TODO: abort here and suggest --force to force reconfiguration?
+      router_id = 0;
+      username.clear();
+    }
+  }
+  // router not registered yet (or router_id was invalid)
+  if (router_id == 0) {
+    assert(username.empty());
+    try {
+      router_id = metadata.register_router(router_name, force);
+      if (router_id > kMaxRouterId)
+        throw std::runtime_error("router_id (" + std::to_string(router_id)
+            + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
+      username = "mysql_router" + std::to_string(router_id) + "_"
+          + rg.generate_identifier(kNumRandomChars, RandomGen::AlphabetDigits|RandomGen::AlphabetLowercase);
+    } catch (MySQLSession::Error &e) {
+      if (e.code() == 1062) { // duplicate key
+        throw std::runtime_error(
+            "It appears that a router instance named '" + router_name +
+            "' has been previously configured in this host. If that instance"
+            " no longer exists, use the --force option to overwrite it."
+        );
+      }
+
+      throw;
+    }
+  }
+
+  // Create or recreate the account used by this router instance to access
+  // metadata server
+  assert(router_id);
+  assert(!username.empty());
+  std::string password = create_account(user_options, username);
+
+  metadata.update_router_info(router_id,
+      rw_endpoint,
+      ro_endpoint,
+      rw_x_endpoint,
+      ro_x_endpoint);
+
   transaction.commit();
-  auto_clean.clear();
+
+  return std::make_tuple(password);
 }
 
 void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
@@ -1306,11 +1586,12 @@ void ConfigGenerator::create_account(const std::string &username,
       if (e.code() == 1819) { // password does not satisfy the current policy requirements
         throw password_too_weak(err_msg);
       }
-      if (e.code()== 1524) { // plugin not loaded
+      if (e.code() == 1524) { // plugin not loaded
         throw plugin_not_loaded(err_msg);
       }
 
-      throw std::runtime_error(err_msg);
+      // it shouldn't have failed, let the upper layers try to handle it
+      throw MySQLSession::Error(err_msg, e.code());
     }
   }
 }

@@ -45,7 +45,10 @@ public:
   void check_router_id(uint32_t router_id);
   uint32_t register_router(const std::string &router_name, bool overwrite);
   void update_router_info(uint32_t router_id,
-                          const ConfigGenerator::Options &options);
+    const std::string &rw_endpoint,
+    const std::string &ro_endpoint,
+    const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint);
 private:
   MySQLSession *mysql_;
   HostnameOperationsBase *hostname_operations_;
@@ -53,6 +56,8 @@ private:
 
 
 void check_innodb_metadata_cluster_session(MySQLSession *mysql, bool read_only_ok);
+void require_innodb_metadata_is_ok(MySQLSession *mysql);
+void require_innodb_group_replication_is_ok(MySQLSession *mysql);
 
 }
 

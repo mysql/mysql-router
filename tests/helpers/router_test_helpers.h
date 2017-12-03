@@ -18,6 +18,8 @@
 #ifndef ROUTER_TESTS_TEST_HELPERS_INCLUDED
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
+#include <typeinfo>
+
 #define SKIP_GIT_TESTS(COND)\
   if(COND) {\
      std::cout << "[  SKIPPED ] Tests using Git repository skipped" << std::endl;\
@@ -27,23 +29,32 @@
 #define ASSERT_THROW_LIKE(expr, exc, msg) try { \
       expr;\
       FAIL() << "Expected exception of type " #exc << " but got none\n";\
-    } catch (exc &e) {\
+    } catch (const exc &e) {\
       if (std::string(e.what()).find(msg) == std::string::npos) {\
-          FAIL() << "Expected exception with message: " << msg << "\nbut got: " << e.what() << "\n";\
+          FAIL() << "Expected exception of type " #exc " with message: " << msg << "\nbut got message: " << e.what() << "\n";\
       }\
-    } catch (...) {\
-      FAIL() << "Expected exception of type " #exc << " but got another\n";\
+    } catch (const std::exception &e) {\
+      FAIL() << "Expected exception of type " #exc "\nbut got " << typeid(e).name() << ": " << e.what() << "\n";\
     }
 
+/*
+ * it would be great if the catch-all part could report the type of the
+ * exception we got in a simpler way.
+ */
 #define EXPECT_THROW_LIKE(expr, exc, msg) try { \
       expr;\
       ADD_FAILURE() << "Expected exception of type " #exc << " but got none\n";\
-    } catch (exc &e) {\
+    } catch (const exc &e) {\
       if (std::string(e.what()).find(msg) == std::string::npos) {\
-          ADD_FAILURE() << "Expected exception with message: " << msg << "\nbut got: " << e.what() << "\n";\
+          ADD_FAILURE() << "Expected exception of type " #exc " with message: " << msg << "\nbut got message: " << e.what() << "\n";\
       }\
     } catch (...) {\
-      ADD_FAILURE() << "Expected exception of type " #exc << " but got another\n";\
+      auto user_e = std::current_exception(); \
+      try { \
+        std::rethrow_exception(user_e); \
+      } catch (const std::exception &e) { \
+        ADD_FAILURE() << "Expected exception of type " #exc << "\nbut got " << typeid(e).name() << ": " << e.what() << "\n";\
+      } \
     }
 
 #include "filesystem.h"

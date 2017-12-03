@@ -25,6 +25,9 @@
 #include <ostream>
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
+#include "unique_ptr.h"
+#include "random_generator.h"
+#include "mysqlrouter/mysql_session.h"
 
 namespace mysql_harness {
   class Path;
@@ -64,15 +67,13 @@ public:
           SysUserOperationsBase* sys_user_operations = SysUserOperations::instance()
 #endif
           )
-    : mysql_(nullptr), mysql_owned_(false)
   #ifndef _WIN32
-    , sys_user_operations_(sys_user_operations)
+    : sys_user_operations_(sys_user_operations)
   #endif
   {}
   void init(const std::string &server_url, const std::map<std::string, std::string>& bootstrap_options);  // throws std::runtime_error
-  void init(mysqlrouter::MySQLSession *session);
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options); // throws std::runtime_error
-  ~ConfigGenerator();
+  ~ConfigGenerator() {}
 
   void bootstrap_system_deployment(const std::string &config_file_path,
       const std::map<std::string, std::string> &options,
@@ -138,6 +139,16 @@ private:
       const std::string &keyring_master_key_file,
       bool directory_deployment);
 
+  std::tuple<std::string>
+  try_bootstrap_deployment(uint32_t &router_id, std::string &username,
+      const std::string &router_name,
+      mysql_harness::RandomGeneratorInterface& rg,
+      const std::map<std::string, std::string> &user_options,
+      const std::string &rw_endpoint,
+      const std::string &ro_endpoint,
+      const std::string &rw_x_endpoint,
+      const std::string &ro_x_endpoint);
+
   void init_keyring_file(const std::string &keyring_file,
                          const std::string &keyring_master_key_file);
 
@@ -145,6 +156,9 @@ private:
                                std::string &metadata_cluster,
                                std::string &metadata_replicaset,
                                bool &multi_master);
+
+  std::vector<std::tuple<std::string, unsigned long>> fetch_group_replication_hosts();
+
   void create_config(std::ostream &config_file,
                      uint32_t router_id,
                      const std::string &router_name,
@@ -178,10 +192,13 @@ private:
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);
 private:
-  // TODO refactoring: these 3 should be removed (replaced by DIM semantics)
-  MySQLSession *mysql_;
-  bool mysql_owned_;
-  std::function<void(mysqlrouter::MySQLSession*)> mysql_deleter_;
+  mysql_harness::UniquePtr<MySQLSession> mysql_;
+
+  std::string gr_initial_hostname_;
+  unsigned int gr_initial_port_;
+  std::string gr_initial_username_;
+  std::string gr_initial_password_;
+  std::string gr_initial_socket_;
 
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;
