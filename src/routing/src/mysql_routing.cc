@@ -80,7 +80,7 @@ IMPORT_LOG_FUNCTIONS()
 static int kListenQueueSize = 1024;
 
 static const char *kDefaultReplicaSetName = "default";
-static const std::chrono::milliseconds kAcceptorStopPollInterval_ms { 1000 };
+static const std::chrono::milliseconds kAcceptorStopPollInterval_ms { 100 };
 
 MySQLRouting::MySQLRouting(routing::RoutingStrategy routing_strategy, uint16_t port,
                            const Protocol::Type protocol,
@@ -211,6 +211,20 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
 
 void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* client_addr */) noexcept {
   mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
+  {
+    std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
+    active_client_threads_++;
+  }
+  active_client_threads_cond_.notify_all();
+
+  std::shared_ptr<void> exit_guard_active_threads(nullptr, [&](void *){
+      std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
+      active_client_threads_--;
+
+      // notify the parent while we have the cond_mutex locked
+      // otherwise the parent may destruct before we are finished.
+      active_client_threads_cond_.notify_all();
+  });
 
   int error = 0;
   size_t bytes_down = 0;
@@ -579,10 +593,15 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
       // on non-blocking socket. We need to make sure it's always blocking.
       routing::set_socket_blocking(sock_client, true);
 
-      // TODO: the thread outlives 'this'. No one is reaping the select_thread if 'this' goes away.
       std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
     }
   } // while (is_running(env))
+
+  {
+    std::unique_lock<std::mutex> lk(active_client_threads_cond_m_);
+    active_client_threads_cond_.wait(lk, [&]{ return active_client_threads_ == 0;});
+  }
+
   log_info("[%s] stopped", name.c_str());
 }
 

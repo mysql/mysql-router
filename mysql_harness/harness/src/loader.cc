@@ -97,7 +97,16 @@ static const int kPluginExitCheckInterval = 100;  // milliseconds
 
 
 // when Router receives a signal to shut down, this flag is set
-static volatile sig_atomic_t g_shutdown_pending = 0;
+static std::atomic_bool g_shutdown_pending { 0 };
+
+// we need a signal-safe, thread-safe integer
+//
+// sigatomic_t is not thread-safe
+// std::atomic is not signal-safe by default
+// only std::atomic's that are lock-free, are signal-safe
+#if ATOMIC_BOOL_LOCK_FREE != 2
+#error "std::atomic_bool is not lock-free :("
+#endif
 
 // called from sig_handler() on Unix,
 //        from NTService class and Ctrl+C handler on Windows
@@ -905,8 +914,8 @@ bool Loader::visit(const std::string& designator,
 // (unfortunately we cannot guard this with #ifdef FRIEND_TEST)
 namespace unittest_backdoor {
   HARNESS_EXPORT
-  volatile sig_atomic_t& is_shutdown_pending() {
-    return g_shutdown_pending;
+  void set_shutdown_pending(bool shutdown_pending) {
+    g_shutdown_pending = shutdown_pending;
   }
 }
 

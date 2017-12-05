@@ -21,6 +21,8 @@
 #include <functional>
 #include <iostream>
 #include <thread>
+#include <atomic>
+#include <condition_variable>
 #include <system_error>
 
 #ifndef _WIN32
@@ -188,8 +190,7 @@ void MySQLServerMock::setup_service() {
 static volatile sig_atomic_t g_terminate = 0;
 
 // Signal handler to catch SIGTERM.
-static void sigterm_handler(int signo) {
-  std::cout << "Received signal " << signo << " - teminating." << std::endl;
+static void sigterm_handler(int /* signo */) {
   g_terminate = 1;
 }
 #else
@@ -212,8 +213,29 @@ void MySQLServerMock::handle_connections() {
   sigaction(SIGINT, &sig_action, NULL);
 #endif
 
+  uint64_t active_client_threads { 0 };
+
+  std::condition_variable active_client_threads_cond;
+  std::mutex active_client_threads_cond_m;
+
   auto connection_handler = [&](socket_t client_sock) -> void {
-    std::shared_ptr<void> exit_guard(nullptr, [&](void*){close_socket(client_sock);});
+    // increment the active thread count
+    {
+      std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
+      active_client_threads++;
+    }
+    active_client_threads_cond.notify_all();
+
+    // ... and make sure decrement it again on exit ... and close the socket
+    std::shared_ptr<void> exit_guard(nullptr, [&](void*){
+      close_socket(client_sock);
+
+      {
+        std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
+        active_client_threads--;
+        active_client_threads_cond.notify_all();
+      }
+    });
     try {
       auto buf = protocol_encoder_.encode_greetings_message(0);
       send_packet(client_sock, buf);
@@ -256,6 +278,10 @@ void MySQLServerMock::handle_connections() {
     std::cout << "Accepted client " << client_socket << std::endl;
     std::thread(connection_handler, client_socket).detach();
   }
+
+  // wait until all threads have shutdown
+  std::unique_lock<std::mutex> lk(active_client_threads_cond_m);
+  active_client_threads_cond.wait(lk, [&]{ return active_client_threads == 0;});
 }
 
 bool MySQLServerMock::process_statements(socket_t client_socket) {

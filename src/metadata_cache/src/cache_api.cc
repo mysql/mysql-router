@@ -24,6 +24,9 @@
 #include <map>
 #include <memory>
 
+// routing's destination_* and the metadata-cache plugin itself
+// may work on the cache in parallel.
+static std::mutex g_metadata_cache_m;
 static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 
 namespace metadata_cache {
@@ -66,6 +69,8 @@ void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bo
                   const std::string &cluster_name,
                   int connect_timeout,
                   int read_timeout) {
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
+
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
     get_instance(user, password, connect_timeout, read_timeout, 1, ttl, ssl_options), ttl,
                  ssl_options, cluster_name));
@@ -76,6 +81,8 @@ void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bo
  * Teardown the metadata cache
  */
 void MetadataCacheAPI::cache_stop() noexcept {
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
+
   if (g_metadata_cache) // might be NULL if cache_init() failed very early
     g_metadata_cache->stop();
 }
@@ -90,6 +97,7 @@ void MetadataCacheAPI::cache_stop() noexcept {
  *
  */
 LookupResult MetadataCacheAPI::lookup_replicaset(const std::string &replicaset_name) {
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
@@ -101,6 +109,7 @@ LookupResult MetadataCacheAPI::lookup_replicaset(const std::string &replicaset_n
 
 void MetadataCacheAPI::mark_instance_reachability(const std::string &instance_id,
                                 InstanceStatus status) {
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
   }
@@ -109,6 +118,7 @@ void MetadataCacheAPI::mark_instance_reachability(const std::string &instance_id
 }
 
 bool MetadataCacheAPI::wait_primary_failover(const std::string &replicaset_name, int timeout) {
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
   if (g_metadata_cache == nullptr) {
     throw std::runtime_error("Metadata Cache not initialized");
   }

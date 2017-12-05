@@ -1018,7 +1018,7 @@ void request_application_shutdown();
 #ifdef FRIEND_TEST
 namespace unittest_backdoor {
   HARNESS_EXPORT
-  volatile sig_atomic_t& is_shutdown_pending();
+  void set_shutdown_pending(bool shutdown_pending);
 }
 #endif
 

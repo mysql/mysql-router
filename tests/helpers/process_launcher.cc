@@ -473,7 +473,7 @@ int ProcessLauncher::wait(unsigned int timeout_ms)
       }
     } else if (ret == -1) {
       throw std::system_error(errno, std::generic_category(),
-          std::string("waiting for process " + std::to_string(childpid) + "failed"));
+          std::string("waiting for process " + std::to_string(childpid) + " failed"));
     } else {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);

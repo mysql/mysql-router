@@ -29,6 +29,7 @@
 #include <string>
 #include <thread>
 #include <set>
+#include <atomic>
 
 #include "mysql/harness/logging/logging.h"
 
@@ -142,7 +143,7 @@ private:
   std::mutex lost_primary_replicasets_mutex_;
 
   // Flag used to terminate the refresh thread.
-  bool terminate_;
+  std::atomic_bool terminate_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);

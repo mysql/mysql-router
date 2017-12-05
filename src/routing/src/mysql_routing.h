@@ -328,6 +328,10 @@ private:
   /** @brief object to handle protocol specific stuff */
   std::unique_ptr<BaseProtocol> protocol_;
 
+  /** number of active client threads. */
+  uint64_t active_client_threads_ {0};
+  std::condition_variable active_client_threads_cond_;
+  std::mutex active_client_threads_cond_m_;
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, make_thread_name);

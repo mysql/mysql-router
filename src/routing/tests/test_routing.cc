@@ -240,6 +240,8 @@ public:
 
   void runloop() {
     mysql_harness::rename_thread("runloop()");
+    std::vector<std::thread> client_threads;
+
     while (!stop_ && (max_expected_accepts_ == 0 || num_accepts_ < max_expected_accepts_)) {
       int sock_client;
       struct sockaddr_in6 client_addr;
@@ -249,7 +251,12 @@ public:
         continue;
       }
       num_accepts_++;
-      std::thread([this, sock_client]() { new_client(sock_client); }).detach();
+      client_threads.emplace_back(std::thread([this, sock_client]() { new_client(sock_client); }));
+    }
+
+    // wait for all threads to shut down again
+    for (auto &thr: client_threads) {
+      thr.join();
     }
   }
 
@@ -266,15 +273,15 @@ public:
   }
 
 public:
-  int num_connections_ = 0;
-  int num_accepts_ = 0;
-  int max_expected_accepts_ = 0;
+  std::atomic_int num_connections_ { 0 };
+  std::atomic_int num_accepts_ { 0 } ;
+  std::atomic_int max_expected_accepts_ { 0 };
 
 private:
   routing::SocketOperationsBase* socket_operations_;
   std::thread thread_;
   int service_tcp_;
-  bool stop_;
+  std::atomic_bool stop_;
 };
 
 

@@ -38,6 +38,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include <atomic>
+
 
 class MockSocketOperations : public routing::SocketOperationsBase {
  public:
@@ -98,8 +100,8 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   }
 
  private:
-  int get_mysql_socket_fails_todo_ = 0;
-  int get_mysql_socket_call_cnt_   = 0;
+  std::atomic_int get_mysql_socket_fails_todo_ { 0 };
+  std::atomic_int get_mysql_socket_call_cnt_   { 0 };
 };
 
 #ifdef __clang__
