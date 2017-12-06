@@ -53,7 +53,7 @@
             "ok": {}
         },
         {
-            "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,    'RWEndpoint', '6446'),    'ROEndpoint', '6447'),    'RWXEndpoint', '64460'),    'ROXEndpoint', '64470') WHERE router_id = .*",
+            "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(attributes,    'RWEndpoint', '6446'\\),    'ROEndpoint', '6447'\\),    'RWXEndpoint', '64460'\\),    'ROXEndpoint', '64470'\\) WHERE router_id = .*",
             "exec_time": 0.319936,
             "ok": {}
         },

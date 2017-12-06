@@ -108,7 +108,7 @@ bool pattern_matching(const std::string &s,
                       const std::string &pattern) {
 #ifndef _WIN32
   regex_t regex;
-  auto r = regcomp(&regex, pattern.c_str(), 0);
+  auto r = regcomp(&regex, pattern.c_str(), REG_EXTENDED);
   if (r) {
     throw std::runtime_error("Error compiling regex pattern: " + pattern);
   }

@@ -288,7 +288,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   const std::string json_primary_node_template = get_data_dir().join("metadata_3_secondaries.js").str();
   const std::string json_primary_node = Path(temp_test_dir).join("metadata_3_secondaries.json").str();
   rewrite_js_to_tracefile(json_primary_node_template, json_primary_node, primary_json_env_vars);
-  auto primary_node = launch_mysql_server_mock(json_primary_node, cluster_nodes_ports[0], true);
+  auto primary_node = launch_mysql_server_mock(json_primary_node, cluster_nodes_ports[0], false);
   bool ready = wait_for_port_ready(cluster_nodes_ports[0], 1000);
   EXPECT_TRUE(ready) << primary_node.get_full_output();
   cluster_nodes.emplace_back(std::move(primary_node));

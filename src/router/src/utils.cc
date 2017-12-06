@@ -432,7 +432,7 @@ static string default_prompt_password(const string &prompt) {
     // we don't care about terminal attributes
     no_terminal = true;
   }
-  std::cout << prompt << ": ";
+  std::cout << prompt << ": " << std::flush;
 
   if (!no_terminal) {
     // prevent showing input
@@ -453,7 +453,7 @@ static string default_prompt_password(const string &prompt) {
 #else
 static string default_prompt_password(const string &prompt) {
 
-  std::cout << prompt << ": ";
+  std::cout << prompt << ": " << std::flush;
 
   // prevent showing input
   HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);

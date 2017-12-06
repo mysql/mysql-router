@@ -123,7 +123,7 @@ class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
       const std::vector<std::string> &router_options = {},
       int expected_exitcode = 0,
       const std::vector<std::string> &expected_output_regex = {},
-      unsigned wait_for_exit_timeout_ms = 1000);
+      unsigned wait_for_exit_timeout_ms = 10000);
 
   friend std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterComponentTest::CommandHandle, unsigned int>> &T);
 };
@@ -185,7 +185,7 @@ RouterBootstrapTest::bootstrap_failover(
 
     if (out_filename.size()) {
       mock_servers.emplace_back(
-            launch_mysql_server_mock(out_filename, port),
+            launch_mysql_server_mock(out_filename, port, false),
             port);
     }
   }
@@ -217,7 +217,8 @@ RouterBootstrapTest::bootstrap_failover(
   // type in the password
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(wait_for_exit_timeout_ms), expected_exitcode);
+  // wait_for_exit() throws at timeout.
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(wait_for_exit_timeout_ms), expected_exitcode));
 
   // split the output into lines
   std::vector<std::string> lines;
@@ -545,8 +546,6 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
  *       - SECONDARY
  *       - PRIMARY (crashing)
  *       - PRIMARY
- * @test
- *       Initial connect via unix-socket to the 1st node, all further connects via TCP/IP
  */
 TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyNewPrimaryCrash) {
   std::vector<Config> mock_servers {
@@ -597,8 +596,7 @@ TEST_F(RouterBootstrapTest, BootstrapSucceedWhenServerResponseLessThanReadTimeou
 
   bootstrap_failover(mock_servers, router_options,
       0,
-      {},
-      2500);
+      {});
 }
 
 /**
@@ -625,8 +623,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
       1,
       {
         "Error: Error executing MySQL query: Lost connection to MySQL server during query \\(2013\\)"
-      },
-      3000);
+      });
 }
 
 int main(int argc, char *argv[]) {

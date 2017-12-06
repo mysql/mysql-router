@@ -568,9 +568,15 @@ TEST_F(RoutingTests, make_thread_name) {
   EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
 }
 
-// This test verifies fix for Bug #23857183 and checks if trying to connect to wrong port
-// fails immediately not via timeout
-TEST_F(RoutingTests, ConnectToServerWrongPort) {
+/*
+ * @test This test verifies fix for Bug 23857183 and checks if trying to connect to wrong port
+ *       fails immediately not via timeout
+ *
+ * @todo (jan) disabled the test as the result is unpredictable as port may be in use, IP may
+ *       be or not be bound, ... The test needs to be rewritten and have predictable output, or be
+ *       removed.
+ */
+TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   const std::chrono::seconds TIMEOUT {4};
 
   // wrong port number
