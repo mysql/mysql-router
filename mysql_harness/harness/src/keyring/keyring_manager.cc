@@ -264,9 +264,11 @@ bool init_keyring(const std::string &keyring_file_path,
       throw;
   }
 
+  // throws std::runtime_error (anything else?)
   std::tie(master_key, master_scramble) = get_master_key(mkf,
                                                          keyring_file_path,
                                                          create_if_needed);
+
   bool existed = init_keyring_with_key(keyring_file_path, master_key, create_if_needed);
   if (create_if_needed && !existed) {
     g_keyring->set_header(master_scramble);

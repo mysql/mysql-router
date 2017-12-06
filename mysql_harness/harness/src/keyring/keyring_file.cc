@@ -194,6 +194,8 @@ static void check_security_descriptor_access_rights(
  *
  * @except std::exception File access rights are too permissive or
  *                        an error occured.
+ * @except std::system_error OS and/or filesystem doesn't support file
+ *                           permissions.
  */
 static void check_file_access_rights(const std::string& file_name) {
 #ifdef _WIN32
@@ -297,10 +299,15 @@ void KeyringFile::save(const std::string& file_name,
   }
 }
 
-void KeyringFile::load(const std::string& file_name, const std::string& key) {
+static void verify_file_permissions(const std::string& file_name) {
+
   // Verify keyring file's access permissions.
   try {
+    // throws std::system_error if permissions are not supported by OS and/or filesystem
+    // throws std::runtime_error on bad permissions or error in retrieval
+    // file not existing is ok
     check_file_access_rights(file_name);
+
   } catch (const std::system_error &e) {
 #ifdef _WIN32
       if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
@@ -308,6 +315,12 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
 #endif
         throw;
   }
+}
+
+void KeyringFile::load(const std::string& file_name, const std::string& key) {
+
+  // throws std::runtime_error with appropriate error message on verification failure
+  verify_file_permissions(file_name);
 
   // Read keyring data from file.
   std::ifstream file;
@@ -355,16 +368,9 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
 }
 
 std::string KeyringFile::read_header(const std::string& file_name) {
-  // Verify keyring file's access permissions.
-  try {
-    check_file_access_rights(file_name);
-  } catch (const std::system_error &e) {
-#ifdef _WIN32
-      if (e.code() != std::error_code(ERROR_INVALID_FUNCTION, std::system_category()))
-        // if the filesystem can't set permissions, ignore it
-#endif
-        throw;
-  }
+
+  // throws std::runtime_error with appropriate error message on verification failure
+  verify_file_permissions(file_name);
 
   // Read keyring data from file.
   std::ifstream file;
