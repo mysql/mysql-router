@@ -90,7 +90,7 @@ public:
     char buf[sizeof(kMasterKeyFileSignature)] = {0};
     f.read(buf, sizeof(buf));
     if (strncmp(buf, kMasterKeyFileSignature, sizeof(kMasterKeyFileSignature)) != 0)
-      throw invalid_master_keyfile("Invalid master key file "+path_);
+      throw invalid_master_keyfile("Master key file (" + path_ + ") has invalid file signature");
     entries_.clear();
     try {
       while (!f.eof()) {

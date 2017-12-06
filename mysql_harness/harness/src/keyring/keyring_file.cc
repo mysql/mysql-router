@@ -214,7 +214,8 @@ static void check_file_access_rights(const std::string& file_name) {
   static constexpr mode_t kRequiredAccessMask = (S_IRUSR | S_IWUSR);
 
   if ((status.st_mode & kFullAccessMask) != kRequiredAccessMask)
-    throw std::runtime_error("Invalid keyring file access rights.");
+    throw std::runtime_error("Keyring file (" + file_name + ") has file permissions that are not strict enough"
+                             " (only RW for file's owner is allowed).");
 
 #endif // _WIN32
 }
@@ -341,7 +342,11 @@ void KeyringFile::load(const std::string& file_name, const std::string& key) {
   file.seekg(0, file.beg);
   {
     char sig[sizeof(kKeyringFileSignature)];
-    file.read(sig, sizeof(sig));
+    try {
+      file.read(sig, sizeof(sig));
+    } catch (const std::ios_base::failure& e) {
+      throw std::runtime_error("Failure reading contents of keyring file " + file_name);
+    }
     if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
       throw std::runtime_error("Invalid data found in keyring file " + file_name);
   }
