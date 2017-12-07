@@ -260,10 +260,13 @@ private:
    *
    * Errors are logged.
    *
+   * @param env pointer to PluginFuncEnv passed to plugin start() function
    * @param client socket descriptor fo the client connection
    * @param client_addr IP address as sockaddr_storage struct
    */
-  void routing_select_thread(int client, const sockaddr_storage &client_addr) noexcept;
+  void routing_select_thread(mysql_harness::PluginFuncEnv* env,
+                             int client,
+                             const sockaddr_storage &client_addr) noexcept;
 
   void start_acceptor(mysql_harness::PluginFuncEnv* env);
 

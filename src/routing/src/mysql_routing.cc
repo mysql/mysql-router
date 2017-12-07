@@ -209,7 +209,9 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
   return thread_name;
 }
 
-void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* client_addr */) noexcept {
+void MySQLRouting::routing_select_thread(mysql_harness::PluginFuncEnv* env,
+                                         int client,
+                                         const sockaddr_storage& /* client_addr */) noexcept {
   mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
   {
     std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
@@ -285,7 +287,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
   int pktnr = 0;
 
   bool connection_is_ok = true;
-  while (connection_is_ok) {
+  while (connection_is_ok && is_running(env)) {
     const size_t kClientEventIndex = 0;
     const size_t kServerEventIndex = 1;
 
@@ -369,7 +371,7 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
       bytes_down += bytes_read;
     }
 
-  } // while (true)
+  } // while (connection_is_ok && is_running(env))
 
   if (!handshake_done) {
     log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
@@ -589,7 +591,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
       // on non-blocking socket. We need to make sure it's always blocking.
       routing::set_socket_blocking(sock_client, true);
 
-      std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
+      std::thread(&MySQLRouting::routing_select_thread, this, env, sock_client, client_addr).detach();
     }
   } // while (is_running(env))
 

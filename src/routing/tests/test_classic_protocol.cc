@@ -280,7 +280,8 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   EXPECT_CALL(*mock_socket_operations_, close(client_socket));
 
   routing.set_destinations_from_csv("127.0.0.1:7004");
-  routing.routing_select_thread(client_socket, *reinterpret_cast<sockaddr_storage*>(&client_addr));
+  routing.routing_select_thread(nullptr, // it will return before nullptr is dereferenced
+                                client_socket, *reinterpret_cast<sockaddr_storage*>(&client_addr));
 }
 
 int main(int argc, char *argv[]) {
