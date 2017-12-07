@@ -212,7 +212,7 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
 void MySQLRouting::routing_select_thread(mysql_harness::PluginFuncEnv* env,
                                          int client,
                                          const sockaddr_storage& /* client_addr */) noexcept {
-  mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
+  mysql_harness::rename_thread(make_thread_name(name, "RtC").c_str());  // "Rt client thread" would be too long :(
   {
     std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
     active_client_threads_++;
