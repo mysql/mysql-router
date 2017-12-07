@@ -424,11 +424,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
   }
 #endif
   if (bind_address_.port > 0 || bind_named_socket_.is_set()) {
-    //XXX this thread seems unnecessary, since we block on it right after anyway
-    thread_acceptor_ = std::thread(&MySQLRouting::start_acceptor, this, env);
-    if (thread_acceptor_.joinable()) {
-      thread_acceptor_.join();
-    }
+    start_acceptor(env);
 #ifndef _WIN32
     if (bind_named_socket_.is_set() && unlink(bind_named_socket_.str().c_str()) == -1) {
       if (errno != ENOENT)

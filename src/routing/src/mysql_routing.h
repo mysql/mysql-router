@@ -321,8 +321,6 @@ private:
   mutable std::mutex mutex_conn_errors_;
   std::map<std::array<uint8_t, 16>, size_t> conn_error_counters_;
 
-  /** @brief TCP (and UNIX socket) service thread */
-  std::thread thread_acceptor_;
   /** @brief object handling the operations on network sockets */
   routing::SocketOperationsBase* socket_operations_;
   /** @brief object to handle protocol specific stuff */
