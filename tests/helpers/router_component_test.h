@@ -196,6 +196,14 @@ class RouterComponentTest {
       return wait_for_exit_while_reading_and_autoresponding_to_output(timeout_ms);
     }
 
+    /** @brief Returns process PID
+     *
+     * @returns PID of the process
+     */
+    uint64_t get_pid() const {
+      return launcher_.get_pid();
+    }
+
    private:
     CommandHandle(const std::string &app_cmd,
                  const char **args,

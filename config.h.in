@@ -73,3 +73,6 @@
 
 /* Compiler specific features */
 #cmakedefine HAVE_ATTRIBUTE_FORMAT 1
+
+// Platform specific libraries
+#cmakedefine HAVE_PRLIMIT 1

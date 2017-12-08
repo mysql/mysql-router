@@ -15,6 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "router_config.h"  // defines HAVE_PRLIMIT
+#ifdef HAVE_PRLIMIT
+  #include <sys/resource.h> // prlimit()
+#endif
 #include "gmock/gmock.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
@@ -122,6 +126,62 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
     "Too many connections to MySQL Router (1040)"
   );
 }
+
+// this test uses OS-specific methods to restrict thread creation
+#ifdef HAVE_PRLIMIT
+TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any queries
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
+
+  // launch the server mock
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+
+  // create a basic config
+  const std::string routing_section =
+                      "[routing:basic]\n"
+                      "bind_port = " + std::to_string(router_port) + "\n"
+                      "mode = read-write\n"
+                      "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n";
+
+  std::string conf_file = create_config_file(routing_section);
+
+  // launch the router with the created configuration
+  auto router_static = launch_router("-c " +  conf_file);
+
+  // wait for server and router to begin accepting the connections
+  ASSERT_TRUE(wait_for_port_ready(server_port, 5000)) << server_mock.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << router_static.get_full_output();
+
+  // don't allow router to create any more (client) threads
+  {
+    pid_t pid = router_static.get_pid();
+
+    // how many threads Router process is allowed to have. If this number is lower
+    // than current count, nothing will happen, but new ones will not be allowed
+    // to be created until count comes down below this limit.
+    // Thus 0 is a nice number to ensure nothing gets spawned anymore.
+    rlim_t max_threads = 0;
+
+    struct rlimit new_limit {
+      .rlim_cur = max_threads,
+      .rlim_max = max_threads
+    };
+    EXPECT_EQ(0, prlimit(pid, RLIMIT_NPROC, &new_limit, nullptr));
+  }
+
+  // try to create a new connection - it should fail because std::thread() in
+  // routing plugin will fail to spawn a new thread for this new connection
+  mysqlrouter::MySQLSession client1;
+  ASSERT_THROW_LIKE(
+    client1.connect("127.0.0.1", router_port, "username", "password", "", ""),
+    std::runtime_error,
+    "Router couldn't spawn a new thread to service new client connection (1040)"
+  );
+}
+#endif // #ifndef _WIN32
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
