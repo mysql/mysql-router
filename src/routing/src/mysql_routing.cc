@@ -591,7 +591,46 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
       // on non-blocking socket. We need to make sure it's always blocking.
       routing::set_socket_blocking(sock_client, true);
 
-      std::thread(&MySQLRouting::routing_select_thread, this, env, sock_client, client_addr).detach();
+      // launch client thread which will service this new connection
+      {
+        auto thread_spawn_failure_handler = [&](const std::system_error* exc) {
+          protocol_->send_error(sock_client, 1040,
+                                "Router couldn't spawn a new thread to service new client connection",
+                                "HY000", name);
+          socket_operations_->close(sock_client); // no shutdown() before close()
+
+          // we only want to log this message once, because in a low-resource situation, this would
+          // lead do a DoS against ourselves (heavy I/O and disk full)
+          static bool logged_this_before = false;
+          if (logged_this_before)
+            return;
+
+          logged_this_before = true;
+          if (exc)
+            log_error("Couldn't spawn a new thread to service new client connection from %s: %s."
+                      " This message will not be logged again until Router restarts.",
+                      get_peer_name(sock_client).first.c_str(), exc->what());
+          else
+            log_error("Couldn't spawn a new thread to service new client connection from %s."
+                      " This message will not be logged again until Router restarts.",
+                      get_peer_name(sock_client).first.c_str());
+        };
+
+        try {
+          std::thread(&MySQLRouting::routing_select_thread, this, env, sock_client, client_addr).detach();
+        } catch (const std::system_error& e) {
+          thread_spawn_failure_handler(&e);
+          continue;
+        } catch (...) {
+          // According to http://www.cplusplus.com/reference/thread/thread/thread/,
+          // depending on the library implementation, std::thread constructor may also throw other
+          // exceptions, such as bad_alloc or system_error with different a condition.
+          // Thus we have this catch(...) here to take care of the rest of them in a generic way.
+          thread_spawn_failure_handler(nullptr);
+          continue;
+        }
+      }
+
     }
   } // while (is_running(env))
 
