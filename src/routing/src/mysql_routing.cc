@@ -441,19 +441,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv* env) {
  * get PID and UID of the other end of the unix-socket
  */
 static int unix_getpeercred(int sock, pid_t &peer_pid, uid_t &peer_uid) {
-#if defined(_GNU_SOURCE)
-  struct ucred ucred;
-  socklen_t ucred_len = sizeof(ucred);
-
-  if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) == -1) {
-    return -1;
-  }
-
-  peer_pid = ucred.pid;
-  peer_uid = ucred.uid;
-
-  return 0;
-#elif defined(__sun)
+#if defined(__sun)
   ucred_t *ucred;
 
   if (getpeerucred(sock, &ucred) == -1) {
@@ -464,6 +452,18 @@ static int unix_getpeercred(int sock, pid_t &peer_pid, uid_t &peer_uid) {
   peer_uid = ucred_getruid(ucred);
 
   free(ucred);
+
+  return 0;
+#elif defined(_GNU_SOURCE)
+  struct ucred ucred;
+  socklen_t ucred_len = sizeof(ucred);
+
+  if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) == -1) {
+    return -1;
+  }
+
+  peer_pid = ucred.pid;
+  peer_uid = ucred.uid;
 
   return 0;
 #else
