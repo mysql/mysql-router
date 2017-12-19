@@ -15,11 +15,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "dim.h"
 #include "gmock/gmock.h"
+#include "keyring/keyring_manager.h"
+#include "mysql_session.h"
+#include "random_generator.h"
 #include "router_component_test.h"
 
+#include <condition_variable>
 #include <fstream>
 #include <functional>
+#include <mutex>
+#include <string>
+#include <thread>
 
 using testing::HasSubstr;
 using testing::StartsWith;
@@ -32,7 +40,14 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
     RouterComponentTest::SetUp();
   }
 
-  bool find_in_log(const std::string logging_folder, const std::function<bool(const std::string&)>& predicate) {
+  /*
+   * Both find_in_log() and find_in_log_for() functions check if predicate is met for
+   * log_file, but they do it in different ways.
+   *
+   * TODO: Consider if both of them are needed, and if not which should be removed.
+   */
+  bool find_in_log(const std::string& logging_folder, const std::function<bool(const std::string&)>& predicate,
+                   std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000)) {
     // This is proxy function to account for the fact that I/O can sometimes be slow.
     // If real_find_in_log() fails, it will retry 3 more times
 
@@ -52,16 +67,59 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
         return true;
       if (retries_left) {
         std::cerr << "  find_in_log() failed, sleeping a bit and retrying..." << std::endl;
-#ifdef _WIN32
-        Sleep(5000);
-#else
-        sleep(5);
-#endif
+
+      std::this_thread::sleep_for(sleep_time);
       }
     }
 
     return false;
   }
+
+  /*
+   * Both find_in_log() and find_in_log_for() functions check if predicate is met for
+   * log_file, but they do it in different ways.
+   *
+   * TODO: Consider if both of them are needed, and if not which should be removed.
+   */
+  bool find_in_log_for(const std::string& log_file, const std::function<bool(const std::string&)>&  predicate,
+      std::chrono::milliseconds wait_time) {
+
+    auto timeout = std::chrono::steady_clock::now() + wait_time;
+
+    std::ifstream ifs(log_file);
+    if (!ifs.is_open()) {
+      std::cerr << "Cannot open file " << log_file << "\n";
+      return false;
+    }
+
+    // store the current read position
+    std::ios::streampos gpos = ifs.tellg();
+    std::string line;
+
+    while(true) {
+      if (!std::getline(ifs, line) || ifs.eof()) {
+        // if we cannot read the next line, clear the stream
+        ifs.clear();
+        // set read position to the end of what was already read
+        ifs.seekg(gpos);
+
+        if (std::chrono::steady_clock::now() > timeout)
+          break;
+        else
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+
+      gpos = ifs.tellg();
+      if (predicate(line))
+        return true;
+
+      if (std::chrono::steady_clock::now() > timeout)
+        break;
+    }
+
+    return false;
+  }
+
   TcpPortPool port_pool_;
 
   static const unsigned SERVER_PORT = 4417;
@@ -418,9 +476,179 @@ TEST_F(RouterLoggingTest, IsDebugLogsToFileIfLoggingDir) {
   auto matcher = [](const std::string& line) -> bool {
     return line.find("Executing query:") != line.npos;
   };
-  EXPECT_TRUE(find_in_log(bootstrap_conf, matcher));
+
+  const std::string log_file = Path(bootstrap_conf + "/" + "mysqlrouter.log").c_str();
+  EXPECT_TRUE(find_in_log_for(log_file, matcher, std::chrono::milliseconds(5000)));
 }
 
+class MetadataCacheLoggingTest : public RouterLoggingTest {
+ protected:
+
+  void SetUp() override {
+    set_origin(g_origin_path);
+    RouterComponentTest::SetUp();
+
+    mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+    // RandomGenerator
+    dim.set_RandomGenerator(
+      [](){ static mysql_harness::RandomGenerator rg; return &rg; },
+      [](mysql_harness::RandomGeneratorInterface*){}
+    );
+
+    temp_test_dir = get_tmp_dir();
+    logging_folder = get_tmp_dir();
+
+    cluster_nodes_ports = {
+      port_pool_.get_next_available(),
+      port_pool_.get_next_available(),
+      port_pool_.get_next_available()
+    };
+    router_port = port_pool_.get_next_available();
+    metadata_cache_section = get_metadata_cache_section(cluster_nodes_ports);
+    routing_section = get_metadata_cache_routing_section("PRIMARY", "round-robin", "");
+
+    write_json_file(get_data_dir());
+    init_keyring();
+  }
+
+  void TearDown() override {
+    purge_dir(temp_test_dir);
+    purge_dir(logging_folder);
+  }
+
+  void write_json_file(const Path& data_dir) {
+    std::map<std::string, std::string> json_vars = {
+      { "PRIMARY_HOST",     "127.0.0.1:" + std::to_string(cluster_nodes_ports[0]) },
+      { "SECONDARY_1_HOST", "127.0.0.1:" + std::to_string(cluster_nodes_ports[1]) },
+      { "SECONDARY_2_HOST", "127.0.0.1:" + std::to_string(cluster_nodes_ports[2]) },
+
+      { "PRIMARY_PORT",     std::to_string(cluster_nodes_ports[0]) },
+      { "SECONDARY_1_PORT", std::to_string(cluster_nodes_ports[1]) },
+      { "SECONDARY_2_PORT", std::to_string(cluster_nodes_ports[2]) },
+    };
+
+    // launch the primary node working also as metadata server
+    json_primary_node_template_ = data_dir.join("metadata_3_nodes_first_not_accessible.js").str();
+    json_primary_node_ = Path(temp_test_dir).join("metadata_3_nodes_first_not_accessible.json").str();
+    rewrite_js_to_tracefile(json_primary_node_template_, json_primary_node_, json_vars);
+  }
+
+  std::string get_metadata_cache_section(std::vector<unsigned> ports) {
+    std::string metadata_caches = "bootstrap_server_addresses=";
+
+    for(auto it = ports.begin(); it != ports.end(); ++it) {
+      metadata_caches += (it == ports.begin()) ? "" : ",";
+      metadata_caches += "mysql://localhost:" + std::to_string(*it);
+    }
+    metadata_caches += "\n";
+
+    return "[metadata_cache:test]\n"
+           "router_id=1\n"
+           + metadata_caches +
+           "user=mysql_router1_user\n"
+           "metadata_cluster=test\n"
+           "ttl=500\n\n";
+  }
+
+  std::string get_metadata_cache_routing_section(const std::string& role,
+                                                 const  std::string& strategy,
+                                                 const  std::string& mode = "") {
+    std::string result = "[routing:test_default]\n"
+      "bind_port=" + std::to_string(router_port) + "\n" +
+      "destinations=metadata-cache://test/default?role=" + role + "\n" +
+      "protocol=classic\n";
+
+    if (!strategy.empty()) result += std::string("routing_strategy=" + strategy + "\n");
+    if (!mode.empty()) result += std::string("mode=" + mode + "\n");
+
+    return result;
+  }
+
+  void init_keyring() {
+    const std::string masterkey_file = Path(temp_test_dir).join("master.key").str();
+    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
+    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
+    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+    keyring->store("mysql_router1_user", "password", "root");
+    mysql_harness::flush_keyring();
+    mysql_harness::reset_keyring();
+  }
+
+  std::string build_config_file() {
+    auto default_section = get_DEFAULT_defaults();
+    default_section["logging_folder"] = logging_folder;
+    default_section["keyring_path"] = Path(temp_test_dir).join("keyring").str();;
+    default_section["master_key_path"] = Path(temp_test_dir).join("master.key").str();;
+    return create_config_file("[logger]\nlevel = DEBUG\n"
+        + metadata_cache_section + routing_section, &default_section);
+  }
+
+  TcpPortPool port_pool_;
+  std::string json_primary_node_template_;
+  std::string json_primary_node_;
+  std::string temp_test_dir;
+  std::string logging_folder;
+  std::vector<unsigned> cluster_nodes_ports;
+  unsigned router_port;
+  std::string metadata_cache_section;
+  std::string routing_section;
+};
+
+/*
+ * @test verify if error message is logged if router cannot connect to any
+ *       metadata server.
+ */
+TEST_F(MetadataCacheLoggingTest, log_error_when_cannot_connect_to_any_metadata_server) {
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router("-c " +  build_config_file());
+  bool router_ready = wait_for_port_ready(router_port, 1000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  // expect something like this to appear on STDERR
+  // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting with any of the bootstrap servers
+  auto matcher = [](const std::string& line) -> bool {
+    return line.find("metadata_cache ERROR") != line.npos &&
+        line.find("Failed connecting with any of the bootstrap servers") != line.npos;
+  };
+
+  const std::string log_file = Path(logging_folder + "/" + "mysqlrouter.log").c_str();
+
+  EXPECT_TRUE(find_in_log_for(log_file, matcher, std::chrono::milliseconds(5000)));
+}
+
+/*
+ * @test verify if appropriate warning messages are logged when cannot connect to first
+ *       metadata server, but can connect to another one.
+ */
+TEST_F(MetadataCacheLoggingTest, log_warning_when_cannot_connect_to_first_metadata_server) {
+  // launch second metadata server
+  auto server = launch_mysql_server_mock(json_primary_node_, cluster_nodes_ports[1], false);
+  bool server_ready = wait_for_port_ready(cluster_nodes_ports[1], 1000);
+  EXPECT_TRUE(server_ready) << server.get_full_output();
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router("-c " +  build_config_file());
+  bool router_ready = wait_for_port_ready(router_port, 1000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+
+  const std::string log_file = Path(logging_folder + "/" + "mysqlrouter.log").c_str();
+
+  // expect something like this to appear on STDERR
+  // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting with Metadata Server 127.0.0.1:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
+  auto info_matcher = [&](const std::string& line) -> bool {
+    return line.find("metadata_cache WARNING") != line.npos &&
+        line.find("Failed connecting with Metadata Server 127.0.0.1:" + std::to_string(cluster_nodes_ports[0])) != line.npos;
+  };
+
+  EXPECT_TRUE(find_in_log_for(log_file, info_matcher, std::chrono::milliseconds(10000)));
+
+  auto warning_matcher = [](const std::string& line) -> bool {
+    return line.find("metadata_cache WARNING") != line.npos &&
+        line.find("While updating metadata, could not establish a connection to replicaset") != line.npos;
+  };
+  EXPECT_TRUE(find_in_log_for(log_file, warning_matcher, std::chrono::milliseconds(10000)));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

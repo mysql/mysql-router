@@ -135,7 +135,7 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
       log_info("Connected with metadata server running on %s:%i", mi.host.c_str(), mi.port);
       break;
     } else {
-      log_error("Failed connecting with Metadata Server %s:%d: %s (%i)",
+      log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
                 mi.host.c_str(), mi.port,
                 metadata_connection_->last_error(),
                 metadata_connection_->last_errno());
@@ -178,7 +178,7 @@ void ClusterMetadata::update_replicaset_status(const std::string &name,
       }
 
       if (!do_connect(*gr_member_connection, mi)) {
-        log_error("While updating metadata, could not establish a connection to replicaset '%s' through %s",
+        log_warning("While updating metadata, could not establish a connection to replicaset '%s' through %s",
                   name.c_str(), mi_addr.c_str());
         continue; // server down, next!
       }
