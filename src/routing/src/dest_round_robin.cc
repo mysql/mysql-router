@@ -14,6 +14,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include <chrono>
 
 #include "common.h"
 #include "dest_round_robin.h"
@@ -35,7 +36,7 @@ IMPORT_LOG_FUNCTIONS()
 using mysqlrouter::TCPAddress;
 
 // Timeout for trying to connect with quarantined servers
-static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout {1 * 1000};
+static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout(1 * 1000);
 // How long we pause before checking quarantined servers again (seconds)
 static const int kQuarantineCleanupInterval = 3;
 // Make sure Quarantine Manager Thread is run even with nothing in quarantine
