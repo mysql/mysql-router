@@ -460,7 +460,7 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
 
   if (backup_config_file_if_different(config_file_path, config_file_path + ".tmp", options, &auto_clean)) {
     if (!quiet)
-      log_info("\nExisting configurations backed up to '%s.bak'", config_file_path.c_str());
+      std::cout << "\nExisting configurations backed up to '" << config_file_path << ".bak'" << std::endl;
     auto_clean.add_file_delete(config_file_path);
   }
 
@@ -607,7 +607,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
 
   if (backup_config_file_if_different(config_file_path, config_file_path.str() + ".tmp", options)) {
     if (!quiet)
-      log_info("\nExisting configurations backed up to '%s.bak'", config_file_path.c_str());
+      std::cout << "\nExisting configurations backed up to '" << config_file_path << ".bak'" << std::endl;
   }
 
   // rename the .tmp file to the final file
@@ -1051,9 +1051,9 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
       prefix = "\nBootstrapping";
     }
     if (directory_deployment) {
-      log_info("%s MySQL Router instance at '%s'...", prefix.c_str(), config_file_path.dirname().c_str());
+      std::cout << prefix << " MySQL Router instance at '" << config_file_path.dirname() << "'..." << std::endl;
     } else {
-      log_info("%s system MySQL Router instance...", prefix.c_str());
+      std::cout << prefix << " system MySQL Router instance..." << std::endl;
     }
   }
 
@@ -1220,10 +1220,9 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
         throw std::runtime_error("Encryption key is too long");
     } else {
-      log_info(
+      std::cout <<
         "MySQL Router needs to create a InnoDB cluster metadata client account.\n"
-        "To allow secure storage of its password, please provide an encryption key.\n"
-      );
+        "To allow secure storage of its password, please provide an encryption key.\n" << std::endl;
     again:
       master_key = prompt_password("Please provide an encryption key");
       if (master_key.empty()) {
@@ -1233,7 +1232,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       } else {
         std::string confirm = prompt_password("Please confirm encryption key");
         if (confirm != master_key) {
-          log_error("Entered keys do not match. Please try again.");
+          std::cout << "Entered keys do not match. Please try again." << std::endl;
           goto again;
         }
       }
@@ -1500,34 +1499,36 @@ void ConfigGenerator::create_config(std::ostream &cfp,
   cfp.flush();
 
   if (print_configs) {
-    log_info(
-      "MySQL Router %s has now been configured for the InnoDB cluster '%s'%s.\n",
-      ((router_name.empty() || router_name == kSystemRouterName) ? "" : "'"+router_name+"'").c_str(),
-      metadata_cluster.c_str(),
-      (options.multi_master ? " (multi-master)" : "")
-    );
-    log_info("The following connection information can be used to connect to the cluster.\n");
+    std::cout
+        << "MySQL Router "
+        << ((router_name.empty() || router_name == kSystemRouterName) ? "" : "'"+router_name+"'")
+        << " has now been configured for the InnoDB cluster '"
+        << metadata_cluster.c_str() << "'"
+        << (options.multi_master ? " (multi-master)" : "")
+        << ".\n" << std::endl;
+
+    std::cout << "The following connection information can be used to connect to the cluster.\n" << std::endl;
     if (options.rw_endpoint || options.ro_endpoint) {
-      log_info("Classic MySQL protocol connections to cluster '%s':", metadata_cluster.c_str());
+      std::cout << "Classic MySQL protocol connections to cluster '" << metadata_cluster << "':" << std::endl;
       if (options.rw_endpoint.port > 0)
-        log_info("- Read/Write Connections: localhost:%d", options.rw_endpoint.port);
+        std::cout << "- Read/Write Connections: localhost:" << options.rw_endpoint.port << std::endl;
       if (!options.rw_endpoint.socket.empty())
-        log_info("- Read/Write Connections: %s/%s", options.socketsdir.c_str(), options.rw_endpoint.socket.c_str());
+        std::cout << "- Read/Write Connections: " << options.socketsdir << "/" << options.rw_endpoint.socket << std::endl;
       if (options.ro_endpoint.port > 0)
-        log_info("- Read/Only Connections: localhost:%d", options.ro_endpoint.port);
+        std::cout << "- Read/Only Connections: localhost:" << options.ro_endpoint.port << std::endl;
       if (!options.ro_endpoint.socket.empty())
-        log_info("- Read/Only Connections: %s/%s\n", options.socketsdir.c_str(), options.ro_endpoint.socket.c_str());
+        std::cout << "- Read/Only Connections: " << options.socketsdir << "/" << options.ro_endpoint.socket << "\n" << std::endl;
     }
     if (options.rw_x_endpoint || options.ro_x_endpoint) {
-      log_info("X protocol connections to cluster '%s':", metadata_cluster.c_str());
+      std::cout << "X protocol connections to cluster '" << metadata_cluster << "':" << std::endl;
       if (options.rw_x_endpoint.port > 0)
-        log_info("- Read/Write Connections: localhost:%d", options.rw_x_endpoint.port);
+        std::cout << "- Read/Write Connections: localhost:" << options.rw_x_endpoint.port << std::endl;
       if (!options.rw_x_endpoint.socket.empty())
-        log_info("- Read/Write Connections: %s/%s", options.socketsdir.c_str(), options.rw_x_endpoint.socket.c_str());
+        std::cout << "- Read/Write Connections: " << options.socketsdir << "/" << options.rw_x_endpoint.socket << std::endl;
       if (options.ro_x_endpoint.port > 0)
-        log_info("- Read/Only Connections: localhost:%d", options.ro_x_endpoint.port);
+        std::cout << "- Read/Only Connections: localhost:" << options.ro_x_endpoint.port << std::endl;
       if (!options.ro_x_endpoint.socket.empty())
-        log_info("- Read/Only Connections: %s/%s", options.socketsdir.c_str(), options.ro_x_endpoint.socket.c_str());
+        std::cout << "- Read/Only Connections: " << options.socketsdir.c_str() << "/" << options.ro_x_endpoint.socket << std::endl;
     }
   }
 }

@@ -29,6 +29,11 @@
 #include <string>
 #include <thread>
 
+/**
+ * @file
+ * @brief Component Tests for loggers
+ */
+
 using testing::HasSubstr;
 using testing::StartsWith;
 Path g_origin_path;
@@ -386,7 +391,11 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   EXPECT_THAT(out.c_str(), HasSubstr("Error: Router name 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryv...' too long (max 255)."));
 }
 
-TEST_F(RouterLoggingTest, IsDebugLogsDisabledIfNoBootstrapConfigFile) {
+/**
+ * @test verify that debug logs are not written to console during boostrap if bootstrap
+ *       configuration file is not provided.
+ */
+TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
@@ -411,7 +420,11 @@ TEST_F(RouterLoggingTest, IsDebugLogsDisabledIfNoBootstrapConfigFile) {
   EXPECT_THAT(router.get_full_output(), testing::Not(testing::HasSubstr("Executing query:")));
 }
 
-TEST_F(RouterLoggingTest, IsDebugLogsEnabledIfBootstrapConfigFile) {
+/**
+ * @test verify that debug logs are written to console during boostrap if log_level is set
+ *       to DEBUG in bootstrap configuration file.
+ */
+TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
@@ -443,7 +456,11 @@ TEST_F(RouterLoggingTest, IsDebugLogsEnabledIfBootstrapConfigFile) {
   EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
 }
 
-TEST_F(RouterLoggingTest, IsDebugLogsToFileIfLoggingDir) {
+/**
+ * @test verify that debug logs are written to mysqlrouter.log file during bootstrap
+ *       if loggin_folder is provided in bootstrap configuration file
+ */
+TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
@@ -479,6 +496,59 @@ TEST_F(RouterLoggingTest, IsDebugLogsToFileIfLoggingDir) {
 
   const std::string log_file = Path(bootstrap_conf + "/" + "mysqlrouter.log").c_str();
   EXPECT_TRUE(find_in_log_for(log_file, matcher, std::chrono::milliseconds(5000)));
+}
+
+/**
+ * @test verify that normal output is written to stdout during bootstrap if logging_folder
+ *       is not provided in bootstrap configuration file.
+ *
+ * @test verify that logs are not written to stdout during bootstrap.
+ */
+TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+
+  const std::string bootstrap_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+
+  const std::string bootstrap_conf = get_tmp_dir();
+  std::shared_ptr<void> conf_exit_guard(nullptr, [&](void*){purge_dir(bootstrap_conf);});
+
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << "Timed out waiting for mock server port ready" << std::endl
+                     << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  std::string logger_section = "[logger]\nlevel = DEBUG\n";
+  std::string conf_file = create_config_file(logger_section, nullptr,
+      bootstrap_conf, "bootstrap.conf");
+
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + "--force -d " + bootstrap_dir + " -c " + conf_file, false /*false = capture only stdout*/);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_EQ(router.wait_for_exit(), 0)  << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+
+  // check if logs are not written to output
+  EXPECT_THAT(router.get_full_output(), testing::Not(testing::HasSubstr("Executing query:")));
+
+  // check if normal output is written to output
+  EXPECT_THAT(router.get_full_output(),
+      testing::HasSubstr(
+          "The following connection information can be used to connect to the cluster."));
+
+  EXPECT_THAT(router.get_full_output(),
+      testing::HasSubstr(
+          "Classic MySQL protocol connections to cluster 'mycluster':"));
+
+  EXPECT_THAT(router.get_full_output(),
+      testing::HasSubstr(
+          "X protocol connections to cluster 'mycluster':"));
 }
 
 class MetadataCacheLoggingTest : public RouterLoggingTest {
