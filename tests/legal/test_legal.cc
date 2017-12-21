@@ -56,7 +56,8 @@ const std::vector<std::string> kLicenseSnippets{
 
 // Ignored file extensions
 const std::vector<std::string> kIgnoredExtensions{
-    ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf", ".ini", ".swp",
+  ".o", ".pyc", ".pyo", ".conf.in", ".cfg.in", ".cfg", ".html", ".css", ".conf", ".ini", ".swp",
+  ".json", ".md", ".js"
 };
 
 const std::vector<std::string> kIgnoredFileNames{

@@ -19,6 +19,8 @@
 
 #include <cassert>
 #include <cerrno>
+#include <direct.h>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -323,6 +325,64 @@ Path Path::real_path() const {
   }
 
   return Path(path);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility free functions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int delete_dir(const std::string& dir) noexcept {
+  return _rmdir(dir.c_str());
+}
+
+int delete_file(const std::string& path) noexcept {
+  // In Windows a file recently closed may fail to be deleted because its
+  // still be locked (or have a 3rd party reading it, like an Indexer service
+  // or AntiVirus). So the recommended is to retry the delete operation.
+  BOOL flag = TRUE;
+  int max_attempts = 10;
+  while (max_attempts--)
+  {
+    flag = DeleteFile(path.c_str());
+    DWORD err = GetLastError();
+    if (flag) break;
+    else if (err == ERROR_FILE_NOT_FOUND) { flag = 1; break; }
+    else if (err == ERROR_ACCESS_DENIED) { Sleep(100); continue; }
+    else { return -1; }
+  }
+
+  return flag ? 0 : -1;
+}
+
+std::string get_tmp_dir(const std::string& name) {
+  char buf[MAX_PATH];
+  auto res = GetTempPath(MAX_PATH, buf);
+  if (res == 0 || res > MAX_PATH) {
+    throw std::runtime_error("Could not get temporary directory");
+  }
+
+  auto generate_random_sequence = [](size_t len) -> std::string {
+    std::random_device rd;
+    std::string result;
+    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz";
+    std::uniform_int_distribution<unsigned long> dist(0, sizeof(alphabet) - 2);
+
+    for (size_t i = 0; i < len; ++i) {
+      result += alphabet[dist(rd)];
+    }
+
+    return result;
+  };
+
+  std::string dir_name = name + "-" + generate_random_sequence(10);
+  std::string result = Path(buf).join(dir_name).str();
+  int err = _mkdir(result.c_str());
+  if (err != 0) {
+    throw std::runtime_error("Error creating temporary directory " + result);
+  }
+  return result;
 }
 
 }

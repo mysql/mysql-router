@@ -23,12 +23,16 @@ if(WIN32)
     helpers/cmd_exec-windows.cc
     helpers/router_test_helpers.cc
     helpers/mysql_session_replayer.cc
+    helpers/process_launcher.cc
+    helpers/router_component_test.cc
   )
 else()
   add_library(routertest_helpers SHARED
     helpers/cmd_exec.cc
     helpers/router_test_helpers.cc
     helpers/mysql_session_replayer.cc
+    helpers/process_launcher.cc
+    helpers/router_component_test.cc
   )
 endif()
 
@@ -49,4 +53,7 @@ foreach(test_dir legal tools)
     endif()
 endforeach()
 
+add_subdirectory(component)
 add_subdirectory(fuzzers)
+
+add_definitions(-DCOMPONENT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/component/data/")

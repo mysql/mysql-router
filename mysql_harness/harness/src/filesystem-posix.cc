@@ -309,4 +309,35 @@ Path Path::real_path() const {
     return Path();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility free functions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int delete_dir(const std::string& dir) noexcept {
+  return ::rmdir(dir.c_str());
+}
+
+int delete_file(const std::string& path) noexcept {
+  return ::unlink(path.c_str());
+}
+
+std::string get_tmp_dir(const std::string& name) {
+  const size_t MAX_LEN = 256;
+  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const char* pattern = pattern_str.c_str();
+  if (strlen(pattern) >= MAX_LEN) {
+    throw std::runtime_error("Could not create temporary directory, name too long");
+  }
+  char buf[MAX_LEN];
+  strncpy(buf, pattern, sizeof(buf)-1);
+  const char *res = mkdtemp(buf);
+  if (res == nullptr) {
+    throw std::runtime_error("Could not create temporary directory");
+  }
+
+  return std::string(res);
+}
+
 } // namespace mysql_harness

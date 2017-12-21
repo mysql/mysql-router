@@ -30,6 +30,8 @@ else()
   project("MySQLRouter")
 endif()
 
+set(RAPIDJSON_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/ext/rapidjson/include/")
+
 include(cmake/settings.cmake)
 
 # Load Internal

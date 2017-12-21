@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,9 +32,12 @@
 
 #ifndef _WIN32
 #  include <unistd.h>
+#  include <regex.h>
 #else
+#  include <winsock2.h>
 #  include <windows.h>
 #  include <direct.h>
+#  include <regex>
 #  define getcwd _getcwd
 typedef long ssize_t;
 #endif
@@ -196,5 +199,33 @@ void init_windows_sockets() {
     std::cerr << "WSAStartup() failed\n";
     exit(1);
   }
+#endif
+}
+
+bool pattern_found(const std::string &s,
+                   const std::string &pattern) {
+#ifndef _WIN32
+  regex_t regex;
+  auto r = regcomp(&regex, pattern.c_str(), 0);
+  if (r) {
+    throw std::runtime_error("Error compiling regex pattern: " + pattern);
+  }
+  r = regexec(&regex, s.c_str(), 0, NULL, 0);
+  regfree(&regex);
+  return (r == 0);
+#else
+  std::smatch m;
+  std::regex r(pattern);
+  bool result = std::regex_search(s, m, r);
+
+  return result;
+#endif
+}
+
+int get_socket_errno() {
+#ifndef _WIN32
+  return errno;
+#else
+  return WSAGetLastError();
 #endif
 }

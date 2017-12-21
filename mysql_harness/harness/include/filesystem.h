@@ -393,6 +393,66 @@ class HARNESS_EXPORT Directory : public Path {
   DirectoryIterator glob(const std::string& glob);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Utility free functions
+//
+////////////////////////////////////////////////////////////////////////////////
+
+/** @brief Removes a directory.
+ *
+ * @ingroup Filesystem
+ *
+ * @param dir path of the directory to be removed; this directory must be empty
+ *
+ * @return 0 on success, -1 on error and sets errno
+ */
+HARNESS_EXPORT
+int delete_dir(const std::string& dir) noexcept;
+
+/** @brief Removes a file.
+ *
+ * @ingroup Filesystem
+ *
+ * @param path of the file to be removed
+ *
+ * @return 0 on success, -1 on error
+ */
+HARNESS_EXPORT
+int delete_file(const std::string& path) noexcept;
+
+/** @brief Removes directory and all its contents.
+ *
+ * @ingroup Filesystem
+ *
+ * @param dir path of the directory to be removed
+ *
+ * @return 0 on success, -1 on error
+ */
+HARNESS_EXPORT
+int delete_dir_recursive(const std::string& dir) noexcept;
+
+/** @brief Creates a temporary directory with partially-random name and returns its path.
+ *
+ * Creates a directory with a name of form {prefix}-{6 random alphanumerals}.
+ * For example, a possible directory name created by a call to get_tmp_dir("foo")
+ * might be:
+ *   foo-3f9x0z
+ *
+ * Such directory is usually meant to be used as a temporary directory (thus the
+ * "_tmp_" in the name of this function).
+ *
+ * @ingroup Filesystem
+ *
+ * @param name name to be used as a directory name prefix
+ *
+ * @return path to the created directory
+ *
+ * @throws std::runtime_error if operation failed
+ */
+HARNESS_EXPORT
+std::string get_tmp_dir(const std::string& name = "router");
+
 }
 
 #endif /* MYSQL_HARNESS_FILESYSTEM_INCLUDED */
