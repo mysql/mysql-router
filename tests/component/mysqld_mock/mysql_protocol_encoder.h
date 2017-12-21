@@ -137,7 +137,7 @@ public:
   msg_buffer encode_greetings_message(uint8_t seq_no,
                                       const std::string &mysql_version = "8.0.3",
                                       uint32_t connection_id = 1,
-                                      const std::string &nonce = "012345678901234567890",
+                                      const std::string &nonce = "01234567890123456789",
                                       MySQLCapabilities capabilities = static_cast<MySQLCapabilities>(MySQLCapability::PROTOCOL_41) | static_cast<MySQLCapabilities>(MySQLCapability::SECURE_CONNECTION),
                                       uint8_t character_set = 0,
                                       uint16_t status_flags = 0);

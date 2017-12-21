@@ -88,6 +88,7 @@ MySQLProtocolEncoder::encode_greetings_message(uint8_t seq_no,
   append_byte(out_buffer, 0x0); // auth-plugin-len = 0
   append_str(out_buffer, std::string(10, '\0')); // reserved
   append_str(out_buffer, nonce.substr(8));
+  append_byte(out_buffer, 0x0); // trialing \0
 
   encode_msg_end(out_buffer, seq_no);
 

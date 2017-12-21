@@ -241,7 +241,17 @@ void MySQLServerMock::handle_connections() {
       send_packet(client_sock, buf);
 
       auto packet = protocol_decoder_.read_message(client_sock);
-      auto packet_seq =  static_cast<uint8_t>(packet.packet_seq + 1);
+
+      // a mysql-8 client will send us a cache-256-password-scramble
+      // and expects a \x03 back (fast-auth) + a OK packet
+      //
+      // TODO: properly handle authentication
+
+      // pretend we do cached_sha256 fast-auth
+      const uint8_t switch_auth[] = "\x01\x00\x00\x02\x03";
+      send_packet(client_sock, switch_auth, sizeof(switch_auth) - 1);
+
+      auto packet_seq =  static_cast<uint8_t>(packet.packet_seq + 2);
       send_ok(client_sock, packet_seq);
       bool res = process_statements(client_sock);
       if (!res) {
