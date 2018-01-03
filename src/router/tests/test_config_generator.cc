@@ -1181,54 +1181,54 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
   mysqlrouter::delete_file("./bug24808634/delme.key");
 }
 
-//TEST_F(ConfigGeneratorTest, bug25391460) {
-//  const std::string dir = "./bug25391460";
-//  mysqlrouter::delete_recursive(dir);
+TEST_F(ConfigGeneratorTest, bug25391460) {
+  const std::string dir = "./bug25391460";
+  mysqlrouter::delete_recursive(dir);
 
-//  // Bug#24807941
-//  {
-//    ConfigGenerator config_gen;
-//    common_pass_metadata_checks(mock_mysql.get());
-//    expect_bootstrap_queries(*mock_mysql.get(), "mycluster");
-//    config_gen.init(kServerUrl, {});
-//    mock_mysql->expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+  // Bug#24807941
+  {
+    ConfigGenerator config_gen;
+    common_pass_metadata_checks(mock_mysql.get());
+    expect_bootstrap_queries(*mock_mysql.get(), "mycluster");
+    config_gen.init(kServerUrl, {});
+    mock_mysql->expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
 
-//    std::map<std::string, std::string> options;
-//    options["quiet"] = "1";
-//    options["use-sockets"] = "1";
-//    ASSERT_NO_THROW(
-//      config_gen.bootstrap_directory_deployment(dir,
-//            options, default_paths, "delme", "delme.key"));
-//    ASSERT_TRUE(mysql_harness::Path(dir).exists());
-//    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
-//  }
+    std::map<std::string, std::string> options;
+    options["quiet"] = "1";
+    options["use-sockets"] = "1";
+    ASSERT_NO_THROW(
+      config_gen.bootstrap_directory_deployment(dir,
+            options, default_paths, "delme", "delme.key"));
+    ASSERT_TRUE(mysql_harness::Path(dir).exists());
+    ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
+  }
 
-//  // now read the config file and check that all socket paths are
-//  // .../bug25391460/mysql*.sock instead of .../bug25391460/socketsdir/mysql*.sock
-//  std::ifstream cf;
-//  std::string basedir = mysql_harness::Path(dir).real_path().str();
-//  cf.open(mysql_harness::Path(dir).join("mysqlrouter.conf").str());
-//  while (!cf.eof()) {
-//    std::string line;
-//    cf >> line;
-//    if (line.compare(0, 7, "socket=") == 0) {
-//      line = line.substr(7);
-//      // check prefix/basedir
-//      EXPECT_EQ(basedir, line.substr(0, basedir.length()));
-//      std::string suffix = line.substr(basedir.length()+1);
-//      // check filename extension
-//      EXPECT_EQ(".sock", suffix.substr(suffix.length()-strlen(".sock")));
-//      std::string::size_type end = suffix.rfind('/');
-//      if (end == std::string::npos)
-//        end = suffix.rfind('\\');
-//      // check that the file is directly under the deployment directory
-//      EXPECT_EQ(suffix.substr(end+1), suffix);
-//    }
-//  }
+  // now read the config file and check that all socket paths are
+  // .../bug25391460/mysql*.sock instead of .../bug25391460/socketsdir/mysql*.sock
+  std::ifstream cf;
+  std::string basedir = mysql_harness::Path(dir).real_path().str();
+  cf.open(mysql_harness::Path(dir).join("mysqlrouter.conf").str());
+  while (!cf.eof()) {
+    std::string line;
+    cf >> line;
+    if (line.compare(0, 7, "socket=") == 0) {
+      line = line.substr(7);
+      // check prefix/basedir
+      EXPECT_EQ(basedir, line.substr(0, basedir.length()));
+      std::string suffix = line.substr(basedir.length()+1);
+      // check filename extension
+      EXPECT_EQ(".sock", suffix.substr(suffix.length()-strlen(".sock")));
+      std::string::size_type end = suffix.rfind('/');
+      if (end == std::string::npos)
+        end = suffix.rfind('\\');
+      // check that the file is directly under the deployment directory
+      EXPECT_EQ(suffix.substr(end+1), suffix);
+    }
+  }
 
-//  mysql_harness::reset_keyring();
-//  mysqlrouter::delete_recursive(dir);
-//}
+  mysql_harness::reset_keyring();
+  mysqlrouter::delete_recursive(dir);
+}
 
 static void bootstrap_overwrite_test(MySQLSessionReplayer *mock_mysql,
                                      const std::string &dir,
@@ -2074,8 +2074,8 @@ static void bootstrap_password_test(MySQLSessionReplayer* mysql,
                            const std::vector<query_entry_t> &bootstrap_queries,
                            std::string password_retries = "5",
                            bool force_password_validation = false) {
-  ::testing::InSequence s;
   ConfigGenerator config_gen;
+  ::testing::InSequence s;
   common_pass_metadata_checks(mysql);
   config_gen.init(kServerUrl, {});
   expect_bootstrap_queries(*mysql, "mycluster", bootstrap_queries);

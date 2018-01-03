@@ -568,9 +568,6 @@ void MySQLRouting::start_acceptor() {
       // on non-blocking socket. We need to make sure it's always blocking.
       routing::set_socket_blocking(sock_client, true);
 
-//<<<<<<< HEAD
-//      std::thread(&MySQLRouting::routing_select_thread, this, sock_client, client_addr).detach();
-//=======
       // launch client thread which will service this new connection
       {
         auto thread_spawn_failure_handler = [&](const std::system_error* exc) {
@@ -610,8 +607,6 @@ void MySQLRouting::start_acceptor() {
           continue;
         }
       }
-
-//>>>>>>> 007d677... [routing plugin] BUG#BUG26800200: fix segfault when creating client thread fails
     }
   } // while (!stopping())
   log_info("[%s] stopped", name.c_str());

@@ -35,7 +35,6 @@
 #include "gmock/gmock.h"
 #include "router_component_test.h"
 
-
 /**
  * @file
  * @brief Component Tests for the bootstrap operation
