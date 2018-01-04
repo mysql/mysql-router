@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "mysql_session.h"
+
+#include <thread>
+#include <chrono>
 
 Path g_origin_path;
 
@@ -182,6 +185,55 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   );
 }
 #endif // #ifndef _WIN32
+
+#ifndef _WIN32  // named sockets are not supported on Windows;
+                // on Unix, they're implemented using Unix sockets
+TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
+  /**
+   * @test Verify that unix socket has the required file permissions so that it
+   *       can be connected to by all users. According to man 7 unix, only r+w
+   *       permissions are required, but Server sets x as well, so we do the same.
+   */
+
+  // get config dir (we will also stuff our unix socket file there)
+  const std::string bootstrap_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
+
+  // launch Router with unix socket
+  const std::string socket_file = bootstrap_dir + "/sockfile";
+  const std::string routing_section =
+                      "[routing:basic]\n"
+                      "socket = " + socket_file + "\n"
+                      "mode = read-write\n"
+                      "destinations = 127.0.0.1:1234\n";  // port can be bogus
+  const std::string conf_file = create_config_file(routing_section);
+  auto router_static = launch_router("-c " +  conf_file);
+
+  // loop until socket file appears and has correct permissions
+  auto wait_for_correct_perms = [&socket_file](int timeout_ms) {
+    const mode_t expected_mode = S_IFSOCK |
+                                 S_IRUSR | S_IWUSR | S_IXUSR |
+                                 S_IRGRP | S_IWGRP | S_IXGRP |
+                                 S_IROTH | S_IWOTH | S_IXOTH;
+    while (timeout_ms > 0) {
+      struct stat info;
+
+      memset(&info, 0, sizeof(info));
+      stat(socket_file.c_str(), &info); // silently ignore error when file doesn't exist yet
+
+      if (info.st_mode == expected_mode)
+        return true;
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      timeout_ms -= 10;
+    }
+
+    return false;
+  };
+
+  EXPECT_THAT(wait_for_correct_perms(5000), testing::Eq(true));
+}
+#endif
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

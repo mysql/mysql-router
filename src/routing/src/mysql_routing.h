@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -253,6 +253,14 @@ private:
    */
   void setup_named_socket_service();
 
+  /** @brief Sets unix socket permissions so that the socket is accessible
+   *         to all users (no-op on Windows)
+   * @param socket_file path to socket file
+   *
+   * @throws std::runtime_error if chmod() inside fails
+   */
+  static void set_unix_socket_permissions(const char* socket_file);
+
   /** @brief Worker function for thread
    *
    * Worker function handling incoming connection from a MySQL client using
@@ -345,6 +353,7 @@ private:
   FRIEND_TEST(TestSetupTcpService, listen_fails);
 #ifndef _WIN32
   FRIEND_TEST(TestSetupTcpService, setsockopt_fails);
+  FRIEND_TEST(TestSetupNamedSocketService, unix_socket_permissions_failure);
 #endif
 #endif
 };

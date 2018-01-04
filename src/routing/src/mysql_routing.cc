@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@
 #  include <sys/un.h>
 #  include <sys/select.h>
 #  include <sys/socket.h>
+#  include <sys/stat.h>
 #else
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -650,6 +651,28 @@ static int get_socket_errno() {
 #endif
 }
 
+// throws std::runtime_error
+/*static*/ void MySQLRouting::set_unix_socket_permissions(const char* socket_file) {
+#ifndef _WIN32  // Windows doesn't have Unix sockets
+
+  // make sure the socket is accessible to all users
+  // NOTE: According to man 7 unix, only r+w access is required to connect to socket, and indeed
+  //       setting permissions to rw-rw-rw- seems to work just fine on Ubuntu 14.04. However,
+  //       for some reason bind() creates rwxr-xr-x by default on said system, and Server 5.7 uses
+  //       rwxrwxrwx for its socket files. To be compliant with Server, we make our permissions
+  //       rwxrwxrwx as well, but the x is probably not necessary.
+  bool failed = chmod(socket_file, S_IRUSR | S_IRGRP | S_IROTH |  // read
+                                   S_IWUSR | S_IWGRP | S_IWOTH |  // write
+                                   S_IXUSR | S_IXGRP | S_IXOTH ); // execute
+  if (failed) {
+    std::string msg = std::string("Failed setting file permissions on socket file '") +
+                      socket_file + "': " + get_strerror(errno);
+    log_error("%s", msg.c_str());
+    throw std::runtime_error(msg);
+  }
+#endif
+}
+
 void MySQLRouting::setup_tcp_service() {
   struct addrinfo *servinfo, *info, hints;
   int err;
@@ -764,6 +787,8 @@ retry:
     log_error("Error binding to socket file %s: %s", socket_file.c_str(), get_strerror(errno).c_str());
     throw std::runtime_error(get_strerror(errno));
   }
+
+  set_unix_socket_permissions(socket_file.c_str()); // throws std::runtime_error
 
   if (listen(service_named_socket_, kListenQueueSize) < 0) {
     throw runtime_error("Failed to start listening for connections using named socket");
