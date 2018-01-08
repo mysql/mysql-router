@@ -40,8 +40,6 @@ TEST_F(TestSetupNamedSocketService, unix_socket_permissions_failure) {
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
-
-  init_test_logger();
   return RUN_ALL_TESTS();
 }
 

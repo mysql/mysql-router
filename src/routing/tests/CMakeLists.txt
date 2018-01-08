@@ -92,7 +92,8 @@ endif()
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "routing"
   LIB_DEPENDS routing_tests
-  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/")
+  ENVIRONMENT "MYSQL_ROUTER_HOME=${STAGE_DIR}/etc/"
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   MODULE "routing"
