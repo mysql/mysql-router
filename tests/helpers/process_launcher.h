@@ -35,6 +35,7 @@
 #  include <unistd.h>
 #endif
 #include <stdint.h>
+#include <string>
 
 /** an alive, spawned process
  *
@@ -71,8 +72,10 @@ public:
 
   virtual ~SpawnedProcess() {}
 
+  const std::string& get_cmd_line() { return cmd_line; }
+
 protected:
-  const char *cmd_line;
+  const std::string cmd_line;
   const char **args;
 #ifdef WIN32
   HANDLE child_in_rd;
@@ -118,7 +121,7 @@ public:
     rhs.is_alive = false;
   }
 
-  ~ProcessLauncher() { if (is_alive) close(); }
+  ~ProcessLauncher();
 
   /** Launches the child process, and makes pipes available for read/write. */
   void start();
@@ -177,7 +180,13 @@ private:
    * (errno in Linux / GetLastError in Windows).
    */
   void report_error(const char *msg, const char* prefix = "");
-  /** Closes child process */
+
+  /**
+   * Closes child process
+   *
+   * @throws std::system_error if sending signal to child process fails
+   * @throws std::runtime_error if waiting for process to change state fails
+   */
   void close();
 
   bool is_alive;

@@ -101,15 +101,18 @@ std::string get_my_hostname() {
 
 class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  static void SetUpTestCase() {
+    my_hostname = get_my_hostname();
+  }
+
+  void SetUp() override {
     set_origin(g_origin_path);
     RouterComponentTest::SetUp();
     bootstrap_dir = get_tmp_dir();
     tmp_dir = get_tmp_dir();
-    my_hostname = get_my_hostname();
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() override {
     purge_dir(tmp_dir);
     purge_dir(bootstrap_dir);
   }
@@ -117,7 +120,7 @@ class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
   TcpPortPool port_pool_;
   std::string bootstrap_dir;
   std::string tmp_dir;
-  std::string my_hostname;
+  static std::string my_hostname;
 
   struct Config {
     std::string ip;
@@ -134,6 +137,8 @@ class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
 
   friend std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterComponentTest::CommandHandle, unsigned int>> &T);
 };
+
+std::string RouterBootstrapTest::my_hostname;
 
 std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterBootstrapTest::CommandHandle, unsigned int>> &T) {
   for (auto &t: T) {

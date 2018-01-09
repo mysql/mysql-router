@@ -53,6 +53,17 @@
 constexpr unsigned kWaitPidCheckInterval = 10;
 constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
 
+ProcessLauncher::~ProcessLauncher() {
+  if (is_alive) {
+    try {
+      close();
+    } catch (std::exception &e) {
+      fprintf(stderr, "Can't stop the alive process %s: %s\n", cmd_line.c_str(),
+          e.what());
+    }
+  }
+}
+
 #ifdef _WIN32
 
 void ProcessLauncher::start() {
@@ -336,10 +347,10 @@ void ProcessLauncher::start()
     fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
     fcntl(fd_in[0], F_SETFD, FD_CLOEXEC);
 
-    execvp(cmd_line, (char * const *)args);
+    execvp(cmd_line.c_str(), (char * const *)args);
     // if exec returns, there is an error.
     int my_errno = errno;
-    fprintf(stderr, "%s could not be executed: %s (errno %d)\n", cmd_line, strerror(my_errno), my_errno);
+    fprintf(stderr, "%s could not be executed: %s (errno %d)\n", cmd_line.c_str(), strerror(my_errno), my_errno);
 
     // we need to identify an ENOENT and since some programs return 2 as exit-code
     // we need to return a non-existent code, 128 is a general convention used to indicate
@@ -462,18 +473,19 @@ uint64_t ProcessLauncher::get_pid() const
   return (uint64_t)childpid;
 }
 
-int ProcessLauncher::wait(unsigned int timeout_ms)
+int ProcessLauncher::wait(const unsigned int timeout_ms)
 {
+  unsigned int wait_time = timeout_ms;
   do {
     int status;
 
     pid_t ret = ::waitpid(childpid, &status, WNOHANG);
 
     if (ret == 0) {
-      auto sleep_for = std::min(timeout_ms, kWaitPidCheckInterval);
+      auto sleep_for = std::min(wait_time, kWaitPidCheckInterval);
       if (sleep_for > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
-        timeout_ms -= sleep_for;
+        wait_time -= sleep_for;
       } else {
         throw std::system_error(ETIMEDOUT, std::generic_category(),
             std::string("Timed out waiting " + std::to_string(timeout_ms) + " ms for the process " + std::to_string(childpid) + " to exit"));

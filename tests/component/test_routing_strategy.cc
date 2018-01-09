@@ -213,9 +213,8 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   void kill_server(RouterComponentTest::CommandHandle& server) {
-    auto to_delete = std::move(server);
+    EXPECT_NO_THROW(server.kill()) << server.get_full_output();
   }
-
 
   TcpPortPool port_pool_;
   unsigned wait_for_cache_ready_timeout{1000};

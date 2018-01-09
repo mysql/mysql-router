@@ -218,6 +218,26 @@ void MySQLServerMock::handle_connections() {
   sig_action.sa_flags = 0;
   sigaction(SIGTERM, &sig_action, NULL);
   sigaction(SIGINT, &sig_action, NULL);
+
+
+  // start signal handling thread, new thread inherits the signal mask
+  auto signal_handler = [&] {
+    while (!g_terminate) {
+      int ret = pause(); // sleep until the signal is delivered
+      if (ret == -1) {
+        std::cout << "Signal was caught: " << strerror(errno) << std::endl;
+      }
+    }
+  };
+  std::thread(signal_handler).detach();
+
+  // all other threads should block SIGTERM and SIGINT
+  struct sigaction thread_sig_action;
+  sigemptyset(&thread_sig_action.sa_mask);
+  thread_sig_action.sa_flags = 0;
+  sigaddset(&thread_sig_action.sa_mask, SIGTERM);
+  sigaddset(&thread_sig_action.sa_mask, SIGINT);
+  pthread_sigmask(SIG_BLOCK, &thread_sig_action.sa_mask, NULL);
 #endif
 
   uint64_t active_client_threads { 0 };
@@ -271,29 +291,41 @@ void MySQLServerMock::handle_connections() {
   };
 
   while (!g_terminate) {
-//    fd_set fds;
-//    FD_ZERO (&fds);
-//    FD_SET (listener_, &fds);
+    fd_set fds;
+    FD_ZERO (&fds);
+    FD_SET (listener_, &fds);
 
-//    int err = select (listener_ + 1, &fds, NULL, NULL, NULL);
-//    if (err < 0) {
-//      break;
-//    }
+    // timeval is initialized in loop because value of timeval may be override by calling select.
+    timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 10000;
 
-    socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
-    if (client_socket < 0) {
-      // if we got interrupted at shutdown, just leave
-      if (g_terminate) break;
+    int err = select (listener_ + 1, &fds, NULL, NULL, &tv);
 
-      throw std::runtime_error("accept() failed: " + get_socket_errno_str());
+    if (err < 0) {
+      std::cerr << "select() failed: " << strerror(errno) << "\n";
+      break;
+    } else if (err == 0) {
+      // timeout
+      continue;
     }
 
-    // if it doesn't work, no problem.
-    int one = 1;
-    setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
+    if (FD_ISSET(listener_, &fds)) {
+      socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
+      if (client_socket < 0) {
+        // if we got interrupted at shutdown, just leave
+        if (g_terminate) break;
 
-    std::cout << "Accepted client " << client_socket << std::endl;
-    std::thread(connection_handler, client_socket).detach();
+        throw std::runtime_error("accept() failed: " + get_socket_errno_str());
+      }
+
+      // if it doesn't work, no problem.
+      int one = 1;
+      setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
+
+      std::cout << "Accepted client " << client_socket << std::endl;
+      std::thread(connection_handler, client_socket).detach();
+    }
   }
 
   // wait until all threads have shutdown

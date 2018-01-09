@@ -211,6 +211,14 @@ class RouterComponentTest {
       return launcher_.get_pid();
     }
 
+    void kill() {
+      try {
+        launcher_.kill();
+      } catch(std::exception& e) {
+        fprintf(stderr, "failed killing process %s: %s\n", launcher_.get_cmd_line().c_str(), e.what());
+      }
+    }
+
    private:
     CommandHandle(const std::string &app_cmd,
                  const char **args,
