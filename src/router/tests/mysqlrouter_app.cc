@@ -733,16 +733,16 @@ TEST_F(AppLoggerTest, TestLogger) {
   // verify the log contains what we expect it to contain. We're looking for lines like this:
   {
     // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Main logger initialized, logging to STDERR
-    EXPECT_THAT(ssout.str(), HasSubstr(" main DEBUG "));
-    EXPECT_THAT(ssout.str(), HasSubstr(" Main logger initialized, logging to STDERR"));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" main DEBUG "));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" Main logger initialized, logging to STDERR"));
 
     // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-    EXPECT_THAT(ssout.str(), HasSubstr(" magic INFO "));
-    EXPECT_THAT(ssout.str(), HasSubstr(" It is some kind of magic"));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" magic INFO "));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" It is some kind of magic"));
 
     // 2017-05-03 11:30:25 lifecycle INFO [7faefa705780] lifecycle:all init():begin
-    EXPECT_THAT(ssout.str(), HasSubstr(" lifecycle INFO "));
-    EXPECT_THAT(ssout.str(), HasSubstr(" lifecycle:all init():begin"));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" lifecycle INFO "));
+    EXPECT_THAT(get_log_stream().str(), HasSubstr(" lifecycle:all init():begin"));
   }
 }
 
