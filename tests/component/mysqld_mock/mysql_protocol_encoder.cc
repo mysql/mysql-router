@@ -29,13 +29,13 @@
 
 namespace server_mock {
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_ok_message(uint8_t seq_no,
                                uint64_t affected_rows,
                                uint64_t last_insert_id,
                                uint16_t status,
                                uint16_t warnings) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
 
   encode_msg_begin(out_buffer);
 
@@ -50,12 +50,12 @@ MySQLProtocolEncoder::encode_ok_message(uint8_t seq_no,
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_error_message(uint8_t seq_no,
                                   uint16_t error_code,
                                   const std::string &sql_state,
                                   const std::string &error_msg) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
 
   encode_msg_begin(out_buffer);
 
@@ -70,15 +70,15 @@ MySQLProtocolEncoder::encode_error_message(uint8_t seq_no,
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_greetings_message(uint8_t seq_no,
                                               const std::string &mysql_version,
                                               uint32_t connection_id,
                                               const std::string &nonce,
-                                              MySQLCapabilities capabilities,
+                                              mysql_protocol::Capabilities::Flags capabilities /*=...*/,
                                               uint8_t character_set,
                                               uint16_t status_flags) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
 
   encode_msg_begin(out_buffer);
 
@@ -88,10 +88,10 @@ MySQLProtocolEncoder::encode_greetings_message(uint8_t seq_no,
   append_int(out_buffer, connection_id);
   append_str(out_buffer, nonce.substr(0,8));
   append_byte(out_buffer, 0x0); // filler
-  append_int(out_buffer, static_cast<uint16_t>(capabilities & 0xffff)); // cap_1
+  append_int(out_buffer, capabilities.low_16_bits()); // cap_1
   append_byte(out_buffer, character_set);
   append_int(out_buffer, status_flags);
-  append_int(out_buffer, static_cast<uint16_t>(capabilities >> 16)); // cap_2
+  append_int(out_buffer, capabilities.high_16_bits()); // cap_2
   append_byte(out_buffer, 0x0); // auth-plugin-len = 0
   append_str(out_buffer, std::string(10, '\0')); // reserved
   append_str(out_buffer, nonce.substr(8));
@@ -102,9 +102,9 @@ MySQLProtocolEncoder::encode_greetings_message(uint8_t seq_no,
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_columns_number_message(uint8_t seq_no, uint64_t number) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
   encode_msg_begin(out_buffer);
 
   append_lenenc_int(out_buffer, number);
@@ -113,10 +113,10 @@ MySQLProtocolEncoder::encode_columns_number_message(uint8_t seq_no, uint64_t num
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_column_meta_message(uint8_t seq_no,
                                                 const column_info_type &column_info) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
   encode_msg_begin(out_buffer);
 
   append_lenenc_str(out_buffer, column_info.catalog);
@@ -126,7 +126,7 @@ MySQLProtocolEncoder::encode_column_meta_message(uint8_t seq_no,
   append_lenenc_str(out_buffer, column_info.name);
   append_lenenc_str(out_buffer, column_info.orig_name);
 
-  msg_buffer meta_buffer;
+  MsgBuffer meta_buffer;
   append_int(meta_buffer, column_info.character_set);
   append_int(meta_buffer, column_info.length);
   append_byte(meta_buffer, static_cast<uint8_t>(column_info.type));
@@ -141,11 +141,11 @@ MySQLProtocolEncoder::encode_column_meta_message(uint8_t seq_no,
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_row_message(uint8_t seq_no,
                                          const std::vector<column_info_type> &columns_info,
-                                         const row_values_type &row_values) {
-  msg_buffer out_buffer;
+                                         const RowValueType &row_values) {
+  MsgBuffer out_buffer;
   encode_msg_begin(out_buffer);
 
   if (columns_info.size() != row_values.size()) {
@@ -166,10 +166,10 @@ MySQLProtocolEncoder::encode_row_message(uint8_t seq_no,
   return out_buffer;
 }
 
-MySQLProtocolEncoder::msg_buffer
+MySQLProtocolEncoder::MsgBuffer
 MySQLProtocolEncoder::encode_eof_message(uint8_t seq_no, uint16_t status,
                                          uint16_t warnings) {
-  msg_buffer out_buffer;
+  MsgBuffer out_buffer;
   encode_msg_begin(out_buffer);
 
   append_byte(out_buffer, 0xfe);  // ok
@@ -180,12 +180,12 @@ MySQLProtocolEncoder::encode_eof_message(uint8_t seq_no, uint16_t status,
   return out_buffer;
 }
 
-void MySQLProtocolEncoder::encode_msg_begin(msg_buffer &out_buffer) {
+void MySQLProtocolEncoder::encode_msg_begin(MsgBuffer &out_buffer) {
   // reserve space for header
   append_int(out_buffer, static_cast<uint32_t>(0x0));
 }
 
-void MySQLProtocolEncoder::encode_msg_end(msg_buffer &out_buffer, uint8_t seq_no) {
+void MySQLProtocolEncoder::encode_msg_end(MsgBuffer &out_buffer, uint8_t seq_no) {
   assert(out_buffer.size() >= 4);
   // fill the header
   uint32_t msg_len = static_cast<uint32_t>(out_buffer.size()) - 4;
@@ -201,19 +201,19 @@ void MySQLProtocolEncoder::encode_msg_end(msg_buffer &out_buffer, uint8_t seq_no
   }
 }
 
-void MySQLProtocolEncoder::append_byte(msg_buffer& buffer, byte value) {
+void MySQLProtocolEncoder::append_byte(MsgBuffer& buffer, byte value) {
   buffer.push_back(value);
 }
 
-void MySQLProtocolEncoder::append_str(msg_buffer &buffer, const std::string &value) {
+void MySQLProtocolEncoder::append_str(MsgBuffer &buffer, const std::string &value) {
   buffer.insert(buffer.end(), value.begin(), value.end());
 }
 
-void MySQLProtocolEncoder::append_buffer(msg_buffer &buffer, const msg_buffer &value) {
+void MySQLProtocolEncoder::append_buffer(MsgBuffer &buffer, const MsgBuffer &value) {
   buffer.insert(buffer.end(), value.begin(), value.end());
 }
 
-void MySQLProtocolEncoder::append_lenenc_int(msg_buffer &buffer, uint64_t val) {
+void MySQLProtocolEncoder::append_lenenc_int(MsgBuffer &buffer, uint64_t val) {
   if (val < 251) {
     append_byte(buffer, static_cast<byte>(val));
   }
@@ -227,7 +227,7 @@ void MySQLProtocolEncoder::append_lenenc_int(msg_buffer &buffer, uint64_t val) {
   }
 }
 
-void MySQLProtocolEncoder::append_lenenc_str(msg_buffer &buffer, const std::string &value) {
+void MySQLProtocolEncoder::append_lenenc_str(MsgBuffer &buffer, const std::string &value) {
   append_lenenc_int(buffer, value.length());
   append_str(buffer, value);
 }

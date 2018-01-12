@@ -51,9 +51,9 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
    *
    * @param buffer bytes of the error packet
    */
-  ErrorPacket(const std::vector<uint8_t> &buffer) : ErrorPacket(buffer, 0) { }
+  ErrorPacket(const std::vector<uint8_t> &buffer) : ErrorPacket(buffer, Capabilities::ALL_ZEROS) { }
 
-  ErrorPacket(const std::vector<uint8_t> &buffer, uint32_t capabilities);
+  ErrorPacket(const std::vector<uint8_t> &buffer, Capabilities::Flags capabilities);
 
   /** @overload
    *
@@ -64,7 +64,7 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
    * @param capabilities Server/Client capability flags (default 0)
    */
   ErrorPacket(uint8_t sequence_id, uint16_t err_code, const std::string &err_msg,
-              const std::string &sql_state, uint32_t capabilities = 0);
+              const std::string &sql_state, Capabilities::Flags capabilities = Capabilities::ALL_ZEROS);
 
   /** @brief Gets error code
    *

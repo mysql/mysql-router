@@ -45,7 +45,7 @@ struct Response {
  **/
 struct ResultsetResponse : public Response {
   std::vector<column_info_type> columns;
-  std::vector<row_values_type> rows;
+  std::vector<RowValueType> rows;
 };
 
 struct OkResponse : public Response {
@@ -69,11 +69,11 @@ struct ErrorResponse : public Response {
  * @brief Keeps single SQL statement data.
  **/
 struct StatementAndResponse {
-  /** @enum statement_response_type
+  /** @enum StatementResponseType
    *
    * Response expected for given SQL statement.
    **/
-  enum class statement_response_type {
+  enum class StatementResponseType {
      STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
   };
 
@@ -82,7 +82,7 @@ struct StatementAndResponse {
   // SQL statement
   std::string statement;
   // exected response type for the statement
-  statement_response_type response_type;
+  StatementResponseType response_type;
 
   std::unique_ptr<Response> response;
 

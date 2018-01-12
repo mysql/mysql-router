@@ -40,6 +40,7 @@ using ::testing::DoAll;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 
+using namespace mysql_protocol;
 
 class ClassicProtocolTest : public ::testing::Test {
 protected:
@@ -204,7 +205,7 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeServerSendsError)
   size_t report_bytes_read = 0xff;
   curr_pktnr_ = 1;
 
-  auto error_packet = mysql_protocol::ErrorPacket(2, 0xaabb, "Access denied", "HY004", mysql_protocol::kClientProtocol41);
+  auto error_packet = mysql_protocol::ErrorPacket(2, 0xaabb, "Access denied", "HY004", Capabilities::PROTOCOL_41);
 
   serialize_classic_packet_to_buffer(network_buffer_, network_buffer_offset_, error_packet);
 

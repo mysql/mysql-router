@@ -40,19 +40,11 @@ using socket_t = SOCKET;
 using socket_t = int;
 #endif
 
+#include "mysql_protocol_common.h"
+
 namespace server_mock {
 
 using byte = uint8_t;
-
-/** @enum MySQLCommand
- *
- * Types of the supported commands from the client.
- *
- **/
-enum MySQLCommand {
-  QUIT = 0x01,
-  QUERY = 0x03
-};
 
 /** @class MySQLProtocolDecoder
  *
@@ -64,35 +56,32 @@ class MySQLProtocolDecoder {
 
   /** @brief Callback used to read more data from the socket
    **/
-  using read_callback = std::function<void(int, uint8_t *data, size_t size, int)>;
+  using ReadCallback = std::function<void(int, uint8_t *data, size_t size, int)>;
 
   /** @brief Constructor
    *
    * @param read_clb Callback to use to read more data from the socket
    **/
-  MySQLProtocolDecoder(const read_callback& read_clb);
-
-  /** @brief Single protocol packet data.
-   **/
-  struct protocol_packet_type {
-    // packet sequence number
-    uint8_t packet_seq{0};
-    // raw packet data
-    std::vector<byte> packet_buffer;
-  };
+  MySQLProtocolDecoder(const ReadCallback& read_clb);
 
   /** @brief Reads single packet from the network socket.
    *
    * @returns Read packet data.
    **/
-  protocol_packet_type read_message(socket_t client_socket, int flags=0);
+  void read_message(socket_t client_socket, int flags=0);
+
+  /** @brief Retrieves sequence number of the packet
+   *
+   * @returns sequence number
+   */
+  uint8_t packet_seq() const { return packet_.packet_seq; }
 
   /** @brief Retrieves command type from the packet sent by the client.
    *
    * @param packet  protocol packet to inspect
    * @returns command type
    **/
-  MySQLCommand get_command_type(const protocol_packet_type& packet);
+  mysql_protocol::Command get_command_type() const;
 
   /** @brief Retrieves SQL statement from the packet sent by the client.
    *
@@ -101,10 +90,20 @@ class MySQLProtocolDecoder {
    * @param packet  packet to inspect
    * @returns SQL statement
    **/
-  std::string get_statement(const protocol_packet_type& packet);
+  std::string get_statement() const;
 
  private:
-  const read_callback read_callback_;
+  /** @brief Single protocol packet data.
+   **/
+  struct ProtocolPacketType {
+    // packet sequence number
+    uint8_t packet_seq{0};
+    // raw packet data
+    std::vector<byte> packet_buffer;
+  };
+
+  ProtocolPacketType packet_;
+  const ReadCallback read_callback_;
 };
 
 } // namespace

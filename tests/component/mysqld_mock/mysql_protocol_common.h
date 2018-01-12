@@ -27,6 +27,9 @@
 
 #include <string>
 
+//TODO after migration to Server repo: delete mysqlrouter/ after moving stuff 1 level up
+#include "mysqlrouter/mysql_protocol.h"
+
 namespace server_mock {
 
 using byte = uint8_t;
@@ -88,7 +91,7 @@ struct column_info_type {
 /** @brief Vector for keeping has_value|string representation of the values
  *         of the single row (ordered by column)
  **/
-using row_values_type = std::vector<std::pair<bool, std::string>>;
+using RowValueType = std::vector<std::pair<bool, std::string>>;
 
 MySQLColumnType column_type_from_string(const std::string& type);
 

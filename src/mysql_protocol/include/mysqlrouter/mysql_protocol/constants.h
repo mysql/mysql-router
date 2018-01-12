@@ -29,25 +29,146 @@
 
 namespace mysql_protocol {
 
-// Capability flags are prefixed with `CLIENT_`.
-// - See https://dev.mysql.com/doc/internals/en/capability-flags.html
-// - See also MySQL Server source include/mysql_com.h
-// - using uint32_t because transmitted as 4 byte long integer
+namespace Capabilities {
 
-/** @brief CLIENT_PROTOCOL_41
+  /** Type used to pass capability bitset as one number */
+  typedef uint32_t AllFlags;
+
+  /** Type used to pass high/low half of capability bitset as one number */
+  typedef uint16_t HalfFlags;
+
+  class Flags {
+   public:
+    constexpr Flags() : flags_(0) {}
+    explicit constexpr Flags(AllFlags flags) : flags_(flags) {}
+
+    Flags& operator=(const Flags& other) {
+      flags_ = other.flags_;
+      return *this;
+    }
+
+    Flags& operator=(AllFlags flags) {
+      flags_ = flags;
+      return *this;
+    }
+
+    constexpr bool operator==(const Flags& other) const {
+      return flags_ == other.flags_;
+    }
+
+    constexpr bool operator!=(const Flags& other) const {
+      return flags_ != other.flags_;
+    }
+
+    constexpr Flags operator|(const Flags& other) const {
+      return Flags(flags_ | other.flags_);
+    }
+
+    constexpr Flags operator&(const Flags& other) const {
+      return Flags(flags_ & other.flags_);
+    }
+
+    bool test(const Flags& want) const {return (flags_ & want.flags_) == want.flags_; }
+    Flags& set(const Flags& other) { flags_ |= other.flags_; return *this; }
+    Flags& clear(const Flags& other) { flags_ &= ~other.flags_; return *this; }
+    Flags& reset()                   { flags_ = 0; return *this; }
+
+    AllFlags  bits() const { return flags_; }
+    HalfFlags high_16_bits() const  { return static_cast<HalfFlags>(flags_ >> 16); }
+    HalfFlags low_16_bits() const   { return static_cast<HalfFlags>(flags_ & 0x0000ffff); }
+
+    Flags& clear_high_16_bits()   { flags_ &= 0x0000ffff; return *this; }
+    Flags& clear_low_16_bits()    { flags_ &= 0xffff0000; return *this; }
+
+   private:
+    AllFlags flags_;
+  };
+
+  /** @brief Capability flags passed in handshake packet.
+   *
+   * See https://dev.mysql.com/doc/internals/en/capability-flags.html
+   * See also MySQL Server source include/mysql_com.h
+   * To search for documentation of a particular flag, prepend CLIENT_ to its name
+   * (it was removed on purpose to prevent name collisions when #including mysql.h)
+   **/
+  static constexpr Flags LONG_PASSWORD          (1 << 0);
+  static constexpr Flags FOUND_ROWS             (1 << 1);
+  static constexpr Flags LONG_FLAG              (1 << 2);
+  static constexpr Flags CONNECT_WITH_DB        (1 << 3);
+
+  static constexpr Flags NO_SCHEMA              (1 << 4);
+  static constexpr Flags COMPRESS               (1 << 5);
+  static constexpr Flags ODBC                   (1 << 6);
+  static constexpr Flags LOCAL_FILES            (1 << 7);
+
+  static constexpr Flags IGNORE_SPACE           (1 << 8);
+  static constexpr Flags PROTOCOL_41            (1 << 9);   // Server: supports the 4.1 protocol, Client: uses the 4.1 protocol
+  static constexpr Flags INTERACTIVE            (1 << 10);
+  static constexpr Flags SSL                    (1 << 11);  // Server: supports SSL, Client: switch to SSL
+
+  static constexpr Flags SIG_PIPE               (1 << 12);
+  static constexpr Flags TRANSACTIONS           (1 << 13);
+  static constexpr Flags RESERVED_14            (1 << 14);
+  static constexpr Flags SECURE_CONNECTION      (1 << 15);
+
+  static constexpr Flags MULTI_STATEMENTS       (1 << 16);
+  static constexpr Flags MULTI_RESULTS          (1 << 17);
+  static constexpr Flags MULTI_PS_MULTO_RESULTS (1 << 18);
+  static constexpr Flags PLUGIN_AUTH            (1 << 19);
+
+  static constexpr Flags CONNECT_ATTRS          (1 << 20);
+  static constexpr Flags PLUGIN_AUTH_LENENC_CLIENT_DATA(1 << 21);
+  static constexpr Flags EXPIRED_PASSWORDS      (1 << 22);
+  static constexpr Flags SESSION_TRACK          (1 << 23);
+
+  static constexpr Flags WONKY_EOF              (1 << 24);
+
+  // other useful flags (our invention, mysql_com.h does not define them)
+  static constexpr Flags ALL_ZEROS              (0U);
+  static constexpr Flags ALL_ONES               (~0U);
+
+} // namespace Capabilities
+
+/** @enum Command
  *
- * Server: Supports the 4.1 protocol.
- * Client: Uses the 4.1 protocol.
- */
-const uint32_t kClientProtocol41 = 0x00000200;
-
-/** @brief CLIENT_SSL
+ * Types of the supported commands from the client.
  *
- * Server: Supports SSL.
- * Client: Switch to SSL.
- */
-const uint32_t kClientSSL = 0x00000800;
+ **/
+enum Command {
+  SLEEP               = 0x00,
+  QUIT                = 0x01,
+  INIT_DB             = 0x02,
+  QUERY               = 0x03,
+  FIELD_LIST          = 0x04,
+  CREATE_DB           = 0x05,
+  DROP_DB             = 0x06,
+  REFRESH             = 0x07,
+  SHUTDOWN            = 0x08,
+  STATISTICS          = 0x09,
+  PROCESS_INFO        = 0x0a,
+  CONNECT             = 0x0b,
+  PROCESS_KILL        = 0x0c,
+  DEBUG               = 0x0d,
+  PING                = 0x0e,
+  TIME                = 0x0f,
+  DELAYED_INSERT      = 0x10,
+  CHANGE_USER         = 0x11,
+  BINLOG_DUMP         = 0x12,
+  TABLE_DUMP          = 0x13,
+  CONNECT_OUT         = 0x14,
+  REGISTER_SLAVE      = 0x15,
+  STMT_PREPARE        = 0x16,
+  STMT_EXECUTE        = 0x17,
+  STMT_SEND_LOG_DATA  = 0x18,
+  STMT_CLOSE          = 0x19,
+  STMT_RESET          = 0x1a,
+  SET_OPTION          = 0x1b,
+  STMT_FETCH          = 0x1c,
+  DAEMON              = 0x1d,
+  BINLOG_DUMP_GTID    = 0x1e,
+  RESET_CONNECTION    = 0x1f,
+};
 
-} // mysql_protocol
+} // namespace mysql_protocol
 
 #endif // MYSQLROUTER_MYSQL_PROTOCOL_CONSTANTS_INCLUDED

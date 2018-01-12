@@ -55,7 +55,7 @@ endif()
 add_executable(mysql_server_mock ${sources})
 target_include_directories(mysql_server_mock PUBLIC
   ${RAPIDJSON_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include/)
+  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include/)
 
 target_link_libraries(mysql_server_mock ${common_libraries})
 set_target_output_directory(mysql_server_mock RUNTIME_OUTPUT_DIRECTORY bin)

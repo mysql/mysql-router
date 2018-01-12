@@ -44,13 +44,12 @@
 
 namespace server_mock {
 
-MySQLProtocolDecoder::MySQLProtocolDecoder(const read_callback& read_clb):
+MySQLProtocolDecoder::MySQLProtocolDecoder(const ReadCallback& read_clb):
   read_callback_(read_clb)
 {}
 
-MySQLProtocolDecoder::protocol_packet_type
-MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
-  protocol_packet_type result;
+void MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
+  ProtocolPacketType result;
   uint8_t header_buf[4];
   uint32_t header{0};
 
@@ -61,33 +60,31 @@ MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
     header |= header_buf[4-i];
   }
 
-  uint32_t pkt_len = header & 0xffffff;
+  uint32_t pkt_len = header & 0x00ffffff;
 
   if (pkt_len == 0xffffff) {
     // this means more data comming, which we don't need/support atm
     throw std::runtime_error("Protocol messages split into several packets not supported!");
   }
 
-  result.packet_seq = static_cast<uint8_t>(header >> 24);
+  packet_.packet_seq = static_cast<uint8_t>(header >> 24);
 
   if (pkt_len > 0) {
-    result.packet_buffer.resize(pkt_len);
-    read_callback_(client_socket, &result.packet_buffer[0], pkt_len, flags);
+    packet_.packet_buffer.resize(pkt_len);
+    read_callback_(client_socket, &packet_.packet_buffer[0], pkt_len, flags);
   }
-
-  return result;
 }
 
-MySQLCommand MySQLProtocolDecoder::get_command_type(const protocol_packet_type& packet) {
-  return static_cast<MySQLCommand>(packet.packet_buffer[0]);
+mysql_protocol::Command MySQLProtocolDecoder::get_command_type() const {
+  return static_cast<mysql_protocol::Command>(packet_.packet_buffer[0]);
 }
 
-std::string MySQLProtocolDecoder::get_statement(const protocol_packet_type& packet) {
-  size_t buf_len = packet.packet_buffer.size() - 1;
+std::string MySQLProtocolDecoder::get_statement() const {
+  size_t buf_len = packet_.packet_buffer.size() - 1;
   if (buf_len == 0) return "";
 
   std::vector<char> statement(buf_len+1);
-  const char* buf = reinterpret_cast<const char*>(&packet.packet_buffer[1]);
+  const char* buf = reinterpret_cast<const char*>(&packet_.packet_buffer[1]);
   std::copy(buf, buf+buf_len, &statement[0]);
   statement[buf_len] = '\0';
 

@@ -212,13 +212,13 @@ StatementAndResponse QueriesJsonReader::get_next_statement() {
   response.statement = stmt[name.c_str()].GetString();
 
   if (stmt.HasMember("ok")) {
-    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_OK;
+    response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_OK;
     response.response = pimpl_->read_ok_info(stmt);
   } else if (stmt.HasMember("error")) {
-    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_ERROR;
+    response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
     response.response = pimpl_->read_error_info(stmt);
   } else if (stmt.HasMember("result")) {
-    response.response_type = StatementAndResponse::statement_response_type::STMT_RES_RESULT;
+    response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_RESULT;
     response.response = pimpl_->read_result_info(stmt);
   } else {
     throw std::runtime_error("Wrong statements document structure: expect \"ok|error|result\"");
@@ -296,7 +296,7 @@ std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(const JsonV
             std::to_string(row.Size()) + " != " + std::to_string(columns_size));
       }
 
-      row_values_type row_values;
+      RowValueType row_values;
       for (size_t j = 0; j < row.Size(); ++j) {
         auto& column_info = response->columns[j];
         const size_t repeat = static_cast<size_t>(column_info.repeat);

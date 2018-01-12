@@ -34,7 +34,8 @@
 
 namespace mysql_protocol {
 
-const unsigned int HandshakeResponsePacket::kDefaultClientCapabilities = 238221;
+// required by C++11, deprecated in C++17
+constexpr Capabilities::Flags HandshakeResponsePacket::kDefaultClientCapabilities;
 
 HandshakeResponsePacket::HandshakeResponsePacket(uint8_t sequence_id,
                                                  std::vector<unsigned char> auth_data,
@@ -60,7 +61,7 @@ void HandshakeResponsePacket::prepare_packet() {
   reset();
 
   // capabilities
-  add_int<uint32_t>(kDefaultClientCapabilities);
+  add_int<uint32_t>(kDefaultClientCapabilities.bits());
 
   // max packet size
   add_int<uint32_t>(kMaxAllowedSize);

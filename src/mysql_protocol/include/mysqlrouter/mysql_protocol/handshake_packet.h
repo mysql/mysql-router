@@ -40,20 +40,19 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
  public:
   /** @brief Default capability flags
    *
-   * Default capability flags, including:
-   *
-   * * CLIENT_LONG_PASSWD
-   * * CLIENT_LONG_FLAG
-   * * CLIENT_CONNECT_WITH_DB
-   * * CLIENT_PROTOCOL_41
-   * * CLIENT_TRANSACTIONS
-   * * CLIENT_SECURE_CONNECTION
-   * * CLIENT_MULTI_STATEMENTS
-   * * CLIENT_MULTI_RESULTS
-   * * CLIENT_LOCAL_FILES
+   * Default capability flags
    *
    */
-  static const unsigned int kDefaultClientCapabilities;
+  static constexpr Capabilities::Flags kDefaultClientCapabilities =
+      Capabilities::LONG_PASSWORD |
+      Capabilities::LONG_FLAG |
+      Capabilities::CONNECT_WITH_DB |
+      Capabilities::LOCAL_FILES |
+      Capabilities::PROTOCOL_41 |
+      Capabilities::TRANSACTIONS |
+      Capabilities::SECURE_CONNECTION |
+      Capabilities::MULTI_STATEMENTS |
+      Capabilities::MULTI_RESULTS;
 
   /** @brief Constructor */
   HandshakeResponsePacket() : Packet(0), auth_data_({}), username_(""), password_(""),

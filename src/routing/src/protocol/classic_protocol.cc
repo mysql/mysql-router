@@ -116,7 +116,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver, bool sender_is_reada
       // We are dealing with the handshake response from client
       if (pktnr == 1) {
         // if client is switching to SSL, we are not continuing any checks
-        uint32_t capabilities = 0;
+        mysql_protocol::Capabilities::Flags capabilities;
         try {
           auto pkt = mysql_protocol::Packet(buffer);
           capabilities = pkt.get_int<uint32_t>(4);
@@ -124,7 +124,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver, bool sender_is_reada
           log_debug("%s", exc.what());
           return -1;
         }
-        if (capabilities & mysql_protocol::kClientSSL) {
+        if (capabilities.test(mysql_protocol::Capabilities::SSL)) {
           pktnr = 2;  // Setting to 2, we tell the caller that handshaking is done
         }
       }

@@ -53,7 +53,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   static const unsigned int kMaxAllowedSize{1073741824};
 
   /** @brief Constructor */
-  Packet() : Packet(0, 0) { }
+  Packet() : Packet(0, Capabilities::ALL_ZEROS) { }
 
   /** @overload
    *
@@ -71,7 +71,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param allow_partial Whether to allow buffers which have incomplete payload
    */
   explicit Packet(const vector_t &buffer, bool allow_partial = false)
-      : Packet(buffer, 0, allow_partial) { }
+      : Packet(buffer, Capabilities::ALL_ZEROS, allow_partial) { }
 
   /** @overload
    *
@@ -79,20 +79,20 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param capabilities Server or Client capability flags
    * @param allow_partial Whether to allow buffers which have incomplete payload
    */
-  Packet(const vector_t &buffer, uint32_t capabilities, bool allow_partial = false);
+  Packet(const vector_t &buffer, Capabilities::Flags capabilities, bool allow_partial = false);
 
   /** @overload
    *
    * @param sequence_id Sequence ID of MySQL packet
    */
-  explicit Packet(uint8_t sequence_id) : Packet(sequence_id, 0) { }
+  explicit Packet(uint8_t sequence_id) : Packet(sequence_id, Capabilities::ALL_ZEROS) { }
 
   /** @overload
    *
    * @param sequence_id Sequence ID of MySQL packet
    * @param capabilities Server or Client capability flags
    */
-  Packet(uint8_t sequence_id, uint32_t capabilities)
+  Packet(uint8_t sequence_id, Capabilities::Flags capabilities)
       : vector(), sequence_id_(sequence_id),
         payload_size_(0), capability_flags_(capabilities) { }
 
@@ -110,7 +110,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
                            payload_size_(other.get_payload_size()),
                            capability_flags_(other.get_capabilities()) {
     other.sequence_id_ = 0;
-    other.capability_flags_ = 0;
+    other.capability_flags_ = Capabilities::ALL_ZEROS;
     other.payload_size_ = 0;
   }
 
@@ -124,7 +124,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
     payload_size_ = other.payload_size_;
     capability_flags_ = other.get_capabilities();
     other.sequence_id_ = 0;
-    other.capability_flags_ = 0;
+    other.capability_flags_ = Capabilities::ALL_ZEROS;
     other.payload_size_ = 0;
     return *this;
   }
@@ -283,9 +283,9 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Gets server/client capabilities
    *
-   * @return uint32_t
+   * @return Capabilities
    */
-  uint32_t get_capabilities() const noexcept {
+  Capabilities::Flags get_capabilities() const noexcept {
     return capability_flags_;
   }
 
@@ -326,7 +326,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   uint32_t payload_size_;
 
   /** @brief Capability flags */
-  uint32_t capability_flags_;
+  Capabilities::Flags capability_flags_;
 
  private:
 

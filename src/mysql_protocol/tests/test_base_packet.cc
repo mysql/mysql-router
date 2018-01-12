@@ -37,6 +37,7 @@ using ::testing::ContainerEq;
 using ::testing::NotNull;
 
 using mysql_protocol::Packet;
+using namespace mysql_protocol;
 
 class MySQLProtocolPacketTest : public ::testing::Test {
 public:
@@ -50,21 +51,21 @@ TEST_F(MySQLProtocolPacketTest, Constructors) {
   {
     auto p = Packet();
     EXPECT_EQ(0, p.get_sequence_id());
-    EXPECT_EQ(0U, p.get_capabilities());
+    EXPECT_EQ(0U, p.get_capabilities().bits());
     EXPECT_EQ(0UL, p.get_payload_size());
   }
 
   {
     auto p = Packet(2);
     EXPECT_EQ(2, p.get_sequence_id());
-    EXPECT_EQ(0U, p.get_capabilities());
+    EXPECT_EQ(0U, p.get_capabilities().bits());
     EXPECT_EQ(0U, p.get_payload_size());
   }
 
   {
-    auto p = Packet(2, mysql_protocol::kClientProtocol41);
+    auto p = Packet(2, Capabilities::PROTOCOL_41);
     EXPECT_EQ(2, p.get_sequence_id());
-    EXPECT_EQ(mysql_protocol::kClientProtocol41, p.get_capabilities());
+    EXPECT_EQ(Capabilities::PROTOCOL_41, p.get_capabilities());
     EXPECT_EQ(0U, p.get_payload_size());
   }
 }
@@ -75,15 +76,15 @@ TEST_F(MySQLProtocolPacketTest, CopyConstructor) {
     Packet p_copy(p);
     ASSERT_EQ(p.size(), p_copy.size());
     ASSERT_EQ(p.get_sequence_id(), p_copy.get_sequence_id());
-    ASSERT_EQ(0U, p_copy.get_capabilities());
+    ASSERT_EQ(0U, p_copy.get_capabilities().bits());
   }
 
   {
-    Packet p({0x1, 0x0, 0x0, 0x9, 0x32}, mysql_protocol::kClientProtocol41);
+    Packet p({0x1, 0x0, 0x0, 0x9, 0x32}, Capabilities::PROTOCOL_41);
     Packet p_copy(p);
     ASSERT_EQ(p.size(), p_copy.size());
     ASSERT_EQ(p.get_sequence_id(), p_copy.get_sequence_id());
-    ASSERT_EQ(mysql_protocol::kClientProtocol41, p_copy.get_capabilities());
+    ASSERT_EQ(Capabilities::PROTOCOL_41, p_copy.get_capabilities());
   }
 }
 
@@ -95,34 +96,34 @@ TEST_F(MySQLProtocolPacketTest, CopyAssignment) {
     ASSERT_EQ(p.size(), p_copy.size());
     ASSERT_EQ(p.get_sequence_id(), p_copy.get_sequence_id());
     ASSERT_EQ(p.get_payload_size(), p_copy.get_payload_size());
-    ASSERT_EQ(0U, p_copy.get_capabilities());
+    ASSERT_EQ(0U, p_copy.get_capabilities().bits());
   }
 
   {
-    Packet p({0x1, 0x0, 0x0, 0x9, 0x32}, mysql_protocol::kClientProtocol41);
+    Packet p({0x1, 0x0, 0x0, 0x9, 0x32}, Capabilities::PROTOCOL_41);
     Packet p_copy{};
     p_copy = p;
     ASSERT_EQ(p.size(), p_copy.size());
     ASSERT_EQ(p.get_sequence_id(), p_copy.get_sequence_id());
     ASSERT_EQ(p.get_payload_size(), p_copy.get_payload_size());
-    ASSERT_EQ(mysql_protocol::kClientProtocol41, p_copy.get_capabilities());
+    ASSERT_EQ(p.get_capabilities(), p_copy.get_capabilities());
   }
 }
 
 TEST_F(MySQLProtocolPacketTest, MoveConstructor) {
   Packet::vector_t buffer = {0x1, 0x0, 0x0, 0x9, 0x32};
   {
-    Packet p(buffer, mysql_protocol::kClientProtocol41);
+    Packet p(buffer, Capabilities::PROTOCOL_41);
     Packet q(std::move(p));
 
     ASSERT_EQ(buffer.size(), q.size());
-    ASSERT_EQ(mysql_protocol::kClientProtocol41, q.get_capabilities());
+    ASSERT_EQ(Capabilities::PROTOCOL_41, q.get_capabilities());
     ASSERT_EQ(9U, q.get_sequence_id());
     ASSERT_EQ(1U, q.get_payload_size());
 
     // original should be empty and re-set
     ASSERT_EQ(0U, p.size());
-    ASSERT_EQ(0U, p.get_capabilities());
+    ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(0U, p.get_sequence_id());
     ASSERT_EQ(0U, p.get_payload_size());
   }
@@ -131,18 +132,18 @@ TEST_F(MySQLProtocolPacketTest, MoveConstructor) {
 TEST_F(MySQLProtocolPacketTest, MoveAssigment) {
   Packet::vector_t buffer = {0x1, 0x0, 0x0, 0x9, 0x32};
   {
-    Packet p(buffer, mysql_protocol::kClientProtocol41);
+    Packet p(buffer, Capabilities::PROTOCOL_41);
     Packet q{};
     q = std::move(p);
 
     ASSERT_EQ(buffer.size(), q.size());
-    ASSERT_EQ(mysql_protocol::kClientProtocol41, q.get_capabilities());
+    ASSERT_EQ(Capabilities::PROTOCOL_41, q.get_capabilities());
     ASSERT_EQ(9U, q.get_sequence_id());
     ASSERT_EQ(1U, q.get_payload_size());
 
     // original should be empty and re-set
     ASSERT_EQ(0U, p.size());
-    ASSERT_EQ(0U, p.get_capabilities());
+    ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(0U, p.get_sequence_id());
     ASSERT_EQ(0U, p.get_payload_size());
   }

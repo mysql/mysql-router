@@ -36,6 +36,8 @@ using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::NotNull;
 
+using namespace mysql_protocol;
+
 class MySQLProtocolTest : public ::testing::Test {
 public:
   mysql_protocol::Packet::vector_t case_w_sqlstate = {
@@ -63,7 +65,7 @@ TEST_F(MySQLProtocolTest, Constructor) {
 
   auto error_packet = mysql_protocol::ErrorPacket(0, code, msg, "XY123");
 
-  ASSERT_EQ(0U, error_packet.get_capabilities());
+  ASSERT_EQ(0U, error_packet.get_capabilities().bits());
   ASSERT_EQ(case_wo_sqlstate.size(), error_packet.size());
   ASSERT_THAT(error_packet, ContainerEq(case_wo_sqlstate));
 }
@@ -73,7 +75,7 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
     // Without SQL State; CLIENT_PROTOCOL_41 capability flag not set
     auto p = mysql_protocol::ErrorPacket(case_wo_sqlstate);
 
-    ASSERT_EQ(0U, p.get_capabilities());
+    ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(case_wo_sqlstate.size(), p.size());
     ASSERT_THAT(p, ContainerEq(case_wo_sqlstate));
     ASSERT_EQ("", p.get_sql_state());
@@ -82,10 +84,9 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
 
   {
     // With SQL State; CLIENT_PROTOCOL_41 capability flag set
-    auto p = mysql_protocol::ErrorPacket(case_w_sqlstate,
-                                         mysql_protocol::kClientProtocol41);
+    auto p = mysql_protocol::ErrorPacket(case_w_sqlstate, Capabilities::PROTOCOL_41);
 
-    ASSERT_EQ(mysql_protocol::kClientProtocol41, p.get_capabilities());
+    ASSERT_EQ(Capabilities::PROTOCOL_41, p.get_capabilities());
     ASSERT_EQ(case_w_sqlstate.size(), p.size());
     ASSERT_THAT(p, ContainerEq(case_w_sqlstate));
     ASSERT_EQ("XY123", p.get_sql_state());
@@ -96,7 +97,7 @@ TEST_F(MySQLProtocolTest, ConstructorBufferCapabilities) {
     // With SQL State; CLIENT_PROTOCOL_41 capability flag not set
     auto p = mysql_protocol::ErrorPacket(case_w_sqlstate);
 
-    ASSERT_EQ(0U, p.get_capabilities());
+    ASSERT_EQ(0U, p.get_capabilities().bits());
     ASSERT_EQ(case_w_sqlstate.size(), p.size());
     ASSERT_THAT(p, ContainerEq(case_w_sqlstate));
     ASSERT_EQ("XY123", p.get_sql_state());
@@ -109,9 +110,9 @@ TEST_F(MySQLProtocolTest, ConstructorWithCapabilities) {
   uint16_t code = 3999;
 
   auto error_packet = mysql_protocol::ErrorPacket(0, code, msg, "XY123",
-                                                  mysql_protocol::kClientProtocol41);
+                                                  Capabilities::PROTOCOL_41);
 
-  ASSERT_EQ(error_packet.get_capabilities(), mysql_protocol::kClientProtocol41);
+  ASSERT_EQ(error_packet.get_capabilities(), Capabilities::PROTOCOL_41);
   ASSERT_EQ(case_w_sqlstate.size(), error_packet.size());
   ASSERT_THAT(error_packet, ContainerEq(case_w_sqlstate));
 }
@@ -150,10 +151,10 @@ TEST_F(MySQLProtocolTest, ParsePayloadErrors) {
         0x72, 0x6f, 0x72,
     };
 
-    ASSERT_THROW({ mysql_protocol::ErrorPacket e(buffer, mysql_protocol::kClientProtocol41); },
+    ASSERT_THROW({ mysql_protocol::ErrorPacket e(buffer, Capabilities::PROTOCOL_41); },
                  mysql_protocol::packet_error);
     try {
-      mysql_protocol::ErrorPacket e(buffer, mysql_protocol::kClientProtocol41);
+      mysql_protocol::ErrorPacket e(buffer, Capabilities::PROTOCOL_41);
     } catch (const mysql_protocol::packet_error &exc) {
       ASSERT_THAT(exc.what(), HasSubstr("Error packet does not contain SQL state"));
     }

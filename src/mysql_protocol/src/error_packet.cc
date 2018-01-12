@@ -36,7 +36,7 @@
 namespace mysql_protocol {
 
 ErrorPacket::ErrorPacket(uint8_t sequence_id, uint16_t err_code, const std::string &err_msg,
-                         const std::string &sql_state, uint32_t capabilities)
+                         const std::string &sql_state, Capabilities::Flags capabilities)
     : Packet(sequence_id, capabilities),
       code_(err_code),
       message_(err_msg),
@@ -45,7 +45,7 @@ ErrorPacket::ErrorPacket(uint8_t sequence_id, uint16_t err_code, const std::stri
 }
 
 ErrorPacket::ErrorPacket(const std::vector<uint8_t> &buffer,
-                         uint32_t capabilities) : Packet(buffer, capabilities) {
+                         Capabilities::Flags capabilities) : Packet(buffer, capabilities) {
   parse_payload();
 }
 
@@ -61,7 +61,7 @@ void ErrorPacket::prepare_packet() {
   add_int<uint16_t>(code_);
 
   // SQL State
-  if (capability_flags_ > 0 && (capability_flags_ & kClientProtocol41)) {
+  if (capability_flags_.test(Capabilities::PROTOCOL_41)) {
     add_int<uint8_t>(0x23);
     if (sql_state_.size() != 5) {
       add("HY000");
@@ -78,7 +78,7 @@ void ErrorPacket::prepare_packet() {
 }
 
 void ErrorPacket::parse_payload() {
-  bool prot41 = capability_flags_ > 0 && (capability_flags_ & kClientProtocol41);
+  bool prot41 = capability_flags_.test(Capabilities::PROTOCOL_41);
   // Sanity checks
   if (!((*this)[4] == 0xff && (*this)[6])) {
     throw packet_error("Error packet marker 0xff not found");

@@ -39,62 +39,8 @@ const uint16_t MYSQL_PARSE_ERROR = 1064;
 
 class MySQLProtocolEncoder {
 public:
-  /** @enum MySQLCapability
-   *
-   * Values for MySQL capabilities bitmask.
-   *
-   **/
-  enum class MySQLCapability : uint32_t {
-    LONG_PASSWORD = 1 << 0,
-    FOUND_ROWS = 1 << 1,
-    LONG_FLAG = 1 << 2,
-    CONNECT_WITH_DB = 1 << 3,
 
-    NO_SCHEMA = 1 << 4,
-    COMPRESS = 1 << 5,
-    ODBC = 1 << 6,
-    LOCAL_FILE = 1 << 7,
-
-    IGNORE_SPACE = 1 << 8,
-    PROTOCOL_41 = 1 << 9,
-    INTERACTIVE = 1 << 10,
-    SSL = 1 << 11,
-
-    SIG_PIPE = 1 << 12,
-    TRANSACTIONS = 1 << 13,
-    RESERVED_14 = 1 << 14,
-    SECURE_CONNECTION = 1 << 15,
-
-    MULTI_STATEMENTS = 1 << 16,
-    MULTI_RESULTS = 1 << 17,
-    MULTI_PS_MULTO_RESULTS = 1 << 18,
-    PLUGIN_AUTH = 1 << 19,
-
-    CONNECT_ATTRS = 1 << 20,
-    PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 21,
-    EXPIRED_PASSWORDS = 1 << 22,
-    SESSION_TRACK = 1 << 23,
-
-    WONKY_EOF = 1 << 24,
-  };
-
-  /** @brief bitfield of MySQLCapability
-   *
-   * - MySQLCapabilities is a bitfield of capabilities
-   * - MySQLCapability the name of each capability flag
-   *
-   * to set multiple capabilities at once one has to cast
-   * the types to the underlying type and 'or' them together
-   *
-   *   MySQLCapabilities capabilities = static_cast<MySQLCapabilities>(MySQLCapability::PROTOCOL_41) |
-   *                                    static_cast<MySQLCapabilities>(MySQLCapability::SECURE_CONNECTION);
-   *
-   * Some extra syntactic sugar may be added to remove the
-   * explicit static_cast<> when the need arises.
-   **/
-  using MySQLCapabilities = std::underlying_type<MySQLCapability>::type;
-
-  using msg_buffer = std::vector<byte>;
+  using MsgBuffer = std::vector<byte>;
 
   /** @brief Encodes MySQL OK message
    *
@@ -108,7 +54,7 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_ok_message(uint8_t seq_no,
+  MsgBuffer encode_ok_message(uint8_t seq_no,
                                uint64_t affected_rows = 0,
                                uint64_t last_insert_id = 0,
                                uint16_t status = 0,
@@ -123,7 +69,7 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_error_message(uint8_t seq_no,
+  MsgBuffer encode_error_message(uint8_t seq_no,
                                   uint16_t error_code,
                                   const std::string &sql_state,
                                   const std::string &error_msg);
@@ -141,11 +87,12 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_greetings_message(uint8_t seq_no,
+  MsgBuffer encode_greetings_message(uint8_t seq_no,
                                       const std::string &mysql_version = "8.0.3",
                                       uint32_t connection_id = 1,
                                       const std::string &nonce = "01234567890123456789",
-                                      MySQLCapabilities capabilities = static_cast<MySQLCapabilities>(MySQLCapability::PROTOCOL_41) | static_cast<MySQLCapabilities>(MySQLCapability::SECURE_CONNECTION),
+                                      mysql_protocol::Capabilities::Flags capabilities = mysql_protocol::Capabilities::PROTOCOL_41
+                                                                                       | mysql_protocol::Capabilities::SECURE_CONNECTION,
                                       uint8_t character_set = 0,
                                       uint16_t status_flags = 0);
 
@@ -157,7 +104,7 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_columns_number_message(uint8_t seq_no, uint64_t number);
+  MsgBuffer encode_columns_number_message(uint8_t seq_no, uint64_t number);
 
 
   /** @brief Encodes message containing single column metadata.
@@ -167,7 +114,7 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_column_meta_message(uint8_t seq_no,
+  MsgBuffer encode_column_meta_message(uint8_t seq_no,
                                         const column_info_type &column_info);
 
   /** @brief Encodes message containing single row in the resultset.
@@ -178,9 +125,9 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_row_message(uint8_t seq_no,
+  MsgBuffer encode_row_message(uint8_t seq_no,
                                 const std::vector<column_info_type> &columns_info,
-                                const row_values_type &row_values);
+                                const RowValueType &row_values);
 
   /** @brief Encodes EOF message used to mark the end of columns metadata and rows
    *         when sending the resultset to the client.
@@ -191,17 +138,17 @@ public:
    *
    * @returns buffer with the encoded message
    **/
-  msg_buffer encode_eof_message(uint8_t seq_no,
+  MsgBuffer encode_eof_message(uint8_t seq_no,
                                 uint16_t status = 0,
                                 uint16_t warnings = 0);
 
  protected:
-  void encode_msg_begin(msg_buffer &out_buffer);
-  void encode_msg_end(msg_buffer &out_buffer, uint8_t seq_no);
-  void append_byte(msg_buffer& buffer, byte value);
+  void encode_msg_begin(MsgBuffer &out_buffer);
+  void encode_msg_end(MsgBuffer &out_buffer, uint8_t seq_no);
+  void append_byte(MsgBuffer& buffer, byte value);
 
   template<class T, typename = std::enable_if<std::is_integral<T>::value>>
-  void append_int(msg_buffer& buffer, T value, size_t len = sizeof(T)) {
+  void append_int(MsgBuffer& buffer, T value, size_t len = sizeof(T)) {
     buffer.reserve(buffer.size() + len);
     while(len-- > 0) {
       byte b = static_cast<byte>(value);
@@ -210,10 +157,10 @@ public:
     }
   }
 
-  void append_str(msg_buffer &buffer, const std::string &value);
-  void append_buffer(msg_buffer &buffer, const msg_buffer &value);
-  void append_lenenc_int(msg_buffer &buffer, uint64_t val);
-  void append_lenenc_str(msg_buffer &buffer, const std::string &value);
+  void append_str(MsgBuffer &buffer, const std::string &value);
+  void append_buffer(MsgBuffer &buffer, const MsgBuffer &value);
+  void append_lenenc_int(MsgBuffer &buffer, uint64_t val);
+  void append_lenenc_str(MsgBuffer &buffer, const std::string &value);
 };
 
 } // namespace

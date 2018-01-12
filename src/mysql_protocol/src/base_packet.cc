@@ -31,7 +31,7 @@
 
 namespace mysql_protocol {
 
-Packet::Packet(const vector_t &buffer, uint32_t capabilities, bool allow_partial)
+Packet::Packet(const vector_t &buffer, Capabilities::Flags capabilities, bool allow_partial)
     : vector(buffer), sequence_id_(0),
       payload_size_(0), capability_flags_(capabilities) {
   parse_header(allow_partial);

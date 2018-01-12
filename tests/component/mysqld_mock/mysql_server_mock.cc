@@ -82,7 +82,7 @@ void send_packet(socket_t client_socket, const uint8_t *data, size_t size, int f
 }
 
 void send_packet(socket_t client_socket,
-                 const server_mock::MySQLProtocolEncoder::msg_buffer &buffer,
+                 const server_mock::MySQLProtocolEncoder::MsgBuffer &buffer,
                  int flags = 0) {
   send_packet(client_socket, buffer.data(), buffer.size(), flags);
 }
@@ -267,7 +267,7 @@ void MySQLServerMock::handle_connections() {
       auto buf = protocol_encoder_.encode_greetings_message(0);
       send_packet(client_sock, buf);
 
-      auto packet = protocol_decoder_.read_message(client_sock);
+      protocol_decoder_.read_message(client_sock);
 
       // a mysql-8 client will send us a cache-256-password-scramble
       // and expects a \x03 back (fast-auth) + a OK packet
@@ -278,7 +278,7 @@ void MySQLServerMock::handle_connections() {
       const uint8_t switch_auth[] = "\x01\x00\x00\x02\x03";
       send_packet(client_sock, switch_auth, sizeof(switch_auth) - 1);
 
-      auto packet_seq =  static_cast<uint8_t>(packet.packet_seq + 2);
+      uint8_t packet_seq = protocol_decoder_.packet_seq() + 2;   // rollover to or past 0 is ok
       send_ok(client_sock, packet_seq);
       bool res = process_statements(client_sock);
       if (!res) {
@@ -334,13 +334,14 @@ void MySQLServerMock::handle_connections() {
 }
 
 bool MySQLServerMock::process_statements(socket_t client_socket) {
+  using mysql_protocol::Command;
 
   while (true) {
-    auto packet = protocol_decoder_.read_message(client_socket);
-    auto cmd = protocol_decoder_.get_command_type(packet);
+    protocol_decoder_.read_message(client_socket);
+    auto cmd = protocol_decoder_.get_command_type();
     switch (cmd) {
-    case MySQLCommand::QUERY: {
-      std::string statement_received = protocol_decoder_.get_statement(packet);
+    case Command::QUERY: {
+      std::string statement_received = protocol_decoder_.get_statement();
       const auto &next_statement = json_reader_.get_next_statement();
 
       bool statement_matching{false};
@@ -362,23 +363,23 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
       }
 
       if (!statement_matching) {
-        auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
+        uint8_t packet_seq = protocol_decoder_.packet_seq() + 1; // rollover to 0 is ok
         std::this_thread::sleep_for(json_reader_.get_default_exec_time());
         send_error(client_socket, packet_seq, MYSQL_PARSE_ERROR,
             std::string("Unexpected stmt, got: \"") + statement_received +
             "\"; expected: \"" + next_statement.statement + "\"");
       } else {
-        handle_statement(client_socket, packet.packet_seq, next_statement);
+        handle_statement(client_socket, protocol_decoder_.packet_seq(), next_statement);
       }
     }
     break;
-    case MySQLCommand::QUIT:
+    case Command::QUIT:
       std::cout << "received QUIT command from the client" << std::endl;
       return true;
     default:
       std::cerr << "received unsupported command from the client: "
                 << static_cast<int>(cmd) << "\n";
-      auto packet_seq = static_cast<uint8_t>(packet.packet_seq + 1);
+      uint8_t packet_seq = protocol_decoder_.packet_seq() + 1;   // rollover to 0 is ok
       std::this_thread::sleep_for(json_reader_.get_default_exec_time());
       send_error(client_socket, packet_seq, 1064, "Unsupported command: " + std::to_string(cmd));
     }
@@ -399,16 +400,16 @@ static void debug_trace_result(const ResultsetResponse *resultset) {
 
 void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
                     const StatementAndResponse& statement) {
-  using statement_response_type = StatementAndResponse::statement_response_type;
+  using StatementResponseType = StatementAndResponse::StatementResponseType;
 
   switch (statement.response_type) {
-  case statement_response_type::STMT_RES_OK: {
+  case StatementResponseType::STMT_RES_OK: {
     OkResponse *response = dynamic_cast<OkResponse *>(statement.response.get());
     std::this_thread::sleep_for(statement.exec_time);
     send_ok(client_socket, static_cast<uint8_t>(seq_no+1), 0, response->last_insert_id, 0, response->warning_count);
   }
   break;
-  case statement_response_type::STMT_RES_RESULT: {
+  case StatementResponseType::STMT_RES_RESULT: {
     ResultsetResponse *response = dynamic_cast<ResultsetResponse *>(statement.response.get());
     if (debug_mode_) {
       debug_trace_result(response);
@@ -432,7 +433,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
     send_packet(client_socket, buf);
   }
   break;
-  case statement_response_type::STMT_RES_ERROR: {
+  case StatementResponseType::STMT_RES_ERROR: {
     ErrorResponse *response = dynamic_cast<ErrorResponse *>(statement.response.get());
 
     send_error(client_socket, static_cast<uint8_t>(seq_no+1), response->code, response->msg);
