@@ -147,6 +147,7 @@ endif()
 # stage/{bin,etc,lib}/${configuration_type}
 if (NOT CMAKE_CFG_INTDIR STREQUAL ".")
   foreach(config_ ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config_} config_)
     set_target_properties(harness-library PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/bin
       LIBRARY_OUTPUT_DIRECTORY_${config_} ${MySQLRouter_BINARY_DIR}/stage/${config_}/lib
