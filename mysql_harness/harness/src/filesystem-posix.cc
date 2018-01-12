@@ -15,6 +15,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// On OSX, this causes __DARWIN_C_LEVEL to be upgraded to __DARWIN_C_FULL in
+// sys/cdefs.h, which in turn enables non-POSIX extensions such as mkdtemp().
+// Needs to be set before sys/cdefs.h gets #included (from any other headers),
+// thus best left here before any #includes.
+#ifdef __APPLE__
+#  define _DARWIN_C_SOURCE
+#endif
+
 #include "filesystem.h"
 #include "common.h"
 
