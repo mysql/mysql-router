@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 # Project version, has to be an X.Y.Z number since it is used with the
 # "project" CMake command
-set(PROJECT_VERSION_TEXT "2.1.4")
+set(PROJECT_VERSION_TEXT "2.1.5")
 
 # Can be arbitrary test that is added to the package file names after
 # the version, but before the extensions.
