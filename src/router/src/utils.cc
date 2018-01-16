@@ -221,6 +221,25 @@ bool substitute_envvar(std::string &line) noexcept {
   return true;
 }
 
+std::string substitute_variable(const std::string &s,
+                                const std::string &name,
+                                const std::string &value) {
+  std::string r(s);
+  std::string::size_type p;
+  while ((p = r.find(name)) != std::string::npos) {
+    std::string tmp(r.substr(0, p));
+    tmp.append(value);
+    tmp.append(r.substr(p+name.size()));
+    r = tmp;
+  }
+  mysqlrouter::substitute_envvar(r);
+  mysql_harness::Path path(r);
+  if (path.exists())
+    return path.real_path().str();
+  else
+    return r;
+}
+
 string string_format(const char *format, ...) {
 
   va_list args;

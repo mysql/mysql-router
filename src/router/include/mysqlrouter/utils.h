@@ -264,6 +264,19 @@ void write_windows_event_log(const std::string& msg);
  */
 bool substitute_envvar(std::string &line) noexcept;
 
+/*
+ * @brief Substitutes placeholder of particular environment variable in file path.
+ *
+ * @param s the file path in which variable name is substituted with value
+ * @param name The environment variable name
+ * @param value The environment variable value
+ *
+ * @return path to file
+ */
+std::string substitute_variable(const std::string &s,
+                                const std::string &name,
+                                const std::string &value);
+
 /** @brief Wraps the given string
  *
  * Wraps the given string based on the spaces between words.

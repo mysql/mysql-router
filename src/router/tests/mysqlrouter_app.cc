@@ -24,11 +24,13 @@
 
 #define UNIT_TESTS  // used in router_app.h
 #include "router_config.h"
+#include "config_files.h"
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "router_app.h"
+#include "mysqlrouter/utils.h"
 #include "test/helpers.h"
 
 //ignore GMock warnings
@@ -274,6 +276,21 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
 }
 
 TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
+
+  /*
+   * Check if mysqlrouter.conf does not exist in default locations.
+   */
+  std::stringstream ss_line{CONFIG_FILES};
+
+  for (string path; std::getline(ss_line, path, ';');) {
+    // malformed env var will result in error, valid or missing env var results in success
+    bool parse_ok = mysqlrouter::substitute_envvar(path);
+    if (parse_ok) {
+      std::string real_path = mysqlrouter::substitute_variable(path, "{origin}", g_origin.str());
+      ASSERT_FALSE(mysql_harness::Path(real_path).exists());
+    }
+  }
+
   vector<string> argv = {
       "--extra-config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
   };

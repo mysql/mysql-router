@@ -123,25 +123,6 @@ static std::string find_full_path(const std::string &argv0) {
   throw std::logic_error("Could not find own installation directory");
 }
 
-static std::string substitute_variable(const std::string &s,
-                                       const std::string &name,
-                                       const std::string &value) {
-  std::string r(s);
-  std::string::size_type p;
-  while ((p = r.find(name)) != std::string::npos) {
-    std::string tmp(r.substr(0, p));
-    tmp.append(value);
-    tmp.append(r.substr(p+name.size()));
-    r = tmp;
-  }
-  mysqlrouter::substitute_envvar(r);
-  mysql_harness::Path path(r);
-  if (path.exists())
-    return path.real_path().str();
-  else
-    return r;
-}
-
 static inline void set_signal_handlers() {
 #ifndef _WIN32
   // until we have proper signal handling we need at least
@@ -289,8 +270,8 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
 
     // fill in default keyring file path, if not set
     if (keyring_file.empty()) {
-      keyring_file = substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
-                                         "{origin}", origin_.str());
+      keyring_file = mysqlrouter::substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
+                                                      "{origin}", origin_.str());
       keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
     }
     // if keyring master key is in a file, read from it, else read from user
@@ -368,7 +349,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   // resolve environment variables & relative paths
   for (auto it : params) {
     std::string &param = params.at(it.first);
-    param.assign(substitute_variable(param, "{origin}", origin_.str()));
+    param.assign(mysqlrouter::substitute_variable(param, "{origin}", origin_.str()));
   }
   return params;
 }
@@ -676,10 +657,10 @@ void MySQLRouter::set_default_config_files(const char *locations) noexcept {
   std::vector<string>().swap(default_config_files_);
 
   for (string file; std::getline(ss_line, file, ';');) {
-    bool ok = substitute_envvar(file);
+    bool ok = mysqlrouter::substitute_envvar(file);
     if (ok) { // if there's no placeholder in file path, this is OK too
-      default_config_files_.push_back(substitute_variable(file, "{origin}",
-                                                          origin_.str()));
+      default_config_files_.push_back(mysqlrouter::substitute_variable(file, "{origin}",
+                                                                       origin_.str()));
     } else {
       // Any other problem with placeholders we ignore and don't use file
     }
@@ -1058,14 +1039,14 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
 
   if (bootstrap_directory_.empty()) {
     std::string config_file_path =
-        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
-                              "{origin}", origin_.str());
+        mysqlrouter::substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.conf",
+                                         "{origin}", origin_.str());
     std::string master_key_path =
-        substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
-                              "{origin}", origin_.str());
+        mysqlrouter::substitute_variable(MYSQL_ROUTER_CONFIG_FOLDER"/mysqlrouter.key",
+                                         "{origin}", origin_.str());
     std::string default_keyring_file;
-    default_keyring_file = substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
-                                                 "{origin}", origin_.str());
+    default_keyring_file = mysqlrouter::substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
+                                                            "{origin}", origin_.str());
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysqlrouter::mkdir(default_keyring_file, mysqlrouter::kStrictDirectoryPerm) < 0) {
