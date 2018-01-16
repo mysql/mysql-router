@@ -1,4 +1,4 @@
-mysql-router (8.0.4-1ubuntu17.10) artful; urgency=low
+mysql-router (8.0.4-rc-1ubuntu17.10) artful; urgency=low
 
   * initial version
 
