@@ -76,7 +76,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
     result+="destinations=";
     for (size_t i = 0; i < destinations.size(); ++i) {
-      result+="localhost:"+std::to_string(destinations[i]);
+      result+="127.0.0.1:"+std::to_string(destinations[i]);
       if (i!=destinations.size()-1) {
         result += ",";
       }
