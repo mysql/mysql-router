@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <utility>
 
 namespace mysql_protocol {
 
@@ -64,14 +65,14 @@ void Packet::update_packet_size() {
   write_int<uint32_t>(*this, 0, static_cast<uint32_t>(size()) - 4, 3);
 }
 
-uint64_t Packet::get_lenenc_uint(size_t position) const {
+std::pair<uint64_t, size_t> Packet::get_lenenc_uint(size_t position) const {
   assert(size() >= 1);
   assert(position < size());
   assert((*this)[position] != 0xff); // 0xff is undefined in length encoded integers
   assert((*this)[position] != 0xfb); // 0xfb represents NULL and not used in length encoded integers
 
   if ((*this)[position] < 0xfb) {
-    return (*this)[position];
+    return std::make_pair((*this)[position], 1);
   }
 
   size_t length = 2;
@@ -82,12 +83,14 @@ uint64_t Packet::get_lenenc_uint(size_t position) const {
     case 0xfd:
       length = 3;
       break;
-    case 0xfe:
+    case 0xfe:  // NOTE: up to MySQL 3.22 0xfe was follwed by 4 bytes, not 8
       length = 8;
   }
   assert(size() >= length + 1);
   assert(position + length < size());
-  return get_int<uint64_t>(position + 1, length);
+
+  return std::make_pair(get_int<uint64_t>(position + 1, length),
+                        length + 1);
 }
 
 std::string Packet::get_string(unsigned long position, unsigned long length) const {
@@ -102,25 +105,21 @@ std::string Packet::get_string(unsigned long position, unsigned long length) con
   return std::string(start, it);
 }
 
-Packet::vector_t Packet::get_lenenc_bytes(size_t position) const {
-  // Cast to long so we can use it on iterators
-  auto length = static_cast<long>(get_lenenc_uint(position));
-  auto start = static_cast<long>(position);
+std::vector<uint8_t> Packet::get_bytes(size_t position, size_t length) const {
+  assert (position + length <= size());
+  return std::vector<uint8_t>(begin() + position, begin() + position + length);
+}
 
-  // Where does the actual data start
-  switch ((*this)[position]) {
-    case 0xfc:
-      start += 3;
-      break;
-    case 0xfd:
-      start += 4;
-      break;
-    case 0xfe:
-      start += 9;
-      break;
-    default:
-      start += 1;
-  }
+Packet::vector_t Packet::get_lenenc_bytes(size_t position) const {
+  auto pr = get_lenenc_uint(position);
+  uint64_t length = pr.first;
+  size_t start = position + pr.second;
+
+  // length is uint64_t, which means it could be ridiculously high, much higher
+  // than std::vector can support. Also, since the relation between limits is:
+  //   vector::max_size() <= max(vector::size_type) <= max(uint64_t)
+  // below assertion also guards against uint64_t high bits being lost.
+  assert(length + start < std::vector<uint8_t>::max_size());
 
   return std::vector<uint8_t>(begin() + start, begin() + start + length);
 }
@@ -131,6 +130,38 @@ void Packet::add(const Packet::vector_t &value) {
 
 void Packet::add(const std::string &value) {
   insert(end(), value.begin(), value.end());
+}
+
+size_t Packet::add_lenenc_uint(uint64_t value) {
+
+  // Specification is here: https://dev.mysql.com/doc/internals/en/integer.html
+  //
+  // To convert a number value into a length-encoded integer:
+  //
+  //   If the value is < 251,             it is stored as a 1-byte integer.
+  //   If the value is ≥ 251 and < 2^16,  it is stored as 0xfc + 2-byte integer.
+  //   If the value is ≥ 2^16 and < 2^24, it is stored as 0xfd + 3-byte integer.
+  //   If the value is ≥ 2^24 and < 2^64, it is stored as 0xfe + 8-byte integer.
+
+  constexpr uint64_t k2p16 = 1 << 16;
+  constexpr uint64_t k2p24 = 1 << 24;
+
+  if (value < 251) {
+    push_back(static_cast<uint8_t>(value));
+    return 1;
+  } else if (value < k2p16) {
+    push_back(0xfc);
+    add_int<uint16_t>(static_cast<uint16_t>(value));
+    return 3;
+  } else if (value < k2p24) {
+    push_back(0xfd);
+    add_int(value, 3);
+    return 4;
+  } else {
+    push_back(0xfe);
+    add_int<uint64_t>(value);
+    return 9;
+  }
 }
 
 } // namespace mysql_protocol

@@ -367,6 +367,69 @@ TEST_F(MySQLProtocolPacketTest, PackInt4ByteSigned) {
   }
 }
 
+TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
+
+  using V8 = std::vector<uint8_t>;
+
+  // 1-byte
+  {
+    Packet buf;
+    EXPECT_EQ(1, buf.add_lenenc_uint(0u));
+    EXPECT_EQ(V8({0u}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(1, buf.add_lenenc_uint(250u));
+    EXPECT_EQ(V8({250u}), buf);
+  }
+
+  // 3-byte
+  {
+    Packet buf;
+    EXPECT_EQ(3, buf.add_lenenc_uint(251u));
+    EXPECT_EQ(V8({0xfc, 251u, 0u}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(3, buf.add_lenenc_uint(0x1234));
+    EXPECT_EQ(V8({0xfc, 0x34, 0x12}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(3, buf.add_lenenc_uint(0xffff));
+    EXPECT_EQ(V8({0xfc, 0xff, 0xff}), buf);
+  }
+
+  // 4-byte
+  {
+    Packet buf;
+    EXPECT_EQ(4, buf.add_lenenc_uint(0x010000));
+    EXPECT_EQ(V8({0xfd, 0u, 0u, 1u}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(4, buf.add_lenenc_uint(0x123456));
+    EXPECT_EQ(V8({0xfd, 0x56, 0x34, 0x12}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(4, buf.add_lenenc_uint(0xffffff));
+    EXPECT_EQ(V8({0xfd, 0xff, 0xff, 0xff}), buf);
+  }
+
+  // 9-byte
+  {
+    Packet buf;
+    EXPECT_EQ(9, buf.add_lenenc_uint(0x01000000));
+    EXPECT_EQ(V8({0xfe,   0u, 0u, 0u, 1u,   0u, 0u, 0u, 0u}), buf);
+  }
+  {
+    Packet buf;
+    EXPECT_EQ(9, buf.add_lenenc_uint(0x1234567890abcdef));
+    EXPECT_EQ(V8({0xfe,   0xef, 0xcd, 0xab, 0x90,   0x78, 0x56, 0x34, 0x12}), buf);
+  }
+}
+
 TEST_F(MySQLProtocolPacketTest, PackInt8BytesUnsigned) {
   {
     Packet p;
@@ -615,32 +678,52 @@ TEST_F(MySQLProtocolPacketTest, UnpackLenEncodedInt) {
 
   {
     Packet buf(Packet::vector_t{0xfa}, true);
-    EXPECT_EQ(250U, buf.get_lenenc_uint(0));
+    EXPECT_EQ(250U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(1U, buf.get_lenenc_uint(0).second);
   }
 
   {
     Packet buf({0xfc, 0xfb, 0x00}, true);
-    EXPECT_EQ(251U, buf.get_lenenc_uint(0));
+    EXPECT_EQ(251U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(3U, buf.get_lenenc_uint(0).second);
+  }
+
+  {
+    Packet buf({0xfc, 0xff, 0xff}, true);
+    EXPECT_EQ(65535U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(3U, buf.get_lenenc_uint(0).second);
   }
 
   {
     Packet buf({0xfd, 0x00, 0x00, 0x01}, true);
-    EXPECT_EQ(65536U, buf.get_lenenc_uint(0));
+    EXPECT_EQ(65536U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(4U, buf.get_lenenc_uint(0).second);
   }
 
   {
+    Packet buf({0xfd, 0xff, 0xff, 0xff, 0xff}, true);
+    EXPECT_EQ(16777215U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(4U, buf.get_lenenc_uint(0).second);
+  }
+
+  // this test has special significance: if we parsed according to protocol v3.20
+  // (which we don't implement atm), this would have to return 5U instead of 9U
+  {
     Packet buf({0xfe, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00}, true);
-    EXPECT_EQ(16777216U, buf.get_lenenc_uint(0));
+    EXPECT_EQ(16777216U, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(9U, buf.get_lenenc_uint(0).second);
   }
 
   {
     Packet buf({0xfe, 0x10, 0x20, 0x30, 0x40, 0x50, 0x00, 0x00, 0x80, 0x90}, true);
-    EXPECT_EQ(9223372381529055248UL, buf.get_lenenc_uint(0));
+    EXPECT_EQ(9223372381529055248UL, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(9U, buf.get_lenenc_uint(0).second);
   }
 
   {
     Packet buf({0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true);
-    EXPECT_EQ(ULLONG_MAX, buf.get_lenenc_uint(0));
+    EXPECT_EQ(ULLONG_MAX, buf.get_lenenc_uint(0).first);
+    EXPECT_EQ(9U, buf.get_lenenc_uint(0).second);
   }
 }
 
@@ -688,6 +771,33 @@ TEST_F(MySQLProtocolPacketTest, UnpackStringLengthFixed) {
     auto res = p.get_string(3, 4);
     EXPECT_EQ(res, string("spam"));
   }
+}
+
+TEST_F(MySQLProtocolPacketTest, get_string) {
+  Packet p({0x1, 0x0, 0x0, 0x9, 0x32});
+  using V = std::vector<uint8_t>;
+
+  EXPECT_EQ(V{}, p.get_bytes(0,0));
+  EXPECT_EQ(V{0x1}, p.get_bytes(0,1));
+
+  {
+    V exp = {0x1, 0x0, 0x0, 0x9}; // doesn't build inline
+    EXPECT_EQ(exp, p.get_bytes(0,4));
+  }
+  {
+    V exp = {0x0, 0x0, 0x9, 0x32};
+    EXPECT_EQ(exp, p.get_bytes(1,4));
+  }
+
+  // EXPECT_DEBUG_DEATH might trigger plenty of valgrind warnings, disable when
+  // testing with valgrind. Also, it has may have issues on other platforms,
+  // therefore enabling only on Linux to minimize headaches.
+#ifdef __linux__
+  // assertion should fire due to out-of-range
+  EXPECT_DEBUG_DEATH(p.get_bytes(2,4), "");
+#endif
+
+  EXPECT_EQ(V{}, p.get_bytes(5,0));
 }
 
 TEST_F(MySQLProtocolPacketTest, UnpackBytesLengthEncoded1Byte) {

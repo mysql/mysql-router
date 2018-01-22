@@ -29,9 +29,29 @@
 #include <climits>
 #include <cstdint>
 #include <iostream>
+#include <utility>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+// GCC 4.8.4 requires all classes to be forward-declared before being used with
+// "friend class <friendee>", if they're in a different namespace than the friender
+#ifdef FRIEND_TEST
+#include "mysqlrouter/utils.h"  // DECLARE_TEST
+  DECLARE_TEST(HandshakeResponseParseTest, server_does_not_support_PROTOCOL_41);
+  DECLARE_TEST(HandshakeResponseParseTest, no_PROTOCOL_41);
+  DECLARE_TEST(HandshakeResponseParseTest, bad_payload_length);
+  DECLARE_TEST(HandshakeResponseParseTest, bad_seq_number);
+  DECLARE_TEST(HandshakeResponseParseTest, max_packet_size);
+  DECLARE_TEST(HandshakeResponseParseTest, character_set);
+  DECLARE_TEST(HandshakeResponseParseTest, reserved);
+  DECLARE_TEST(HandshakeResponseParseTest, username);
+  DECLARE_TEST(HandshakeResponseParseTest, auth_response);
+  DECLARE_TEST(HandshakeResponseParseTest, database);
+  DECLARE_TEST(HandshakeResponseParseTest, auth_plugin);
+  DECLARE_TEST(HandshakeResponseParseTest, connection_attrs);
+  DECLARE_TEST(HandshakeResponseParseTest, all);
+#endif
 
 namespace mysql_protocol {
 
@@ -129,6 +149,12 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
     return *this;
   }
 
+  /** @brief Returns header length of MySQL Protocol packet
+   *
+   * @return header length (4 bytes)
+   */
+  static constexpr size_t get_header_length() noexcept { return 4; }
+
   /** @brief Gets an integral from given packet
    *
    * Gets an integral form a buffer at the given position. The size of the
@@ -169,10 +195,13 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Gets a length encoded integer from given packet
    *
+   * Function also returns the length of the parsed integer token (you will need
+   * to advance your read position by this value to get to next field in the packet)
+   *
    * @param position Position where to start reading
-   * @return uint64_t
+   * @return std::pair<uint64_t, size_t>
    */
-  uint64_t get_lenenc_uint(size_t position) const;
+  std::pair<uint64_t, size_t> get_lenenc_uint(size_t position) const;
 
   /** @brief Gets a string from packet
    *
@@ -189,6 +218,14 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    */
   std::string get_string(unsigned long position,
                          unsigned long length = UINT_MAX) const;
+
+  /** @brief Gets raw bytes from packet
+    *
+    * @param position Position from which to start reading
+    * @param length Number of bytes to read
+    * @return std::vector<uint8_t>
+    */
+  std::vector<uint8_t> get_bytes(size_t position, size_t length) const;
 
   /** @brief Gets bytes from packet using length encoded size
    *
@@ -248,6 +285,15 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
     }
   }
 
+  /** @brief Packs and adds a length-encoded integral to the buffer
+   *
+   * Packs and adds a length-encoded integral to the given buffer.
+   *
+   * @param value Integral to add to the packet
+   * @return Size of the encoded integral (one of: 1, 3, 4 or 9 bytes)
+   */
+  size_t add_lenenc_uint(uint64_t value);
+
   /** @brief Adds bytes to the given packet
    *
    * Adds the given bytes to the buffer.
@@ -271,6 +317,15 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    */
   uint8_t get_sequence_id() const noexcept {
     return sequence_id_;
+  }
+
+  /** @overload
+   *
+   * @param 4-byte header
+   * @return uint8_t
+   */
+  static uint8_t get_sequence_id(const uint8_t header[4]) noexcept {
+    return header[3];
   }
 
   /** @brief Sets the packet sequence ID
@@ -298,6 +353,16 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   uint32_t get_payload_size() const noexcept {
     return payload_size_;
   }
+
+  /** @overload
+   *
+   * @param 4-byte header
+   * @return uint32_t payload size of the packet
+   */
+  static uint32_t get_payload_size(const uint8_t header[4]) noexcept {
+    return header[0] + (header[1] << 8) + (header[2] << 16);
+  }
+
 
  protected:
 
@@ -331,6 +396,23 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
  private:
 
   void parse_header(bool allow_partial = false);
+
+#ifdef FRIEND_TEST
+  FRIEND_TEST(::HandshakeResponseParseTest, server_does_not_support_PROTOCOL_41);
+  FRIEND_TEST(::HandshakeResponseParseTest, no_PROTOCOL_41);
+  FRIEND_TEST(::HandshakeResponseParseTest, bad_payload_length);
+  FRIEND_TEST(::HandshakeResponseParseTest, bad_seq_number);
+  FRIEND_TEST(::HandshakeResponseParseTest, max_packet_size);
+  FRIEND_TEST(::HandshakeResponseParseTest, character_set);
+  FRIEND_TEST(::HandshakeResponseParseTest, reserved);
+  FRIEND_TEST(::HandshakeResponseParseTest, username);
+  FRIEND_TEST(::HandshakeResponseParseTest, auth_response);
+  FRIEND_TEST(::HandshakeResponseParseTest, database);
+  FRIEND_TEST(::HandshakeResponseParseTest, auth_plugin);
+  FRIEND_TEST(::HandshakeResponseParseTest, connection_attrs);
+  FRIEND_TEST(::HandshakeResponseParseTest, all);
+#endif
+
 };
 
 } // namespace mysql_protocol

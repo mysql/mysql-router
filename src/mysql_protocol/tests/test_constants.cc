@@ -62,7 +62,7 @@ TEST_F(MySQLProtocolCapabilitiesTest, assignment) {
 
   {
     Capabilities::Flags cap;
-    cap = 0x1234;
+    cap = Capabilities::Flags(0x1234);
     EXPECT_EQ(0x1234U, cap.bits());
   }
   {
@@ -97,13 +97,13 @@ TEST_F(MySQLProtocolCapabilitiesTest, write) {
   cap.clear(FOUND_ROWS | LONG_FLAG);
   EXPECT_EQ(LONG_PASSWORD | CONNECT_WITH_DB, cap);
 
-  cap.set(PLUGIN_AUTH | WONKY_EOF);
-  EXPECT_EQ(LONG_PASSWORD | CONNECT_WITH_DB | PLUGIN_AUTH | WONKY_EOF, cap);
+  cap.set(PLUGIN_AUTH | DEPRECATE_EOF);
+  EXPECT_EQ(LONG_PASSWORD | CONNECT_WITH_DB | PLUGIN_AUTH | DEPRECATE_EOF, cap);
 
   {
     Flags cap2 = cap;
     cap2.clear_low_16_bits();
-    EXPECT_EQ(PLUGIN_AUTH | WONKY_EOF, cap2);
+    EXPECT_EQ(PLUGIN_AUTH | DEPRECATE_EOF, cap2);
   }
 
   {
@@ -115,9 +115,9 @@ TEST_F(MySQLProtocolCapabilitiesTest, write) {
   cap.reset();
   EXPECT_EQ(ALL_ZEROS, cap);
 
-  Flags cap1(                FOUND_ROWS | LONG_FLAG |                   PLUGIN_AUTH | WONKY_EOF);
-  Flags cap2(LONG_PASSWORD              | LONG_FLAG | CONNECT_WITH_DB               | WONKY_EOF);
-  EXPECT_EQ(LONG_FLAG | WONKY_EOF, cap1 & cap2);
+  Flags cap1(                FOUND_ROWS | LONG_FLAG |                   PLUGIN_AUTH | DEPRECATE_EOF);
+  Flags cap2(LONG_PASSWORD              | LONG_FLAG | CONNECT_WITH_DB               | DEPRECATE_EOF);
+  EXPECT_EQ(LONG_FLAG | DEPRECATE_EOF, cap1 & cap2);
 }
 
 /**
@@ -126,8 +126,8 @@ TEST_F(MySQLProtocolCapabilitiesTest, write) {
 TEST_F(MySQLProtocolCapabilitiesTest, read) {
   using namespace Capabilities;
 
-  Capabilities::Flags cap(LONG_PASSWORD | NO_SCHEMA | SSL |               // these are in low bits
-                          MULTI_STATEMENTS | CONNECT_ATTRS | WONKY_EOF ); // these are in high bits
+  Capabilities::Flags cap(LONG_PASSWORD | NO_SCHEMA | SSL |                   // these are in low bits
+                          MULTI_STATEMENTS | CONNECT_ATTRS | DEPRECATE_EOF ); // these are in high bits
 
   // test for one bit at a time
   EXPECT_TRUE(cap.test(LONG_PASSWORD));
@@ -142,7 +142,7 @@ TEST_F(MySQLProtocolCapabilitiesTest, read) {
 
   // test low/high bits
   EXPECT_EQ((LONG_PASSWORD | NO_SCHEMA | SSL).bits(),              static_cast<AllFlags>(cap.low_16_bits()));
-  EXPECT_EQ((MULTI_STATEMENTS | CONNECT_ATTRS | WONKY_EOF).bits(), static_cast<AllFlags>(cap.high_16_bits() << 16));
+  EXPECT_EQ((MULTI_STATEMENTS | CONNECT_ATTRS | DEPRECATE_EOF).bits(), static_cast<AllFlags>(cap.high_16_bits() << 16));
 }
 
 int main(int argc, char *argv[]) {

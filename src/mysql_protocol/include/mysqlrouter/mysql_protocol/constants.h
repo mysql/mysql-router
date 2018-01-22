@@ -42,15 +42,7 @@ namespace Capabilities {
     constexpr Flags() : flags_(0) {}
     explicit constexpr Flags(AllFlags flags) : flags_(flags) {}
 
-    Flags& operator=(const Flags& other) {
-      flags_ = other.flags_;
-      return *this;
-    }
-
-    Flags& operator=(AllFlags flags) {
-      flags_ = flags;
-      return *this;
-    }
+    Flags& operator=(const Flags& other) = default;
 
     constexpr bool operator==(const Flags& other) const {
       return flags_ == other.flags_;
@@ -68,14 +60,14 @@ namespace Capabilities {
       return Flags(flags_ & other.flags_);
     }
 
-    bool test(const Flags& want) const {return (flags_ & want.flags_) == want.flags_; }
-    Flags& set(const Flags& other) { flags_ |= other.flags_; return *this; }
+    bool test(const Flags& want) const { return (flags_ & want.flags_) == want.flags_; }
+    Flags& set(const Flags& other)   { flags_ |= other.flags_; return *this; }
     Flags& clear(const Flags& other) { flags_ &= ~other.flags_; return *this; }
     Flags& reset()                   { flags_ = 0; return *this; }
 
-    AllFlags  bits() const { return flags_; }
-    HalfFlags high_16_bits() const  { return static_cast<HalfFlags>(flags_ >> 16); }
-    HalfFlags low_16_bits() const   { return static_cast<HalfFlags>(flags_ & 0x0000ffff); }
+    constexpr AllFlags  bits() const { return flags_; }
+    constexpr HalfFlags high_16_bits() const  { return static_cast<HalfFlags>(flags_ >> 16); }
+    constexpr HalfFlags low_16_bits() const   { return static_cast<HalfFlags>(flags_ & 0x0000ffff); }
 
     Flags& clear_high_16_bits()   { flags_ &= 0x0000ffff; return *this; }
     Flags& clear_low_16_bits()    { flags_ &= 0xffff0000; return *this; }
@@ -108,8 +100,8 @@ namespace Capabilities {
 
   static constexpr Flags SIG_PIPE               (1 << 12);
   static constexpr Flags TRANSACTIONS           (1 << 13);
-  static constexpr Flags RESERVED_14            (1 << 14);
-  static constexpr Flags SECURE_CONNECTION      (1 << 15);
+  static constexpr Flags RESERVED_14            (1 << 14);  // deprecated in 8.0.3
+  static constexpr Flags SECURE_CONNECTION      (1 << 15);  // deprecated in 8.0.3
 
   static constexpr Flags MULTI_STATEMENTS       (1 << 16);
   static constexpr Flags MULTI_RESULTS          (1 << 17);
@@ -121,7 +113,10 @@ namespace Capabilities {
   static constexpr Flags EXPIRED_PASSWORDS      (1 << 22);
   static constexpr Flags SESSION_TRACK          (1 << 23);
 
-  static constexpr Flags WONKY_EOF              (1 << 24);
+  static constexpr Flags DEPRECATE_EOF          (1 << 24);
+  static constexpr Flags OPTIONAL_RESULTSET_METADATA (1 << 25); // \  docs for 5.7 don't
+  static constexpr Flags SSL_VERIFY_SERVER_CERT (1UL << 30);    //  > mention these
+  static constexpr Flags REMEMBER_OPTIONS       (1UL << 31);    // /
 
   // other useful flags (our invention, mysql_com.h does not define them)
   static constexpr Flags ALL_ZEROS              (0U);
