@@ -25,7 +25,7 @@
 
 #include <utility>
 
-#ifdef WIN32
+#ifdef _WIN32
 #  define _CRT_SECURE_NO_WARNINGS 1
 #  ifdef UNICODE
 #    #undef UNICODE
@@ -77,7 +77,7 @@ public:
 protected:
   const std::string cmd_line;
   const char **args;
-#ifdef WIN32
+#ifdef _WIN32
   HANDLE child_in_rd;
   HANDLE child_in_wr;
   HANDLE child_out_rd;

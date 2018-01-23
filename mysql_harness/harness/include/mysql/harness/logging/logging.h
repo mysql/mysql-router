@@ -40,7 +40,7 @@
 #include <string>
 #include <cstdarg>
 
-#ifndef _WINDOWS
+#ifndef _WIN32
 #  include <sys/types.h>
 #  include <unistd.h>
 #endif
@@ -57,7 +57,7 @@
 #  define LOGGER_API
 #endif
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #  define pid_t DWORD

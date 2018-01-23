@@ -92,7 +92,7 @@ void MockOfstream::open(const char* filename, ios_base::openmode mode /*= ios_ba
 }
 
 /*static*/ std::string MockOfstream::gen_fake_filename(unsigned long i) {
-#ifndef WIN32_
+#ifndef _WIN32
   return std::string("/tmp/mysqlrouter_mockfile") + std::to_string(i);
 #else
   return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
@@ -403,7 +403,7 @@ string hexdump(const unsigned char *buffer, size_t count, long start, bool liter
 */
 std::string get_last_error(int myerrnum)
 {
-#ifdef WIN32
+#ifdef _WIN32
   DWORD dwCode = myerrnum ? myerrnum : GetLastError();
   LPTSTR lpMsgBuf;
 

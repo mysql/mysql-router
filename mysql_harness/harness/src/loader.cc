@@ -48,7 +48,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <system_error>
 #include <thread>
 
-#ifndef _WINDOWS
+#ifndef _WIN32
 #  include <dlfcn.h>
 #  include <unistd.h>
 #endif

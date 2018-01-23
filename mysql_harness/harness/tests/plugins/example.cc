@@ -41,7 +41,7 @@ using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 using mysql_harness::logging::log_info;
 
-#ifdef WIN32
+#ifdef _WIN32
 #  define EXAMPLE_IMPORT __declspec(dllimport)
 #else
 #  define EXAMPLE_IMPORT
