@@ -29,6 +29,7 @@
 
 #include "gmock/gmock.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 #ifdef _WIN32
 #include <winsock2.h>

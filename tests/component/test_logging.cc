@@ -28,6 +28,7 @@
 #include "mysql_session.h"
 #include "random_generator.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 #include <condition_variable>
 #include <fstream>

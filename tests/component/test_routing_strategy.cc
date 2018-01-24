@@ -24,6 +24,7 @@
 
 #include "gmock/gmock.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 #include "mysql_session.h"
 #include "keyring/keyring_manager.h"
 #include "random_generator.h"

@@ -28,6 +28,7 @@
 #endif
 #include "gmock/gmock.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 #include "router_test_helpers.h"
 #include "mysql_session.h"
 

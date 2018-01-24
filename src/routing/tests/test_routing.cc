@@ -31,6 +31,7 @@
 #include "routing_mocks.h"
 #include "protocol/classic_protocol.h"
 #include "test/helpers.h"
+#include "tcp_port_pool.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -340,8 +341,10 @@ static bool call_until(std::function<bool ()> f, int timeout = 2) {
 TEST_F(RoutingTests, bug_24841281) {
   mysql_harness::rename_thread("TEST_F()");
 
-  const uint16_t server_port = 4422;
-  const uint16_t router_port = 4444;
+  TcpPortPool port_pool_;
+
+  const uint16_t server_port = port_pool_.get_next_available();
+  const uint16_t router_port = port_pool_.get_next_available();
 
   MockServer server(server_port);
   server.start();

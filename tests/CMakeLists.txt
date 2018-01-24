@@ -31,6 +31,7 @@ set(helper_sources
   helpers/mysql_session_replayer.cc
   helpers/process_launcher.cc
   helpers/router_component_test.cc
+  helpers/tcp_port_pool.cc
 )
 
 if(WIN32)

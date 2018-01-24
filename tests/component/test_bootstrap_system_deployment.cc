@@ -26,6 +26,7 @@
 #include "utils.h"
 #include "gmock/gmock.h"
 #include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 Path g_origin_path;
 
