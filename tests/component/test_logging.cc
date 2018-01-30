@@ -135,8 +135,6 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
 
   TcpPortPool port_pool_;
 
-  static const unsigned SERVER_PORT = 4417;
-
  private:
   bool real_find_in_log(const std::string logging_folder, const std::function<bool(const std::string&)>& predicate) {
     Path file(logging_folder + "/" + "mysqlrouter.log");
@@ -376,16 +374,18 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
+  const unsigned server_port = port_pool_.get_next_available();
+
   // launch mock server and wait for it to start accepting connections
-  RouterComponentTest::CommandHandle server_mock = launch_mysql_server_mock(json_stmts, SERVER_PORT);
-  EXPECT_TRUE(wait_for_port_ready(SERVER_PORT, 5000)) << server_mock.get_full_output();
+  RouterComponentTest::CommandHandle server_mock = launch_mysql_server_mock(json_stmts, server_port);
+  EXPECT_TRUE(wait_for_port_ready(server_port, 5000)) << server_mock.get_full_output();
 
   constexpr char name[] = "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylongname";
   static_assert(sizeof(name) > 255, "too long");  // log message max length is 256, we want something that guarrantees the limit would be exceeded
 
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
-  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(SERVER_PORT)
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
                               + " --name " + name + " -d " + bootstrap_dir);
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
