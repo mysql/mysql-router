@@ -50,6 +50,8 @@
 #include "mysql_routing.h"
 #include "plugin_config.h"
 #include "router_test_helpers.h"
+#include "tcp_port_pool.h"
+
 
 // since this function is only meant to be used here (for testing purposes), it's not available in the headers.
 void validate_socket_info_test_proxy(const std::string& err_prefix, const mysql_harness::ConfigSection* section, const RoutingPluginConfig& config);
@@ -71,6 +73,8 @@ string g_cwd;
 Path g_origin;
 
 class RoutingPluginTests : public ConsoleOutputTest {
+  TcpPortPool tcp_port_pool_;
+
 protected:
   virtual void SetUp() {
     set_origin(g_origin);
@@ -79,8 +83,8 @@ protected:
     config_path->append("test_routing_plugin.conf");
     cmd = app_mysqlrouter->str() + " -c " + config_path->str();
 
-    bind_address = "127.0.0.1:15508";
-    destinations = "127.0.0.1:3306";
+    bind_address = "127.0.0.1:" + std::to_string(tcp_port_pool_.get_next_available());
+    destinations = "127.0.0.1:" + std::to_string(tcp_port_pool_.get_next_available());
     socket = rundir + "/unix_socket";
     routing_strategy = "round-robin";
     mode = "read-only";
