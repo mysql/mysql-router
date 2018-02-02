@@ -14,7 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 usr/bin/mysqlrouter
-usr/bin/mysqlrouter_plugin_info
 
 usr/lib/*/libmysqlrouter.so.1
 usr/lib/*/libmysqlharness.so.1
@@ -27,10 +26,10 @@ usr/lib/*/mysqlrouter/routing.so
 usr/lib/*/mysqlrouter/metadata_cache.so
 usr/lib/*/mysqlrouter/logger.so
 
-usr/share/mysql-router/docs/sample_mysqlrouter.conf
 
 debian/extra/mysqlrouter.conf etc/mysqlrouter
 etc/apparmor.d/usr.bin.mysqlrouter
 
+usr/share/mysql-router/docs/sample_mysqlrouter.conf usr/share/doc/mysql-router
 usr/share/mysql-router/docs/License.txt usr/share/doc/mysql-router
 usr/share/mysql-router/docs/README.txt usr/share/doc/mysql-router
