@@ -83,11 +83,10 @@ Debian-based 64-bit distributions.
             │   └── mysql-router
             │       ├── changelog.Debian.gz
             │       ├── copyright
+            │       ├── sample_mysqlrouter.conf
             │       ├── License.txt.gz
             │       └── README.txt
-            ├── lintian
-            │   └── overrides
-            │       └── mysql-router
-            └── mysql-router
-                └── docs
-                    └── sample_mysqlrouter.conf
+            └── lintian
+                └── overrides
+                    └── mysql-router
+
