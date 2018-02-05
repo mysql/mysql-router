@@ -21,7 +21,6 @@ usr/lib/*/libmysqlharness.so.1
 usr/lib/*/mysqlrouter/keepalive.so
 usr/lib/*/mysqlrouter/x_protocol.so
 usr/lib/*/mysqlrouter/mysql_protocol.so
-usr/lib/*/mysqlrouter/syslog.so
 usr/lib/*/mysqlrouter/routing.so
 usr/lib/*/mysqlrouter/metadata_cache.so
 usr/lib/*/mysqlrouter/logger.so
