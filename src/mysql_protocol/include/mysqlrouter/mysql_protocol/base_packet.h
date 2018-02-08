@@ -68,11 +68,13 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @note This class exposes several types of methods for data manipulation.
    *
-   * Packet buffer operations:
-   *   add_*()   - add data at the end of the buffer
-   *   write_*() - add data at specified buffer position (overwrite)
-   *   read_*()  - read data from specified buffer position
-   *   read_adv_*() - like read_*(), but also advance position by nr of read bytes
+   * Packet buffer operations, they work like standard stream operations:
+   *   seek()/tell()  - set/get buffer position
+   *   write_*()      - write data at current buffer position
+   *   read_*()       - read data at current buffer position
+   *
+   * Packet buffer operations with specified position:
+   *   read_*_from()  - read data from specified buffer position
    *
    * Packet field setters/getters:
    *   get_*()   - return fields from this class (packet needs to be parsed first)
@@ -174,79 +176,127 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// packet buffer operations: read_adv_*() wrappers for read_*()
+// packet buffer operations: stream interface
 ////////////////////////////////////////////////////////////////////////////////
+
+  /** @brief Sets current read/write position used by read_*()/write_*() calls */
+  void seek(size_t position) const {
+    if (position > size())
+      throw std::range_error("seek past EOF");
+    position_ = position;
+  }
+
+  /** @brief Returns current read/write position used by read_*()/write_*() calls */
+  size_t tell() const {
+    return position_;
+  }
 
   /** @brief Gets an integral from given packet
    *
-   * This is a wrapper around read_int() which automatically updates position
+   * This is a wrapper around read_int_from() which automatically updates position
    * after read. See its description.
    */
   template<typename Type, typename = std::enable_if<std::is_integral<Type>::value>>
-  Type read_adv_int(size_t& position, size_t length = sizeof(Type)) const {
-    Type res = read_int<Type>(position, length); // throws range_error/runtime_error
-    position += length;
+  Type read_int(size_t length = sizeof(Type)) const {
+    Type res = read_int_from<Type>(position_, length); // throws range_error/runtime_error
+    position_ += length;
     return res;
   }
 
   /** @brief Gets a length encoded integer from given packet
    *
-   * This is a wrapper around read_lenenc_uint() which automatically updates position
+   * This is a wrapper around read_lenenc_uint_from() which automatically updates position
    * after read. See its description.
    */
-  uint64_t read_adv_lenenc_uint(size_t& position) const;
+  uint64_t read_lenenc_uint() const;
 
   /** @brief Gets raw bytes from packet
     *
-    * This is a wrapper around read_bytes() which automatically updates position.
+    * This is a wrapper around read_bytes_from() which automatically updates position.
     * See its description.
     */
-  std::vector<uint8_t> read_adv_bytes(size_t& position, size_t length) const;
+  std::vector<uint8_t> read_bytes(size_t length) const;
 
   /** @brief Gets bytes from packet using length encoded size
    *
-   * This is a wrapper around read_lenenc_bytes() which automatically updates position.
+   * This is a wrapper around read_lenenc_bytes_from() which automatically updates position.
    * See its description.
    */
-  std::vector<uint8_t> read_adv_lenenc_bytes(size_t& position) const;
+  std::vector<uint8_t> read_lenenc_bytes() const;
 
   /** @brief Gets zero-terminated string from packet
    *
-   * This is a wrapper around read_string_nul() which automatically updates position.
+   * This is a wrapper around read_string_nul_from() which automatically updates position.
    * See its description.
    */
-  std::string read_adv_string_nul(size_t& position) const;
+  std::string read_string_nul() const;
 
   /** @brief Gets raw bytes from packet, from position until EOF
    *
-   * This is a wrapper around read_bytes_eof() which automatically updates position.
+   * This is a wrapper around read_bytes_eof_from() which automatically updates position.
    * See its description.
    */
-  std::vector<uint8_t> read_adv_bytes_eof(size_t& position) const;
+  std::vector<uint8_t> read_bytes_eof() const;
+
+  /** @brief Packs and adds an integral to the buffer
+   *
+   * Packs and adds an integral to the given buffer.
+   *
+   * @param value Integral to add to the packet
+   * @param length Size of the integral (default: size of integral)
+   *
+   */
+  template<class T, typename = std::enable_if<std::is_integral<T>::value>>
+  void write_int(T value, size_t length = sizeof(T)) {
+    reserve(size() + length);
+    while(length-- > 0) {
+      // Assignment to temporary variable `b` prevents too aggressive inlining
+      // optimization in some compilers (e.g. GCC 4.9.2 on Solaris, with -O2).
+      // Without it, `value` wasn't getting updated before push_back() under
+      // certain conditions, and resulted in filling packet's buffer with
+      // invalid data.
+      uint8_t b = static_cast<uint8_t>(value);
+      update_or_append(b);
+      value = static_cast<T>(value >> CHAR_BIT);
+    }
+  }
+
+  /** @brief Packs and adds a length-encoded integral to the buffer
+   *
+   * Packs and adds a length-encoded integral to the given buffer.
+   *
+   * @param value Integral to add to the packet
+   * @return Size of the encoded integral (one of: 1, 3, 4 or 9 bytes)
+   */
+  size_t write_lenenc_uint(uint64_t value);
+
+  /** @brief Adds bytes to the given packet
+   *
+   * Adds the given bytes to the buffer.
+   *
+   * @param bytes Bytes to add to the packet
+   *
+   */
+  void write_bytes(const Packet::vector_t &bytes) {
+    write_bytes_impl(bytes.data(), bytes.size());
+  }
+
+  /** @brief Adds a string to the given packet
+   *
+   * Adds the given string to the buffer. It does not append a zero-terminator
+   * after this string.
+   *
+   * @param str String to add to the packet
+   */
+  void write_string(const std::string &str) {
+    write_bytes_impl(reinterpret_cast<const uint8_t*>(str.data()), str.size());
+  } //               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ std::string contains signed chars
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// packet buffer operations: core
+// packet buffer operations: direct position interface
 ////////////////////////////////////////////////////////////////////////////////
-
-  /** @brief Gets the packet sequence ID from supplied buffer
-   *
-   * @param 4-byte header
-   * @return uint8_t
-   */
-  static uint8_t read_sequence_id(const uint8_t header[4]) noexcept {
-    return header[3];
-  }
-
-  /** @brief Gets the payload size from supplied buffer
-   *
-   * @param 4-byte header
-   * @return uint32_t payload size of the packet
-   */
-  static uint32_t read_payload_size(const uint8_t header[4]) noexcept {
-    return header[0] + (header[1] << 8) + (header[2] << 16);
-  }
 
   /** @brief Gets an integral from given packet
    *
@@ -258,7 +308,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * integral it is necessary to use a 32-bit integral type and
    * provided the size, for example:
    *
-   *     auto id = Packet::read_int<uint32_t>(buffer, 0, 3);
+   *     auto id = Packet::read_int_from<uint32_t>(buffer, 0, 3);
    *
    * In MySQL packets, integrals are stored using little-endian format.
    *
@@ -269,7 +319,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @throws std::range_error (std::runtime_error) on start or end beyond EOF
    */
   template<typename Type, typename = std::enable_if<std::is_integral<Type>::value>>
-  Type read_int(size_t position, size_t length = sizeof(Type)) const {
+  Type read_int_from(size_t position, size_t length = sizeof(Type)) const {
 
     harness_assert((length >= 1 && length <= 4) || length == 8);
     if (position + length > size())
@@ -301,7 +351,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *         std::runtime_error on bad first byte (which determines int length)
    *         (strong exception safety guarrantee)
    */
-  std::pair<uint64_t, size_t> read_lenenc_uint(size_t position) const;
+  std::pair<uint64_t, size_t> read_lenenc_uint_from(size_t position) const;
 
   /** @brief Gets a string from packet
    *
@@ -316,7 +366,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param length Length of the string to read (default 0)
    * @return std::string
    */
-  std::string read_string(unsigned long position,
+  std::string read_string_from(unsigned long position,
                          unsigned long length = UINT_MAX) const;
 
   /** @brief Gets a zero-terminated string from packet
@@ -328,7 +378,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *         std::runtime_error on zero-terminator not found
    *         (strong exception safety guarrantee)
    */
-  std::string read_string_nul(size_t position) const;
+  std::string read_string_nul_from(size_t position) const;
 
   /** @brief Gets raw bytes from packet
     *
@@ -339,7 +389,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
     * @throws std::range_error (std::runtime_error) on start or end beyond EOF
     *         (strong exception safety guarrantee)
     */
-  std::vector<uint8_t> read_bytes(size_t position, size_t length) const;
+  std::vector<uint8_t> read_bytes_from(size_t position, size_t length) const;
 
   /** @brief Gets raw bytes from packet using length encoded size
    *
@@ -353,7 +403,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *         std::runtime_error on bad first byte (which determines int length)
    *         (strong exception safety guarrantee)
    */
-  std::pair<std::vector<uint8_t>, size_t> read_lenenc_bytes(size_t position) const;
+  std::pair<std::vector<uint8_t>, size_t> read_lenenc_bytes_from(size_t position) const;
 
   /** @brief Gets raw bytes from packet from position until EOF
    *
@@ -364,83 +414,31 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *         std::runtime_error on zero-terminator not found
    *         (strong exception safety guarrantee)
    */
-  std::vector<uint8_t> read_bytes_eof(size_t position) const;
+  std::vector<uint8_t> read_bytes_eof_from(size_t position) const;
 
-  /** @brief Packs and writes an integral to the buffer
+
+
+////////////////////////////////////////////////////////////////////////////////
+// packet buffer operations: static method interface
+////////////////////////////////////////////////////////////////////////////////
+
+  /** @brief Gets the packet sequence ID from supplied buffer
    *
-   * Packs and writes an integral to the buffer starting from the given
-   * position.
-   *
-   * @param packet Vector of bytes to which we add
-   * @param position Position where to write the integral
-   * @param value Integral to add to the packet
-   * @param size Size of the integral (default: size of integral)
-   *
-   * @throws std::range_error (std::runtime_error) on start or end beyond EOF
+   * @param header 4-byte header
+   * @return uint8_t
    */
-  template<class Type, typename = std::enable_if<std::is_integral<Type>::value>>
-  static void write_int(Packet &packet, size_t position,
-                        Type value, size_t size = sizeof(Type)) {
-    if (position + size > packet.size())
-      throw std::range_error("start or end beyond EOF");
-
-    auto i = position;
-    uint64_t val = value;
-    while (size-- > 0) {
-      packet[i] = static_cast<uint8_t>(val);
-      val >>= CHAR_BIT;
-      ++i;
-    }
+  static uint8_t read_sequence_id(const uint8_t header[4]) noexcept {
+    return header[3];
   }
 
-  /** @brief Packs and adds an integral to the buffer
+  /** @brief Gets the payload size from supplied buffer
    *
-   * Packs and adds an integral to the given buffer.
-   *
-   * @param value Integral to add to the packet
-   * @param length Size of the integral (default: size of integral)
-   *
+   * @param header 4-byte header
+   * @return uint32_t payload size of the packet
    */
-  template<class T, typename = std::enable_if<std::is_integral<T>::value>>
-  void add_int(T value, size_t length = sizeof(T)) {
-    reserve(size() + length);
-    while(length-- > 0) {
-      // Assignment to temporary variable `b` prevents too aggressive inlining
-      // optimization in some compilers (e.g. GCC 4.9.2 on Solaris, with -O2).
-      // Without it, `value` wasn't getting updated before push_back() under
-      // certain conditions, and resulted in filling packet's buffer with
-      // invalid data.
-      uint8_t b = static_cast<uint8_t>(value);
-      push_back(b);
-      value = static_cast<T>(value >> CHAR_BIT);
-    }
+  static uint32_t read_payload_size(const uint8_t header[4]) noexcept {
+    return header[0] + (header[1] << 8) + (header[2] << 16);
   }
-
-  /** @brief Packs and adds a length-encoded integral to the buffer
-   *
-   * Packs and adds a length-encoded integral to the given buffer.
-   *
-   * @param value Integral to add to the packet
-   * @return Size of the encoded integral (one of: 1, 3, 4 or 9 bytes)
-   */
-  size_t add_lenenc_uint(uint64_t value);
-
-  /** @brief Adds bytes to the given packet
-   *
-   * Adds the given bytes to the buffer.
-   *
-   * @param value Bytes to add to the packet
-   *
-   */
-  void add(const std::vector<uint8_t> &value);
-
-  /** @brief Adds a string to the given packet
-   *
-   * Adds the given string to the buffer.
-   *
-   * @param value String to add to the packet
-   */
-  void add(const std::string &value);
 
 
 
@@ -452,7 +450,9 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    *
    * @return header length (4 bytes)
    */
-  static constexpr size_t get_header_length() noexcept { return 4; }
+  static constexpr size_t get_header_length() noexcept {
+    return 4;
+  }
 
   /** @brief Gets the packet sequence ID
    *
@@ -521,9 +521,35 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   /** @brief Capability flags */
   Capabilities::Flags capability_flags_;
 
+  /** @brief read/write position for stream operations */
+  mutable size_t position_;
+
+
+
  private:
 
   void parse_header(bool allow_partial = false);
+
+  void write_bytes_impl(const unsigned char* bytes, size_t length);
+
+  static inline void update_or_append(std::vector<uint8_t>& vec, size_t& position, uint8_t value) {
+    harness_assert(position <= vec.size()); // allow write before or at EOF
+
+    if (position < vec.size())
+      vec[position] = value;
+    else
+      vec.push_back(value);
+
+    position++;
+  }
+
+  inline void update_or_append(size_t& position, uint8_t value) {
+    update_or_append(*this, position, value);
+  }
+
+  inline void update_or_append(uint8_t value) {
+    update_or_append(position_, value);
+  }
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(::HandshakeResponseParseTest, server_does_not_support_PROTOCOL_41);

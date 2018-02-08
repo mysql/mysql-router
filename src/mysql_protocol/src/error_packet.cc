@@ -53,25 +53,26 @@ void ErrorPacket::prepare_packet() {
   assert(sql_state_.size() == 5);
 
   reset();
+  position_ = size();
 
   // Error identifier byte
-  add_int<uint8_t>(0xff);
+  write_int<uint8_t>(0xff);
 
   // error code
-  add_int<uint16_t>(code_);
+  write_int<uint16_t>(code_);
 
   // SQL State
   if (capability_flags_.test(Capabilities::PROTOCOL_41)) {
-    add_int<uint8_t>(0x23);
+    write_int<uint8_t>(0x23);
     if (sql_state_.size() != 5) {
-      add("HY000");
+      write_string("HY000");
     } else {
-      add(sql_state_);
+      write_string(sql_state_);
     }
   }
 
   // The message
-  add(message_);
+  write_string(message_);
 
   // Update the payload size in the header
   update_packet_size();
@@ -89,18 +90,18 @@ void ErrorPacket::parse_payload() {
   }
 
   unsigned long pos = 5;
-  code_ = read_int<uint16_t>(pos);
+  code_ = read_int_from<uint16_t>(pos);
   pos += 2;
   if ((*this)[7] == 0x23) {
     // We get the SQLState even when CLIENT_PROTOCOL_41 flag was not set
     // This is needed in cases when the server sends an
     // error to the client instead of the handshake.
-    sql_state_ = read_string(++pos, 5); // We skip 0x23
+    sql_state_ = read_string_from(++pos, 5); // We skip 0x23
     pos += 5;
   } else {
     sql_state_ = "";
   }
-  message_ = read_string(pos);
+  message_ = read_string_from(pos);
 }
 
 } // namespace mysql_protocol

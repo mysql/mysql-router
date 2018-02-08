@@ -221,7 +221,6 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
    public:
     virtual ~Parser() = default;
     virtual void parse(Capabilities::Flags server_capabilities) = 0;
-    size_t read_pos_;
 
     // debug tools
     static std::string bytes2str(const uint8_t* bytes,

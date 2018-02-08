@@ -48,7 +48,7 @@ void Packet::parse_header(bool allow_partial) {
     return;
   }
 
-  payload_size_ = read_int<uint32_t>(0, 3);
+  payload_size_ = read_int_from<uint32_t>(0, 3);
 
   if (!allow_partial && this->size() < payload_size_ + 4) {
     throw packet_error("Incorrect payload size (was " +
@@ -65,41 +65,44 @@ void Packet::update_packet_size() {
     throw std::runtime_error("illegal packet size");
 
   // Update the size
-  write_int<uint32_t>(*this, 0, static_cast<uint32_t>(size()) - 4, 3);
+  size_t current_pos = tell();
+  seek(0);
+  write_int<uint32_t>(static_cast<uint32_t>(size()) - 4, 3);
+  seek(current_pos);
 }
 
-uint64_t Packet::read_adv_lenenc_uint(size_t& position) const {
-  auto pr = read_lenenc_uint(position);  // throws range_error/runtime_error
-  position += pr.second;
+uint64_t Packet::read_lenenc_uint() const {
+  auto pr = read_lenenc_uint_from(position_);  // throws range_error/runtime_error
+  position_ += pr.second;
   return pr.first;
 }
 
-std::vector<uint8_t> Packet::read_adv_bytes(size_t& position, size_t length) const {
-  std::vector<uint8_t> res = read_bytes(position, length); // throws range_error/runtime_error
-  position += length;
+std::vector<uint8_t> Packet::read_bytes(size_t length) const {
+  std::vector<uint8_t> res = read_bytes_from(position_, length); // throws range_error/runtime_error
+  position_ += length;
   return res;
 }
 
-std::vector<uint8_t> Packet::read_adv_lenenc_bytes(size_t& position) const {
-  auto pr = read_lenenc_bytes(position);  // throws range_error/runtime_error
+std::vector<uint8_t> Packet::read_lenenc_bytes() const {
+  auto pr = read_lenenc_bytes_from(position_);  // throws range_error/runtime_error
   std::vector<uint8_t> res = pr.first;
-  position += pr.second;
+  position_ += pr.second;
   return res;
 }
 
-std::string Packet::read_adv_string_nul(size_t& position) const {
-  std::string res = read_string_nul(position);  // throws range_error/runtime_error
-  position += res.size() + 1; // +1 for zero-terminator
+std::string Packet::read_string_nul() const {
+  std::string res = read_string_nul_from(position_);  // throws range_error/runtime_error
+  position_ += res.size() + 1; // +1 for zero-terminator
   return res;
 }
 
-std::vector<uint8_t> Packet::read_adv_bytes_eof(size_t& position) const {
-  std::vector<uint8_t> res = read_bytes_eof(position);  // throws range_error/runtime_error
-  position += res.size();
+std::vector<uint8_t> Packet::read_bytes_eof() const {
+  std::vector<uint8_t> res = read_bytes_eof_from(position_);  // throws range_error/runtime_error
+  position_ += res.size();
   return res;
 }
 
-std::pair<uint64_t, size_t> Packet::read_lenenc_uint(size_t position) const {
+std::pair<uint64_t, size_t> Packet::read_lenenc_uint_from(size_t position) const {
 
   if (position >= size())
     throw std::range_error("start beyond EOF");
@@ -127,10 +130,10 @@ std::pair<uint64_t, size_t> Packet::read_lenenc_uint(size_t position) const {
   if (position + length >= size())
     throw std::range_error("end beyond EOF");
 
-  return std::make_pair(read_int<uint64_t>(position + 1, length), length + 1);
+  return std::make_pair(read_int_from<uint64_t>(position + 1, length), length + 1);
 }
 
-std::string Packet::read_string(unsigned long position, unsigned long length) const {
+std::string Packet::read_string_from(unsigned long position, unsigned long length) const {
 
   if (static_cast<size_t>(position) > size()) {
     return "";
@@ -142,7 +145,7 @@ std::string Packet::read_string(unsigned long position, unsigned long length) co
   return std::string(start, it);
 }
 
-std::string Packet::read_string_nul(size_t position) const {
+std::string Packet::read_string_nul_from(size_t position) const {
   if (position >= size())
     throw std::range_error("start beyond EOF");
 
@@ -153,7 +156,7 @@ std::string Packet::read_string_nul(size_t position) const {
   return std::string(begin() + position, it);
 }
 
-std::vector<uint8_t> Packet::read_bytes(size_t position, size_t length) const {
+std::vector<uint8_t> Packet::read_bytes_from(size_t position, size_t length) const {
 
   if (position + length > size())
     throw std::range_error("start or end beyond EOF");
@@ -161,8 +164,8 @@ std::vector<uint8_t> Packet::read_bytes(size_t position, size_t length) const {
   return std::vector<uint8_t>(begin() + position, begin() + position + length);
 }
 
-std::pair<std::vector<uint8_t>, size_t> Packet::read_lenenc_bytes(size_t position) const {
-  auto pr = read_lenenc_uint(position); // throws runtime_error, range_error
+std::pair<std::vector<uint8_t>, size_t> Packet::read_lenenc_bytes_from(size_t position) const {
+  auto pr = read_lenenc_uint_from(position); // throws runtime_error, range_error
 
   size_t lenenc_uint_value = pr.first;
   size_t lenenc_uint_token_len = pr.second;
@@ -176,22 +179,27 @@ std::pair<std::vector<uint8_t>, size_t> Packet::read_lenenc_bytes(size_t positio
                    lenenc_uint_token_len + lenenc_uint_value);
 }
 
-std::vector<uint8_t> Packet::read_bytes_eof(size_t position) const {
+std::vector<uint8_t> Packet::read_bytes_eof_from(size_t position) const {
   if (position >= size())
     throw std::range_error("start beyond EOF");
 
   return std::vector<uint8_t>(begin() + position, end());
 }
 
-void Packet::add(const Packet::vector_t &value) {
-  insert(end(), value.begin(), value.end());
+void Packet::write_bytes_impl(const uint8_t* bytes, size_t length) {
+  const size_t bytes_before_eof = size() - position_;
+
+  if (length > bytes_before_eof) {
+    std::copy(bytes, bytes + bytes_before_eof, begin() + position_);
+    insert(end(), bytes + bytes_before_eof, bytes + length);
+  } else {
+    std::copy(bytes, bytes + length, begin() + position_);
+  }
+
+  position_ += length;
 }
 
-void Packet::add(const std::string &value) {
-  insert(end(), value.begin(), value.end());
-}
-
-size_t Packet::add_lenenc_uint(uint64_t value) {
+size_t Packet::write_lenenc_uint(uint64_t value) {
 
   // Specification is here: https://dev.mysql.com/doc/internals/en/integer.html
   //
@@ -206,19 +214,19 @@ size_t Packet::add_lenenc_uint(uint64_t value) {
   constexpr uint64_t k2p24 = 1 << 24;
 
   if (value < 251) {
-    push_back(static_cast<uint8_t>(value));
+    update_or_append(static_cast<uint8_t>(value));
     return 1;
   } else if (value < k2p16) {
-    push_back(0xfc);
-    add_int<uint16_t>(static_cast<uint16_t>(value));
+    update_or_append(0xfc);
+    write_int<uint16_t>(static_cast<uint16_t>(value));
     return 3;
   } else if (value < k2p24) {
-    push_back(0xfd);
-    add_int(value, 3);
+    update_or_append(0xfd);
+    write_int(value, 3);
     return 4;
   } else {
-    push_back(0xfe);
-    add_int<uint64_t>(value);
+    update_or_append(0xfe);
+    write_int<uint64_t>(value);
     return 9;
   }
 }

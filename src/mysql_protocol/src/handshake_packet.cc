@@ -60,38 +60,44 @@ HandshakeResponsePacket::HandshakeResponsePacket(uint8_t sequence_id,
 void HandshakeResponsePacket::prepare_packet() {
 
   reset();
+  position_ = size();
 
   // capabilities
-  add_int<uint32_t>(kDefaultClientCapabilities.bits());
+  write_int<uint32_t>(kDefaultClientCapabilities.bits());
 
   // max packet size
-  add_int<uint32_t>(kMaxAllowedSize);
+  write_int<uint32_t>(kMaxAllowedSize);
 
   // Character set
-  add_int<uint8_t>(char_set_);
+  write_int<uint8_t>(char_set_);
 
   // Filler
   insert(end(), 23, 0x0);
+  position_ = size();
 
   // Username
   if (!username_.empty()) {
-    add(username_);
+    write_string(username_);
   }
   push_back(0x0);
+  position_ = size();
 
   // Auth Data
-  add_int<uint8_t>(20);
+  write_int<uint8_t>(20);
   insert(end(), 20, 0x71);  // 0x71 is fake data; can be anything
+  position_ = size();
 
   // Database
   if (!database_.empty()) {
-    add(database_);
+    write_string(database_);
   }
   push_back(0x0);
+  position_ = size();
 
   // Authentication plugin name
-  add(auth_plugin_);
+  write_string(auth_plugin_);
   push_back(0x0);
+  position_ = size();
 
   update_packet_size();
 }
@@ -138,7 +144,7 @@ void HandshakeResponsePacket::prepare_packet() {
     if (packet.size() < kFlagsOffset + sizeof(Capabilities::HalfFlags))
       throw std::runtime_error("HandshakeResponsePacket: tried reading capability flags past EOF");
 
-    Capabilities::Flags flags(packet.read_int<Capabilities::HalfFlags>(kFlagsOffset));
+    Capabilities::Flags flags(packet.read_int_from<Capabilities::HalfFlags>(kFlagsOffset));
     return flags.test(Capabilities::PROTOCOL_41);
   }
 
@@ -152,7 +158,7 @@ void HandshakeResponsePacket::prepare_packet() {
 
     using MaxPacketSize = decltype(packet_.max_packet_size_);
 
-    packet_.max_packet_size_ = packet_.read_adv_int<MaxPacketSize>(read_pos_);
+    packet_.max_packet_size_ = packet_.read_int<MaxPacketSize>();
   }
 
   void HandshakeResponsePacket::Parser41::part2_character_set() {
@@ -165,7 +171,7 @@ void HandshakeResponsePacket::prepare_packet() {
 
     using CharSet = decltype(packet_.char_set_);
 
-    packet_.char_set_ = packet_.read_adv_int<CharSet>(read_pos_);
+    packet_.char_set_ = packet_.read_int<CharSet>();
   }
 
   void HandshakeResponsePacket::Parser41::part3_reserved() {
@@ -177,7 +183,7 @@ void HandshakeResponsePacket::prepare_packet() {
      */
 
     constexpr size_t kReservedBytes = 23;
-    vector<uint8_t> reserved = packet_.read_adv_bytes(read_pos_, kReservedBytes);
+    vector<uint8_t> reserved = packet_.read_bytes(kReservedBytes);
 
     // proper packet should have all of those set to 0
     if (! std::all_of(reserved.begin(), reserved.end(), [](uint8_t c) { return c == 0; }))
@@ -192,7 +198,7 @@ void HandshakeResponsePacket::prepare_packet() {
      *   string[NUL]    username
      */
 
-    packet_.username_ = packet_.read_adv_string_nul(read_pos_);
+    packet_.username_ = packet_.read_string_nul();
   }
 
   void HandshakeResponsePacket::Parser41::part5_auth_response() {
@@ -214,18 +220,18 @@ void HandshakeResponsePacket::prepare_packet() {
     if (effective_capability_flags_.test(Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA)) {
 
       // get auth-response string length
-      uint64_t len = packet_.read_adv_lenenc_uint(read_pos_); // length 0 is a valid value
+      uint64_t len = packet_.read_lenenc_uint(); // length 0 is a valid value
 
       // get auth-response string
-      packet_.auth_response_ = packet_.read_adv_bytes(read_pos_, len);
+      packet_.auth_response_ = packet_.read_bytes(len);
 
     } else if (effective_capability_flags_.test(Capabilities::SECURE_CONNECTION)) {
 
       // get auth-response string length
-      uint64_t len = packet_.read_adv_int<uint8_t>(read_pos_);
+      uint64_t len = packet_.read_int<uint8_t>();
 
       // get auth-response string
-      packet_.auth_response_ = packet_.read_adv_bytes(read_pos_, len);
+      packet_.auth_response_ = packet_.read_bytes(len);
 
     } else {
       throw std::runtime_error("Handshake response packet: capabilities PLUGIN_AUTH_LENENC_CLIENT_DATA and SECURE_CONNECTION both missing is not implemented atm");
@@ -243,7 +249,7 @@ void HandshakeResponsePacket::prepare_packet() {
      */
 
     if (effective_capability_flags_.test(Capabilities::CONNECT_WITH_DB))
-      packet_.database_ = packet_.read_adv_string_nul(read_pos_);
+      packet_.database_ = packet_.read_string_nul();
   }
 
   void HandshakeResponsePacket::Parser41::part7_auth_plugin() {
@@ -257,7 +263,7 @@ void HandshakeResponsePacket::prepare_packet() {
      */
 
     if (effective_capability_flags_.test(Capabilities::PLUGIN_AUTH))
-      packet_.auth_plugin_ = packet_.read_adv_string_nul(read_pos_);
+      packet_.auth_plugin_ = packet_.read_string_nul();
   }
 
   void HandshakeResponsePacket::Parser41::part8_connection_attrs() {
@@ -287,14 +293,11 @@ void HandshakeResponsePacket::prepare_packet() {
     if (! server_capabilities.test(Capabilities::PROTOCOL_41))
       throw std::runtime_error("Handshake response packet: server not supporting PROTOCOL_41 in not implemented atm");
 
-    // our packet-reading "cursor"
-    read_pos_ = 0;
-
     // header
     {
       // header should have already been parsed by Packet::parse_header(), which is
       // called by Packet constructor, so here we just skip it over
-      read_pos_ += 4;
+      packet_.seek(Packet::get_header_length());
 
       // correct handshake packet always has seq num = 1
       if (packet_.get_sequence_id() != 1)
@@ -304,8 +307,7 @@ void HandshakeResponsePacket::prepare_packet() {
     // capabilities
     {
       // NOTE: in PROTOCOL_320, capabilities are expressed only in 2 bytes, PROTOCOL_41 uses 4
-      packet_.capability_flags_ = Capabilities::Flags(packet_.read_int<Capabilities::AllFlags>(read_pos_));
-      read_pos_ += sizeof(Capabilities::AllFlags);
+      packet_.capability_flags_ = Capabilities::Flags(packet_.read_int<Capabilities::AllFlags>());
 
       // see @note in HandshakeResponsePacket ctor
       effective_capability_flags_ = packet_.capability_flags_ & server_capabilities;
@@ -327,10 +329,10 @@ void HandshakeResponsePacket::prepare_packet() {
     }
 
     // now let's verify packet payload length vs what we parsed
-    if (read_pos_ != packet_.payload_size_ + 4)  // +4 because payload_size_ does not include 4-byte header
+    if (packet_.tell() != Packet::get_header_length() + packet_.payload_size_)
       throw std::runtime_error("Handshake response packet: parsed ok, but payload packet size (" +
                                std::to_string(packet_.payload_size_) + " bytes) differs from what we parsed (" +
-                               std::to_string(read_pos_) + " bytes)");
+                               std::to_string(packet_.tell()) + " bytes)");
   }
 
 
