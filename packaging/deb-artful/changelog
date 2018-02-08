@@ -1,0 +1,5 @@
+mysql-router (8.0.3-dmr-1ubuntu17.10) artful; urgency=low
+
+  * initial version
+
+ -- Andrzej Religa <andrzej.religa@oracle.com>  Thu, 08 Feb 2018 14:36:55 +0200
