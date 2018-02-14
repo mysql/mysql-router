@@ -203,7 +203,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
             if (0 != connect_non_blocking_wait(sock, connect_timeout_ms)) {
               log_warning("Timeout reached trying to connect to MySQL Server %s: %s", addr.str().c_str(), get_message_error(get_errno()).c_str());
               connection_is_good = false;
-              timeout_expired = true;
+              timeout_expired = (get_errno() == ETIMEDOUT);
               break;
             }
 
