@@ -203,7 +203,7 @@ std::string MySQLRouting::make_thread_name(const std::string& config_name, const
   return thread_name;
 }
 
-void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* client_addr */) noexcept {
+void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& client_addr ) noexcept {
   mysql_harness::rename_thread(make_thread_name(name, "RtS").c_str());  // "Rt select() thread" would be too long :(
 
   int error = 0;
@@ -356,8 +356,8 @@ void MySQLRouting::routing_select_thread(int client, const sockaddr_storage& /* 
         name.c_str(),
         client,
         c_ip.first.c_str(), extra_msg.c_str());
-    // auto ip_array = in_addr_to_array(client_addr);
-    // block_client_host(ip_array, c_ip.first.c_str(), server);
+     auto ip_array = in_addr_to_array(client_addr);
+     block_client_host(ip_array, c_ip.first.c_str(), server);
   }
 
   // Either client or server terminated
