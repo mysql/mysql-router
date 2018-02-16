@@ -149,21 +149,7 @@ TEST_F(HandshakeResponsePacketTest, Constructor) {
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// HandshakeResponsePacket::Parser41 tests
-//
-// NOTE:
-// These tests are quite extensive, yet there are more cases that are still not covered:
-//
-// - when the input is truncated (only checking for EOF is performed, which will not protect
-//   against scenarios where N bytes are expected, but only X are provided, where 0 < X < N).
-//
-// - at least some of such scenarios are not handled gently, but will fire an assertion instead
-//
-// - missing zero-terminator after username, database and maybe others
-//
-////////////////////////////////////////////////////////////////////////////////
+
 
 class HandshakeResponseParseTest : public ::testing::Test {
  public:
@@ -310,46 +296,13 @@ TEST_F(HandshakeResponseParseTest, max_packet_size) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part1_max_packet_size(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading max packet size past EOF"
+      prs.read_pos_ = kOffset;
+      prs.part1_max_packet_size(),
+      std::runtime_error, "start or end beyond EOF"
     );
   }
 
-  // max packet size > max allowed (kMaxAllowedSize)
-  {
-    //                            max packet size = 0x4000 0000 --vvvvvvvvv
-    std::vector<uint8_t> bytes = str2bytes("0800 0001   0002 0000 0100 0040");
-
-    EXPECT_THROW_LIKE(
-      HandshakeResponsePacket pkt(bytes, kAutoPayloadParse, Capabilities::PROTOCOL_41),
-      std::runtime_error, "Handshake response packet: max_packet_size (1073741825) greater than allowed (1073741824)"
-    );
-  }
-
-  // max packet size suspiciously low (256 is arbitrary minimum, not offical spec, see code)
-  {
-    //                                          max packet size --vvvvvvvvv
-    std::vector<uint8_t> bytes = str2bytes("0800 0001   0002 0000 ff00 0000");
-
-    EXPECT_THROW_LIKE(
-      HandshakeResponsePacket pkt(bytes, kAutoPayloadParse, Capabilities::PROTOCOL_41),
-      std::runtime_error, "Handshake response packet: max_packet_size of suspicious size (255)"
-    );
-  }
-
-  // max packet size ok (just above our arbitrary minimum, see above)
-  {
-    //                                          max packet size --vvvvvvvvv
-    std::vector<uint8_t> bytes = str2bytes("0800 0000   0002 0000 0001 0000");
-
-    HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
-
-    HandshakeResponsePacket::Parser41 prs(pkt);
-    EXPECT_EQ(kOffset + kLength, prs.part1_max_packet_size(kOffset));
-    EXPECT_EQ(0x00000100u, pkt.max_packet_size_);
-  }
-
-  // max packet size ok (just below limit)
+  // ok
   {
     //                                          max packet size --vvvvvvvvv
     std::vector<uint8_t> bytes = str2bytes("0800 0000   0002 0000 0000 0040");
@@ -357,7 +310,9 @@ TEST_F(HandshakeResponseParseTest, max_packet_size) {
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
-    EXPECT_EQ(kOffset + kLength, prs.part1_max_packet_size(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part1_max_packet_size();
+    EXPECT_EQ(kOffset + kLength, prs.read_pos_);
     EXPECT_EQ(0x40000000u, pkt.max_packet_size_);
   }
 }
@@ -379,19 +334,24 @@ TEST_F(HandshakeResponseParseTest, character_set) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part2_character_set(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading character set past EOF"
+      prs.read_pos_ = kOffset;
+      prs.part2_character_set(),
+      std::runtime_error, "start or end beyond EOF"
     );
   }
 
-  //                                                           char set --vv
-  std::vector<uint8_t> bytes = str2bytes("0000 0000   0000 0000 0000 0000 42");
+  // ok
+  { //                                                           char set --vv
+    std::vector<uint8_t> bytes = str2bytes("0000 0000   0000 0000 0000 0000 42");
 
-  HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
+    HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
-  HandshakeResponsePacket::Parser41 prs(pkt);
-  EXPECT_EQ(kOffset + kLength, prs.part2_character_set(kOffset));
-  EXPECT_EQ(0x42u, pkt.char_set_);
+    HandshakeResponsePacket::Parser41 prs(pkt);
+    prs.read_pos_ = kOffset;
+    prs.part2_character_set();
+    EXPECT_EQ(kOffset + kLength, prs.read_pos_);
+    EXPECT_EQ(0x42u, pkt.char_set_);
+  }
 }
 
 /**
@@ -411,8 +371,9 @@ TEST_F(HandshakeResponseParseTest, reserved) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part3_reserved(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading reserved 23-byte field past EOF"
+      prs.read_pos_ = kOffset;
+      prs.part3_reserved(),
+      std::runtime_error, "start or end beyond EOF"
     );
   }
 
@@ -425,8 +386,9 @@ TEST_F(HandshakeResponseParseTest, reserved) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part3_reserved(kOffset),
-      std::runtime_error, "Handshake response packet: truncated reserved 23-byte field (only 22 bytes long)"
+      prs.read_pos_ = kOffset;
+      prs.part3_reserved(),
+      std::runtime_error, "start or end beyond EOF"
 
     );
   }
@@ -443,7 +405,8 @@ TEST_F(HandshakeResponseParseTest, reserved) {
 
       HandshakeResponsePacket::Parser41 prs(pkt);
       EXPECT_THROW_LIKE(
-        prs.part3_reserved(kOffset),
+      prs.read_pos_ = kOffset;
+        prs.part3_reserved(),
         std::runtime_error, "Handshake response packet: found non-zero value in reserved 23-byte field"
       );
     }
@@ -457,7 +420,9 @@ TEST_F(HandshakeResponseParseTest, reserved) {
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
-    EXPECT_EQ(kOffset + kLength, prs.part3_reserved(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part3_reserved();
+    EXPECT_EQ(kOffset + kLength, prs.read_pos_);
   }
 }
 
@@ -478,22 +443,9 @@ TEST_F(HandshakeResponseParseTest, username) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part4_username(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading username past EOF"
-    );
-  }
-
-  // username is empty, have zero-terminator
-  {
-    std::vector<uint8_t> bytes = bytes_before_username;
-    bytes.push_back(0); // terminator
-
-    HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
-
-    HandshakeResponsePacket::Parser41 prs(pkt);
-    EXPECT_THROW_LIKE(
-      prs.part4_username(kOffset),
-      std::runtime_error, "Handshake response packet: zero-length username"
+      prs.read_pos_ = kOffset;
+      prs.part4_username(),
+      std::runtime_error, "start beyond EOF"
     );
   }
 
@@ -501,19 +453,18 @@ TEST_F(HandshakeResponseParseTest, username) {
   std::vector<uint8_t> username32 = str2bytes(
       "01020304050607080910 11121314151617181920 21222324252627282930 3132");
 
-  // username longer than 32 bytes
+  // username missing zero-terminator
   {
     std::vector<uint8_t> bytes = bytes_before_username;
     bytes.insert(bytes.end(), username32.begin(), username32.end());
-    bytes.push_back(33);  // username's 33rd char
-    bytes.push_back(0);   // terminator
 
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part4_username(kOffset),
-      std::runtime_error, "Handshake response packet: username is too long (33 bytes long)"
+      prs.read_pos_ = kOffset;
+      prs.part4_username(),
+      std::runtime_error, "zero-terminator not found"
     );
   }
 
@@ -526,7 +477,9 @@ TEST_F(HandshakeResponseParseTest, username) {
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
-    EXPECT_EQ(kOffset + username32.size() + 1, prs.part4_username(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part4_username();
+    EXPECT_EQ(kOffset + username32.size() + 1, prs.read_pos_);
     EXPECT_EQ(std::string(username32.begin(), username32.end()), pkt.username_);
   }
 }
@@ -541,26 +494,26 @@ TEST_F(HandshakeResponseParseTest, auth_response) {
       "11 22 33 44 00" /* username */);
   const size_t kOffset = bytes_before_auth_response.size();
 
-  // EOF : all 3 cases
+  // EOF
   {
     std::vector<uint8_t> bytes = bytes_before_auth_response; // no auth-response bytes follow
 
     for (Capabilities::Flags flags : {
         Capabilities::PROTOCOL_41 | Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA,
         Capabilities::PROTOCOL_41 | Capabilities::SECURE_CONNECTION,
-        Capabilities::PROTOCOL_41 | Capabilities::ALL_ZEROS}) {
+    }) {
 
       HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
       HandshakeResponsePacket::Parser41 prs(pkt);
       prs.effective_capability_flags_ = flags;
       EXPECT_THROW_LIKE(
-        prs.part5_auth_response(kOffset),
-        std::runtime_error, "HandshakeResponsePacket: tried reading auth-response past EOF"
+        prs.read_pos_ = kOffset;
+        prs.part5_auth_response(),
+        std::runtime_error, "beyond EOF"  // can be "start beyond EOF" or "start or end beyond EOF"
       );
 
     }
-
   }
 
   // unsupported capability flags : both PLUGIN_AUTH_LENENC_CLIENT_DATA and SECURE_CONNECTION missing
@@ -572,7 +525,8 @@ TEST_F(HandshakeResponseParseTest, auth_response) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     EXPECT_THROW_LIKE(
-      prs.part5_auth_response(kOffset),
+      prs.read_pos_ = kOffset;
+      prs.part5_auth_response(),
       std::runtime_error, "Handshake response packet: capabilities PLUGIN_AUTH_LENENC_CLIENT_DATA and SECURE_CONNECTION both missing is not implemented atm"
     );
   }
@@ -588,7 +542,9 @@ TEST_F(HandshakeResponseParseTest, auth_response) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA;
-    EXPECT_EQ(kOffset + auth_response.size() + uint_len, prs.part5_auth_response(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part5_auth_response();
+    EXPECT_EQ(kOffset + auth_response.size() + uint_len, prs.read_pos_);
     EXPECT_EQ(auth_response, pkt.auth_response_);
   }
 
@@ -603,7 +559,9 @@ TEST_F(HandshakeResponseParseTest, auth_response) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = Capabilities::SECURE_CONNECTION;
-    EXPECT_EQ(kOffset + auth_response.size() + 1, prs.part5_auth_response(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part5_auth_response();
+    EXPECT_EQ(kOffset + auth_response.size() + 1, prs.read_pos_);
     EXPECT_EQ(auth_response, pkt.auth_response_);
   }
 }
@@ -627,9 +585,9 @@ TEST_F(HandshakeResponseParseTest, database) {
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
-    prs.part6_database(kOffset);
-
-    EXPECT_EQ(kOffset, prs.part6_database(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part6_database();
+    EXPECT_EQ(kOffset, prs.read_pos_);
     EXPECT_EQ(std::string(""), pkt.database_);
   }
 
@@ -642,23 +600,9 @@ TEST_F(HandshakeResponseParseTest, database) {
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
     EXPECT_THROW_LIKE(
-      prs.part6_database(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading database name past EOF"
-    );
-  }
-
-  // database is empty, have zero-terminator
-  {
-    std::vector<uint8_t> bytes = bytes_before_database;
-    bytes.push_back(0); // terminator
-
-    HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
-
-    HandshakeResponsePacket::Parser41 prs(pkt);
-    prs.effective_capability_flags_ = flags;
-    EXPECT_THROW_LIKE(
-      prs.part6_database(kOffset),
-      std::runtime_error, "Handshake response packet: zero-length database name"
+      prs.read_pos_ = kOffset;
+      prs.part6_database(),
+      std::runtime_error, "start beyond EOF"
     );
   }
 
@@ -667,20 +611,19 @@ TEST_F(HandshakeResponseParseTest, database) {
       "01020304050607080910 11121314151617181920 21222324252627282930"
       "31323334353637383940 41424344454647484950 51525354555657585960 61626364");
 
-  // database longer than 64 bytes
+  // database missing zero-terminator
   {
     std::vector<uint8_t> bytes = bytes_before_database;
     bytes.insert(bytes.end(), database.begin(), database.end());
-    bytes.push_back(65);  // database's 65th char
-    bytes.push_back(0);   // terminator
 
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
     EXPECT_THROW_LIKE(
-      prs.part6_database(kOffset),
-      std::runtime_error, "Handshake response packet: database name is too long (65 bytes long)"
+      prs.read_pos_ = kOffset;
+      prs.part6_database(),
+      std::runtime_error, "zero-terminator not found"
     );
   }
 
@@ -694,7 +637,9 @@ TEST_F(HandshakeResponseParseTest, database) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
-    EXPECT_EQ(kOffset + database.size() + 1, prs.part6_database(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part6_database();
+    EXPECT_EQ(kOffset + database.size() + 1, prs.read_pos_);
     EXPECT_EQ(std::string(database.begin(), database.end()), pkt.database_);
   }
 }
@@ -718,9 +663,9 @@ TEST_F(HandshakeResponseParseTest, auth_plugin) {
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
-    prs.part7_auth_plugin(kOffset);
-
-    EXPECT_EQ(kOffset, prs.part7_auth_plugin(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part7_auth_plugin();
+    EXPECT_EQ(kOffset, prs.read_pos_);
     EXPECT_EQ(std::string(""), pkt.auth_plugin_);
   }
 
@@ -733,23 +678,9 @@ TEST_F(HandshakeResponseParseTest, auth_plugin) {
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
     EXPECT_THROW_LIKE(
-      prs.part7_auth_plugin(kOffset),
-      std::runtime_error, "HandshakeResponsePacket: tried reading auth plugin name past EOF"
-    );
-  }
-
-  // auth plugin name is empty, have zero-terminator
-  {
-    std::vector<uint8_t> bytes = bytes_before_auth_plugin;
-    bytes.push_back(0); // terminator
-
-    HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
-
-    HandshakeResponsePacket::Parser41 prs(pkt);
-    prs.effective_capability_flags_ = flags;
-    EXPECT_THROW_LIKE(
-      prs.part7_auth_plugin(kOffset),
-      std::runtime_error, "Handshake response packet: zero-length auth plugin name"
+      prs.read_pos_ = kOffset;
+      prs.part7_auth_plugin(),
+      std::runtime_error, "start beyond EOF"
     );
   }
 
@@ -758,21 +689,19 @@ TEST_F(HandshakeResponseParseTest, auth_plugin) {
       "01020304050607080910 11121314151617181920 21222324252627282930"
       "31323334353637383940 41424344454647484950 51525354555657585960 61626364");
 
-  // auth plugin name longer than 64 bytes
-  // NOTE: 64 bytes is not an official spec, just a picked reasonable number
+  // auth plugin missing zero-terminator
   {
     std::vector<uint8_t> bytes = bytes_before_auth_plugin;
     bytes.insert(bytes.end(), auth_plugin.begin(), auth_plugin.end());
-    bytes.push_back(65);  // auth plugin name's 65th char
-    bytes.push_back(0);   // terminator
 
     HandshakeResponsePacket pkt(bytes, kNoPayloadParse);
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
     EXPECT_THROW_LIKE(
-      prs.part7_auth_plugin(kOffset),
-      std::runtime_error, "Handshake response packet: auth plugin name is too long (65 bytes long)"
+      prs.read_pos_ = kOffset;
+      prs.part7_auth_plugin(),
+      std::runtime_error, "zero-terminator not found"
     );
   }
 
@@ -786,7 +715,9 @@ TEST_F(HandshakeResponseParseTest, auth_plugin) {
 
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
-    EXPECT_EQ(kOffset + auth_plugin.size() + 1, prs.part7_auth_plugin(kOffset));
+    prs.read_pos_ = kOffset;
+    prs.part7_auth_plugin();
+    EXPECT_EQ(kOffset + auth_plugin.size() + 1, prs.read_pos_);
     EXPECT_EQ(std::string(auth_plugin.begin(), auth_plugin.end()), pkt.auth_plugin_);
   }
 }
@@ -812,7 +743,8 @@ TEST_F(HandshakeResponseParseTest, connection_attrs) {
     HandshakeResponsePacket::Parser41 prs(pkt);
     prs.effective_capability_flags_ = flags;
     EXPECT_THROW_LIKE(
-      prs.part8_connection_attrs(kOffset),
+      prs.read_pos_ = kOffset;
+      prs.part8_connection_attrs(),
       std::runtime_error, "Handshake response packet: capability CONNECT_ATTRS is not implemented atm"
     );
   }

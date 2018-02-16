@@ -112,13 +112,13 @@ void HandshakeResponsePacket::prepare_packet() {
   }
 
   /*virtual*/
-  void HandshakeResponsePacket::Parser320::parse(Capabilities::Flags server_capabilities) {
+  void HandshakeResponsePacket::Parser320::parse(Capabilities::Flags server_capabilities) /*override*/ {
     (void) server_capabilities;
     throw std::runtime_error("Handshake response packet: Protocol is version 320, which is not implemented atm");
   }
 
   /*virtual*/
-  void HandshakeResponsePacket::Parser320::debug_dump() const noexcept {
+  void HandshakeResponsePacket::Parser320::debug_dump() const {
     throw std::runtime_error("not implemented");
   };
 
@@ -138,17 +138,11 @@ void HandshakeResponsePacket::prepare_packet() {
     if (packet.size() < kFlagsOffset + sizeof(Capabilities::HalfFlags))
       throw std::runtime_error("HandshakeResponsePacket: tried reading capability flags past EOF");
 
-    Capabilities::Flags flags(packet.get_int<Capabilities::HalfFlags>(kFlagsOffset));
+    Capabilities::Flags flags(packet.read_int<Capabilities::HalfFlags>(kFlagsOffset));
     return flags.test(Capabilities::PROTOCOL_41);
   }
 
-  void HandshakeResponsePacket::Parser41::throw_on_EOF(const char* field_name, size_t read_pos) {
-    if (read_pos >= packet_.size())
-      throw std::range_error(std::string("HandshakeResponsePacket: tried reading ")
-                             + field_name + " past EOF");
-  }
-
-  size_t HandshakeResponsePacket::Parser41::part1_max_packet_size(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part1_max_packet_size() {
 
     /**
      * This function implements this part of the specification:
@@ -156,27 +150,12 @@ void HandshakeResponsePacket::prepare_packet() {
      *   4              max-packet size
      */
 
-    throw_on_EOF("max packet size", read_pos);
-
     using MaxPacketSize = decltype(packet_.max_packet_size_);
-    MaxPacketSize& max_packet_size = packet_.max_packet_size_;
 
-    max_packet_size = packet_.get_int<MaxPacketSize>(read_pos);
-    read_pos += sizeof(MaxPacketSize);
-
-    if (max_packet_size > kMaxAllowedSize)
-      throw std::runtime_error("Handshake response packet: max_packet_size (" +
-                               std::to_string(max_packet_size) + ") greater than allowed (" +
-                               std::to_string(kMaxAllowedSize) + ")");
-
-    // not official specification, just our own sanity check
-    if (max_packet_size < 256) // 256 <-- just picked a reasonable number here
-      throw std::runtime_error("Handshake response packet: max_packet_size of suspicious size (" +
-                               std::to_string(max_packet_size) + ")");
-    return read_pos;
+    packet_.max_packet_size_ = packet_.read_adv_int<MaxPacketSize>(read_pos_);
   }
 
-  size_t HandshakeResponsePacket::Parser41::part2_character_set(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part2_character_set() {
 
     /**
      * This function implements this part of the specification:
@@ -184,15 +163,12 @@ void HandshakeResponsePacket::prepare_packet() {
      *   1              character set
      */
 
-    throw_on_EOF("character set", read_pos);
-
     using CharSet = decltype(packet_.char_set_);
 
-    packet_.char_set_ = packet_.get_int<CharSet>(read_pos);
-    return read_pos + sizeof(CharSet);
+    packet_.char_set_ = packet_.read_adv_int<CharSet>(read_pos_);
   }
 
-  size_t HandshakeResponsePacket::Parser41::part3_reserved(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part3_reserved() {
 
     /**
      * This function implements this part of the specification:
@@ -200,25 +176,15 @@ void HandshakeResponsePacket::prepare_packet() {
      *   string[23]     reserved (all [0])
      */
 
-    throw_on_EOF("reserved 23-byte field", read_pos);
-
     constexpr size_t kReservedBytes = 23;
-
-    if (packet_.size() - read_pos < kReservedBytes)
-      throw std::runtime_error("Handshake response packet: truncated reserved 23-byte field (only " +
-                               std::to_string(packet_.size() - read_pos) + " bytes long)");
-
-    vector<uint8_t> reserved = packet_.get_bytes(read_pos, kReservedBytes);
-    read_pos += kReservedBytes;
+    vector<uint8_t> reserved = packet_.read_adv_bytes(read_pos_, kReservedBytes);
 
     // proper packet should have all of those set to 0
     if (! std::all_of(reserved.begin(), reserved.end(), [](uint8_t c) { return c == 0; }))
       throw std::runtime_error("Handshake response packet: found non-zero value in reserved 23-byte field");
-
-    return read_pos;
   }
 
-  size_t HandshakeResponsePacket::Parser41::part4_username(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part4_username() {
 
     /**
      * This function implements this part of the specification:
@@ -226,32 +192,10 @@ void HandshakeResponsePacket::prepare_packet() {
      *   string[NUL]    username
      */
 
-    throw_on_EOF("username", read_pos);
-
-    // username is zero-terminated in the packet, get_string() will return it without the trailing 0
-    packet_.username_ = packet_.get_string(read_pos);
-    read_pos += packet_.username_.size();
-
-    // validate length
-    if (packet_.username_.size() == 0)
-      throw std::runtime_error("Handshake response packet: zero-length username");
-    // max len in 5.7 is 32 bytes (https://dev.mysql.com/doc/refman/5.7/en/user-names.html)
-    else if (packet_.username_.size() > 32)
-      throw std::runtime_error("Handshake response packet: username is too long (" +
-                               std::to_string(packet_.username_.size()) + " bytes long)");
-
-    // verify and skip over the zero-terminator
-    // (hard to violate, since get_string() reads until zero-terminator. However,
-    // it may return string up to EOF if the packet is truncated)
-    if (packet_.get_int<uint8_t>(read_pos) != 0)
-      throw std::runtime_error("Handshake response packet: username not followed by zero-terminator "
-                               "(truncated packet?)");
-    read_pos++;
-
-    return read_pos;
+    packet_.username_ = packet_.read_adv_string_nul(read_pos_);
   }
 
-  size_t HandshakeResponsePacket::Parser41::part5_auth_response(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part5_auth_response() {
 
     /**
      * This function implements this part of the specification:
@@ -267,37 +211,28 @@ void HandshakeResponsePacket::prepare_packet() {
      *   }
      */
 
-    throw_on_EOF("auth-response", read_pos);
-
     if (effective_capability_flags_.test(Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA)) {
 
       // get auth-response string length
-      auto pr = packet_.get_lenenc_uint(read_pos);
-      uint64_t len = pr.first;  // length 0 is a valid value
-      read_pos += pr.second;
+      uint64_t len = packet_.read_adv_lenenc_uint(read_pos_); // length 0 is a valid value
 
       // get auth-response string
-      packet_.auth_response_ = packet_.get_bytes(read_pos, len);
-      read_pos += packet_.auth_response_.size();
+      packet_.auth_response_ = packet_.read_adv_bytes(read_pos_, len);
 
     } else if (effective_capability_flags_.test(Capabilities::SECURE_CONNECTION)) {
 
       // get auth-response string length
-      uint64_t len = packet_.get_int<uint8_t>(read_pos);
-      read_pos += 1;
+      uint64_t len = packet_.read_adv_int<uint8_t>(read_pos_);
 
       // get auth-response string
-      packet_.auth_response_ = packet_.get_bytes(read_pos, len);
-      read_pos += packet_.auth_response_.size();
+      packet_.auth_response_ = packet_.read_adv_bytes(read_pos_, len);
 
     } else {
       throw std::runtime_error("Handshake response packet: capabilities PLUGIN_AUTH_LENENC_CLIENT_DATA and SECURE_CONNECTION both missing is not implemented atm");
     }
-
-    return read_pos;
   }
 
-  size_t HandshakeResponsePacket::Parser41::part6_database(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part6_database() {
 
     /**
      * This function implements this part of the specification:
@@ -307,35 +242,11 @@ void HandshakeResponsePacket::prepare_packet() {
      *   }
      */
 
-    if (effective_capability_flags_.test(Capabilities::CONNECT_WITH_DB)) {
-
-      throw_on_EOF("database name", read_pos);
-
-      // database name is zero-terminated in the packet, get_string() will return it without the trailing 0
-      packet_.database_ = packet_.get_string(read_pos);
-      read_pos += packet_.database_.size();
-
-      // validate length
-      if (packet_.database_.size() == 0)
-        throw std::runtime_error("Handshake response packet: zero-length database name");
-      // max len in 5.7 is 64 bytes (https://dev.mysql.com/doc/refman/5.7/en/identifiers.html)
-      else if (packet_.database_.size() > 64)
-        throw std::runtime_error("Handshake response packet: database name is too long (" +
-                                 std::to_string(packet_.database_.size()) + " bytes long)");
-
-      // verify and skip over the zero-terminator
-      // (hard to violate, since get_string() reads until zero-terminator. However,
-      // it may return string up to EOF if the packet is truncated)
-      if (packet_.get_int<uint8_t>(read_pos) != 0)
-        throw std::runtime_error("Handshake response packet: database name not followed by zero-terminator "
-                                 "(truncated packet?)");
-      read_pos++;
-    }
-
-    return read_pos;
+    if (effective_capability_flags_.test(Capabilities::CONNECT_WITH_DB))
+      packet_.database_ = packet_.read_adv_string_nul(read_pos_);
   }
 
-  size_t HandshakeResponsePacket::Parser41::part7_auth_plugin(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part7_auth_plugin() {
 
     /**
      * This function implements this part of the specification:
@@ -345,36 +256,11 @@ void HandshakeResponsePacket::prepare_packet() {
      *   }
      */
 
-    if (effective_capability_flags_.test(Capabilities::PLUGIN_AUTH)) {
-
-      throw_on_EOF("auth plugin name", read_pos);
-
-      // auth plugin name is zero-terminated in the packet, get_string() will return it without the trailing 0
-      packet_.auth_plugin_ = packet_.get_string(read_pos);
-      read_pos += packet_.auth_plugin_.size();
-
-
-      // validate length
-      if (packet_.auth_plugin_.size() == 0)
-        throw std::runtime_error("Handshake response packet: zero-length auth plugin name");
-      // 64 <-- just picked a reasonable number here, this is not official spec
-      else if (packet_.auth_plugin_.size() > 64)
-        throw std::runtime_error("Handshake response packet: auth plugin name is too long (" +
-                                 std::to_string(packet_.auth_plugin_.size()) + " bytes long)");
-
-      // verify and skip over the zero-terminator
-      // (hard to violate, since get_string() reads until zero-terminator.  However,
-      // it may return string up to EOF if the packet is truncated)
-      if (packet_.get_int<uint8_t>(read_pos) != 0)
-        throw std::runtime_error("Handshake response packet: plugin auth name not followed by zero-terminator "
-                                 "(truncated packet?)");
-      read_pos++;
-    }
-
-    return read_pos;
+    if (effective_capability_flags_.test(Capabilities::PLUGIN_AUTH))
+      packet_.auth_plugin_ = packet_.read_adv_string_nul(read_pos_);
   }
 
-  size_t HandshakeResponsePacket::Parser41::part8_connection_attrs(size_t read_pos) {
+  void HandshakeResponsePacket::Parser41::part8_connection_attrs() {
 
     /**
      * This function implements this part of the specification:
@@ -387,15 +273,12 @@ void HandshakeResponsePacket::prepare_packet() {
      *   }
      */
 
-    if (effective_capability_flags_.test(Capabilities::CONNECT_ATTRS)) {
+    if (effective_capability_flags_.test(Capabilities::CONNECT_ATTRS))
       throw std::runtime_error("Handshake response packet: capability CONNECT_ATTRS is not implemented atm");
-    }
-
-    return read_pos;
   }
 
 
-  void HandshakeResponsePacket::Parser41::parse(Capabilities::Flags server_capabilities) {
+  void HandshakeResponsePacket::Parser41::parse(Capabilities::Flags server_capabilities) /*override*/ {
 
     // full packet specification is here:
     // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41
@@ -405,13 +288,13 @@ void HandshakeResponsePacket::prepare_packet() {
       throw std::runtime_error("Handshake response packet: server not supporting PROTOCOL_41 in not implemented atm");
 
     // our packet-reading "cursor"
-    size_t read_pos = 0;
+    read_pos_ = 0;
 
     // header
     {
       // header should have already been parsed by Packet::parse_header(), which is
       // called by Packet constructor, so here we just skip it over
-      read_pos += 4;
+      read_pos_ += 4;
 
       // correct handshake packet always has seq num = 1
       if (packet_.get_sequence_id() != 1)
@@ -421,8 +304,8 @@ void HandshakeResponsePacket::prepare_packet() {
     // capabilities
     {
       // NOTE: in PROTOCOL_320, capabilities are expressed only in 2 bytes, PROTOCOL_41 uses 4
-      packet_.capability_flags_ = Capabilities::Flags(packet_.get_int<Capabilities::AllFlags>(read_pos));
-      read_pos += sizeof(Capabilities::AllFlags);
+      packet_.capability_flags_ = Capabilities::Flags(packet_.read_int<Capabilities::AllFlags>(read_pos_));
+      read_pos_ += sizeof(Capabilities::AllFlags);
 
       // see @note in HandshakeResponsePacket ctor
       effective_capability_flags_ = packet_.capability_flags_ & server_capabilities;
@@ -433,21 +316,21 @@ void HandshakeResponsePacket::prepare_packet() {
 
     // parse protocol-defined fields; all part*() throw std::runtime_error (or its derivatives)
     {
-      read_pos = part1_max_packet_size(read_pos);
-      read_pos = part2_character_set(read_pos);
-      read_pos = part3_reserved(read_pos);
-      read_pos = part4_username(read_pos);
-      read_pos = part5_auth_response(read_pos);
-      read_pos = part6_database(read_pos);
-      read_pos = part7_auth_plugin(read_pos);
-      read_pos = part8_connection_attrs(read_pos);
+      part1_max_packet_size();
+      part2_character_set();
+      part3_reserved();
+      part4_username();
+      part5_auth_response();
+      part6_database();
+      part7_auth_plugin();
+      part8_connection_attrs();
     }
 
     // now let's verify packet payload length vs what we parsed
-    if (read_pos != packet_.payload_size_ + 4)  // +4 because payload_size_ does not include 4-byte header
+    if (read_pos_ != packet_.payload_size_ + 4)  // +4 because payload_size_ does not include 4-byte header
       throw std::runtime_error("Handshake response packet: parsed ok, but payload packet size (" +
                                std::to_string(packet_.payload_size_) + " bytes) differs from what we parsed (" +
-                               std::to_string(read_pos) + " bytes)");
+                               std::to_string(read_pos_) + " bytes)");
   }
 
 
@@ -469,7 +352,7 @@ void HandshakeResponsePacket::prepare_packet() {
     buf << std::hex;
 
     for (size_t i = 0; i < length; i++) {
-      buf << bytes[i] / 16 << bytes[i] % 16;
+      buf << (bytes[i] & 0xf0 >> 4) << (bytes[i] & 0x0f);
       if (i % bytes_per_group == space_after_modulus)
         buf << " ";
     }
@@ -574,7 +457,7 @@ void HandshakeResponsePacket::prepare_packet() {
       size_t len = packet_[pos]; // assume length is encoded in only 1 byte
       pos += 1;   // advance past auth_response length
       if (len > 0)
-        printf("    auth_response = (%lu bytes) %s\n", len, bytes2str(packet_.data() + pos, len).c_str());
+        printf("    auth_response = (%zu bytes) %s\n", len, bytes2str(packet_.data() + pos, len).c_str());
       else
         printf("    auth_response is empty\n");
 

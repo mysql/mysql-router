@@ -119,7 +119,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver, bool sender_is_reada
         mysql_protocol::Capabilities::Flags capabilities;
         try {
           auto pkt = mysql_protocol::Packet(buffer);
-          capabilities = mysql_protocol::Capabilities::Flags(pkt.get_int<uint32_t>(4));
+          capabilities = mysql_protocol::Capabilities::Flags(pkt.read_int<uint32_t>(4));
         } catch (const mysql_protocol::packet_error &exc) {
           log_debug("%s", exc.what());
           return -1;

@@ -89,18 +89,18 @@ void ErrorPacket::parse_payload() {
   }
 
   unsigned long pos = 5;
-  code_ = get_int<uint16_t>(pos);
+  code_ = read_int<uint16_t>(pos);
   pos += 2;
   if ((*this)[7] == 0x23) {
     // We get the SQLState even when CLIENT_PROTOCOL_41 flag was not set
     // This is needed in cases when the server sends an
     // error to the client instead of the handshake.
-    sql_state_ = get_string(++pos, 5); // We skip 0x23
+    sql_state_ = read_string(++pos, 5); // We skip 0x23
     pos += 5;
   } else {
     sql_state_ = "";
   }
-  message_ = get_string(pos);
+  message_ = read_string(pos);
 }
 
 } // namespace mysql_protocol

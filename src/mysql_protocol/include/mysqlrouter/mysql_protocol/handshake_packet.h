@@ -146,22 +146,22 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
   }
 
   /** @brief returns username specified in the packet */
-  std::string get_username() { return username_; }
+  const std::string& get_username() const { return username_; }
 
   /** @brief returns database name specified in the packet */
-  std::string get_database() { return database_; }
+  const std::string& get_database() const { return database_; }
 
   /** @brief returns character set specified in the packet */
-  uint8_t get_character_set() { return char_set_; }
+  uint8_t get_character_set() const { return char_set_; }
 
   /** @brief returns auth-plugin-name specified in the packet */
-  std::string get_auth_plugin() { return auth_plugin_; }
+  const std::string& get_auth_plugin() const { return auth_plugin_; }
 
   /** @brief returns auth-plugin-data specified in the packet */
-  std::vector<uint8_t> get_auth_response() { return auth_response_; }
+  const std::vector<uint8_t>& get_auth_response() const { return auth_response_; }
 
   /** @brief returns max packet size specified in the packet */
-  uint32_t get_max_packet_size() { return max_packet_size_; }
+  uint32_t get_max_packet_size() const { return max_packet_size_; }
 
   /** @brief (debug tool) parse packet contents and print this info on stdout */
   void debug_dump() {
@@ -217,18 +217,19 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
   /** @brief Parser used to parse this packet */
   std::unique_ptr<Parser> parser_;
 
-  class Parser {
+  class MYSQL_PROTOCOL_API Parser {
    public:
     virtual ~Parser() = default;
     virtual void parse(Capabilities::Flags server_capabilities) = 0;
+    size_t read_pos_;
 
     // debug tools
     static std::string bytes2str(const uint8_t* bytes,
                                  size_t length, size_t bytes_per_group = 4) noexcept;
-    virtual void debug_dump() const noexcept = 0;
+    virtual void debug_dump() const = 0;
   };
 
-  class Parser41 : public Parser {
+  class MYSQL_PROTOCOL_API Parser41 : public Parser {
    public:
 
     Parser41(HandshakeResponsePacket& packet) : packet_(packet) {}
@@ -248,7 +249,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
      *        be &-ed with them before applying rules for packet parsing.
      * @throws std::runtime_error on unrecognised or invalid packet
      */
-    void parse(Capabilities::Flags server_capabilities);
+    void parse(Capabilities::Flags server_capabilities) override;
 
     // debug tools
     void debug_dump() const noexcept override;
@@ -260,15 +261,14 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
      * All these methods throw std::runtime_error on parse errors; in particular,
      * std::range_error (std::runtime_error specialization) is thrown on EOF
      * */
-    void throw_on_EOF(const char* field_name, size_t read_pos);
-    size_t part1_max_packet_size(size_t read_pos);
-    size_t part2_character_set(size_t read_pos);
-    size_t part3_reserved(size_t read_pos);
-    size_t part4_username(size_t read_pos);
-    size_t part5_auth_response(size_t read_pos);
-    size_t part6_database(size_t read_pos);
-    size_t part7_auth_plugin(size_t read_pos);
-    size_t part8_connection_attrs(size_t read_pos);
+    void part1_max_packet_size();
+    void part2_character_set();
+    void part3_reserved();
+    void part4_username();
+    void part5_auth_response();
+    void part6_database();
+    void part7_auth_plugin();
+    void part8_connection_attrs();
 
     HandshakeResponsePacket& packet_;
     Capabilities::Flags effective_capability_flags_;
@@ -291,7 +291,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
 
   };
 
-  class Parser320 : public Parser {
+  class MYSQL_PROTOCOL_API Parser320 : public Parser {
    public:
 
     Parser320(HandshakeResponsePacket& packet) : packet_(packet) {}
@@ -308,7 +308,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
      * Currently not implemented
      */
     void parse(Capabilities::Flags server_capabilities) override;
-    void debug_dump() const noexcept override;
+    void debug_dump() const override;
 
     HandshakeResponsePacket& packet_;
     Capabilities::Flags effective_capability_flags_;
