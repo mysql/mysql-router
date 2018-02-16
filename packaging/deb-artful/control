@@ -2,7 +2,7 @@ Source: mysql-router
 Maintainer: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Section: database
 Priority: optional
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Homepage: http://www.mysql.com/
 Build-Depends: cmake,
  debhelper (>= 9.0.0),
