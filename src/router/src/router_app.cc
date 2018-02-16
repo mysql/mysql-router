@@ -1035,7 +1035,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   }
 #endif
 
-  auto defualt_paths = get_default_paths();
+  auto default_paths = get_default_paths();
 
   if (bootstrap_directory_.empty()) {
     std::string config_file_path =
@@ -1060,10 +1060,10 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     }
     default_keyring_file.append("/").append(kDefaultKeyringFileName);
     config_gen.bootstrap_system_deployment(config_file_path,
-        bootstrap_options_, defualt_paths, default_keyring_file, master_key_path);
+        bootstrap_options_, default_paths, default_keyring_file, master_key_path);
   } else {
     config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-        bootstrap_options_, defualt_paths, kDefaultKeyringFileName, "mysqlrouter.key");
+        bootstrap_options_, default_paths, kDefaultKeyringFileName, "mysqlrouter.key");
   }
 }
 
