@@ -44,6 +44,8 @@
 
 namespace server_mock {
 
+//TODO use of this class should probably be replaced by mysql_protocol::Packet* classes
+
 MySQLProtocolDecoder::MySQLProtocolDecoder(const ReadCallback& read_clb):
   read_callback_(read_clb)
 {}
@@ -62,7 +64,7 @@ void MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
 
   uint32_t pkt_len = header & 0x00ffffff;
 
-  if (pkt_len == 0xffffff) {
+  if (pkt_len == 0x00ffffff) {
     // this means more data comming, which we don't need/support atm
     throw std::runtime_error("Protocol messages split into several packets not supported!");
   }

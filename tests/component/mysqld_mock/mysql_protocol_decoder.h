@@ -78,7 +78,6 @@ class MySQLProtocolDecoder {
 
   /** @brief Retrieves command type from the packet sent by the client.
    *
-   * @param packet  protocol packet to inspect
    * @returns command type
    **/
   mysql_protocol::Command get_command_type() const;
@@ -87,7 +86,6 @@ class MySQLProtocolDecoder {
    *
    * The method assumes that the packet is MySQL QUERY command.
    *
-   * @param packet  packet to inspect
    * @returns SQL statement
    **/
   std::string get_statement() const;
@@ -102,8 +100,9 @@ class MySQLProtocolDecoder {
     std::vector<byte> packet_buffer;
   };
 
-  ProtocolPacketType packet_;
   const ReadCallback read_callback_;
+  ProtocolPacketType packet_;
+  mysql_protocol::Capabilities::Flags capabilities_;
 };
 
 } // namespace

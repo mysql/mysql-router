@@ -64,6 +64,17 @@ class MySQLServerMock {
 
   void handle_connections();
 
+  void send_handshake(socket_t client_socket,
+                      mysql_protocol::Capabilities::Flags our_capabilities);
+
+  mysql_protocol::HandshakeResponsePacket handle_handshake_response(
+      socket_t client_socket,
+      mysql_protocol::Capabilities::Flags our_capabilities);
+
+  void handle_auth_switch(socket_t client_socket);
+
+  void send_fast_auth(socket_t client_socket);
+
   bool process_statements(socket_t client_socket);
 
   void handle_statement(socket_t client_socket, uint8_t seq_no,

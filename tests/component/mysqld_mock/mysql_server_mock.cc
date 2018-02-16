@@ -23,6 +23,7 @@
 */
 
 #include "mysql_server_mock.h"
+#include "mysql_protocol_utils.h"
 
 #include <cstring>
 #include <functional>
@@ -57,60 +58,6 @@ using namespace std::placeholders;
 
 namespace {
 
-int get_socket_errno() {
-#ifndef _WIN32
-  return errno;
-#else
-  return WSAGetLastError();
-#endif
-}
-
-std::string get_socket_errno_str() {
-  return std::to_string(get_socket_errno());
-}
-
-void send_packet(socket_t client_socket, const uint8_t *data, size_t size, int flags = 0) {
-  ssize_t sent = 0;
-  size_t buffer_offset = 0;
-  while (buffer_offset < size) {
-    if ((sent = send(client_socket, reinterpret_cast<const char*>(data) + buffer_offset,
-                     size-buffer_offset, flags)) < 0) {
-      throw std::system_error(get_socket_errno(), std::system_category(), "send() failed");
-    }
-    buffer_offset += static_cast<size_t>(sent);
-  }
-}
-
-void send_packet(socket_t client_socket,
-                 const server_mock::MySQLProtocolEncoder::MsgBuffer &buffer,
-                 int flags = 0) {
-  send_packet(client_socket, buffer.data(), buffer.size(), flags);
-}
-
-void read_packet(socket_t client_socket, uint8_t *data, size_t size, int flags = 0) {
-  ssize_t received = 0;
-  size_t buffer_offset = 0;
-  while (buffer_offset < size) {
-    received = recv(client_socket, reinterpret_cast<char*>(data)+buffer_offset,
-                    size-buffer_offset, flags);
-    if (received < 0) {
-      throw std::system_error(get_socket_errno(), std::system_category(), "recv() failed");
-    } else if (received == 0) {
-      // connection closed by client
-      throw std::runtime_error("recv() failed: Connection Closed");
-    }
-    buffer_offset += static_cast<size_t>(received);
-  }
-}
-
-int close_socket(socket_t sock) {
-#ifndef _WIN32
-  return close(sock);
-#else
-  return closesocket(sock);
-#endif
-}
-
 bool pattern_matching(const std::string &s,
                       const std::string &pattern) {
 #ifndef _WIN32
@@ -128,9 +75,13 @@ bool pattern_matching(const std::string &s,
 #endif
 }
 
-}
+} // unnamed namespace
 
 namespace server_mock {
+
+constexpr char kAuthCachingSha2Password[] = "caching_sha2_password";
+constexpr char kAuthNativePassword[] = "mysql_native_password";
+constexpr size_t kReadBufSize = 16 * 1024;  // size big enough to contain any packet we're likely to read
 
 MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
                                  unsigned bind_port, bool debug_mode):
@@ -204,6 +155,124 @@ static void sigterm_handler(int /* signo */) {
 static bool g_terminate = false;
 #endif
 
+void MySQLServerMock::send_handshake(
+    socket_t client_socket,
+    mysql_protocol::Capabilities::Flags our_capabilities) {
+
+  constexpr const char* plugin_name = kAuthNativePassword;
+  constexpr const char* plugin_data = "123456789|ABCDEFGHI|"; // 20 bytes
+
+  std::vector<uint8_t> buf = protocol_encoder_.encode_greetings_message(
+      0, "8.0.5", 1, plugin_data, our_capabilities, plugin_name);
+  send_packet(client_socket, buf);
+}
+
+mysql_protocol::HandshakeResponsePacket MySQLServerMock::handle_handshake_response(
+    socket_t client_socket,
+    mysql_protocol::Capabilities::Flags our_capabilities) {
+
+  typedef std::vector<uint8_t> MsgBuffer;
+  using namespace mysql_protocol;
+
+  uint8_t buf[kReadBufSize];
+  size_t payload_size;
+  constexpr size_t header_len = HandshakeResponsePacket::get_header_length();
+
+  // receive handshake response packet
+  {
+    // reads all bytes or throws
+    read_packet(client_socket, buf, header_len);
+
+    if (HandshakeResponsePacket::read_sequence_id(buf) != 1)
+      throw std::runtime_error("Handshake response packet with incorrect sequence number: " +
+                               std::to_string(HandshakeResponsePacket::read_sequence_id(buf)));
+
+    payload_size = HandshakeResponsePacket::read_payload_size(buf);
+    assert(header_len + payload_size <= sizeof(buf));
+
+    // reads all bytes or throws
+    read_packet(client_socket, buf + header_len, payload_size);
+  }
+
+  // parse handshake response packet
+  {
+    HandshakeResponsePacket pkt(MsgBuffer(buf, buf + header_len + payload_size));
+    try {
+      pkt.parse_payload(our_capabilities);
+
+      #if 0 // enable if you need to debug
+      pkt.debug_dump();
+      #endif
+      return pkt;
+    } catch (const std::runtime_error& e) {
+      // Dump packet contents to stdout, so we can try to debug what went wrong.
+      // Since parsing failed, this is also likely to throw. If it doesn't,
+      // great, but we'll be happy to take whatever info the dump can give us
+      // before throwing.
+      try {
+        pkt.debug_dump();
+      } catch (...) {}
+
+      throw;
+    }
+  }
+}
+
+void MySQLServerMock::handle_auth_switch(socket_t client_socket) {
+
+  constexpr uint8_t seq_nr = 2;
+
+  // send switch-auth request packet
+  {
+    constexpr const char* plugin_data = "123456789|ABCDEFGHI|";
+
+    auto buf = protocol_encoder_.encode_auth_switch_message(
+                   seq_nr, kAuthCachingSha2Password, plugin_data);
+    send_packet(client_socket, buf);
+  }
+
+  // receive auth-data packet
+  {
+    using namespace mysql_protocol;
+    constexpr size_t header_len = HandshakeResponsePacket::get_header_length();
+
+    uint8_t buf[kReadBufSize];
+
+    // reads all bytes or throws
+    read_packet(client_socket, buf, header_len);
+
+    if (HandshakeResponsePacket::read_sequence_id(buf) != seq_nr + 1)
+      throw std::runtime_error("Auth-change response packet with incorrect sequence number: " +
+                               std::to_string(HandshakeResponsePacket::read_sequence_id(buf)));
+
+    size_t payload_size = HandshakeResponsePacket::read_payload_size(buf);
+    assert(header_len + payload_size <= sizeof(buf));
+
+    // reads all bytes or throws
+    read_packet(client_socket, buf + header_len, payload_size);
+
+    // for now, we ignore the contents we just read, because we always positively
+    // authenticate the client
+  }
+
+}
+
+void MySQLServerMock::send_fast_auth(socket_t client_socket) {
+  // a mysql-8 client will send us a cache-256-password-scramble
+  // and expects a \x03 back (fast-auth) + a OK packet
+  // Here we send the 1st of the two.
+
+  // pretend we do cached_sha256 fast-auth
+  constexpr uint8_t seq_nr = 4;
+  constexpr uint8_t fast_auth_cmd = 3;
+  constexpr uint8_t payload_size_bytes[] = {1, 0, 0};
+  constexpr uint8_t switch_auth[] = {payload_size_bytes[0], payload_size_bytes[1], payload_size_bytes[2],
+                                     seq_nr, fast_auth_cmd};
+
+  send_packet(client_socket, switch_auth, sizeof(switch_auth));
+}
+
+
 void MySQLServerMock::handle_connections() {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
@@ -245,7 +314,7 @@ void MySQLServerMock::handle_connections() {
   std::condition_variable active_client_threads_cond;
   std::mutex active_client_threads_cond_m;
 
-  auto connection_handler = [&](socket_t client_sock) -> void {
+  auto connection_handler = [&](socket_t client_socket) -> void {
     // increment the active thread count
     {
       std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
@@ -255,7 +324,7 @@ void MySQLServerMock::handle_connections() {
 
     // ... and make sure decrement it again on exit ... and close the socket
     std::shared_ptr<void> exit_guard(nullptr, [&](void*){
-      close_socket(client_sock);
+      close_socket(client_socket);
 
       {
         std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
@@ -264,25 +333,57 @@ void MySQLServerMock::handle_connections() {
       }
     });
     try {
-      auto buf = protocol_encoder_.encode_greetings_message(0);
-      send_packet(client_sock, buf);
-
-      protocol_decoder_.read_message(client_sock);
-
-      // a mysql-8 client will send us a cache-256-password-scramble
-      // and expects a \x03 back (fast-auth) + a OK packet
+      ////////////////////////////////////////////////////////////////////////////////
       //
-      // TODO: properly handle authentication
+      // This is the handshake packet that my server v8.0.5 emits:
+      //
+      //        <header >   v10  <--- server version
+      //  0000: 6c00 0000   0a   38 2e30 2e35 2d65 6e74 6572 7072 6973 652d 636f 6d6d 6572 6369 616c            l....8.0.5-enterprise-commercial
+      //
+      //                         server version -> <conn id> <-- auth data 1 -->  zero cap.low char status
+      //  0020: 2d61 6476 616e 6365 642d 6c6f 6700 0800 0000 5b09 4e78 3d48 0a11   00   ff ff   ff   0200       -advanced-log.....[.Nx=H........
+      //
+      //      cap.hi  auth-len  <- reserved 10 0-bytes ->   <SECURE_CONN && auth-data 2    >   <PLUGIN_AUTH && auth-plugin name
+      //  0040: ffc3     15     00 0000 0000 0000 0000 00   64 1242 070c 5263 2d01 710c 4100   6361 6368 696e   .............d.B..Rc-.q.A.cachin
+      //
+      //        auth-plugin name --------------------->
+      //  0060: 675f 7368 6132 5f70 6173 7377 6f72 6400                                                         g_sha2_password.
+      //
+      //
+      //  client v8.0.5 reponds with capability flags: 05ae ff01
+      //
+      ////////////////////////////////////////////////////////////////////////////////
 
-      // pretend we do cached_sha256 fast-auth
-      const uint8_t switch_auth[] = "\x01\x00\x00\x02\x03";
-      send_packet(client_sock, switch_auth, sizeof(switch_auth) - 1);
+      using namespace mysql_protocol;
 
-      uint8_t packet_seq = protocol_decoder_.packet_seq() + 2;   // rollover to or past 0 is ok
-      send_ok(client_sock, packet_seq);
-      bool res = process_statements(client_sock);
+      constexpr Capabilities::Flags our_capabilities = Capabilities::PROTOCOL_41
+                                                     | Capabilities::PLUGIN_AUTH
+                                                     | Capabilities::SECURE_CONNECTION;
+
+      send_handshake(client_socket, our_capabilities);
+      HandshakeResponsePacket handshake_response = handle_handshake_response(
+                                                       client_socket, our_capabilities);
+
+      uint8_t packet_seq = 2u;
+      if (handshake_response.get_auth_plugin() == kAuthCachingSha2Password) {
+        // typically, client >= 8.0.4 will trigger this branch
+
+        handle_auth_switch(client_socket);
+        send_fast_auth(client_socket);
+        packet_seq += 3;  // 2 from auth-switch + 1 from fast-auth
+
+      } else if (handshake_response.get_auth_plugin() == kAuthNativePassword) {
+        // typically, client <= 5.7 will trigger this branch; do nothing, we're good
+      } else {
+        // unexpected auth-plugin name
+        assert(0);
+      }
+
+      send_ok(client_socket, packet_seq);
+
+      bool res = process_statements(client_socket);
       if (!res) {
-        std::cout << "Error processing statements with client: " << client_sock << std::endl;
+        std::cout << "Error processing statements with client: " << client_socket << std::endl;
       }
     }
     catch (const std::exception &e) {
@@ -463,4 +564,4 @@ void MySQLServerMock::send_ok(socket_t client_socket, uint8_t seq_no,
   send_packet(client_socket, buf);
 }
 
-} // namespace
+} // namespace server_mock

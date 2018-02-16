@@ -57,5 +57,5 @@ target_include_directories(mysql_server_mock PUBLIC
   ${RAPIDJSON_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include/)
 
-target_link_libraries(mysql_server_mock ${common_libraries})
+target_link_libraries(mysql_server_mock ${common_libraries} mysql_protocol)
 set_target_output_directory(mysql_server_mock RUNTIME_OUTPUT_DIRECTORY bin)

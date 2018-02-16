@@ -80,21 +80,39 @@ public:
    * @param seq_no          protocol packet sequence number to use
    * @param mysql_version   MySQL server version string
    * @param connection_id   is of the client connection
-   * @param nonce           authentication plugin data
+   * @param auth_plugin_data authentication plugin data (nonce)
    * @param capabilities    bitmask with MySQL Server capabilities
+   * @param auth_plugin_name auth-plugin name, written only if PLUGIN_AUTH cap.flag is set
    * @param character_set   id of the connection character set
    * @param status_flags    bitmask with MySQL Server status flags
    *
    * @returns buffer with the encoded message
    **/
   MsgBuffer encode_greetings_message(uint8_t seq_no,
-                                      const std::string &mysql_version = "8.0.3",
+                                      const std::string &mysql_version = "8.0.5",
                                       uint32_t connection_id = 1,
-                                      const std::string &nonce = "01234567890123456789",
+                                      std::string auth_plugin_data = "123456789|123456789|",
                                       mysql_protocol::Capabilities::Flags capabilities = mysql_protocol::Capabilities::PROTOCOL_41
                                                                                        | mysql_protocol::Capabilities::SECURE_CONNECTION,
+                                      const std::string &auth_plugin_name = "mysql_native_password",
                                       uint8_t character_set = 0,
                                       uint16_t status_flags = 0);
+
+  /** @brief Encodes MySQL auth-switch message sent from the server when
+   *         the client connects.
+   *
+   * @param seq_no          protocol packet sequence number to use
+   * @param auth_plugin_name auth-plugin name, written only if PLUGIN_AUTH cap.flag is set
+   * @param auth_plugin_data authentication plugin data (nonce)
+   *
+   * @note auth_plugin_data should contain the 8/20/32 nonce bytes, WITHOUT the
+   *       final \0 at the end (it will be added automatically by this method)
+   *
+   * @returns buffer with the encoded message
+   **/
+  MsgBuffer encode_auth_switch_message(uint8_t seq_no,
+                                       const std::string &auth_plugin_name,
+                                       const std::string &auth_plugin_data);
 
   /** @brief Encodes message containing number of the columns
    *        (used while sending resultset for the QUERY).
