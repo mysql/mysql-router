@@ -1171,8 +1171,12 @@ static void bootstrap_name_test(MySQLSessionReplayer *mock_mysql,
   options["name"] = name;
   options["quiet"] = "1";
   options["id"] = "4";
+
+  KeyringInfo keyring_info("delme", "delme.key");
+  config_gen.set_keyring_info(keyring_info);
+
   config_gen.bootstrap_directory_deployment(dir,
-      options, default_paths, "delme", "delme.key");
+      options, default_paths);
 }
 
 } // anonymous namespace
@@ -1240,9 +1244,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "delme.key");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-          options, default_paths, "delme", "delme.key"),
+          options, default_paths),
       mysqlrouter::MySQLSession::Error,
       "boo!");
 
@@ -1261,9 +1269,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "delme.key");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-          options, default_paths, "delme", "delme.key"));
+          options, default_paths));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
@@ -1282,9 +1294,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     std::map<std::string, std::string> options;
     options["name"] = "foobar";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "delme.key");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths, "delme", "delme.key"),
+            options, default_paths),
       std::runtime_error,
       "boo!");
 
@@ -1303,9 +1319,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     std::map<std::string, std::string> options;
     options["name"] = "force\nfailure";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "delme.key");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths, "delme", "delme.key"),
+            options, default_paths),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -1330,9 +1350,13 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
     options["use-sockets"] = "1";
+
+    KeyringInfo keyring_info("delme", "delme.key");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths, "delme", "delme.key"));
+            options, default_paths));
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
   }
@@ -1387,8 +1411,12 @@ static void bootstrap_overwrite_test(MySQLSessionReplayer *mock_mysql,
   options["quiet"] = "1";
   if (force)
     options["force"] = "1";
+
+  KeyringInfo keyring_info("delme", "delme.key");
+  config_gen.set_keyring_info(keyring_info);
+
   config_gen.bootstrap_directory_deployment(dir,
-    options, default_paths, "delme", "delme.key");
+    options, default_paths);
 }
 
 
@@ -1516,8 +1544,12 @@ static void test_key_length(MySQLSessionReplayer *mock_mysql,
   std::map<std::string, std::string> options;
   options["name"] = "test";
   options["quiet"] = "1";
+
+  KeyringInfo keyring_info("delme", "");
+  config_gen.set_keyring_info(keyring_info);
+
   config_gen.bootstrap_directory_deployment("key_too_long",
-      options, default_paths, "delme", "");
+      options, default_paths);
 }
 
 TEST_F(ConfigGeneratorTest, key_too_long) {
@@ -1561,8 +1593,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "key");
+    config_gen.set_keyring_info(keyring_info);
+
     config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths, "delme", "key");
+        options, default_paths);
 
     mysql_harness::reset_keyring();
   }
@@ -1579,9 +1615,13 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     std::map<std::string, std::string> options;
     options["name"] = "foo";
     options["quiet"] = "1";
+
+    KeyringInfo keyring_info("delme", "emptyfile");
+    config_gen.set_keyring_info(keyring_info);
+
     try {
       config_gen.bootstrap_directory_deployment("./delme",
-          options, default_paths, "delme", "emptyfile");
+          options, default_paths);
       FAIL() << "Was expecting exception but got none\n";
     } catch (std::runtime_error &e) {
       if (strstr(e.what(), ".tmp"))
@@ -1606,9 +1646,12 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     options["name"] = "foo";
     options["quiet"] = "1";
 
+    KeyringInfo keyring_info("delme", ".");
+    config_gen.set_keyring_info(keyring_info);
+
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths, "delme", "."),
+        options, default_paths),
       std::runtime_error,
       "Invalid master key file");
   }
@@ -1628,9 +1671,13 @@ TEST_F(ConfigGeneratorTest, full_test) {
   std::map<std::string, std::string> options;
   options["name"] = "foo";
   options["quiet"] = "1";
+
+  KeyringInfo keyring_info("delme", "masterkey");
+  config_gen.set_keyring_info(keyring_info);
+
   ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths, "delme", "masterkey"));
+        options, default_paths));
 
   std::string value;
   mysql_harness::Config config(mysql_harness::Config::allow_keys);
@@ -2199,8 +2246,11 @@ static void bootstrap_password_test(MySQLSessionReplayer* mysql,
     delete_dir_recursive(dir);
     mysql_harness::reset_keyring();});
 
+  KeyringInfo keyring_info("delme", "delme.key");
+  config_gen.set_keyring_info(keyring_info);
+
   config_gen.bootstrap_directory_deployment(dir,
-      options, default_paths, "delme", "delme.key");
+      options, default_paths);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_force_password_validation) {

@@ -210,7 +210,7 @@ class RouterComponentTest {
     /** @brief see wait_for_exit() */
     int wait_for_exit_while_reading_and_autoresponding_to_output(unsigned timeout_ms);
 
-    ProcessLauncher launcher_; // <- this guy's destructor takes care of
+    mysql_harness::ProcessLauncher launcher_; // <- this guy's destructor takes care of
                                // killing the spawned process
     std::string execute_output_raw_;
     std::string last_line_read_;
@@ -352,6 +352,16 @@ class RouterComponentTest {
     const std::string& logging_file = "mysqlrouter.log",
     std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
 
+
+ protected:
+  /** @brief returns a [DEFAULT] section as string
+   *
+   * @param params map of [DEFAULT] section parameters
+   * @returns [DEFAULT] section text
+   */
+  std::string make_DEFAULT_section(const std::map<std::string, std::string>* params) const;
+
+
  private:
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
@@ -363,12 +373,6 @@ class RouterComponentTest {
                         std::ifstream& in_file,
                         std::ios::streampos& cur_pos);
 
-  /** @brief returns a [DEFAULT] section as string
-   *
-   * @param params map of [DEFAULT] section parameters
-   * @returns [DEFAULT] section text
-   */
-  std::string make_DEFAULT_section(const std::map<std::string, std::string>* params) const;
 
   Path data_dir_;
   Path origin_dir_;

@@ -242,6 +242,22 @@ void MySQLRouter::init(const vector<string>& arguments) {
   can_start_ = true;
 }
 
+uint32_t MySQLRouter::get_router_id(mysql_harness::Config &config) {
+  uint32_t result = 0;
+
+  if (config.has_any("metadata_cache")) {
+    const auto& metadata_caches = config.get("metadata_cache");
+    for (const auto &section : metadata_caches) {
+      if (section->has("router_id")) {
+        std::istringstream iss(section->get("router_id"));
+        iss >> result;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
 void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   bool needs_keyring = false;
 
@@ -256,40 +272,47 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   }
   if (needs_keyring) {
     // Initialize keyring
-    std::string keyring_file;
-    std::string master_key_path;
+    keyring_info_.init(config, origin_.str());
 
-    if (config.has_default("keyring_path"))
-      keyring_file = config.get_default("keyring_path");
-    if (config.has_default("master_key_path"))
-      master_key_path = config.get_default("master_key_path");
-
-    // fill in default keyring file path, if not set
-    if (keyring_file.empty()) {
-      keyring_file = mysqlrouter::substitute_variable(MYSQL_ROUTER_DATA_FOLDER,
-                                                      "{origin}", origin_.str());
-      keyring_file = mysql_harness::Path(keyring_file).join(kDefaultKeyringFileName).str();
-    }
-    // if keyring master key is in a file, read from it, else read from user
-    if (!master_key_path.empty()) {
-      mysql_harness::init_keyring(keyring_file, master_key_path, false);
-    } else {
-#ifdef _WIN32
-      // When no master key file is provided, console interaction is required to provide a master password. Since console interaction is not available when
-      // run as service, throw an error to abort.
-      if (mysqlrouter::is_running_as_service())
-      {
-        std::string msg = "Cannot run router in Windows a service without a master key file.";
-        mysqlrouter::write_windows_event_log(msg);
-        throw std::runtime_error(msg);
-      }
-#endif
-      std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
-      if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
-        throw std::runtime_error("Encryption key is too long");
-      mysql_harness::init_keyring_with_key(keyring_file, master_key, false);
+    if (keyring_info_.use_master_key_external_facility()) {
+      init_keyring_using_external_facility(config);
+    } else if (keyring_info_.use_master_key_file()) {
+      init_keyring_using_master_key_file();
+    } else { // prompt password
+      init_keyring_using_prompted_password();
     }
   }
+}
+
+void MySQLRouter::init_keyring_using_external_facility(mysql_harness::Config &config) {
+  keyring_info_.add_router_id_to_env(get_router_id(config));
+  if (!keyring_info_.read_master_key()) {
+    throw MasterKeyReadError("Cannot fetch master key using master key reader:" + keyring_info_.get_master_key_reader());
+  }
+  keyring_info_.validate_master_key();
+  mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(), keyring_info_.get_master_key(), false);
+}
+
+void MySQLRouter::init_keyring_using_master_key_file() {
+  mysql_harness::init_keyring(keyring_info_.get_keyring_file(), keyring_info_.get_master_key_file(), false);
+}
+
+void MySQLRouter::init_keyring_using_prompted_password() {
+#ifdef _WIN32
+  // When no master key file is provided, console interaction is required to
+  // provide a master password. Since console interaction is not available when
+  // run as service, throw an error to abort.
+  if (mysqlrouter::is_running_as_service())
+  {
+    std::string msg = "Cannot run router in Windows a service without a master key file.";
+    mysqlrouter::write_windows_event_log(msg);
+    throw std::runtime_error(msg);
+  }
+#endif
+  std::string master_key = mysqlrouter::prompt_password("Encryption key for router keyring");
+  if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
+    throw std::runtime_error("Encryption key is too long");
+  mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(), master_key, false);
 }
 
 static string fixpath(const string &path, const std::string &basedir) {
@@ -786,6 +809,32 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->bootstrap_options_["bind-address"] = address;
       }, [this] { this->check_bootstrap_option("--conf-bind-address"); });
 
+  arg_handler_.add_option(OptionNames({"--master-key-reader"}),
+                          "The tool that can be used to read master key, it has to be used together with --master-key-writer. (bootstrap)",
+                          CmdOptionValueReq::required, "",
+                          [this](const string &master_key_reader) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --master-key-reader can only be used together with --B/--bootstrap.");
+
+        this->keyring_info_.set_master_key_reader(master_key_reader);
+      },
+      [this] { if (this->keyring_info_.get_master_key_reader().empty() != this->keyring_info_.get_master_key_writer().empty())
+        throw std::runtime_error("Option --master-key-reader can only be used together with --master-key-writer.");
+      });
+
+  arg_handler_.add_option(OptionNames({"--master-key-writer"}),
+                          "The tool that can be used to store master key, it has to be used together with --master-key-reader. (bootstrap)",
+                          CmdOptionValueReq::required, "",
+                          [this](const string &master_key_writer) {
+        if (this->bootstrap_uri_.empty())
+          throw std::runtime_error("Option --master-key-writer can only be used together with --B/--bootstrap.");
+
+        this->keyring_info_.set_master_key_writer(master_key_writer);
+      },
+      [this] { if (this->keyring_info_.get_master_key_reader().empty() != this->keyring_info_.get_master_key_writer().empty())
+        throw std::runtime_error("Option --master-key-writer can only be used together with --master-key-reader.");
+      });
+
   arg_handler_.add_option(OptionNames({"--connect-timeout"}),
                           "The time in seconds after which trying to connect to metadata server should timeout. It applies to bootstrap mode and is written to configuration file. It is also used in normal mode.",
                           CmdOptionValueReq::optional, "",
@@ -1023,11 +1072,18 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
       }
     }
     default_keyring_file.append("/").append(kDefaultKeyringFileName);
+
+    keyring_info_.set_keyring_file(default_keyring_file);
+    keyring_info_.set_master_key_file(master_key_path);
+    config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_system_deployment(config_file_path,
-        bootstrap_options_, default_paths, default_keyring_file, master_key_path);
+        bootstrap_options_, default_paths);
   } else {
+    keyring_info_.set_keyring_file(kDefaultKeyringFileName);
+    keyring_info_.set_master_key_file("mysqlrouter.key");
+    config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-        bootstrap_options_, default_paths, kDefaultKeyringFileName, "mysqlrouter.key");
+        bootstrap_options_, default_paths);
   }
 }
 

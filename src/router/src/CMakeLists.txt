@@ -48,6 +48,7 @@ set(lib_source_files
   router_app.cc
   utils.cc
   uri.cc
+  keyring_info.cc
   datatypes.cc
   plugin_config.cc
   common/log_filter.cc

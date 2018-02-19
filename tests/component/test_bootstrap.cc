@@ -21,15 +21,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+#include <chrono>
 #include <fstream>
 #include <regex>
 #include <system_error>
-
-#include <chrono>
-
-#include "gmock/gmock.h"
-#include "router_component_test.h"
-#include "tcp_port_pool.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -42,6 +37,15 @@
 #include <net/if.h>
 #endif
 #endif
+
+#include "gmock/gmock.h"
+#include "dim.h"
+#include "keyring/keyring_manager.h"
+#include "random_generator.h"
+#include "router_component_test.h"
+#include "script_generator.h"
+#include "tcp_port_pool.h"
+#include "utils.h"
 
 /**
  * @file
@@ -667,6 +671,96 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
       {
         "Error: Error executing MySQL query: Lost connection to MySQL server during query \\(2013\\)"
       });
+}
+
+/**
+ * @test
+ *       verify that bootstrap succeeds when master key writer is used
+ *
+ */
+TEST_F(RouterBootstrapTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader) {
+
+  std::vector<Config> config {
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      "",
+      get_data_dir().join("bootstrap.json").str()
+    },
+  };
+
+  ScriptGenerator script_generator(g_origin_path, tmp_dir);
+
+  std::vector<std::string> router_options = {
+    "--bootstrap=" + config.at(0).ip + ":" + std::to_string(config.at(0).port),
+    "-d", bootstrap_dir,
+    "--master-key-reader=" + script_generator.get_reader_script(),
+    "--master-key-writer=" + script_generator.get_writer_script()
+  };
+
+  bootstrap_failover(config, router_options);
+
+  Path tmp(bootstrap_dir);
+  Path master_key_file(tmp.join("mysqlrouter.key").str());
+  ASSERT_FALSE(master_key_file.exists());
+
+  Path keyring_file(tmp.join("data").join("keyring").str());
+  ASSERT_TRUE(keyring_file.exists());
+
+  Path dir(tmp_dir);
+  Path data_file(dir.join("master_key").str());
+  ASSERT_TRUE(data_file.exists());
+}
+
+/**
+ * @test
+ *       verify that master key file is not overridden by sunsequent bootstrap.
+ */
+TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
+
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+  // RandomGenerator
+  dim.set_RandomGenerator(
+      []() {static mysql_harness::RandomGenerator rg; return &rg;},
+      [](mysql_harness::RandomGeneratorInterface*) {});
+
+  mysqlrouter::mkdir(Path(bootstrap_dir).str(), 0777);
+  std::string master_key_path = Path(bootstrap_dir).join("master_key").str();
+  mysqlrouter::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
+  std::string keyring_path = Path(bootstrap_dir).join("data").join("keyring").str();
+
+  mysql_harness::init_keyring(keyring_path, master_key_path, true);
+
+  std::string master_key;
+  {
+    std::ifstream file(master_key_path);
+    std::stringstream iss;
+    iss << file.rdbuf();
+    master_key = iss.str();
+  }
+
+  std::vector<Config> mock_servers {
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      "",
+      get_data_dir().join("bootstrap.json").str()
+    },
+  };
+
+  std::vector<std::string> router_options = {
+    "--bootstrap=" + mock_servers.at(0).ip + ":" + std::to_string(mock_servers.at(0).port),
+    "-d", bootstrap_dir,
+    "--force"
+  };
+
+  bootstrap_failover(mock_servers, router_options,
+      0,
+      {});
+  {
+    std::ifstream file(master_key_path);
+    std::stringstream iss;
+    iss << file.rdbuf();
+    ASSERT_THAT(master_key, testing::Eq(iss.str()));
+  }
 }
 
 int main(int argc, char *argv[]) {

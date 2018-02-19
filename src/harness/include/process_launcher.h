@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef _PROCESS_LAUNCHER_H_
 #define _PROCESS_LAUNCHER_H_
 
+#include "harness_export.h"
 #include <utility>
 
 #ifdef _WIN32
@@ -37,6 +38,8 @@
 #include <stdint.h>
 #include <string>
 
+namespace mysql_harness {
+
 /** an alive, spawned process
  *
  * @todo
@@ -50,7 +53,7 @@
  *
  * For now, this mostly exists to make the move-constructor of ProcessLauncher easier to implement.
  */
-class SpawnedProcess {
+class HARNESS_EXPORT SpawnedProcess {
 public:
   SpawnedProcess(const char *pcmd_line, const char ** pargs, bool predirect_stderr = true) :
     cmd_line{pcmd_line},
@@ -97,7 +100,19 @@ protected:
 // (implemented thru pipelines) so the client of this class can read from the child's stdout and write to the child's stdin.
 // For usage, see unit tests.
 //
-class ProcessLauncher : public SpawnedProcess {
+class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
+
+#ifdef _WIN32
+  /*
+   * After ProcessLauncher sends all data to remote process, it closes the handle
+   * to notify the remote process that no more data will be sent.
+   *
+   * Since you cannot close the same handle more than once, store information if handle should
+   * be closed in child_in_wr_closed.
+   */
+  bool child_in_wr_closed = false;
+#endif
+
 public:
   /**
    * Creates a new process and launch it.
@@ -174,6 +189,12 @@ public:
   */
   uint64_t get_fd_read() const;
 
+  /**
+   * Closes pipe to process' STDIN in order to notify the process that all
+   * data was sent.
+   */
+  void end_of_write();
+
 private:
   /**
    * Throws an exception with the specified message, if msg == NULL, the exception's message is specific of the platform error.
@@ -191,5 +212,7 @@ private:
 
   bool is_alive;
 };
+
+} // end of namespace mysql_harness
 
 #endif // _PROCESS_LAUNCHER_H_

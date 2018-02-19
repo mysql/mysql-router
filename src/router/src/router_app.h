@@ -36,6 +36,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysqlrouter/utils.h"
+#include "mysqlrouter/keyring_info.h"
 
 #include <cstdint>
 #include <vector>
@@ -382,7 +383,35 @@ private:
 
   void bootstrap(const std::string &metadata_server_uri);
 
+  /*
+   * @brief returns id of the router.
+   *
+   * @throw bad_section
+   */
+  uint32_t get_router_id(mysql_harness::Config &config);
+
   void init_keyring(mysql_harness::Config &config);
+
+  /**
+   * @brief Initializes keyring using master-key-reader and master-key-writer.
+   *
+   * @throw MasterKeyReadError
+   */
+  void init_keyring_using_external_facility(mysql_harness::Config &config);
+
+  /**
+   * @brief Initializes keyring using master key file.
+   *
+   * @throw std::runtime_error
+   */
+  void init_keyring_using_master_key_file();
+
+  /**
+   * @brief Initializes keyring using password read from STDIN.
+   *
+   * @throw std::runtime_error
+   */
+  void init_keyring_using_prompted_password();
 
   void init_plugin_loggers(mysql_harness::LoaderConfig& config);
 
@@ -438,6 +467,8 @@ private:
    * running from.
    */
   mysql_harness::Path origin_;
+
+  KeyringInfo keyring_info_;
 
 #ifndef _WIN32
   /** @brief Value of the --user parameter given on the command line if router is launched in bootstrap mode **/

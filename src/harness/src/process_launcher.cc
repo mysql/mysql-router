@@ -47,7 +47,11 @@
 #  include <errno.h>
 #  include <signal.h>
 #  include <fcntl.h>
+#  include <sys/select.h>
 #endif
+
+
+namespace mysql_harness {
 
 // performance tweaks
 constexpr unsigned kWaitPidCheckInterval = 10;
@@ -187,7 +191,7 @@ void ProcessLauncher::close() {
 
   if (!CloseHandle(child_out_rd))
     report_error(NULL);
-  if (!CloseHandle(child_in_wr))
+  if (!child_in_wr_closed && !CloseHandle(child_in_wr))
     report_error(NULL);
 
   is_alive = false;
@@ -257,6 +261,11 @@ int ProcessLauncher::write(const char *buf, size_t count) {
     return dwBytesWritten;
   }
   return 0; // so the compiler does not cry
+}
+
+void ProcessLauncher::end_of_write() {
+  CloseHandle(child_in_wr);
+  child_in_wr_closed = true;
 }
 
 void ProcessLauncher::report_error(const char *msg, const char* prefix) {
@@ -383,7 +392,7 @@ void ProcessLauncher::close()
     } else {
       try {
         // wait for it shutdown before using the big hammer
-        wait(std::chrono::duration_cast<std::chrono::milliseconds>(kTerminateWaitInterval).count());
+        wait(static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(kTerminateWaitInterval).count()));
       } catch(const std::system_error &e) {
         if(e.code() != std::error_code(ESRCH, std::system_category())) {
           if(::kill(childpid, SIGKILL) < 0) {
@@ -403,6 +412,11 @@ void ProcessLauncher::close()
   fd_out[0] = -1;
   fd_in[1] = -1;
   is_alive = false;
+}
+
+void ProcessLauncher::end_of_write() {
+  if (fd_in[1] != -1) ::close(fd_in[1]);
+  fd_in[1] = -1;
 }
 
 int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms)
@@ -522,3 +536,5 @@ uint64_t ProcessLauncher::get_fd_read() const
 void ProcessLauncher::kill() {
   close();
 }
+
+} // end of namespace mysql_harness

@@ -417,7 +417,6 @@ TEST_F(ArgHandlerTest, OptionDescriptions) {
   ASSERT_THAT(lines.at(5), StrEq("        Testing -c"));
 }
 
-
 TEST_F(ArgHandlerTest, CheckIfTwoOptionsAreProvided) {
   CmdArgHandler c(false);
 

@@ -29,9 +29,9 @@ include_directories(helpers
 set(helper_sources
   helpers/router_test_helpers.cc
   helpers/mysql_session_replayer.cc
-  helpers/process_launcher.cc
   helpers/router_component_test.cc
   helpers/tcp_port_pool.cc
+  helpers/script_generator.cc
 )
 
 if(WIN32)

@@ -66,6 +66,8 @@
 #endif
 using mysql_harness::Path;
 
+using mysql_harness::ProcessLauncher;
+
 namespace {
 
 template<typename Out>
@@ -497,6 +499,8 @@ std::string RouterComponentTest::make_DEFAULT_section(const std::map<std::string
         + l("data_folder")
         + l("keyring_path")
         + l("master_key_path")
+        + l("master_key_reader")
+        + l("master_key_writer")
         + "\n"
     : std::string("[DEFAULT]\n")
         + "logging_folder =\n"

@@ -35,6 +35,7 @@
 #include "unique_ptr.h"
 #include "random_generator.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/keyring_info.h"
 
 namespace mysql_harness {
   class Path;
@@ -85,14 +86,15 @@ public:
 
   void bootstrap_system_deployment(const std::string &config_file_path,
       const std::map<std::string, std::string> &options,
-      const std::map<std::string, std::string> &default_paths,
-      const std::string &default_keyring_path,
-      const std::string &keyring_master_key_file);
+      const std::map<std::string, std::string> &default_paths);
+
   void bootstrap_directory_deployment(const std::string &directory,
       const std::map<std::string, std::string> &options,
-      const std::map<std::string, std::string> &default_paths,
-      const std::string &default_keyring_file_name,
-      const std::string &keyring_master_key_file);
+      const std::map<std::string, std::string> &default_paths);
+
+  void set_keyring_info(const KeyringInfo &keyring_info) {
+    keyring_info_ = keyring_info;
+  }
 
   struct Options {
     struct Endpoint {
@@ -153,8 +155,6 @@ private:
       const mysql_harness::Path &config_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::string> &default_paths,
-      const std::string &keyring_file,
-      const std::string &keyring_master_key_file,
       bool directory_deployment,
       AutoCleaner& auto_clean);
 
@@ -168,8 +168,7 @@ private:
       const std::string &rw_x_endpoint,
       const std::string &ro_x_endpoint);
 
-  void init_keyring_file(const std::string &keyring_file,
-                         const std::string &keyring_master_key_file);
+  void init_keyring_file(uint32_t router_id);
 
   void fetch_bootstrap_servers(std::string &bootstrap_servers,
                                std::string &metadata_cluster,
@@ -209,6 +208,11 @@ private:
                                        const std::map<std::string, std::string> &options,
                                        AutoCleaner* auto_cleaner = nullptr);
 
+  void set_keyring_info_real_paths(std::map<std::string, std::string>& options, const mysql_harness::Path& path);
+
+  void init_keyring_and_master_key(AutoCleaner& auto_clean, const std::map<std::string, std::string> &user_options, uint32_t router_id);
+
+
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);
 private:
@@ -221,6 +225,8 @@ private:
   std::string gr_initial_username_;
   std::string gr_initial_password_;
   std::string gr_initial_socket_;
+
+  KeyringInfo keyring_info_;
 
 #ifndef _WIN32
   SysUserOperationsBase* sys_user_operations_;

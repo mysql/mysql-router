@@ -286,6 +286,7 @@ set(harness_source
   src/arg_handler.cc
   src/dim.cc
   src/mysql_router_thread.cc
+  src/process_launcher.cc
   src/logging/handler.cc
   src/logging/logger.cc
   src/logging/logging.cc

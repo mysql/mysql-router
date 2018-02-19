@@ -32,6 +32,7 @@
 #include "router_app.h"
 #include "mysqlrouter/utils.h"
 #include "test/helpers.h"
+#include "router_test_helpers.h"
 
 //ignore GMock warnings
 #ifdef __clang__
@@ -705,6 +706,72 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), StartsWith("You are bootstraping as a superuser."));
   }
+}
+
+/**
+ * @test
+ *      Verify that std::runtime_error is thrown when --master-key-reader option is used
+ *      in non-bootstrap mode.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutBootstrap) {
+  vector<string> argv = { "--master-key-reader=reader.sh" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "Option --master-key-reader can only be used together with --B/--bootstrap.");
+}
+
+/**
+ * @test
+ *       Verify that std::runtime_error is thrown when --master_key-writer option is used
+ *       in non-bootstrap mode.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutBootstrap) {
+  vector<string> argv = { "--master-key-writer=writer.sh" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "Option --master-key-writer can only be used together with --B/--bootstrap.");
+}
+
+/**
+ * @test
+ *       Verify that std::runtime_error is thrown when --master-key-reader option is used
+ *       without value.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutValue) {
+  vector<string> argv = { "--bootstrap", "127.0.0.1:3060", "--master-key-reader" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "option '--master-key-reader' requires a value.");
+}
+
+/**
+ * @test
+ *       Verify that std::runtime_error is thrown when --master-key-writer option is used
+ *       without value.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutValue) {
+  vector<string> argv = { "--bootstrap", "127.0.0.1:3060", "--master-key-writer" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "option '--master-key-writer' requires a value.");
+}
+
+/**
+ * @test
+ *       Verify that std::runtime_error is throw when --master-key-reader option is used
+ *       without using --master-key-writer option.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutMasterKeyWriter) {
+  vector<string> argv = { "--bootstrap", "127.0.0.1:3060", "--master-key-reader=reader.sh" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "Option --master-key-reader can only be used together with --master-key-writer.");
+}
+
+/**
+ * @test
+ *       Verify that std::runtime_error is thrown when --master-key-writer option is used
+ *       without using --master-key-reader option.
+ */
+TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutMasterKeyReader) {
+  vector<string> argv = { "--bootstrap", "127.0.0.1:3060", "--master-key-writer=writer.sh" };
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
+      "Option --master-key-writer can only be used together with --master-key-reader.");
 }
 
 #endif // #ifndef _WIN32

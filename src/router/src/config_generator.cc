@@ -156,7 +156,11 @@ public:
     }
   }
 
-  void remove(const std::string &p) {
+  void add_cleanup_callback(const std::string&callback_name, std::function<bool()> callback) noexcept {
+    callbacks_.push_back(CallbackInfo{callback_name, true, callback});
+  }
+
+  void remove(const std::string &p) noexcept {
     files_.erase(p);
   }
 
@@ -166,6 +170,10 @@ public:
         mysql_harness::delete_file(f->second.second);
     }
     files_.clear();
+
+    for(auto& callback: callbacks_) {
+      callback.should_be_called = false;
+    }
   }
 
   ~AutoCleaner() {
@@ -191,6 +199,12 @@ public:
           break;
       }
     }
+
+    for(const auto& callback_info : callbacks_) {
+      if (callback_info.should_be_called)
+        if (!callback_info.callback())
+          log_warning("Failed to execute: %s", callback_info.callback_name.c_str());
+    }
   }
 private:
   enum Type {
@@ -200,6 +214,21 @@ private:
     FileBackup
   };
 
+  /**
+   * @brief Contains callback related information: callback function, callback name and
+   *        information if it should be called.
+   */
+  struct CallbackInfo {
+    /* text that is printed when function call fails */
+    std::string callback_name;
+
+    /* true if callback should be called then, false otherwise */
+    bool should_be_called;
+
+    /* function to call */
+    std::function<bool()> callback;
+  };
+
   /*
    * The map stores all the files that are scheduled to be auto-removed or
    * restored from backup if clean() wasn't called.
@@ -207,6 +236,11 @@ private:
    * backup's type and name of backup file (used only for FileBackup type).
    */
   std::map<std::string, std::pair<Type, std::string>> files_;
+
+  /*
+   * The vector stores callbacks that are scheduled to be called if clean() wasn't called.
+   */
+  std::vector<CallbackInfo> callbacks_;
 };
 
 inline std::string get_opt(const std::map<std::string, std::string> &map,
@@ -430,9 +464,7 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
 
 void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file_path,
     const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::string> &default_paths,
-    const std::string &keyring_file_path,
-    const std::string &keyring_master_key_file) {
+    const std::map<std::string, std::string> &default_paths) {
   auto options(user_options);
   bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path _config_file_path(config_file_path);
@@ -461,7 +493,6 @@ void ConfigGenerator::bootstrap_system_deployment(const std::string &config_file
   auto_clean.add_file_delete(config_file_path +".tmp");
   bootstrap_deployment(*config_file, _config_file_path,
     router_name, options, default_paths,
-    keyring_file_path, keyring_master_key_file,
     false, auto_clean);
   config_file->close();
 
@@ -499,14 +530,20 @@ static bool is_directory_empty(mysql_harness::Directory dir) {
   return true;
 }
 
+void ConfigGenerator::set_keyring_info_real_paths(std::map<std::string, std::string>& options,
+    const mysql_harness::Path& path) {
+  keyring_info_.set_keyring_file(mysql_harness::Path(options["datadir"]).
+      real_path().join(keyring_info_.get_keyring_file()).str());
+  keyring_info_.set_master_key_file(keyring_info_.get_master_key_file().empty() ?
+      "" : path.real_path().join(keyring_info_.get_master_key_file()).str());
+}
+
 /**
  * Create a self-contained deployment of the Router in a directory.
  */
 void ConfigGenerator::bootstrap_directory_deployment(const std::string &directory,
     const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::string> &default_paths,
-    const std::string &default_keyring_file_name,
-    const std::string &keyring_master_key_file) {
+    const std::map<std::string, std::string> &default_paths) {
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
   mysql_harness::Path path(directory);
@@ -600,15 +637,9 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
     throw std::runtime_error("Could not open "+config_file_path.str()+".tmp for writing: "+get_strerror(errno));
   }
   auto_clean.add_file_delete(config_file_path.str()+".tmp");
-
-  std::string keyring_path = mysql_harness::Path(options["datadir"]).
-      real_path().join(default_keyring_file_name).str();
-
-  std::string keyring_master_key_path = keyring_master_key_file.empty() ?
-      "" : path.real_path().join(keyring_master_key_file).str();
+  set_keyring_info_real_paths(options, path);
 
   bootstrap_deployment(config_file, config_file_path, router_name, options, default_paths,
-                       keyring_path, keyring_master_key_path,
                        true, auto_clean);
   config_file.close();
 
@@ -638,7 +669,7 @@ void ConfigGenerator::bootstrap_directory_deployment(const std::string &director
   set_file_owner(options, config_file_path.str());
 
   // create start/stop scripts
-  create_start_script(path.str(), keyring_master_key_file.empty(), options);
+  create_start_script(path.str(), keyring_info_.get_master_key_file().empty(), options);
   create_stop_script(path.str(), options);
 
 #ifndef _WIN32
@@ -964,13 +995,33 @@ GrAwareDecorator::fetch_group_replication_hosts() {
   }
 }
 
+void ConfigGenerator::init_keyring_and_master_key(AutoCleaner& auto_clean,
+    const std::map<std::string, std::string> &user_options,
+    uint32_t router_id) {
+  // buffer original master key file, it will be restored when bootstrap fails
+  if (!keyring_info_.get_master_key_file().empty())
+    auto_clean.add_file_revert(keyring_info_.get_master_key_file());
+
+  // buffer original master key from external facility, it will be restored when bootstrap fails
+  if (keyring_info_.use_master_key_external_facility()) {
+    // add ROUTER_ID to ENV
+    keyring_info_.add_router_id_to_env(router_id);
+    KeyringInfo keyring_info_copy(false);
+    keyring_info_copy.set_master_key_reader(keyring_info_.get_master_key_reader());
+    keyring_info_copy.set_master_key_writer(keyring_info_.get_master_key_writer());
+    if (keyring_info_copy.read_master_key()) {
+      auto_clean.add_cleanup_callback("master_key_writer", [keyring_info_copy] { return keyring_info_copy.write_master_key(); });
+    }
+  }
+  init_keyring_file(router_id);
+  set_file_owner(user_options, keyring_info_.get_keyring_file());
+  set_file_owner(user_options, keyring_info_.get_master_key_file());
+}
 
 void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     const mysql_harness::Path &config_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::string> &default_paths,
-    const std::string &keyring_file,
-    const std::string &keyring_master_key_file,
     bool directory_deployment,
     AutoCleaner& auto_clean) {
   std::string primary_cluster_name;
@@ -984,12 +1035,6 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
 
   using RandomGen = mysql_harness::RandomGeneratorInterface;
   RandomGen& rg = mysql_harness::DIM::instance().get_RandomGenerator();
-
-  if (!keyring_master_key_file.empty())
-    auto_clean.add_file_revert(keyring_master_key_file);
-  init_keyring_file(keyring_file, keyring_master_key_file);
-  set_file_owner(user_options, keyring_file);
-  set_file_owner(user_options, keyring_master_key_file);
 
   fetch_bootstrap_servers(
     primary_replicaset_servers,
@@ -1045,6 +1090,7 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
           ro_x_endpoint);
         });
   }
+  init_keyring_and_master_key(auto_clean, user_options, router_id);
 
   {
     mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
@@ -1057,8 +1103,9 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
     }
   }
 
-  options.keyring_file_path = keyring_file;
-  options.keyring_master_key_file_path = keyring_master_key_file;
+  options.keyring_file_path = keyring_info_.get_keyring_file();
+  if (keyring_info_.use_master_key_file())
+    options.keyring_master_key_file_path = keyring_info_.get_master_key_file();
 
 #ifndef _WIN32
   /* Currently at this point the logger is not yet initialized but while bootstraping
@@ -1160,9 +1207,30 @@ ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &user
   return std::make_tuple(password);
 }
 
-void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
-        const std::string &keyring_master_key_file) {
-  if (keyring_master_key_file.empty()) {
+void ConfigGenerator::init_keyring_file(uint32_t router_id) {
+
+  if (keyring_info_.use_master_key_external_facility()) {
+    if (!keyring_info_.read_master_key()) {
+      throw MasterKeyWriteError("Cannot fetch master key file using master key reader:" + keyring_info_.get_master_key_reader());
+    }
+
+    if (keyring_info_.get_master_key().empty()) {
+      keyring_info_.add_router_id_to_env(router_id);
+      keyring_info_.generate_master_key();
+      if (!keyring_info_.write_master_key()) {
+        throw MasterKeyWriteError("Cannot write master key file using master key writer:" + keyring_info_.get_master_key_writer());
+      }
+    }
+    mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(), keyring_info_.get_master_key(), true);
+  }
+  else if (keyring_info_.use_master_key_file()) {
+    try {
+      mysql_harness::init_keyring(keyring_info_.get_keyring_file(), keyring_info_.get_master_key_file(), true);
+    } catch (mysql_harness::invalid_master_keyfile &) {
+      throw mysql_harness::invalid_master_keyfile("Invalid master key file " + keyring_info_.get_master_key_file());
+    }
+  }
+  else { // prompt for password
     std::string master_key;
 #ifdef _WIN32
     // When no master key file is provided, console interaction is required to provide a master password. Since console interaction is not available when
@@ -1173,8 +1241,8 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
       throw std::runtime_error(msg);
     }
 #endif
-    if (mysql_harness::Path(keyring_file).exists()) {
-      master_key = prompt_password("Please provide the encryption key for key file at "+keyring_file);
+    if (mysql_harness::Path(keyring_info_.get_keyring_file()).exists()) {
+      master_key = prompt_password("Please provide the encryption key for key file at " + keyring_info_.get_keyring_file());
       if (master_key.length() > mysql_harness::kMaxKeyringKeyLength)
         throw std::runtime_error("Encryption key is too long");
     } else {
@@ -1195,13 +1263,7 @@ void ConfigGenerator::init_keyring_file(const std::string &keyring_file,
         }
       }
     }
-    mysql_harness::init_keyring_with_key(keyring_file, master_key, true);
-  } else {
-    try {
-      mysql_harness::init_keyring(keyring_file, keyring_master_key_file, true);
-    } catch (mysql_harness::invalid_master_keyfile &) {
-      throw mysql_harness::invalid_master_keyfile("Invalid master key file "+keyring_master_key_file);
-    }
+    mysql_harness::init_keyring_with_key(keyring_info_.get_keyring_file(), master_key, true);
   }
 }
 
@@ -1384,6 +1446,11 @@ void ConfigGenerator::create_config(std::ostream &cfp,
     cfp << "keyring_path=" << options.keyring_file_path << "\n";
   if (!options.keyring_master_key_file_path.empty())
     cfp << "master_key_path=" << options.keyring_master_key_file_path << "\n";
+  if (!keyring_info_.get_master_key_reader().empty())
+    cfp << "master_key_reader=" << keyring_info_.get_master_key_reader() << "\n";
+  if (!keyring_info_.get_master_key_writer().empty())
+    cfp << "master_key_writer=" << keyring_info_.get_master_key_writer() << "\n";
+
   cfp << "connect_timeout=" << connect_timeout_ << "\n";
   cfp << "read_timeout=" << read_timeout_ << "\n";
 
