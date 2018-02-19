@@ -1,5 +1,6 @@
-mysql-router (2.1.5-1ubuntu17.10) artful; urgency=low
+mysql-router (2.1.6-1ubuntu17.10) artful; urgency=low
 
   * initial version
 
  -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Mon, 15 Jan 2018 10:36:55 +0200
+ -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Mon, 19 Feb 2018 10:36:55 +0200
