@@ -193,8 +193,24 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Gets an integral from given packet
    *
-   * This is a wrapper around read_int_from() which automatically updates position
-   * after read. See its description.
+   * Gets an integral from packet buffer at the current position and advances it
+   * by the length of the read. The size of the integral is deduced from the give
+   * type but can be overwritten using the size parameter.
+   *
+   * Supported are integral of 1, 2, 3, 4, or 8 bytes. To retrieve an 24 bit
+   * integral it is necessary to use a 32-bit integral type and
+   * provided the size, for example:
+   *
+   *     auto id = Packet::read_int_from<uint32_t>(buffer, 0, 3);
+   *
+   * In MySQL packets, integrals are stored using little-endian format.
+   *
+   * @param length size of the integer to parse
+   * @return integer type
+   *
+   * @throws std::range_error (std::runtime_error) on start or end beyond EOF
+   *
+   * @see read_int_from()
    */
   template<typename Type, typename = std::enable_if<std::is_integral<Type>::value>>
   Type read_int(size_t length = sizeof(Type)) const {
@@ -205,36 +221,93 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Gets a length encoded integer from given packet
    *
-   * This is a wrapper around read_lenenc_uint_from() which automatically updates position
-   * after read. See its description.
+   * Gets a length encoded integer from packet buffer at the current position
+   * and advances it by the length of the read. Function also returns the length
+   * of the parsed integer token (you will need to advance your read position by
+   * this value to get to next field in the packet)
+   *
+   * @return uint64_t
+   *
+   * @throws std::range_error (std::runtime_error) on start or end beyond EOF,
+   *         std::runtime_error on bad first byte (which determines int length)
+   *         (strong exception safety guarrantee)
+   *
+   * @see read_lenenc_uint_from()
    */
   uint64_t read_lenenc_uint() const;
 
   /** @brief Gets raw bytes from packet
     *
-    * This is a wrapper around read_bytes_from() which automatically updates position.
-    * See its description.
+    * Gets raw byes from packet buffer at the current position and advances it
+    * by the length of the read.
+    *
+    * @param length Number of bytes to read
+    * @return std::vector<uint8_t>
+    *
+    * @throws std::range_error (std::runtime_error) on start or end beyond EOF
+    *         (strong exception safety guarrantee)
+    *
+    * @see read_bytes_from()
     */
   std::vector<uint8_t> read_bytes(size_t length) const;
 
-  /** @brief Gets bytes from packet using length encoded size
+  /** @brief Gets raw bytes from packet using length encoded size
    *
-   * This is a wrapper around read_lenenc_bytes_from() which automatically updates position.
-   * See its description.
+   * Gets raw bytes with length encoded size from packet buffer at the current
+   * position and advances it by the length of the read.
+   *
+   * @return std::vector<uint8_t>
+   *
+   * @throws std::range_error (std::runtime_error) on start or end beyond EOF,
+   *         std::runtime_error on bad first byte (which determines int length)
+   *         (strong exception safety guarrantee)
+   *
+   * @see read_lenenc_bytes_from()
    */
   std::vector<uint8_t> read_lenenc_bytes() const;
 
+#if 0 //FIXME want?
+  /** @brief Gets a string from packet
+   *
+   * Gets a string from the packet buffer at the current position and advances
+   * it by the length of the read. When size is not given, we read until the
+   * end of the buffer. When nil byte is found before we reach the requested size,
+   * the string will not be size long (if size is not 0).
+   *
+   * When current position is greater than the size of the buffer, an empty
+   * string is returned.
+   *
+   * @param length Length of the string to read (default 0)
+   * @return std::string
+   *
+   * @see read_string_from()
+   */
+  std::string read_string(unsigned long length = UINT_MAX);
+#endif
+
   /** @brief Gets zero-terminated string from packet
    *
-   * This is a wrapper around read_string_nul_from() which automatically updates position.
-   * See its description.
+   * Gets zero-terminated string from packet buffer at the current position and
+   * advances it by the length of the read.
+   *
+   * @return std::string
+   *
+   * @see read_string_nul_from()
    */
   std::string read_string_nul() const;
 
-  /** @brief Gets raw bytes from packet, from position until EOF
+  /** @brief Gets raw bytes from packet from position until EOF
    *
-   * This is a wrapper around read_bytes_eof_from() which automatically updates position.
-   * See its description.
+   * Gets raw bytes from packet buffer at the current position and advances it
+   * by the length of the read.
+   *
+   * @return std::vector<uint8_t>
+   *
+   * @throws std::range_error (std::runtime_error) on start beyond EOF,
+   *         std::runtime_error on zero-terminator not found
+   *         (strong exception safety guarrantee)
+   *
+   * @see read_bytes_eof_from()
    */
   std::vector<uint8_t> read_bytes_eof() const;
 
@@ -292,6 +365,19 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
     write_bytes_impl(reinterpret_cast<const uint8_t*>(str.data()), str.size());
   } //               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ std::string contains signed chars
 
+  /** @brief Adds bytes at the end of the buffer
+   *
+   * Appends a byte many times to the packet buffer at EOF and advances current
+   * position by the length of the write (so that it points to EOF once again)
+   *
+   * @param count number of times to append the byte
+   * @param byte byte to append
+   *
+   * @throws std::range_error (std::runtime_error) if current position is not
+   *         currently at EOF
+   */
+  void append_bytes(size_t count, uint8_t byte);
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -300,7 +386,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
 
   /** @brief Gets an integral from given packet
    *
-   * Gets an integral form a buffer at the given position. The size of the
+   * Gets an integral from a buffer at the given position. The size of the
    * integral is deduced from the give type but can be overwritten using
    * the size parameter.
    *

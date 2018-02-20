@@ -49,11 +49,20 @@ ErrorPacket::ErrorPacket(const std::vector<uint8_t> &buffer,
   parse_payload();
 }
 
+static constexpr uint8_t kHashChar = 0x23;  // 0x23 == '#'
+
 void ErrorPacket::prepare_packet() {
   assert(sql_state_.size() == 5);
 
   reset();
   position_ = size();
+
+  reserve(size() +
+    sizeof(uint8_t) +   // error identifier byte
+    sizeof(uint16_t) +  // error code
+    sizeof(uint8_t) +   // SQL state
+    message_.size()     // the message
+  );
 
   // Error identifier byte
   write_int<uint8_t>(0xff);
@@ -63,7 +72,7 @@ void ErrorPacket::prepare_packet() {
 
   // SQL State
   if (capability_flags_.test(Capabilities::PROTOCOL_41)) {
-    write_int<uint8_t>(0x23);
+    write_int<uint8_t>(kHashChar);
     if (sql_state_.size() != 5) {
       write_string("HY000");
     } else {
@@ -85,18 +94,18 @@ void ErrorPacket::parse_payload() {
     throw packet_error("Error packet marker 0xff not found");
   }
   // Check if SQLState is available when CLIENT_PROTOCOL_41 flag is set
-  if (prot41 && (*this)[7] != 0x23) {
+  if (prot41 && (*this)[7] != kHashChar) {
     throw packet_error("Error packet does not contain SQL state");
   }
 
   unsigned long pos = 5;
   code_ = read_int_from<uint16_t>(pos);
   pos += 2;
-  if ((*this)[7] == 0x23) {
+  if ((*this)[7] == kHashChar) {
     // We get the SQLState even when CLIENT_PROTOCOL_41 flag was not set
     // This is needed in cases when the server sends an
     // error to the client instead of the handshake.
-    sql_state_ = read_string_from(++pos, 5); // We skip 0x23
+    sql_state_ = read_string_from(++pos, 5); // We skip kHashChar ('#')
     pos += 5;
   } else {
     sql_state_ = "";

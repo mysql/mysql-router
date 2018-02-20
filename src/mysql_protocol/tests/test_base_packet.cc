@@ -186,22 +186,18 @@ TEST_F(MySQLProtocolPacketTest, seek_and_tell) {
   Packet p;
 
   // test seek/tell at beginning + add payload
-  {
-    p.seek(0);
-    EXPECT_EQ(0, p.tell());
-    p.write_int<uint8_t>(11);
-    p.write_int<uint8_t>(12);
-    p.write_int<uint8_t>(13);
-    p.write_int<uint8_t>(14);
-  }
+  p.seek(0);
+  EXPECT_EQ(0u, p.tell());
+  p.write_int<uint8_t>(11);
+  p.write_int<uint8_t>(12);
+  p.write_int<uint8_t>(13);
+  p.write_int<uint8_t>(14);
 
   // test seek/tell in the middle
-  {
-    p.seek(2);
-    EXPECT_EQ(2, p.tell());
-    EXPECT_EQ(13, p.read_int<uint8_t>());
-    EXPECT_EQ(3, p.tell());
-  }
+  p.seek(2);
+  EXPECT_EQ(2u, p.tell());
+  EXPECT_EQ(13u, p.read_int<uint8_t>());
+  EXPECT_EQ(3u, p.tell());
 
   // seek to EOF
   EXPECT_NO_THROW(p.seek(p.size()));
@@ -483,13 +479,13 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(1, buf.write_lenenc_uint(0u));
+    EXPECT_EQ(1u, buf.write_lenenc_uint(0u));
     EXPECT_EQ(V8({0u}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(1, buf.write_lenenc_uint(250u));
+    EXPECT_EQ(1u, buf.write_lenenc_uint(250u));
     EXPECT_EQ(V8({250u}), buf);
   }
 
@@ -497,19 +493,19 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(3, buf.write_lenenc_uint(251u));
+    EXPECT_EQ(3u, buf.write_lenenc_uint(251u));
     EXPECT_EQ(V8({0xfc, 251u, 0u}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(3, buf.write_lenenc_uint(0x1234));
+    EXPECT_EQ(3u, buf.write_lenenc_uint(0x1234));
     EXPECT_EQ(V8({0xfc, 0x34, 0x12}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(3, buf.write_lenenc_uint(0xffff));
+    EXPECT_EQ(3u, buf.write_lenenc_uint(0xffff));
     EXPECT_EQ(V8({0xfc, 0xff, 0xff}), buf);
   }
 
@@ -517,19 +513,19 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(4, buf.write_lenenc_uint(0x010000));
+    EXPECT_EQ(4u, buf.write_lenenc_uint(0x010000));
     EXPECT_EQ(V8({0xfd, 0u, 0u, 1u}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(4, buf.write_lenenc_uint(0x123456));
+    EXPECT_EQ(4u, buf.write_lenenc_uint(0x123456));
     EXPECT_EQ(V8({0xfd, 0x56, 0x34, 0x12}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(4, buf.write_lenenc_uint(0xffffff));
+    EXPECT_EQ(4u, buf.write_lenenc_uint(0xffffff));
     EXPECT_EQ(V8({0xfd, 0xff, 0xff, 0xff}), buf);
   }
 
@@ -537,13 +533,13 @@ TEST_F(MySQLProtocolPacketTest, PackLenEncodedInt) {
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(9, buf.write_lenenc_uint(0x01000000));
+    EXPECT_EQ(9u, buf.write_lenenc_uint(0x01000000));
     EXPECT_EQ(V8({0xfe,   0u, 0u, 0u, 1u,   0u, 0u, 0u, 0u}), buf);
   }
   {
     Packet buf;
     buf.seek(0);
-    EXPECT_EQ(9, buf.write_lenenc_uint(0x1234567890abcdef));
+    EXPECT_EQ(9u, buf.write_lenenc_uint(0x1234567890abcdef));
     EXPECT_EQ(V8({0xfe,   0xef, 0xcd, 0xab, 0x90,   0x78, 0x56, 0x34, 0x12}), buf);
   }
 
@@ -734,7 +730,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
   p_template.seek(0);
   p_template.write_bytes(V8{101, 102, 103, 104, 105});
   ASSERT_EQ(V8({101, 102, 103, 104, 105}), p_template);
-  EXPECT_EQ(5, p_template.tell());
+  EXPECT_EQ(5u, p_template.tell());
 
   // write at 0
   {
@@ -744,7 +740,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {1, 2, 3, 104, 105};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(3, p.tell());
+    EXPECT_EQ(3u, p.tell());
   }
 
   // write at 1
@@ -755,7 +751,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 1, 2, 3, 105};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(4, p.tell());
+    EXPECT_EQ(4u, p.tell());
   }
 
   // write at 2
@@ -766,7 +762,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 1, 2, 3};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(5, p.tell());
+    EXPECT_EQ(5u, p.tell());
   }
 
   // write at 3
@@ -777,7 +773,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 1, 2, 3};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(6, p.tell());
+    EXPECT_EQ(6u, p.tell());
   }
 
   // write at 4
@@ -788,7 +784,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 104, 1, 2, 3};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(7, p.tell());
+    EXPECT_EQ(7u, p.tell());
   }
 
   // write at 5 (EOF)
@@ -799,7 +795,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 104, 105, 1, 2, 3};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(8, p.tell());
+    EXPECT_EQ(8u, p.tell());
   }
 
   // write empty at 0
@@ -810,7 +806,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 104, 105};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(0, p.tell());
+    EXPECT_EQ(0u, p.tell());
   }
 
   // write empty at 3
@@ -821,7 +817,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 104, 105};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(3, p.tell());
+    EXPECT_EQ(3u, p.tell());
   }
 
   // write empty at 5 (EOF)
@@ -832,7 +828,7 @@ TEST_F(MySQLProtocolPacketTest, write_bytes) {
 
     V8 expected = {101, 102, 103, 104, 105};
     EXPECT_EQ(expected, p);
-    EXPECT_EQ(5, p.tell());
+    EXPECT_EQ(5u, p.tell());
   }
 
   // no test past EOF is necessary, because it's not possible to seek that far
@@ -853,7 +849,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
   p_template.seek(0);
   p_template.write_string("12345");
   ASSERT_EQ("12345", as_string(p_template));
-  EXPECT_EQ(5, p_template.tell());
+  EXPECT_EQ(5u, p_template.tell());
 
   // write at 0
   {
@@ -861,7 +857,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(0);
     p.write_string(str);
     EXPECT_EQ("abc45", as_string(p));
-    EXPECT_EQ(3, p.tell());
+    EXPECT_EQ(3u, p.tell());
   }
 
   // write at 1
@@ -870,7 +866,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(1);
     p.write_string(str);
     EXPECT_EQ("1abc5", as_string(p));
-    EXPECT_EQ(4, p.tell());
+    EXPECT_EQ(4u, p.tell());
   }
 
   // write at 2
@@ -879,7 +875,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(2);
     p.write_string(str);
     EXPECT_EQ("12abc", as_string(p));
-    EXPECT_EQ(5, p.tell());
+    EXPECT_EQ(5u, p.tell());
   }
 
   // write at 3
@@ -888,7 +884,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(3);
     p.write_string(str);
     EXPECT_EQ("123abc", as_string(p));
-    EXPECT_EQ(6, p.tell());
+    EXPECT_EQ(6u, p.tell());
   }
 
   // write at 4
@@ -897,7 +893,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(4);
     p.write_string(str);
     EXPECT_EQ("1234abc", as_string(p));
-    EXPECT_EQ(7, p.tell());
+    EXPECT_EQ(7u, p.tell());
   }
 
   // write at 5 (EOF)
@@ -906,7 +902,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.seek(5);
     p.write_string(str);
     EXPECT_EQ("12345abc", as_string(p));
-    EXPECT_EQ(8, p.tell());
+    EXPECT_EQ(8u, p.tell());
   }
 
   // write empty at 0
@@ -916,7 +912,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.write_string("");
 
     EXPECT_EQ("12345", as_string(p));
-    EXPECT_EQ(0, p.tell());
+    EXPECT_EQ(0u, p.tell());
   }
 
   // write empty at 3
@@ -926,7 +922,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.write_string("");
 
     EXPECT_EQ("12345", as_string(p));
-    EXPECT_EQ(3, p.tell());
+    EXPECT_EQ(3u, p.tell());
   }
 
   // write empty at 5 (EOF)
@@ -936,7 +932,7 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
     p.write_string("");
 
     EXPECT_EQ("12345", as_string(p));
-    EXPECT_EQ(5, p.tell());
+    EXPECT_EQ(5u, p.tell());
   }
 
   // no test past EOF is necessary, because it's not possible to seek that far
@@ -945,42 +941,42 @@ TEST_F(MySQLProtocolPacketTest, write_string) {
 TEST_F(MySQLProtocolPacketTest, UnpackUInt8) {
   {
     Packet buf{0x10};
-    EXPECT_EQ(16, buf.read_int_from<uint8_t>(0));
+    EXPECT_EQ(16u, buf.read_int_from<uint8_t>(0));
   }
   {
     Packet buf{0x10, 0x20};
-    EXPECT_EQ(32, buf.read_int_from<uint8_t>(1));
+    EXPECT_EQ(32u, buf.read_int_from<uint8_t>(1));
   }
 
   {
     Packet buf{0x10};
-    EXPECT_EQ(16, buf.read_int_from<uint8_t>(0, 1));
+    EXPECT_EQ(16u, buf.read_int_from<uint8_t>(0, 1));
   }
   {
     Packet buf{0x10, 0x20};
-    EXPECT_EQ(16, buf.read_int_from<uint8_t>(0, 2));
+    EXPECT_EQ(16u, buf.read_int_from<uint8_t>(0, 2));
   }
 }
 
 TEST_F(MySQLProtocolPacketTest, UnpackUInt16) {
   {
     Packet buf{0x10, 0x00};
-    EXPECT_EQ(16, buf.read_int_from<uint16_t>(0, 2));
+    EXPECT_EQ(16u, buf.read_int_from<uint16_t>(0, 2));
   }
 
   {
     Packet buf{0x10, 0x20};
-    EXPECT_EQ(8208, buf.read_int_from<uint16_t>(0));
+    EXPECT_EQ(8208u, buf.read_int_from<uint16_t>(0));
   }
 
   {
     Packet buf{0x10, 0x20, 0x30};
-    EXPECT_EQ(8208, buf.read_int_from<uint16_t>(0, 2));
+    EXPECT_EQ(8208u, buf.read_int_from<uint16_t>(0, 2));
   }
 
   {
     Packet buf{0xab, 0xba};
-    EXPECT_EQ(47787, buf.read_int_from<uint16_t>(0));
+    EXPECT_EQ(47787u, buf.read_int_from<uint16_t>(0));
   }
 }
 
@@ -1097,8 +1093,9 @@ TEST_F(MySQLProtocolPacketTest, UnpackInt_invalid_input) {
 
   // unsuppposed sizes
   {
-    for (size_t i : {0, 5, 6, 7, 9})
+    for (size_t i : {0, 5, 6, 7, 9}) { // doesn't compile without {} on VS2015
       EXPECT_DEATH_IF_SUPPORTED(buf10.read_int_from<uint64_t>(0, i), "");
+    }
   }
 
   // start beyond EOF
@@ -1239,14 +1236,14 @@ TEST_F(MySQLProtocolPacketTest, read_lenenc_uint) {
   Packet buf({0xfe, 0x10, 0x20, 0x30,   0x40, 0x50, 0x00, 0x00,   0x80, 0xfe}, true);
   buf.seek(0);
   EXPECT_NO_THROW(buf.read_lenenc_uint());
-  EXPECT_EQ(9, buf.tell());
+  EXPECT_EQ(9u, buf.tell());
 
   EXPECT_THROW_LIKE(
     buf.read_lenenc_uint(),
     std::range_error,
     "end beyond EOF"
   );
-  EXPECT_EQ(9, buf.tell());
+  EXPECT_EQ(9u, buf.tell());
 }
 
 TEST_F(MySQLProtocolPacketTest, UnpackString) {
@@ -1323,17 +1320,17 @@ TEST_F(MySQLProtocolPacketTest, read_string_nul) {
   p.seek(0);
 
   EXPECT_EQ("some", p.read_string_nul());
-  EXPECT_EQ(5, p.tell());
+  EXPECT_EQ(5u, p.tell());
 
   EXPECT_EQ("string", p.read_string_nul());
-  EXPECT_EQ(12, p.tell());
+  EXPECT_EQ(12u, p.tell());
 
   EXPECT_THROW_LIKE(
     p.read_string_nul(),
     std::runtime_error,
     "zero-terminator not found"
   );
-  EXPECT_EQ(12, p.tell());
+  EXPECT_EQ(12u, p.tell());
 }
 
 TEST_F(MySQLProtocolPacketTest, read_bytes_from) {
@@ -1369,14 +1366,14 @@ TEST_F(MySQLProtocolPacketTest, read_bytes) {
 
   V exp = {1, 0, 0}; // doesn't build inline
   EXPECT_EQ(exp, p.read_bytes(3));
-  EXPECT_EQ(3, p.tell());
+  EXPECT_EQ(3u, p.tell());
 
   EXPECT_THROW_LIKE(
     p.read_bytes(3),
     std::runtime_error,
     "start or end beyond EOF"
   );
-  EXPECT_EQ(3, p.tell());
+  EXPECT_EQ(3u, p.tell());
 }
 
 TEST_F(MySQLProtocolPacketTest, read_bytes_eof_from) {
@@ -1407,7 +1404,7 @@ TEST_F(MySQLProtocolPacketTest, read_bytes_eof) {
   V exp = {0x0, 0x9, 0x32, 0x0}; // doesn't build inline
 
   EXPECT_EQ(exp, p.read_bytes_eof());
-  EXPECT_EQ(4, p.tell());
+  EXPECT_EQ(4u, p.tell());
 
   EXPECT_THROW_LIKE(
     p.read_bytes_eof(),
@@ -1420,7 +1417,7 @@ TEST_F(MySQLProtocolPacketTest, UnpackBytesLengthEncoded1Byte) {
   Packet p({0x07, 'h', 'a', 'm', 's', 'p', 'a', 'm', 'f', 'o', 'o'}, true);
   auto pr = p.read_lenenc_bytes_from(0);
   EXPECT_THAT(pr.first, ContainerEq(Packet::vector_t{'h', 'a', 'm', 's', 'p', 'a', 'm'}));
-  EXPECT_EQ(8, pr.second);
+  EXPECT_EQ(8u, pr.second);
 }
 
 TEST_F(MySQLProtocolPacketTest, UnpackStringLengthEncoded3Bytes) {
@@ -1492,18 +1489,40 @@ TEST_F(MySQLProtocolPacketTest, read_lenenc_bytes) {
   Packet buf({4, 0x10, 0x20, 0x30,   0x40, 2, 0x11, 0x22,   0x99}, true);
   buf.seek(0);
   EXPECT_NO_THROW(buf.read_lenenc_bytes());
-  EXPECT_EQ(5, buf.tell());
+  EXPECT_EQ(5u, buf.tell());
   EXPECT_NO_THROW(buf.read_lenenc_bytes());
-  EXPECT_EQ(8, buf.tell());
+  EXPECT_EQ(8u, buf.tell());
 
   EXPECT_THROW_LIKE(
     buf.read_lenenc_bytes(),
     std::range_error,
     "end beyond EOF"
   );
-  EXPECT_EQ(8, buf.tell());
+  EXPECT_EQ(8u, buf.tell());
 }
 
+TEST_F(MySQLProtocolPacketTest, append_bytes) {
+  Packet buf({0x10, 0x20, 0x30, 0x40}, true);
+
+  // add 0 bytes
+  buf.seek(buf.size());
+  buf.append_bytes(0, 0x99);
+  EXPECT_EQ(4u, buf.tell());
+
+  // add 3 bytes
+  buf.append_bytes(3, 0x99);
+  Packet exp({0x10, 0x20, 0x30, 0x40, 0x99, 0x99, 0x99}, true);
+  EXPECT_EQ(7u, buf.tell());
+  EXPECT_EQ(exp, buf);
+
+  // not at EOF
+  buf.seek(6);
+  EXPECT_THROW_LIKE(
+    buf.append_bytes(3, 0x99),
+    std::range_error,
+    "not at EOF"
+  );
+}
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

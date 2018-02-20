@@ -62,6 +62,17 @@ void HandshakeResponsePacket::prepare_packet() {
   reset();
   position_ = size();
 
+  reserve(size() +
+    sizeof(uint32_t) +      // capabilities
+    sizeof(uint32_t) +      // max packet size
+    sizeof(uint8_t) +       // character set
+    23 +                    // 23 0-byte filler
+    username_.size() + 1 +  // username + nul-terminator
+    sizeof(uint8_t) + 20 +  // auth-data-len + auth-data
+    database_.size() + 1 +  // username + nul-terminator
+    auth_plugin_.size() + 1 // auth-plugin + nul-terminator
+  );
+
   // capabilities
   write_int<uint32_t>(kDefaultClientCapabilities.bits());
 
@@ -72,32 +83,27 @@ void HandshakeResponsePacket::prepare_packet() {
   write_int<uint8_t>(char_set_);
 
   // Filler
-  insert(end(), 23, 0x0);
-  position_ = size();
+  append_bytes(23, 0x0);
 
   // Username
   if (!username_.empty()) {
     write_string(username_);
   }
-  push_back(0x0);
-  position_ = size();
+  write_int<uint8_t>(0);
 
   // Auth Data
   write_int<uint8_t>(20);
-  insert(end(), 20, 0x71);  // 0x71 is fake data; can be anything
-  position_ = size();
+  append_bytes(20, 0x71);   // 0x71 is fake data; can be anything
 
   // Database
   if (!database_.empty()) {
     write_string(database_);
   }
-  push_back(0x0);
-  position_ = size();
+  write_int<uint8_t>(0);
 
   // Authentication plugin name
   write_string(auth_plugin_);
-  push_back(0x0);
-  position_ = size();
+  write_int<uint8_t>(0);
 
   update_packet_size();
 }

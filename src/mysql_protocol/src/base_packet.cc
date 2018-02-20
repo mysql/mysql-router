@@ -231,4 +231,11 @@ size_t Packet::write_lenenc_uint(uint64_t value) {
   }
 }
 
+void Packet::append_bytes(size_t count, uint8_t byte) {
+  if (position_ != size())
+    throw std::range_error("not at EOF");
+  insert(end(), count, byte);
+  position_ += count;
+}
+
 } // namespace mysql_protocol
