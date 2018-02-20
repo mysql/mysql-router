@@ -523,3 +523,64 @@ std::string RouterComponentTest::create_config_file(const std::string &content,
 
   return file_path.str();
 }
+
+bool RouterComponentTest::find_in_log(const std::string& logging_folder,
+    const std::function<bool(const std::string&)>& predicate,
+    const std::string& logging_file,
+    std::chrono::milliseconds sleep_time) {
+  const auto STEP = std::chrono::milliseconds(100);
+  std::ifstream in_file;
+  std::ios::streampos cur_pos;
+  do {
+    try {
+      // This is proxy function to account for the fact that I/O can sometimes be slow.
+      if (real_find_in_log(logging_folder, logging_file, predicate, in_file, cur_pos))
+        return true;
+    }
+    catch (const std::runtime_error&) {
+      // report I/O error only on the last attempt
+      if (sleep_time == std::chrono::milliseconds(0)) {
+        std::cerr << "  find_in_log() failed, giving up." << std::endl;
+        throw;
+      }
+    }
+
+    const auto sleep_for = std::min(STEP, sleep_time);
+    std::this_thread::sleep_for(sleep_for);
+    sleep_time -= sleep_for;
+
+  } while (sleep_time > std::chrono::milliseconds(0));
+
+  return false;
+}
+
+bool RouterComponentTest::real_find_in_log(
+    const std::string& logging_folder,
+    const std::string& logging_file,
+    const std::function<bool(const std::string&)>& predicate,
+    std::ifstream& in_file,
+    std::ios::streampos& cur_pos) {
+  if (!in_file.is_open()) {
+    in_file.clear();
+    Path file(logging_folder + "/" + logging_file);
+    in_file.open(file.c_str(), std::ifstream::in);
+    if (!in_file) {
+      throw std::runtime_error("Error opening file " + file.str());
+    }
+    cur_pos = in_file.tellg(); // initialize properly
+  }
+  else {
+    // set current position to the end of what was already read
+    in_file.clear();
+    in_file.seekg(cur_pos);
+  }
+
+  std::string line;
+  while (std::getline(in_file, line)) {
+    cur_pos = in_file.tellg();
+    if (predicate(line))
+      return true;
+  }
+
+  return false;
+}

@@ -36,6 +36,7 @@
 #include <chrono>
 
 Path g_origin_path;
+using mysqlrouter::MySQLSession;
 
 class RouterRoutingTest : public RouterComponentTest, public ::testing::Test {
  protected:
@@ -242,6 +243,64 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   EXPECT_THAT(wait_for_correct_perms(5000), testing::Eq(true));
 }
 #endif
+
+TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // json file does not actually matter in this test as we are not going to
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
+  const std::string bootstrap_dir = get_tmp_dir();
+
+  // launch the server mock for bootstrapping
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port,
+    false /*expecting huge data, can't print on the console*/);
+
+  // create tmp dir where we will log
+  auto logging_folder = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*) {purge_dir(logging_folder); });
+  // create config with logging_folder set to that directory
+  auto params = get_DEFAULT_defaults();
+  params.at("logging_folder") = logging_folder;
+
+  const std::string routing_section =
+    "[routing:basic]\n"
+    "bind_port = " + std::to_string(router_port) + "\n"
+    "mode = read-write\n"
+    "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n"
+    "max_connect_errors = 1\n";
+
+  std::string conf_file = create_config_file(routing_section, &params);
+
+  // launch the router
+  auto router_static = launch_router("-c " + conf_file);
+
+  // wait for mock server to begin accepting the connections
+  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+    << server_mock.get_full_output();
+
+  // wait for router to begin accepting the connections
+  // NOTE: this should cause connection/disconnection which
+  //       should be treated as connection error and increment
+  //       connection errors counter.  This test relies on that.
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+    << router_static.get_full_output();
+
+  // wait until blocking client host info appears in the log
+  bool res = find_in_log(logging_folder,
+    [](const std::string& line) -> bool {
+      return line.find("blocking client host") != line.npos;
+    }
+  );
+
+  ASSERT_TRUE(res) << "Did not found expected entry in log file";
+
+  // for the next connection attempt we should get an error as the
+  // max_connect_errors was exceeded
+  MySQLSession client;
+  EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username", "password", "", ""),
+                    std::exception, "Too many connection errors");
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

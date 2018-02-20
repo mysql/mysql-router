@@ -53,102 +53,7 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
     RouterComponentTest::SetUp();
   }
 
-  /*
-   * Both find_in_log() and find_in_log_for() functions check if predicate is met for
-   * log_file, but they do it in different ways.
-   *
-   * TODO: Consider if both of them are needed, and if not which should be removed.
-   */
-  bool find_in_log(const std::string& logging_folder, const std::function<bool(const std::string&)>& predicate,
-                   std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000)) {
-    // This is proxy function to account for the fact that I/O can sometimes be slow.
-    // If real_find_in_log() fails, it will retry 3 more times
-
-    bool res = false;
-    for (int retries_left = 3; retries_left; retries_left--) {
-      try {
-        res = real_find_in_log(logging_folder, predicate);
-      } catch (const std::runtime_error&) {
-        // report I/O error only on the last attempt
-        if (retries_left == 1) {
-          std::cerr << "  find_in_log() failed, giving up." << std::endl;
-          throw;
-        }
-      }
-
-      if (res)
-        return true;
-      if (retries_left) {
-        std::cerr << "  find_in_log() failed, sleeping a bit and retrying..." << std::endl;
-
-      std::this_thread::sleep_for(sleep_time);
-      }
-    }
-
-    return false;
-  }
-
-  /*
-   * Both find_in_log() and find_in_log_for() functions check if predicate is met for
-   * log_file, but they do it in different ways.
-   *
-   * TODO: Consider if both of them are needed, and if not which should be removed.
-   */
-  bool find_in_log_for(const std::string& log_file, const std::function<bool(const std::string&)>&  predicate,
-      std::chrono::milliseconds wait_time) {
-
-    auto timeout = std::chrono::steady_clock::now() + wait_time;
-
-    std::ifstream ifs(log_file);
-    if (!ifs.is_open()) {
-      std::cerr << "Cannot open file " << log_file << "\n";
-      return false;
-    }
-
-    // store the current read position
-    std::ios::streampos gpos = ifs.tellg();
-    std::string line;
-
-    while(true) {
-      if (!std::getline(ifs, line) || ifs.eof()) {
-        // if we cannot read the next line, clear the stream
-        ifs.clear();
-        // set read position to the end of what was already read
-        ifs.seekg(gpos);
-
-        if (std::chrono::steady_clock::now() > timeout)
-          break;
-        else
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-
-      gpos = ifs.tellg();
-      if (predicate(line))
-        return true;
-
-      if (std::chrono::steady_clock::now() > timeout)
-        break;
-    }
-
-    return false;
-  }
-
   TcpPortPool port_pool_;
-
- private:
-  bool real_find_in_log(const std::string logging_folder, const std::function<bool(const std::string&)>& predicate) {
-    Path file(logging_folder + "/" + "mysqlrouter.log");
-    std::ifstream ifs(file.c_str());
-    if (!ifs)
-      throw std::runtime_error("Error opening file " + file.str());
-
-    std::string line;
-    while (std::getline(ifs, line))
-      if (predicate(line))
-        return true;
-    return false;
-  }
-
 };
 
 TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
@@ -502,8 +407,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
     return line.find("Executing query:") != line.npos;
   };
 
-  const std::string log_file = Path(bootstrap_conf + "/" + "mysqlrouter.log").c_str();
-  EXPECT_TRUE(find_in_log_for(log_file, matcher, std::chrono::milliseconds(5000)));
+  EXPECT_TRUE(find_in_log(bootstrap_conf, matcher, "mysqlrouter.log", std::chrono::milliseconds(5000)));
 }
 
 /**
@@ -689,9 +593,7 @@ TEST_F(MetadataCacheLoggingTest, log_error_when_cannot_connect_to_any_metadata_s
         line.find("Failed connecting with any of the bootstrap servers") != line.npos;
   };
 
-  const std::string log_file = Path(logging_folder + "/" + "mysqlrouter.log").c_str();
-
-  EXPECT_TRUE(find_in_log_for(log_file, matcher, std::chrono::milliseconds(5000)));
+  EXPECT_TRUE(find_in_log(logging_folder, matcher, "mysqlrouter.log", std::chrono::milliseconds(5000)));
 }
 
 /*
@@ -710,8 +612,6 @@ TEST_F(MetadataCacheLoggingTest, log_warning_when_cannot_connect_to_first_metada
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
 
-  const std::string log_file = Path(logging_folder + "/" + "mysqlrouter.log").c_str();
-
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting with Metadata Server 127.0.0.1:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
   auto info_matcher = [&](const std::string& line) -> bool {
@@ -719,13 +619,13 @@ TEST_F(MetadataCacheLoggingTest, log_warning_when_cannot_connect_to_first_metada
         line.find("Failed connecting with Metadata Server 127.0.0.1:" + std::to_string(cluster_nodes_ports[0])) != line.npos;
   };
 
-  EXPECT_TRUE(find_in_log_for(log_file, info_matcher, std::chrono::milliseconds(10000)));
+  EXPECT_TRUE(find_in_log(logging_folder, info_matcher, "mysqlrouter.log", std::chrono::milliseconds(10000)));
 
   auto warning_matcher = [](const std::string& line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
         line.find("While updating metadata, could not establish a connection to replicaset") != line.npos;
   };
-  EXPECT_TRUE(find_in_log_for(log_file, warning_matcher, std::chrono::milliseconds(10000)));
+  EXPECT_TRUE(find_in_log(logging_folder, warning_matcher, "mysqlrouter.log", std::chrono::milliseconds(10000)));
 }
 
 int main(int argc, char *argv[]) {

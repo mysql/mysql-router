@@ -28,7 +28,9 @@
 #include "process_launcher.h"
 #include "router_test_helpers.h"
 
+#include <chrono>
 #include <cstring>
+#include <functional>
 #include <sstream>
 #include <map>
 #include <streambuf>
@@ -36,6 +38,8 @@
 #include <iostream>
 #ifndef _WIN32
 #include <unistd.h>
+#else
+#define NOMINMAX
 #endif
 
 using mysql_harness::Path;
@@ -336,10 +340,28 @@ class RouterComponentTest {
     mysqlrouter_exec_ = path;
   }
 
+  /** @brief returns true if the log file in the given directory contains a string
+  *          that us true for a given predicate
+  *
+  * @param logging_folder directory with the log file to parse
+  * @param predicate predicate to test the file
+  * @param logging_file name of the log file to parse
+  * @param sleep_time max time to wait for the entry in the log file
+  */
+  bool find_in_log(const std::string& logging_folder, const std::function<bool(const std::string&)>& predicate,
+    const std::string& logging_file = "mysqlrouter.log",
+    std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
+
  private:
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
                   const char* out_params[MAX_PARAMS]) const;
+
+  bool real_find_in_log(const std::string& logging_folder,
+                        const std::string& logging_file,
+                        const std::function<bool(const std::string&)>& predicate,
+                        std::ifstream& in_file,
+                        std::ios::streampos& cur_pos);
 
   /** @brief returns a [DEFAULT] section as string
    *
