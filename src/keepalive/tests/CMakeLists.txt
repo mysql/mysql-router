@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# This file lists directories or files to ignore when reporting
-# coverage %. An extra step will remove them from the coverage data.
-# You may list individual files or (more typically) directories.
-# Do not use shell wildcards and such, they will not work.
+enable_testing()
 
-ext
-result/generated
+include_directories(${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
-src/harness/tests/
-src/metadata_cache/tests
-src/mysql_protocol/tests
-src/router/tests
-src/routing/tests
-tests
+SET(TESTS
+  test_plugin_keepalive.cc
+)
 
+foreach(TEST ${TESTS})
+  add_test_file(${TEST} MODULE harness
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
+    LIB_DEPENDS test-helpers)
+endforeach()
+
+
+create_harness_test_directory_post_build(test_harness_plugin_keepalive keepalive)
+configure_harness_test_file(data/keepalive.cfg.in data/keepalive.cfg)

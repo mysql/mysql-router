@@ -64,7 +64,6 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSIO
 file(GLOB cpack_source_ignore_files "${PROJECT_SOURCE_DIR}/*")
 set(src_dir ${PROJECT_SOURCE_DIR})
 set(source_include
-  "${src_dir}/mysql_harness"
   "${src_dir}/cmake"
   "${src_dir}/include"
   "${src_dir}/doc"

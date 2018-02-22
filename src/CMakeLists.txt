@@ -25,19 +25,21 @@ set(CURR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB MODULE_DIRS
    RELATIVE ${CURR_DIR}
    ${CURR_DIR}/*)
-   
+
 list(SORT MODULE_DIRS)
 
 # Load all modules
 foreach(module_name ${MODULE_DIRS})
-  set(mod_dir "${CURR_DIR}/${module_name}")
-  if(IS_DIRECTORY ${mod_dir})
-    if(EXISTS "${mod_dir}/CMakeLists.txt")
-      message(STATUS "Loading module '${module_name}'")
-      add_subdirectory(${module_name})
-    else()
-      message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")
+  if(NOT(module_name STREQUAL "syslog") OR NOT WIN32) # skip syslog for windows
+    set(mod_dir "${CURR_DIR}/${module_name}")
+    if(IS_DIRECTORY ${mod_dir})
+      if(EXISTS "${mod_dir}/CMakeLists.txt")
+        message(STATUS "Loading module '${module_name}'")
+        add_subdirectory(${module_name})
+      else()
+        message(STATUS "Module in folder '${module_name}' has no CMakeLists.txt and/or include-folder")
+      endif()
     endif()
+    unset(mod_dir)
   endif()
-  unset(mod_dir)
 endforeach()

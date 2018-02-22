@@ -28,7 +28,6 @@ CASE_SENSE_NAMES       = NO
 RECURSIVE              = YES
 INPUT                  = @MySQLRouter_SOURCE_DIR@/README.md @MySQLRouter_SOURCE_DIR@/
 STRIP_FROM_PATH        = @MySQLRouter_SOURCE_DIR@/
-EXCLUDE                = @MySQLRouter_SOURCE_DIR@/mysql_harness/ext
 EXCLUDE               += @MySQLRouter_SOURCE_DIR@/ext
 EXCLUDE               += @MySQLRouter_SOURCE_DIR@/packaging
 EXCLUDE               += @MySQLRouter_SOURCE_DIR@/cmake

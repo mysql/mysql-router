@@ -27,7 +27,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   LIB_DEPENDS test-helpers
   INCLUDE_DIRS
-    ${MySQLRouter_SOURCE_DIR}/mysql_harness/shared/include
+    ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include
     ${GTEST_INCLUDE_DIRS})
 
 add_test_dir(issues MODULE issues

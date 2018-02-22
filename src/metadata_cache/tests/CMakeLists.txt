@@ -73,7 +73,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
                ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
                ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
                ${PROJECT_SOURCE_DIR}/tests/helpers
-               ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
+               ${PROJECT_SOURCE_DIR}/src/harness/shared/include
 )
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

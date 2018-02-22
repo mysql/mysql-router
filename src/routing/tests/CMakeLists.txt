@@ -100,7 +100,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "routing"
   LIB_DEPENDS routing_tests test-helpers
   ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
-  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/mysql_harness/shared/include)
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/harness/shared/include)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   MODULE "routing"
@@ -112,7 +112,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers
-    ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
+    ${PROJECT_SOURCE_DIR}/src/harness/shared/include
   )
 
 add_test_dir(issues MODULE issues
@@ -123,7 +123,7 @@ add_test_dir(issues MODULE issues
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers
-    ${PROJECT_SOURCE_DIR}/mysql_harness/shared/include
+    ${PROJECT_SOURCE_DIR}/src/harness/shared/include
   )
 
 set(RUNNING_MYSQL_SERVER "127.0.0.1:3306")

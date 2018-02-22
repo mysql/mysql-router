@@ -92,7 +92,6 @@ endif()
 include(cmake/configure.cmake)
 include(Coverage)
 # Harness before Compiler.cmake (compiler flags), after configure.cmake because of compiler flags
-include(cmake/harness.cmake)
 include(cmake/compiler.cmake)
 find_package(Threads REQUIRED)
 include(cmake/docs.cmake)
@@ -119,5 +118,3 @@ endif()
 
 # Load all modules, including plugins
 add_subdirectory(src)
-
-add_subdirectory(tools)

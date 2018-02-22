@@ -80,7 +80,8 @@ const std::vector<std::string> kIgnoredFileNames{
 
 // Paths to ignore; relative to repository root
 const std::vector<Path> kIgnoredPaths{
-    Path("mysql_harness"),  // we can not check fully subtrees
+    Path("src/harness/internal/"),
+    Path("src/harness/README.txt"),
     Path("packaging"),
     Path("internal"),
     Path(".git"),

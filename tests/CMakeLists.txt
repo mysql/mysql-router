@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 include_directories(helpers
-  ${PROJECT_SOURCE_DIR}/mysql_harness/harness/include
+  ${PROJECT_SOURCE_DIR}/src/harness/include
   ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
   ${GTEST_INCLUDE_DIRS}
   )
@@ -46,7 +46,8 @@ target_link_libraries(routertest_helpers harness-library router_lib)
 
 set(helpers_include_dirs
   ${PROJECT_SOURCE_DIR}/tests/helpers/
-  ${PROJECT_SOURCE_DIR}/mysql_harness/harness/include
+  ${PROJECT_SOURCE_DIR}/src/harness/include
+  ${PROJECT_BINARY_DIR}/
   ${PROJECT_BINARY_DIR}/harness
   ${PROJECT_BINARY_DIR}/include
   ${GTEST_INCLUDE_DIRS}
