@@ -124,12 +124,6 @@
           {
             "type": "STRING",
             "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
-          },
-          {
-            "type": "STRING",
-            "name": "fake",
-            "repeat": 4194304,
-            "comment": "Additional field that we use to force generating of big packets"
           }
         ],
         "rows": [
@@ -137,22 +131,19 @@
             "test",
             "default",
             "pm",
-            "localhost:5500",
-            "x"
+            "localhost:5500"
           ],
           [
             "test",
             "default",
             "pm",
-            "localhost:5510",
-            ""
+            "localhost:5510"
           ],
           [
             "test",
             "default",
             "pm",
-            "localhost:5520",
-            ""
+            "localhost:5520"
           ]
         ]
       }
@@ -180,16 +171,18 @@
         ]
       }
     },
+
+    // register router
     {
       "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts.*",
       "ok": {
-        "last_insert_id": 1
+        "last_insert_id": 12 // host_id
       }
     },
     {
       "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
       "ok": {
-        "last_insert_id": 1
+        "last_insert_id": 34 // router_id
       }
     },
 
@@ -255,20 +248,58 @@
 
 
 
-    { "COMMENT": "ConfigGenerator::create_account()",
-      "stmt.regex": "^CREATE USER mysql_router.*",
+    { "COMMENT" : "iteration #1: --account-host host1",
+      "stmt.regex": "^CREATE USER mysql_router.*'host1'.*",
       "ok": {}
     },
     {
-      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*",
+      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*'host1'",
       "ok": {}
     },
     {
-      "stmt.regex": "^GRANT SELECT ON performance_schema.*",
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
       "ok": {}
     },
     {
-      "stmt.regex": "^GRANT SELECT ON performance_schema.*",
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
+      "ok": {}
+    },
+
+
+
+    { "COMMENT" : "iteration #2: --account-host %",
+      "stmt.regex": "^CREATE USER mysql_router.*'%'.*",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*'%'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'%'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'%'",
+      "ok": {}
+    },
+
+
+
+    { "COMMENT" : "iteration #3: --account-host host3%",
+      "stmt.regex": "^CREATE USER mysql_router.*'host3%'.*",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*'host3%'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host3%'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host3%'",
       "ok": {}
     },
 

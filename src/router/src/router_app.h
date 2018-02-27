@@ -432,6 +432,11 @@ private:
   std::map<std::string, std::string> bootstrap_options_;
 
   /**
+   * @brief key/list-of-values map of additional configuration options for bootstrap
+   */
+  std::map<std::string, std::vector<std::string>> bootstrap_multivalue_options_;
+
+  /**
    * Path to origin of executable.
    *
    * This variable contain the directory that the executable is

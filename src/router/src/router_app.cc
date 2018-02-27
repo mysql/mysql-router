@@ -841,6 +841,17 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->bootstrap_options_["password-retries"] = retries;
       }, [this] { this->check_bootstrap_option("--password-retries"); });
 
+  arg_handler_.add_option(OptionNames({"--account-host"}),
+                          "Host pattern to be used when creating Router's database user, default='%'. "
+                          "It can be used multiple times to provide multiple patterns. (bootstrap)",
+                          CmdOptionValueReq::required, "account-host",
+                          [this](const string &host_pattern) {
+        this->bootstrap_multivalue_options_["account-host"].push_back(host_pattern);
+        if (this->bootstrap_uri_.empty()) {
+          throw std::runtime_error("Option --account-host can only be used together with -B/--bootstrap");
+        }
+      });
+
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
@@ -1028,10 +1039,10 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     }
     default_keyring_file.append("/").append(kDefaultKeyringFileName);
     config_gen.bootstrap_system_deployment(config_file_path,
-        bootstrap_options_, default_paths, default_keyring_file, master_key_path);
+        bootstrap_options_, bootstrap_multivalue_options_, default_paths, default_keyring_file, master_key_path);
   } else {
     config_gen.bootstrap_directory_deployment(bootstrap_directory_,
-        bootstrap_options_, default_paths, kDefaultKeyringFileName, "mysqlrouter.key");
+        bootstrap_options_, bootstrap_multivalue_options_, default_paths, kDefaultKeyringFileName, "mysqlrouter.key");
   }
 }
 

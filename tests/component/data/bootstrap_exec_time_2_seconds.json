@@ -184,11 +184,70 @@
         "last_insert_id": 1
       }
     },
+
+
+
+    // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
     {
-      "stmt.regex": "^DROP USER IF EXISTS mysql_router.*",
+      "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
+      "result": {
+        "columns": [
+          {
+            "type": "LONGLONG",
+            "name": "COUNT..."
+          }
+        ],
+        "rows": [
+          [
+            "0" // to keep it simple, just tell Router there's no old accounts to erase
+          ]
+        ]
+      }
+    },
+
+    // create temp account to figure out the secure password (ConfigGenerator::generate_compliant_password())
+    {
+      "stmt.regex": "^CREATE USER mysql_router.*",
+      "ok": {}
+    },
+
+    // now erase that temp account (ConfigGenerator::delete_account_for_all_hosts())
+    {
+      "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
+      "result": {
+        "columns": [
+          {
+            "type": "LONGLONG",
+            "name": "COUNT..."
+          }
+        ],
+        "rows": [
+          [
+            "1" // 1 = the temp account we just created
+          ]
+        ]
+      }
+    },
+    {
+      "stmt.regex": "^SELECT CONCAT\\('DROP USER ', GROUP_CONCAT\\(QUOTE\\(user\\), '@', QUOTE\\(host\\)\\)\\) INTO @drop_user_sql FROM mysql.user WHERE user LIKE 'mysql_router.*'",
       "ok": {}
     },
     {
+      "stmt.regex": "^PREPARE drop_user_stmt FROM @drop_user_sql",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^EXECUTE drop_user_stmt",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^DEALLOCATE PREPARE drop_user_stmt",
+      "ok": {}
+    },
+
+
+
+    { "COMMENT": "ConfigGenerator::create_account()",
       "stmt.regex": "^CREATE USER mysql_router.*",
       "ok": {}
     },
@@ -204,6 +263,9 @@
       "stmt.regex": "^GRANT SELECT ON performance_schema.*",
       "ok": {}
     },
+
+
+
     {
       "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
       "ok": {}

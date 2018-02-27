@@ -186,6 +186,8 @@
                 ]
             }
         },
+
+        // this is the SQL failure which will induce the bootstrap failover
         {
             "stmt": "INSERT INTO mysql_innodb_cluster_metadata.routers        (host_id, router_name) VALUES (8, '')",
             "exec_time": 0.152557,
@@ -195,11 +197,15 @@
                 "sql_state": "HY000"
             }
         },
+
+        // Router will roll back transaction as a result ...
         {
             "stmt": "ROLLBACK",
             "exec_time": 0.100835,
             "ok": {}
         },
+
+        // but still query for other nodes, before failing over
         {
             "stmt": "SELECT member_host, member_port   FROM performance_schema.replication_group_members  /*!80002 ORDER BY member_role */",
             "exec_time": 0.135675,
@@ -220,7 +226,7 @@
                         process.env.MYSQL_SERVER_MOCK_PORT_1
                     ],
                     [
-                        process.env.MYSQL_SERVER_MOCK_HOST_2,
+                        process.env.MYSQL_SERVER_MOCK_HOST_2, // it will failover to this one
                         process.env.MYSQL_SERVER_MOCK_PORT_2
                     ],
                     [
