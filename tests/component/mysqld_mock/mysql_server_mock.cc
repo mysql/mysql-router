@@ -89,6 +89,9 @@ MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
   debug_mode_(debug_mode),
   json_reader_(expected_queries_file),
   protocol_decoder_(&read_packet) {
+  if (debug_mode_)
+    std::cout << "\n\nExpected SQL queries come from file '"
+              << expected_queries_file << "'\n\n" << std::flush;
 }
 
 MySQLServerMock::~MySQLServerMock() {
@@ -505,6 +508,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
 
   switch (statement.response_type) {
   case StatementResponseType::STMT_RES_OK: {
+    if (debug_mode_) std::cout << std::endl;  // visual separator
     OkResponse *response = dynamic_cast<OkResponse *>(statement.response.get());
     std::this_thread::sleep_for(statement.exec_time);
     send_ok(client_socket, static_cast<uint8_t>(seq_no+1), 0, response->last_insert_id, 0, response->warning_count);
@@ -535,8 +539,8 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
   }
   break;
   case StatementResponseType::STMT_RES_ERROR: {
+    if (debug_mode_) std::cout << std::endl;  // visual separator
     ErrorResponse *response = dynamic_cast<ErrorResponse *>(statement.response.get());
-
     send_error(client_socket, static_cast<uint8_t>(seq_no+1), response->code, response->msg);
   }
   break;
