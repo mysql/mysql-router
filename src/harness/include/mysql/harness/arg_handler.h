@@ -46,6 +46,7 @@ enum class CmdOptionValueReq : uint8_t {
 };
 
 using ActionFunc = std::function<void(const std::string &)>;
+using AtEndActionFunc = std::function<void()>;
 using OptionNames = std::vector<std::string>;
 
 /** @brief CmdOption stores information about command line options
@@ -55,6 +56,7 @@ using OptionNames = std::vector<std::string>;
  */
 struct CmdOption {
   using ActionFunc  = std::function<void(const std::string &)>;
+  using AtEndActionFunc = std::function<void()>;
   using OptionNames = std::vector<std::string>;
 
   OptionNames names;
@@ -63,14 +65,16 @@ struct CmdOption {
   std::string value;
   std::string metavar;
   ActionFunc action;
+  AtEndActionFunc at_end_action;
 
   CmdOption(OptionNames names_,
             std::string description_,
             CmdOptionValueReq value_req_,
             const std::string metavar_,
-            ActionFunc action_)
+            ActionFunc action_,
+            AtEndActionFunc at_end_action_ = []{})
   : names(names_), description(description_), value_req(value_req_),
-    metavar(metavar_), action(action_) {}
+    metavar(metavar_), action(action_), at_end_action(at_end_action_) {}
 };
 
 /** @brief Definition of a vector holding unique pointers to CmdOption
@@ -106,8 +110,8 @@ using OptionContainer = std::vector<CmdOption>;
  *                          [this](const string &) { this->show_help(); }
  *       handler_.add_option(OptionNames({"--config"}), "Configuration file",
  *                          CmdOptionValueReq::none, "",
- *                          [this](const string &value) { this->set_config_file(value); }
- *     }
+ *                          [this](const string &value) { this->set_config_file(value); },
+ *                          []{});
  *
  *     void MyApp::init(const vector<string> arguments) {
  *       prepare_command_line_options();
@@ -176,11 +180,17 @@ class HARNESS_EXPORT CmdArgHandler {
    * with the (optional) value of the option. The function should
    * accept only a `const std::string`.
    *
+   * The `at_end_action` argument should be a `std::function`. This is optional
+   * argument, if not provided then []{} is used as at_end_action. The `at_end_action`
+   * is ment to be used for additional validation, if particular set of options
+   * has to be used together, or if particular set of options cannot be used together.
+   *
    * Example usage:
    *
    *       handler_.add_option(OptionNames({"--config"}), "Configuration file",
    *                          CmdOptionValueReq::none, "",
-   *                          [this](const string &value) { this->set_config_file(value); }
+   *                          [this](const string &value) { this->set_config_file(value); },
+   *                          []{});
    *
    * @devnote
    * The `add_option` method will assert when `names` is empty,
@@ -193,12 +203,14 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param value_req value requirement of the option
    * @param metavar for formatting help text when option accepts a value
    * @param action action to perform when the option was found
+   * @param at_end_action task to perform after all actions have been done
    */
   void add_option(const OptionNames& names,
                   const std::string& description,
                   const CmdOptionValueReq& value_req,
                   const std::string& metavar,
-                  ActionFunc action) noexcept;
+                  ActionFunc action,
+                  AtEndActionFunc at_end_action = []{}) noexcept;
 
   void add_option(const CmdOption &other) noexcept;
 

@@ -56,7 +56,9 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
   auto router = launch_router("--user=mysqlrouter --bootstrap=127.0.0.1:5000");
 
   EXPECT_EQ(router.wait_for_exit(), 1);
-  EXPECT_TRUE(router.expect_output("Error: Option -u/--user needs to be used after the --bootstrap option")) << router.get_full_output();
+  EXPECT_TRUE(router.expect_output("Error: One can only use the -u/--user switch if running as root")) << router.get_full_output();
+
+  EXPECT_EQ(router.exit_code(), 1);
 }
 
 #else

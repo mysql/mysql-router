@@ -330,6 +330,13 @@ private:
   void save_bootstrap_option_not_empty(const std::string& option_name, const std::string& save_name,
                                        const std::string& option_value);
 
+  /**
+   * @brief verify if option is used for bootstrap.
+   *
+   * @throw std::runtime_error if called in non-bootstrap mode.
+   */
+  void check_bootstrap_option(const std::string& option_name) const;
+
   /** @brief Shows command line usage and option description
    *
    * Shows command line usage and all available options together with their description.
@@ -433,8 +440,14 @@ private:
   mysql_harness::Path origin_;
 
 #ifndef _WIN32
-  /** @brief Value of the --user parameter given on the command line **/
+  /** @brief Value of the --user parameter given on the command line if router is launched in bootstrap mode **/
   std::string user_cmd_line_;
+
+  /** @brief Value of the --user parameter given on the command line. It is used to buffer the value of --user
+   * parameter till all command line parameters are parsed. If router is launched in bootstrap mode, then
+   * username_ is copied to user_cmd_line_, otherwise it is copied to bootstrap_options_["user"]
+   **/
+  std::string username_;
 
   /** @brief Pointer to the object to be used to perform system specific user-related operations **/
   mysqlrouter::SysUserOperationsBase* sys_user_operations_;

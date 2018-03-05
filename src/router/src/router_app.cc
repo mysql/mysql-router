@@ -696,13 +696,15 @@ vector<string> MySQLRouter::check_config_files() {
 
 void MySQLRouter::save_bootstrap_option_not_empty(const std::string& option_name, const std::string& save_name,
                                      const std::string& option_value) {
-  if (this->bootstrap_uri_.empty())
-    throw std::runtime_error("Option " + option_name + " can only be used together with -B/--bootstrap");
-
   if (option_value.empty())
     throw std::runtime_error("Value for option '" + option_name + "' can't be empty.");
 
   bootstrap_options_[save_name] = option_value;
+}
+
+void MySQLRouter::check_bootstrap_option(const std::string& option_name) const {
+  if (this->bootstrap_uri_.empty())
+    throw std::runtime_error("Option " + option_name + " can only be used together with -B/--bootstrap");
 }
 
 void MySQLRouter::prepare_command_options() noexcept {
@@ -735,13 +737,6 @@ void MySQLRouter::prepare_command_options() noexcept {
         if (server_url.empty()) {
           throw std::runtime_error("Invalid value for --bootstrap/-B option");
         }
-#ifndef _WIN32
-        // at the point the --user option is being processed we need to know if it is a bootstrap
-        // or not so we can't allow --bootstrap option to be used after the -u/--user
-        if (!this->user_cmd_line_.empty()) {
-          throw std::runtime_error("Option -u/--user needs to be used after the --bootstrap option");
-        }
-#endif
         this->bootstrap_uri_ = server_url;
       });
 
@@ -754,7 +749,7 @@ void MySQLRouter::prepare_command_options() noexcept {
         }
 
         this->save_bootstrap_option_not_empty("--bootstrap-socket", "bootstrap_socket", socket_name);
-    });
+    }, [this] { this->check_bootstrap_option("--bootstrap-socket"); });
 
   arg_handler_.add_option(OptionNames({"-d", "--directory"}),
                           "Creates a self-contained directory for a new instance of the Router. (bootstrap)",
@@ -764,10 +759,7 @@ void MySQLRouter::prepare_command_options() noexcept {
           throw std::runtime_error("Invalid value for --directory option");
         }
         this->bootstrap_directory_ = path;
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option -d/--directory can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("-d/--directory"); });
 
 #ifndef _WIN32
   arg_handler_.add_option(OptionNames({"--conf-use-sockets"}),
@@ -775,40 +767,28 @@ void MySQLRouter::prepare_command_options() noexcept {
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["use-sockets"] = "1";
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --conf-use-sockets can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--conf-use-sockets"); });
 
   arg_handler_.add_option(OptionNames({"--conf-skip-tcp"}),
                           "Whether to disable binding of a TCP port for incoming connections. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["skip-tcp"] = "1";
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --conf-skip-tcp can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--conf-skip-tcp"); });
 #endif
   arg_handler_.add_option(OptionNames({"--conf-base-port"}),
                           "Base port to use for listening router ports. (bootstrap)",
                           CmdOptionValueReq::required, "port",
                           [this](const string &port) {
         this->bootstrap_options_["base-port"] = port;
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --conf-base-port can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--conf-base-port"); });
 
   arg_handler_.add_option(OptionNames({"--conf-bind-address"}),
                           "IP address of the interface to which router's listening sockets should bind. (bootstrap)",
                           CmdOptionValueReq::required, "address",
                           [this](const string &address) {
         this->bootstrap_options_["bind-address"] = address;
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --conf-bind-address can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--conf-bind-address"); });
 
   arg_handler_.add_option(OptionNames({"--connect-timeout"}),
                           "The time in seconds after which trying to connect to metadata server should timeout. It applies to bootstrap mode and is written to configuration file. It is also used in normal mode.",
@@ -827,12 +807,15 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Run the mysqlrouter as the user having the name user_name.",
                           CmdOptionValueReq::required, "username",
                           [this](const string &username) {
+        this->username_ = username;
+      },
+      [this] {
         if (this->bootstrap_uri_.empty()) {
-          this->user_cmd_line_ = username;
+          this->user_cmd_line_ = this->username_;
         }
         else {
-          check_user(username, true, this->sys_user_operations_);
-          this->bootstrap_options_["user"] =  username;
+          check_user(this->username_, true, this->sys_user_operations_);
+          this->bootstrap_options_["user"] =  this->username_;
         }
       });
 #endif
@@ -842,40 +825,28 @@ void MySQLRouter::prepare_command_options() noexcept {
                           CmdOptionValueReq::optional, "name",
                           [this](const string &name) {
         this->bootstrap_options_["name"] = name;
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --name can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--name"); });
 
   arg_handler_.add_option(OptionNames({"--force-password-validation"}),
                           "When autocreating database account do not use HASHED password. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["force-password-validation"] = "1";
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --force-password-validation can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--force-password-validation"); });
 
   arg_handler_.add_option(OptionNames({"--password-retries"}),
                           "Number of the retries for generating the router's user password. (bootstrap)",
                           CmdOptionValueReq::optional, "password-retries",
                           [this](const string &retries) {
         this->bootstrap_options_["password-retries"] = retries;
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --password-retries can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--password-retries"); });
 
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
                           CmdOptionValueReq::none, "",
                           [this](const string &) {
         this->bootstrap_options_["force"] = "1";
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --force can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->check_bootstrap_option("--force"); });
 
   char ssl_mode_vals[128];
   char ssl_mode_desc[256];
@@ -892,64 +863,61 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(OptionNames({"--ssl-mode"}), ssl_mode_desc,
                           CmdOptionValueReq::required, "mode",
                           [this](const string &ssl_mode) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --ssl-mode can only be used together with -B/--bootstrap");
-
         try {
           mysqlrouter::MySQLSession::parse_ssl_mode(ssl_mode);  // we only care if this succeeds
           bootstrap_options_["ssl_mode"] = ssl_mode;
         } catch (const std::logic_error& e) {
           throw std::runtime_error("Invalid value for --ssl-mode option");
         }
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-mode"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-cipher"}), ": separated list of SSL ciphers to allow, if SSL is enabeld.",
                           CmdOptionValueReq::required, "ciphers",
                           [this](const string &cipher) {
         this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher", cipher);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-cipher"); });
 
   arg_handler_.add_option(OptionNames({"--tls-version"}), ", separated list of TLS versions to request, if SSL is enabled.",
                           CmdOptionValueReq::required, "versions",
                           [this](const string &version) {
         this->save_bootstrap_option_not_empty("--tls-version", "tls_version", version);
-      });
+      }, [this] { this->check_bootstrap_option("--tls-version"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-ca"}), "Path to SSL CA file to verify server's certificate against.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-ca"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-capath"}), "Path to directory containing SSL CA files to verify server's certificate against.",
                           CmdOptionValueReq::required, "directory",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-capath"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-crl"}), "Path to SSL CRL file to use when verifying server certificate.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-crl"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-crlpath"}), "Path to directory containing SSL CRL files to use when verifying server certificate.",
                           CmdOptionValueReq::required, "directory",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-crlpath"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-cert"}), "Path to client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-cert"); });
 
   arg_handler_.add_option(OptionNames({"--ssl-key"}), "Path to private key for client SSL certificate, to be used if client certificate verification is required. Used during bootstrap only.",
                           CmdOptionValueReq::required, "path",
                           [this](const string &path) {
         this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
-      });
+      }, [this] { this->check_bootstrap_option("--ssl-key"); });
 
   arg_handler_.add_option(OptionNames({"-c", "--config"}),
                           "Only read configuration from given file.",

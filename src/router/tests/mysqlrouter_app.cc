@@ -328,31 +328,35 @@ TEST_F(AppTest, CheckConfigFileFallbackToInNoDefault)
 }
 
 #ifndef _WIN32
-TEST_F(AppTest, CmdLineUserBeforeBootstrapFail) {
-  vector<string> argv = {
+TEST_F(AppTest, CmdLineUserBeforeBootstrap) {
+  MySQLRouter router;
+  vector<string> arguments = {
       "--user", "mysqlrouter",
       "--bootstrap", "127.0.0.1:5000"
   };
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW(router.parse_command_options(arguments), std::runtime_error);
+
   try {
-    MySQLRouter r(g_origin, argv);
+    router.parse_command_options(arguments);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
+    EXPECT_THAT(exc.what(), StrEq("One can only use the -u/--user switch if running as root"));
   }
 }
 
-TEST_F(AppTest, CmdLineUserShortBeforeBootstrapFail) {
-  vector<string> argv = {
+TEST_F(AppTest, CmdLineUserShortBeforeBootstrap) {
+  MySQLRouter router;
+  vector<string> arguments = {
       "-u", "mysqlrouter",
       "--bootstrap", "127.0.0.1:5000"
   };
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW(router.parse_command_options(arguments), std::runtime_error);
+
   try {
-    MySQLRouter r(g_origin, argv);
+    router.parse_command_options(arguments);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Option -u/--user needs to be used after the --bootstrap option"));
+    EXPECT_THAT(exc.what(), HasSubstr("One can only use the -u/--user switch if running as root"));
   }
 }
 #endif

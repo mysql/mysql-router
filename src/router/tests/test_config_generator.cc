@@ -1726,14 +1726,14 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     }
   }
 
-  // --bootstrap missing
+  // --ssl-mode has an invalid argument
   {                               //vv---- vital!  We rely on it to exit out of MySQLRouter::init()
-    std::vector<std::string> argv {"-V", "--ssl-mode", "whatever"};
+    std::vector<std::string> argv {"-V", "--ssl-mode", "bad", "--bootstrap", "0:3310"};
     try {
       MySQLRouter router(Path(), argv);
       FAIL() << "Expected std::invalid_argument to be thrown";
     } catch (const std::runtime_error &e) {
-      EXPECT_STREQ("Option --ssl-mode can only be used together with -B/--bootstrap", e.what());
+      EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
       SUCCEED();
     } catch (...) {
       FAIL() << "Expected std::runtime_error to be thrown";

@@ -59,10 +59,11 @@ CmdArgHandler::add_option(const CmdOption::OptionNames& names,
                           const string& description,
                           const CmdOptionValueReq& value_req,
                           const string& metavar,
-                          CmdOption::ActionFunc action) noexcept {
+                          CmdOption::ActionFunc action,
+                          CmdOption::AtEndActionFunc at_end_action) noexcept {
   assert(!names.empty());  // need none empty names container
   assert(debug_check_option_names(names));
-  options_.emplace_back(names, description, value_req, metavar, action);
+  options_.emplace_back(names, description, value_req, metavar, action, at_end_action);
 }
 
 void CmdArgHandler::add_option(const CmdOption &other) noexcept {
@@ -70,7 +71,7 @@ void CmdArgHandler::add_option(const CmdOption &other) noexcept {
   assert(debug_check_option_names(other.names));
 
   options_.emplace_back(other.names, other.description,
-                        other.value_req, other.metavar, other.action);
+                        other.value_req, other.metavar, other.action, other.at_end_action);
 }
 
 OptionContainer::const_iterator
@@ -138,6 +139,7 @@ void CmdArgHandler::process(const vector<string>& arguments) {
   rest_arguments_.clear();
   auto args_end = arguments.end();
   vector<std::pair<CmdOption::ActionFunc, string> > schedule;
+  vector<CmdOption::AtEndActionFunc> at_end_schedule;
 
   for (auto part = arguments.begin(); part < args_end; ++part) {
     if ((pos = (*part).find('=')) != string::npos) {
@@ -186,9 +188,10 @@ void CmdArgHandler::process(const vector<string>& arguments) {
         }
       }
 
-      // Execute actions alter
+      // Execute actions after
       if (option.action != nullptr) {
         schedule.emplace_back(option.action, value);
+        at_end_schedule.push_back(option.at_end_action);
       }
     } else {
       auto message = string_format("unknown option '%s'.", argpart.c_str());
@@ -199,6 +202,11 @@ void CmdArgHandler::process(const vector<string>& arguments) {
   // Execute actions after processing
   for (auto it : schedule) {
     std::bind(it.first, it.second)();
+  }
+
+  // Execute at the end actions
+  for (auto at_end_action : at_end_schedule) {
+    at_end_action();
   }
 }
 

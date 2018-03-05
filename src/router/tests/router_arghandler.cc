@@ -416,3 +416,50 @@ TEST_F(ArgHandlerTest, OptionDescriptions) {
   ASSERT_THAT(lines.at(4), StrEq("  -c <required>, --required-c <required>"));
   ASSERT_THAT(lines.at(5), StrEq("        Testing -c"));
 }
+
+
+TEST_F(ArgHandlerTest, CheckIfTwoOptionsAreProvided) {
+  CmdArgHandler c(false);
+
+  bool option_a_set = false, option_b_set = false;
+
+  CmdOption option_a({"--option-a"}, "Testing --option-a",
+            CmdOptionValueReq::required, "option-a_value",
+            [&] (const string & /* value */) { option_a_set = true; },
+            [&] { if (option_a_set != option_b_set)
+              throw std::invalid_argument("--option-a has to be used together with --option-b"); });
+
+  CmdOption option_b({"--option-b"}, "Testing --option-b",
+            CmdOptionValueReq::required, "option-b_value",
+            [&] (const string & /* value */) { option_b_set = true; },
+            [&] { if (option_a_set != option_b_set)
+              throw std::invalid_argument("--option-b has to be used together with --option-a"); });
+
+  c.add_option(option_a);
+  c.add_option(option_b);
+
+  ASSERT_THROW({c.process({"--option-a=value-a"});}, std::invalid_argument);
+
+  option_a_set = false, option_b_set = false;
+  try {
+    c.process({"--option-a=value-a"});
+  } catch (const std::invalid_argument &exc) {
+    ASSERT_THAT(exc.what(), HasSubstr("--option-a has to be used together with --option-b"));
+  }
+
+  option_a_set = false, option_b_set = false;
+  ASSERT_THROW({c.process({"--option-b=value-b"});}, std::invalid_argument);
+
+  option_a_set = false, option_b_set = false;
+  try {
+    c.process({"--option-b=value-b"});
+  } catch (const std::invalid_argument &exc) {
+    ASSERT_THAT(exc.what(), HasSubstr("--option-b has to be used together with --option-a"));
+  }
+
+  option_a_set = false, option_b_set = false;
+  ASSERT_NO_THROW(c.process({"--option-a=value-a", "--option-b=value-b"}));
+
+  option_a_set = false, option_b_set = false;
+  ASSERT_NO_THROW(c.process({"--option-b=value-b", "--option-a=value-a"}));
+}
