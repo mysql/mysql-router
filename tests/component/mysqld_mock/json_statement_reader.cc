@@ -159,7 +159,7 @@ QueriesJsonReader::QueriesJsonReader(const std::string &filename):
   char readBuffer[65536];
   rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 
-  pimpl_->json_document_.ParseStream(is);
+  pimpl_->json_document_.ParseStream<rapidjson::kParseCommentsFlag>(is);
 
   if (pimpl_->json_document_.HasParseError()) {
     throw std::runtime_error("Parsing " + filename + " failed at pos " + std::to_string(pimpl_->json_document_.GetErrorOffset()) + ": "
