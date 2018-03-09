@@ -54,7 +54,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // use the json file that adds additional rows to the metadata to increase the
   // packet size to +10MB to verify routing of the big packets
-  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
   // launch the server mock for bootstrapping
@@ -105,7 +105,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   const auto router_port = port_pool_.get_next_available();
 
   // doesn't really matter which file we use here, we are not going to do any queries
-  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
 
   // launch the server mock
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
@@ -146,7 +146,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   const auto router_port = port_pool_.get_next_available();
 
   // doesn't really matter which file we use here, we are not going to do any queries
-  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
 
   // launch the server mock
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
@@ -249,7 +249,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   const auto router_port = port_pool_.get_next_available();
 
   // json file does not actually matter in this test as we are not going to
-  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_big_data.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
   // launch the server mock for bootstrapping

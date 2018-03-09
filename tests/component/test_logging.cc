@@ -276,7 +276,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // than the stuff that follows it).
   // Router should report the error on STDERR and exit
 
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
   const std::string bootstrap_dir = get_tmp_dir();
 
   const unsigned server_port = port_pool_.get_next_available();
@@ -309,7 +309,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
  *       configuration file is not provided.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
@@ -338,7 +338,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
  *       to DEBUG in bootstrap configuration file.
  */
 TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
@@ -374,7 +374,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
  *       if loggin_folder is provided in bootstrap configuration file
  */
 TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
   const std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
@@ -417,7 +417,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
  * @test verify that logs are not written to stdout during bootstrap.
  */
 TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
-  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
 
   const std::string bootstrap_dir = get_tmp_dir();
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
