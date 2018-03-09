@@ -27,90 +27,31 @@
                 ]
             }
         },
-
-
-
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "0" // to keep it simple, just tell Router there's no old accounts to erase
-                    ]
-                ]
-            }
-        },
-
-        // create temp account to figure out the secure password (ConfigGenerator::generate_compliant_password())
-        {
-            "stmt.regex": "^CREATE USER mysql_router.*",
-            "ok": {}
-        },
-
-        // now erase that temp account (ConfigGenerator::delete_account_for_all_hosts())
-        {
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "1" // 1 = the temp account we just created
-                    ]
-                ]
-            }
-        },
-        {
-            "stmt.regex": "^SELECT CONCAT\\('DROP USER ', GROUP_CONCAT\\(QUOTE\\(user\\), '@', QUOTE\\(host\\)\\)\\) INTO @drop_user_sql FROM mysql.user WHERE user LIKE 'mysql_router.*'",
+            "stmt.regex": "^DROP USER IF EXISTS mysql_router.*@'%'",
+            "exec_time": 15.643484,
             "ok": {}
         },
         {
-            "stmt.regex": "^PREPARE drop_user_stmt FROM @drop_user_sql",
+            "stmt.regex": "^CREATE USER mysql_router.*@'%' IDENTIFIED WITH mysql_native_password AS '.*'",
+            "exec_time": 4.102568,
             "ok": {}
         },
         {
-            "stmt.regex": "^EXECUTE drop_user_stmt",
+            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router.*@'%'",
+            "exec_time": 9.717177,
             "ok": {}
         },
         {
-            "stmt.regex": "^DEALLOCATE PREPARE drop_user_stmt",
-            "ok": {}
-        },
-
-        // finally, create the "real" account
-        {   "COMMENT": "ConfigGenerator::create_account()",
-            "stmt.regex": "^CREATE USER mysql_router.*",
+            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_members TO mysql_router.*@'%'",
+            "exec_time": 6.181016,
             "ok": {}
         },
         {
-            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router8_.*@'%'",
-            "exec_time": 8.536869,
+            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router.*@'%'",
+            "exec_time": 14.53201,
             "ok": {}
         },
-        {
-            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_members TO mysql_router8_.*@'%'",
-            "exec_time": 8.584342,
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router8_.*@'%'",
-            "exec_time": 6.240789,
-            "ok": {}
-        },
-
-
-
         {
             "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(attributes,    'RWEndpoint', '6446'\\),    'ROEndpoint', '6447'\\),    'RWXEndpoint', '64460'\\),    'ROXEndpoint', '64470'\\) WHERE router_id = .*",
             "exec_time": 0.319936,

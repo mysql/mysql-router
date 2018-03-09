@@ -50,9 +50,7 @@ DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
 DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
 DECLARE_TEST(ConfigGeneratorTest, create_config_single_master);
 DECLARE_TEST(ConfigGeneratorTest, create_config_multi_master);
-DECLARE_TEST(ConfigGeneratorTest, delete_account_for_all_hosts);
 DECLARE_TEST(ConfigGeneratorTest, create_acount);
-DECLARE_TEST(ConfigGeneratorTest, create_router_accounts);
 DECLARE_TEST(ConfigGeneratorTest, fill_options);
 DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
 DECLARE_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
@@ -87,13 +85,11 @@ public:
 
   void bootstrap_system_deployment(const std::string &config_file_path,
       const std::map<std::string, std::string> &options,
-      const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths,
       const std::string &default_keyring_path,
       const std::string &keyring_master_key_file);
   void bootstrap_directory_deployment(const std::string &directory,
       const std::map<std::string, std::string> &options,
-      const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths,
       const std::string &default_keyring_file_name,
       const std::string &keyring_master_key_file);
@@ -156,7 +152,6 @@ private:
   void bootstrap_deployment(std::ostream &config_file,
       const mysql_harness::Path &config_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
-      const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths,
       const std::string &keyring_file,
       const std::string &keyring_master_key_file,
@@ -168,7 +163,6 @@ private:
       const std::string &router_name,
       mysql_harness::RandomGeneratorInterface& rg,
       const std::map<std::string, std::string> &user_options,
-      const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::string &rw_endpoint,
       const std::string &ro_endpoint,
       const std::string &rw_x_endpoint,
@@ -195,21 +189,11 @@ private:
                      const Options &options,
                      bool print_configs = false);
 
-  void delete_account_for_all_hosts(const std::string &username);
+  // returns auto-generated password for the account
+  std::string create_account(const std::map<std::string, std::string> &user_options,
+                             const std::string &username);
 
-  void create_router_accounts(const std::vector<std::string>& hostnames,
-                              const std::string &username,
-                              const std::string &password,
-                              bool password_hashed = false);
-
-  std::pair<std::string, bool> generate_compliant_password(
-      const std::map<std::string, std::string> &user_options,
-      const std::string &username);
-
-  void create_account(const std::string &username,
-                      const std::string &hostname,
-                      const std::string &password,
-                      bool grant_select = true,
+  void create_account(const std::string &username, const std::string &password,
                       bool password_hashed = false);
 
   std::pair<uint32_t, std::string> get_router_id_and_name_from_config(const std::string &config_file_path,
@@ -249,9 +233,7 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
   FRIEND_TEST(::ConfigGeneratorTest, create_config_single_master);
   FRIEND_TEST(::ConfigGeneratorTest, create_config_multi_master);
-  FRIEND_TEST(::ConfigGeneratorTest, delete_account_for_all_hosts);
   FRIEND_TEST(::ConfigGeneratorTest, create_acount);
-  FRIEND_TEST(::ConfigGeneratorTest, create_router_accounts);
   FRIEND_TEST(::ConfigGeneratorTest, fill_options);
   FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
   FRIEND_TEST(::ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);

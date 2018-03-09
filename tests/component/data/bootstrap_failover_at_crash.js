@@ -27,30 +27,11 @@
                 ]
             }
         },
-
-
-
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "0" // to keep it simple, just tell Router there's no old accounts to erase
-                    ]
-                ]
-            }
+            "stmt.regex": "^DROP USER IF EXISTS mysql_router.*",
+            "ok": {}
         },
-
-        // create temp account to figure out the secure password
-        // - fail this, to trigger failover
-        {   "COMMENT": "ConfigGenerator::generate_compliant_password()",
+        {
             "stmt.regex": "^CREATE USER mysql_router.*",
             "error": {
                 "code": 2013,

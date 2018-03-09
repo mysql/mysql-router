@@ -193,76 +193,17 @@
               "last_insert_id": 8
             }
         },
-
-
-
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "0" // to keep it simple, just tell Router there's no old accounts to erase
-                    ]
-                ]
-            }
+            "stmt.regex": "^DROP USER IF EXISTS mysql_router.*",
+            "ok": {}
         },
-
-        // create temp account to figure out the secure password (ConfigGenerator::generate_compliant_password())
         {
             "stmt.regex": "^CREATE USER mysql_router.*",
             "ok": {}
         },
-
-        // now erase that temp account (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "1" // 1 = the temp account we just created
-                    ]
-                ]
-            }
-        },
-        {
-            "stmt.regex": "^SELECT CONCAT\\('DROP USER ', GROUP_CONCAT\\(QUOTE\\(user\\), '@', QUOTE\\(host\\)\\)\\) INTO @drop_user_sql FROM mysql.user WHERE user LIKE 'mysql_router.*'",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^PREPARE drop_user_stmt FROM @drop_user_sql",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^EXECUTE drop_user_stmt",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^DEALLOCATE PREPARE drop_user_stmt",
-            "ok": {}
-        },
-
-        // finally, create the "real" account
-        {   "COMMENT": "ConfigGenerator::create_account()",
-            "stmt.regex": "^CREATE USER mysql_router.*",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router8_.*@'%'",
-            "exec_time": 8.536869,
-            "error": { // here we trigger the failover
+            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*",
+            "error": {
                 "code": 1290,
                 "message": "The MySQL server is running with the --super-read-only option so it cannot execute this statement",
                 "sql_state": "HY000"

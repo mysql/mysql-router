@@ -193,35 +193,15 @@
                 "last_insert_id": 8
             }
         },
-
-
-        { "COMMENT": "ConfigGenerator::delete_account_for_all_hosts()",
-            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [
-                    [
-                        "0"
-                    ]
-                ]
-            }
-        },
-
-        // this SQL will trigger the failover
-        {   "COMMENT": "ConfigGenerator::generate_compliant_password()",
-            "stmt.regex": "^CREATE USER mysql_router.*",
+        {
+            "stmt.regex": "^DROP USER IF EXISTS mysql_router8_.*@'%'",
+            "exec_time": 73.744025,
             "error": {
                 "code": 1290,
                 "message": "The MySQL server is running with the --super-read-only option so it cannot execute this statement",
                 "sql_state": "HY000"
             }
         },
-
         {
             "stmt": "ROLLBACK",
             "exec_time": 0.100835,
