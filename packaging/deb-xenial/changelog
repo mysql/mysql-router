@@ -1,7 +1,5 @@
 mysql-router (8.0.11-1ubuntu16.04) xenial; urgency=low
 
-  * initial version
+  * For release notes, please refer to https://dev.mysql.com/doc/relnotes/mysql-router/en/changes-8.0.x.html
 
- -- Sreedhar S <sreedhar.sreedhargadda@oracle.com>  Tue, 13 Mar 2018 10:36:55 +0200
- -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Mon, 20 Mar 2017 10:36:55 +0200
- -- Nawaz Nazeer Ahamed <nawaz.nazeer.ahamed@oracle.com>  Tue, 16 Jan 2018 10:17:38 +0200
+ -- MySQL Release Engineering <mysql-build@oss.oracle.com>  Tue, 13 Mar 2018 10:36:55 +0200

@@ -28,7 +28,7 @@ set(PROJECT_VERSION_TEXT "8.0.11")
 
 # Can be arbitrary test that is added to the package file names after
 # the version, but before the extensions.
-set(PROJECT_PACKAGE_EXTRAS "-rc")
+set(PROJECT_PACKAGE_EXTRAS "")
 
 set(PROJECT_EDITION "GPL community edition" CACHE STRING
   "Edition of MySQL Router")
