@@ -1,0 +1,5 @@
+mysql-router (8.0.11-1ubuntu18.04) bionic; urgency=low
+
+  * For release notes, please refer to https://dev.mysql.com/doc/relnotes/mysql-router/en/changes-8.0.x.html
+
+ -- MySQL Release Engineering <mysql-build@oss.oracle.com>  Tue, 13 Mar 2018 10:36:55 +0200
