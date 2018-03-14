@@ -83,10 +83,8 @@
 #include <vector>
 
 // see loader.cc for more info on this define
-#if ((!defined _WIN32) && defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L) || (defined(__sun) && defined(__SVR4))
+#ifndef _WIN32
 # define USE_POSIX_SIGNALS
-#elif (!defined _WIN32)
-#error "No signals support on Unix system"
 #endif
 
 using mysql_harness::Loader;

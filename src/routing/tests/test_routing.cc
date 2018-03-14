@@ -41,11 +41,7 @@
 #else
 #  include <sys/un.h>
 #  include <sys/socket.h>
-#  ifdef __sun
-#    include <fcntl.h>
-#  else
-#    include <sys/fcntl.h>
-#  endif
+#  include <fcntl.h>
 #endif
 
 

@@ -50,11 +50,7 @@
 #include "common.h"
 
 #ifndef _WIN32
-#ifdef __sun
 #include <fcntl.h>
-#else
-#include <sys/fcntl.h>
-#endif
 #include <unistd.h>
 #include <signal.h>
 const char dir_sep = '/';

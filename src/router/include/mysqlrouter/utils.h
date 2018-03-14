@@ -32,6 +32,8 @@
 #include <vector>
 #include <functional>
 #ifndef _WIN32
+#  include <sys/stat.h>
+#  include <sys/types.h>
 #  include <netdb.h>
 #  include <pwd.h>
 #endif

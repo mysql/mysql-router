@@ -67,10 +67,8 @@ IMPORT_LOG_FUNCTIONS()
 // sigaction() and friends). For platforms that do not have them (e.g. Windows),
 // a different mechanism is used instead (see proxy_main()).
 // Compiler on Solaris does not always define _POSIX_C_SOURCE although the signal handling is there
-#if ((!defined _WIN32) && defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 199506L) || (defined(__sun) && defined(__SVR4))
+#if (!defined _WIN32)
 # define USE_POSIX_SIGNALS
-#elif (!defined _WIN32)
-#error "No signals support on Unix system"
 #endif
 
 #ifdef USE_POSIX_SIGNALS

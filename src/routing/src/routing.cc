@@ -33,11 +33,7 @@
 #include <climits>
 
 #ifndef _WIN32
-# ifdef __sun
-#  include <fcntl.h>
-# else
-#  include <sys/fcntl.h>
-# endif
+# include <fcntl.h>
 # include <netdb.h>
 # include <netinet/tcp.h>
 # include <sys/socket.h>
