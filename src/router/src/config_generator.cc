@@ -420,14 +420,8 @@ void ConfigGenerator::init(const std::string &server_url, const std::map<std::st
       "Please enter MySQL password for "+u.username);
   }
 
-  std::string socket_name;
-
-  // easier to just use .at() and ask for forgiveness, then useing .find() + []
-  try {
-    socket_name = bootstrap_options.at("bootstrap_socket");
-  } catch (const std::out_of_range &e) {
-    socket_name = "";
-  }
+  const auto& it = bootstrap_options.find("bootstrap_socket");
+  std::string socket_name = (it != bootstrap_options.end()) ? it->second : "";
 
   if (socket_name.size() > 0) {
     // enforce host == "localhost" if a socket is used to avoid ambiguity with the possible hostname
