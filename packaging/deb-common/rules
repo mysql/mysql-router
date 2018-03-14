@@ -56,7 +56,7 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	@echo "RULES.$@"
-	dh_apparmor -pmysql-community-router --profile-name=usr.bin.mysqlrouter
+	dh_apparmor -pmysql-router --profile-name=usr.bin.mysqlrouter
 	dh_installinit --name=mysqlrouter -u"defaults 19 21"
 	touch $@
 
