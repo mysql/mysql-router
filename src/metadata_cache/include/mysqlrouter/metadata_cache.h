@@ -246,7 +246,7 @@ METADATA_API class MetadataCacheAPIBase {
 
 METADATA_API class MetadataCacheAPI: public MetadataCacheAPIBase {
  public:
-  static METADATA_API MetadataCacheAPI* instance();
+  static METADATA_API MetadataCacheAPIBase* instance();
 
   void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user, const std::string &password,

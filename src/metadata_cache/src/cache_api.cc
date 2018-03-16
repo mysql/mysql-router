@@ -48,7 +48,7 @@ const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick
 const unsigned int kDefaultConnectTimeout = 30;
 const unsigned int kDefaultReadTimeout = 30;
 
-MetadataCacheAPI* MetadataCacheAPI::instance() {
+MetadataCacheAPIBase* MetadataCacheAPI::instance() {
   static MetadataCacheAPI instance_;
   return &instance_;
 }
