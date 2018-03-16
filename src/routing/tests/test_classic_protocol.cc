@@ -272,7 +272,10 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
 
 
   constexpr int client_socket = 1;
-  sockaddr_in6 client_addr;
+  union {
+    sockaddr_storage client_addr_storage;
+    sockaddr_in6 client_addr;
+  };
   client_addr.sin6_family = AF_INET6;
   memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
 
@@ -288,8 +291,9 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   EXPECT_CALL(*mock_socket_operations_, close(client_socket));
 
   routing.set_destinations_from_csv("127.0.0.1:7004");
+
   routing.routing_select_thread(nullptr, // it will return before nullptr is dereferenced
-                                client_socket, *reinterpret_cast<sockaddr_storage*>(&client_addr));
+                                client_socket, client_addr_storage);
 }
 
 int main(int argc, char *argv[]) {

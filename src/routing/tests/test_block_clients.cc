@@ -68,7 +68,14 @@ protected:
 TEST_F(TestBlockClients, BlockClientHost) {
   unsigned long long max_connect_errors = 2;
   std::chrono::seconds client_connect_timeout(2);
-  sockaddr_in6 client_addr1, client_addr2;
+  union {
+    sockaddr_in6 client_addr1;
+    sockaddr_storage client_addr1_storage;
+  };
+  union {
+    sockaddr_in6 client_addr2;
+    sockaddr_storage client_addr2_storage;
+  };
   client_addr1.sin6_family = client_addr2.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
   memset(&client_addr2.sin6_addr, 0x0, sizeof(client_addr2.sin6_addr));
@@ -77,8 +84,8 @@ TEST_F(TestBlockClients, BlockClientHost) {
   unsigned char* p2 = reinterpret_cast<unsigned char*>(&client_addr2.sin6_addr);
   p2[15] = 2;
 
-  auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
-  auto client_ip_array2 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr2));
+  auto client_ip_array1 = in_addr_to_array(client_addr1_storage);
+  auto client_ip_array2 = in_addr_to_array(client_addr2_storage);
 
   MySQLRouting r(routing::RoutingStrategy::kNextAvailable,
                  7001, Protocol::Type::kClassicProtocol,
@@ -107,12 +114,15 @@ TEST_F(TestBlockClients, BlockClientHost) {
 TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   unsigned long long max_connect_errors = 2;
   std::chrono::seconds client_connect_timeout(2);
-  sockaddr_in6 client_addr1;
+  union {
+    sockaddr_in6 client_addr1;
+    sockaddr_storage client_addr1_storage;
+  };
   client_addr1.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
   unsigned char* p = reinterpret_cast<unsigned char*>(&client_addr1.sin6_addr);
   p[15] = 1;
-  auto client_ip_array1 = in_addr_to_array(*reinterpret_cast<sockaddr_storage*>(&client_addr1));
+  auto client_ip_array1 = in_addr_to_array(client_addr1_storage);
 
   MySQLRouting r(routing::RoutingStrategy::kNextAvailable,
                  7001, Protocol::Type::kClassicProtocol,
