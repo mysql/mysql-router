@@ -51,11 +51,12 @@ set(lib_source_files
   datatypes.cc
   plugin_config.cc
   common/log_filter.cc
-  common/my_aes.cc
+  # common/my_aes.cc
   common/my_sha1.cc
   common/mysql_session.cc
   common/utils_sqlstring.cc
-  ${MY_AES_IMPL})
+  # ${MY_AES_IMPL}
+  )
 if(WIN32)
   list(APPEND lib_source_files windows/nt_servc.cc windows/main-windows.cc windows/password_vault.cc)
 endif()
