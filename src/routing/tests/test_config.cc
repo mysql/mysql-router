@@ -207,6 +207,60 @@ TEST_F(TestConfig, UnsupportedStrategyOption) {
       "next-available, and round-robin (was 'round-robin-with-fallback')");
 }
 
+struct ThreadStackSizeInfo {
+  std::string thread_stack_size;
+  std::string message;
+};
+
+class TestConfigThreadStackSize : public ConsoleOutputTest,
+    public testing::WithParamInterface<ThreadStackSizeInfo> {
+public:
+  void SetUp() override{
+    set_origin(g_origin);
+    ConsoleOutputTest::SetUp();
+    config_path.reset(new Path(g_cwd));
+    config_path->append("mysqlrouter.conf");
+  }
+
+  void reset_config() {
+    std::ofstream ofs_config(config_path->str());
+    if (ofs_config.good()) {
+      ofs_config << "[DEFAULT]\n";
+      ofs_config << "logging_folder =\n";
+      ofs_config << "plugin_folder = " << plugin_dir->str() << "\n";
+      ofs_config << "runtime_folder = " << stage_dir->str() << "\n";
+      ofs_config << "config_folder = " << stage_dir->str() << "\n\n";
+      ofs_config.close();
+    }
+  }
+
+  std::unique_ptr<Path> config_path;
+};
+
+ThreadStackSizeInfo test_data[] = {
+    { "-1", "option thread_stack_size in [default] needs value between 1 and 65535 inclusive, was '-1'" },
+    { "4.5", "option thread_stack_size in [default] needs value between 1 and 65535 inclusive, was '4.5'" },
+    { "dfs4", "option thread_stack_size in [default] needs value between 1 and 65535 inclusive, was 'dfs4'"}
+};
+
+TEST_P(TestConfigThreadStackSize, ParseThreadStackSize) {
+  ThreadStackSizeInfo input = GetParam();
+  reset_config();
+  std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
+  c << "[DEFAULT]\nthread_stack_size=";
+  c << input.thread_stack_size << "\n[routing]\nrouting_strategy=round-robin\n";
+  c << kDefaultRoutingConfigStrategy;
+  c.close();
+
+  MySQLRouter r(g_origin, {"-c", config_path->str()});
+  ASSERT_THROW_LIKE(r.start(), std::invalid_argument, input.message);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    ConfigThreadStackSizeTests, TestConfigThreadStackSize,
+    ::testing::ValuesIn(test_data)
+    );
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();

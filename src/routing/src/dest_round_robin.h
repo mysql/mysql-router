@@ -29,21 +29,30 @@
 #include "mysqlrouter/routing.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql_router_thread.h"
 
 class DestRoundRobin : public RouteDestination {
  public:
   using RouteDestination::RouteDestination;
 
+  /** @brief Default constructor
+   *
+   * @param protocol Protocol for the destination
+   * @param sock_ops socket operation methods
+   * @param thread_stack_size memory in kilobytes allocated for thread's stack
+   */
+  DestRoundRobin(Protocol::Type protocol = Protocol::get_default(),
+                 routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance(),
+                 size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes) // default = "real" (not mock) implementation
+      : RouteDestination(protocol, sock_ops), quarantine_thread_(thread_stack_size) {}
+
   /** @brief Destructor */
   virtual ~DestRoundRobin();
 
-  virtual void start() override {
-    if (!quarantine_thread_.joinable()) {
-      quarantine_thread_ = std::thread(&DestRoundRobin::quarantine_manager_thread, this);
-    } else {
-      log_debug("Tried to restart quarantine thread");
-    }
-  }
+  /** @brief run Quarantine Manager Thread */
+  static void* run_thread(void* context);
+
+  virtual void start() override;
 
   int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept override;
 
@@ -97,7 +106,6 @@ class DestRoundRobin : public RouteDestination {
    */
   virtual void cleanup_quarantine() noexcept;
 
-
   /** @brief List of destinations which are quarantined */
   std::vector<size_t> quarantined_;
 
@@ -110,8 +118,8 @@ class DestRoundRobin : public RouteDestination {
   /** @brief Mutex for updating quarantine */
   std::mutex mutex_quarantine_;
 
-  /** @brief Quarantine manager thread */
-  std::thread quarantine_thread_;
+  /** @brief refresh thread facade */
+  mysql_harness::MySQLRouterThread quarantine_thread_;
 
   /** @brief Whether we are stopping */
   std::atomic_bool stopping_{false};

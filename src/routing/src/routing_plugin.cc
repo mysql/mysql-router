@@ -26,6 +26,9 @@
 #include "mysql_routing.h"
 #include "utils.h"
 
+#include "dim.h"
+#include "mysql/harness/loader_config.h"
+
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/config_parser.h"
 
@@ -206,7 +209,10 @@ static void start(mysql_harness::PluginFuncEnv* env) {
                    config.max_connections,
                    destination_connect_timeout,
                    config.max_connect_errors,
-                   client_connect_timeout);
+                   client_connect_timeout,
+                   routing::kDefaultNetBufferLength,
+                   routing::SocketOperations::instance(),
+                   config.thread_stack_size);
 
     try {
       // don't allow rootless URIs as we did already in the get_option_destinations()

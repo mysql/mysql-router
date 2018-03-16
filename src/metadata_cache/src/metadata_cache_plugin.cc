@@ -22,9 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "dim.h"
 #include "metadata_cache.h"
-#include "plugin_config.h"
+#include "mysql/harness/loader_config.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
+#include "plugin_config.h"
 
 #include <string>
 #include <thread>
@@ -130,7 +132,8 @@ static void start(mysql_harness::PluginFuncEnv* env) {
                                make_ssl_options(section),
                                metadata_cluster,
                                config.connect_timeout,
-                               config.read_timeout);
+                               config.read_timeout,
+                               config.thread_stack_size);
   } catch (const std::runtime_error &exc) { // metadata_cache::metadata_error inherits from runtime_error
     log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());

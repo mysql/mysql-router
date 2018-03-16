@@ -47,6 +47,7 @@ std::string MetadataCachePluginConfig::get_default(const std::string &option) co
       {"ttl", to_string(metadata_cache::kDefaultMetadataTTL)},
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
+      {"thread_stack_size", to_string(mysql_harness::kDefaultStackSizeInKiloBytes)}
   };
   auto it = defaults.find(option);
   if (it == defaults.end()) {

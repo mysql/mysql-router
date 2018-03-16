@@ -27,6 +27,7 @@
 
 #include "mysqlrouter/metadata_cache.h"
 #include "metadata.h"
+#include "mysql_router_thread.h"
 
 #include <algorithm>
 #include <chrono>
@@ -51,11 +52,22 @@ class ClusterMetadata;
 class METADATA_API MetadataCache {
 
 public:
-  /** @brief Constructor */
+
+  /**
+   * Initialize a connection to the MySQL Metadata server.
+   *
+   * @param bootstrap_servers The servers that store the metadata.
+   * @param cluster_metadata metadata of the cluster
+   * @param ttl The TTL of the cached data.
+   * @param ssl_options SSL related options for connection
+   * @param cluster The name of the desired cluster in the metadata server
+   * @param thread_stack_size The maximum memory allocated for thread's stack
+   */
   MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                 std::shared_ptr<MetaData> cluster_metadata,
                 unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
-                const std::string &cluster_name);
+                const std::string &cluster_name,
+                size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
   /** @brief Starts the Metadata Cache
    *
@@ -101,6 +113,12 @@ public:
    * @return true if a primary member exists
    */
   bool wait_primary_failover(const std::string &replicaset_name, int timeout);
+
+  /** @brief refresh replicaset information */
+  void refresh_thread();
+
+  /** @brief run refresh thread */
+  static void* run_thread(void* context);
 private:
 
   /** @brief Refreshes the cache
@@ -131,8 +149,8 @@ private:
   // topology information.
   std::shared_ptr<MetaData> meta_data_;
 
-  // Handle to the thread that refreshes the information in the metadata cache.
-  std::thread refresh_thread_;
+  /** @brief refresh thread facade */
+  mysql_harness::MySQLRouterThread refresh_thread_;
 
   // This mutex is used to ensure that a lookup of the metadata is consistent
   // with the changes in the metadata due to a cache refresh.

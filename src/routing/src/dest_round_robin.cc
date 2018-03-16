@@ -49,6 +49,17 @@ static const int kQuarantineCleanupInterval = 3;
 // Make sure Quarantine Manager Thread is run even with nothing in quarantine
 static const int kTimeoutQuarantineConditional = 2;
 
+void* DestRoundRobin::run_thread(void* context) {
+  DestRoundRobin* dest_round_robin = static_cast<DestRoundRobin*>(context);
+  dest_round_robin->quarantine_manager_thread();
+  return nullptr;
+}
+
+void DestRoundRobin::start() {
+  quarantine_thread_.run(&run_thread, this);
+}
+
+
 int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
   size_t server_pos;
 
@@ -104,10 +115,6 @@ int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout,
 
 DestRoundRobin::~DestRoundRobin() {
   stopping_ = true;
-
-  if (quarantine_thread_.joinable()) {
-    quarantine_thread_.join();
-  }
 }
 
 void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {

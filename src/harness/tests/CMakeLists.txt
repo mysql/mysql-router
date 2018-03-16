@@ -60,6 +60,7 @@ SET(TESTS
   test_bug22104451.cc
   test_resolver.cc
   test_random_generator.cc
+  test_mysql_router_thread.cc
 )
 
 foreach(TEST ${TESTS})

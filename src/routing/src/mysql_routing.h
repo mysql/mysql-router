@@ -42,6 +42,7 @@
 #include "plugin_config.h"
 #include "utils.h"
 #include "mysqlrouter/routing.h"
+#include "mysql_router_thread.h"
 namespace mysql_harness { class PluginFuncEnv; }
 
 #include <array>
@@ -130,6 +131,7 @@ public:
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
    * @param socket_operations object handling the operations on network sockets
+   * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   MySQLRouting(routing::RoutingStrategy routing_strategy,
                uint16_t port,
@@ -143,7 +145,8 @@ public:
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
                std::chrono::milliseconds connect_timeout = routing::kDefaultClientConnectTimeout,
                unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-               routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance());
+               routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance(),
+               size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
   ~MySQLRouting();
 
@@ -283,6 +286,10 @@ private:
                              int client,
                              const sockaddr_storage &client_addr) noexcept;
 
+
+  /** @brief run client thread which will service this new connection */
+  static void* run_thread(void* context);
+
   void start_acceptor(mysql_harness::PluginFuncEnv* env);
 
   /** @brief return a short string suitable to be used as a thread name
@@ -348,6 +355,9 @@ private:
   uint64_t active_client_threads_ {0};
   std::condition_variable active_client_threads_cond_;
   std::mutex active_client_threads_cond_m_;
+
+  /** @brief memory in kilobytes allocated for thread's stack */
+  size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, make_thread_name);

@@ -67,6 +67,7 @@ MetadataCacheAPIBase* MetadataCacheAPI::instance() {
  *                        to metadata server timeouts
  * @param read_timeout The time in seconds after which read from metadata
  *                     server should timeout.
+ * @param thread_stack_size memory in kilobytes allocated for thread's stack
  */
 void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                   const std::string &user,
@@ -75,12 +76,13 @@ void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bo
                   const mysqlrouter::SSLOptions &ssl_options,
                   const std::string &cluster_name,
                   int connect_timeout,
-                  int read_timeout) {
+                  int read_timeout,
+                  size_t thread_stack_size) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   g_metadata_cache.reset(new MetadataCache(bootstrap_servers,
     get_instance(user, password, connect_timeout, read_timeout, 1, ttl, ssl_options), ttl,
-                 ssl_options, cluster_name));
+                 ssl_options, cluster_name, thread_stack_size));
   g_metadata_cache->start();
 }
 

@@ -33,6 +33,7 @@
 
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysql_router_thread.h"
 
 #ifdef _WIN32
 #  ifdef metadata_cache_DEFINE_STATIC
@@ -195,12 +196,14 @@ METADATA_API class MetadataCacheAPIBase {
    *                        to metadata server should time out.
    * @param read_timeout The time in seconds after which read from metadata
    *                     server should time out.
+   * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   virtual void cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
                           const std::string &user, const std::string &password,
                           unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
                           const std::string &cluster_name,
-                          int connect_timeout, int read_timeout) = 0;
+                          int connect_timeout, int read_timeout,
+                          size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes) = 0;
 
   /**
    * @brief Teardown the metadata cache
@@ -252,7 +255,7 @@ METADATA_API class MetadataCacheAPI: public MetadataCacheAPIBase {
                   const std::string &user, const std::string &password,
                   unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
                   const std::string &cluster_name,
-                  int connect_timeout, int read_timeout) override;
+                  int connect_timeout, int read_timeout, size_t thread_stack_size) override;
 
   void cache_stop() noexcept override;
 

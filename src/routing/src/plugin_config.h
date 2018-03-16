@@ -92,7 +92,8 @@ public:
   const unsigned int client_connect_timeout;
   /** @brief Size of buffer to receive packets */
   const unsigned int net_buffer_length;
-
+  /** @brief memory in kilobytes allocated for thread's stack */
+  const unsigned int thread_stack_size;
 protected:
 
 private:

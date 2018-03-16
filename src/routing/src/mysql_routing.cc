@@ -25,6 +25,7 @@
 #  define NOMINMAX
 #endif
 
+#include "utils.h"
 #include "common.h"
 #include "dest_first_available.h"
 #include "dest_next_available.h"
@@ -39,6 +40,8 @@
 #include "mysql/harness/plugin.h"
 #include "plugin_config.h"
 #include "protocol/protocol.h"
+
+#include "mysql_router_thread.h"
 
 #include <algorithm>
 #include <array>
@@ -101,7 +104,8 @@ MySQLRouting::MySQLRouting(routing::RoutingStrategy routing_strategy, uint16_t p
                            unsigned long long max_connect_errors,
                            std::chrono::milliseconds client_connect_timeout,
                            unsigned int net_buffer_length,
-                           SocketOperationsBase *socket_operations)
+                           SocketOperationsBase *socket_operations,
+                           size_t thread_stack_size)
     : name(route_name),
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
@@ -117,7 +121,8 @@ MySQLRouting::MySQLRouting(routing::RoutingStrategy routing_strategy, uint16_t p
       info_active_routes_(0),
       info_handled_routes_(0),
       socket_operations_(socket_operations),
-      protocol_(Protocol::create(protocol, socket_operations)) {
+      protocol_(Protocol::create(protocol, socket_operations)),
+      thread_stack_size_(thread_stack_size) {
 
   assert(socket_operations_ != nullptr);
 
@@ -485,6 +490,24 @@ static int unix_getpeercred(int sock, pid_t &peer_pid, uid_t &peer_uid) {
 }
 #endif
 
+/** @brief stores all data that are needed to run thread that service new connection */
+struct ConnectionThreadInfo {
+
+  ConnectionThreadInfo(MySQLRouting* mysql_routing_arg,
+      mysql_harness::PluginFuncEnv* env_arg, int client_arg,
+      const sockaddr_storage& client_addr_arg) :
+      mysql_routing(mysql_routing_arg), env(env_arg), client(client_arg), client_addr(
+          client_addr_arg) {
+  }
+
+  MySQLRouting* mysql_routing;
+  mysql_harness::PluginFuncEnv* env;
+  int client;
+  const sockaddr_storage& client_addr;
+};
+
+
+
 void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   mysql_harness::rename_thread(make_thread_name(name, "RtA").c_str());  // "Rt Acceptor" would be too long :(
 
@@ -601,7 +624,11 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
 
       // launch client thread which will service this new connection
       {
-        auto thread_spawn_failure_handler = [&](const std::system_error* exc) {
+        try {
+          std::unique_ptr<ConnectionThreadInfo> up(new ConnectionThreadInfo(this, env, sock_client, client_addr));
+          mysql_harness::MySQLRouterThread connect_thread(thread_stack_size_);
+          connect_thread.run(&run_thread, up.release(), true);
+        } catch(std::runtime_error& err) {
           protocol_->send_error(sock_client, 1040,
                                 "Router couldn't spawn a new thread to service new client connection",
                                 "HY000", name);
@@ -610,35 +637,14 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
           // we only want to log this message once, because in a low-resource situation, this would
           // lead do a DoS against ourselves (heavy I/O and disk full)
           static bool logged_this_before = false;
-          if (logged_this_before)
-            return;
-
-          logged_this_before = true;
-          if (exc)
-            log_error("Couldn't spawn a new thread to service new client connection from %s: %s."
-                      " This message will not be logged again until Router restarts.",
-                      get_peer_name(sock_client).first.c_str(), exc->what());
-          else
+          if (!logged_this_before) {
+            logged_this_before = true;
             log_error("Couldn't spawn a new thread to service new client connection from %s."
-                      " This message will not be logged again until Router restarts.",
-                      get_peer_name(sock_client).first.c_str());
-        };
-
-        try {
-          std::thread(&MySQLRouting::routing_select_thread, this, env, sock_client, client_addr).detach();
-        } catch (const std::system_error& e) {
-          thread_spawn_failure_handler(&e);
-          continue;
-        } catch (...) {
-          // According to http://www.cplusplus.com/reference/thread/thread/thread/,
-          // depending on the library implementation, std::thread constructor may also throw other
-          // exceptions, such as bad_alloc or system_error with different a condition.
-          // Thus we have this catch(...) here to take care of the rest of them in a generic way.
-          thread_spawn_failure_handler(nullptr);
-          continue;
+                      " This message will not be logged again until Router restarts, error=%s",
+                      get_peer_name(sock_client).first.c_str(), err.what());
+          }
         }
       }
-
     }
   } // while (is_running(env))
 
@@ -648,6 +654,13 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv* env) {
   }
 
   log_info("[%s] stopped", name.c_str());
+}
+
+
+void* MySQLRouting::run_thread(void* context) {
+  std::unique_ptr<ConnectionThreadInfo> up(static_cast<ConnectionThreadInfo*>(context));
+  up->mysql_routing->routing_select_thread(up->env, up->client, up->client_addr);
+  return nullptr;
 }
 
 static int get_socket_errno() {
@@ -838,14 +851,15 @@ routing::RoutingStrategy get_default_routing_strategy(const routing::AccessMode 
 
 RouteDestination* create_standalone_destination(const routing::RoutingStrategy strategy,
                                                 const Protocol::Type protocol,
-                                                routing::SocketOperationsBase *sock_ops) {
+                                                routing::SocketOperationsBase *sock_ops,
+                                                size_t thread_stack_size) {
   switch (strategy) {
     case RoutingStrategy::kFirstAvailable:
       return new DestFirstAvailable(protocol, sock_ops);
     case RoutingStrategy::kNextAvailable:
       return new DestNextAvailable(protocol, sock_ops);
     case RoutingStrategy::kRoundRobin:
-      return new DestRoundRobin(protocol, sock_ops);
+      return new DestRoundRobin(protocol, sock_ops, thread_stack_size);
     case RoutingStrategy::kUndefined:
     case RoutingStrategy::kRoundRobinWithFallback:
       ; // unsupported, fall through
@@ -869,7 +883,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
   destination_.reset(create_standalone_destination(routing_strategy_,
                                                    protocol_->get_type(),
-                                                   socket_operations_));
+                                                   socket_operations_, thread_stack_size_));
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {

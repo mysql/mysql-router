@@ -41,13 +41,15 @@ IMPORT_LOG_FUNCTIONS()
  * @param ttl The TTL of the cached data.
  * @param ssl_options SSL related options for connection
  * @param cluster The name of the desired cluster in the metadata server
+ * @param thread_stack_size memory in kilobytes allocated for thread's stack
  */
 MetadataCache::MetadataCache(
   const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
   std::shared_ptr<MetaData> cluster_metadata, // this could be changed to UniquePtr
   unsigned int ttl,
   const mysqlrouter::SSLOptions &ssl_options,
-  const std::string &cluster) {
+  const std::string &cluster,
+  size_t thread_stack_size) : refresh_thread_(thread_stack_size) {
   std::string host;
   for (auto s : bootstrap_servers) {
     metadata_cache::ManagedInstance bootstrap_server_instance;
@@ -64,33 +66,40 @@ MetadataCache::MetadataCache(
   refresh();
 }
 
+void* MetadataCache::run_thread(void* context) {
+  MetadataCache* metadata_cache = static_cast<MetadataCache*>(context);
+  metadata_cache->refresh_thread();
+  return nullptr;
+}
+
+void MetadataCache::refresh_thread() {
+  mysql_harness::rename_thread("MDC Refresh");
+
+  while (!terminate_) {
+    refresh();
+
+    // wait for up to TTL until next refresh, unless some replicaset
+    // loses the primary server.. in that case, we refresh every 1s
+    // until we detect a new one was elected
+    unsigned int seconds_waited = 0;
+    while (seconds_waited < ttl_ && !terminate_) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      seconds_waited++;
+      {
+        std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
+        if (!lost_primary_replicasets_.empty())
+          break;
+      }
+    }
+  }
+}
+
 /**
  * Connect to the metadata servers and refresh the metadata information in the
  * cache.
  */
 void MetadataCache::start() {
-  auto refresh_loop = [this] {
-    mysql_harness::rename_thread("MDC Refresh");
-
-    while (!terminate_) {
-      refresh();
-
-      // wait for up to TTL until next refresh, unless some replicaset
-      // loses the primary server.. in that case, we refresh every 1s
-      // until we detect a new one was elected
-      unsigned int seconds_waited = 0;
-      while (seconds_waited < ttl_ && !terminate_) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        seconds_waited++;
-        {
-          std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
-          if (!lost_primary_replicasets_.empty())
-            break;
-        }
-      }
-    }
-  };
-  refresh_thread_ = std::thread(refresh_loop);
+  refresh_thread_.run(&run_thread, this);
 }
 
 /**
@@ -98,9 +107,6 @@ void MetadataCache::start() {
  */
 void MetadataCache::stop() noexcept {
   terminate_ = true;
-  if (refresh_thread_.joinable()) {
-    refresh_thread_.join();
-  }
 }
 
 /**

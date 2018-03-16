@@ -156,7 +156,8 @@ TEST_F(RoundRobinDestinationTest, get_server_socket)
   int error;
 
   // create round-robin (read-only) destination and add a few servers
-  DestRoundRobin dest(Protocol::get_default(), &mock_socket_operations_);
+  DestRoundRobin dest(Protocol::get_default(), &mock_socket_operations_,
+      mysql_harness::kDefaultStackSizeInKiloBytes);
   std::vector<int> dest_servers_addresses { 11, 12, 13 };
   for (const auto& server_address: dest_servers_addresses) {
     dest.add(std::to_string(server_address), 1 /*port - doesn't matter here*/);

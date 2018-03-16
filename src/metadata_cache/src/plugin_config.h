@@ -57,7 +57,8 @@ public:
         ttl(get_uint_option<unsigned int>(section, "ttl")),
         metadata_cluster(get_option_string(section, "metadata_cluster")),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1))
+        read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
+        thread_stack_size(get_uint_option<uint32_t>(section, "thread_stack_size", 1, 65535))
   { }
 
   /**
@@ -80,6 +81,8 @@ public:
   /** @brief read_timeout The time in seconds after which read from metadata
    * server timeouts */
   const unsigned int read_timeout;
+  /** @brief memory in kilobytes allocated for thread's stack */
+  const unsigned int thread_stack_size;
 
 private:
   /** @brief Gets a list of metadata servers.
