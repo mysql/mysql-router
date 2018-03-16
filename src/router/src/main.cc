@@ -125,7 +125,7 @@ int real_main(int argc, char **argv) {
   // Currently we can get here while there are still some threads running
   // (like metadata_cache thread that is managed by the global g_metadata_cache)
   // that still use mysql-lib, which leads to crash.
-  //mysql_library_end();
+  mysql_library_end();
 
   return result;
 }
