@@ -102,5 +102,13 @@ IF(HAVE_DD)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 ENDIF()
 
+# silence
+# runtime error: null pointer passed as argument 1, which is declared to never be null
+# /usr/include/string.h:43:28: note: nonnull attribute specified here
+CHECK_CXX_COMPILER_FLAG("-fno-sanitize=nonnull-attribute" HAVE_NO_SANITIZE_NONULL_ATTRIBUTE)
+IF(HAVE_NO_SANITIZE_NONULL_ATTRIBUTE)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-sanitize=nonnull-attribute")
+ENDIF()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ADD_SUBDIRECTORY(protobuf-3.0.0/cmake)
