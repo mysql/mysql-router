@@ -148,13 +148,24 @@ void MySQLServerMock::setup_service() {
 }
 
 #ifndef _WIN32
-static volatile sig_atomic_t g_terminate = 0;
+static volatile std::atomic<sig_atomic_t> g_terminate { 0 };
+
+// ensure that 'terminate'-flag is thread-safe and signal-safe
+//
+// * sigatomic_t is not thread-safe
+// * std::atomic is not signal-safe by default (only lock-free std::atomics are signal-safe)
+//
+// assume that sig_atomic_t is int-or-long
+// (in C++17 we could use std::atomic<sig_atomic_t>.is_always_lock_free)
+static_assert((std::is_same<sig_atomic_t, int>::value && (ATOMIC_INT_LOCK_FREE == 2)) ||
+    (std::is_same<sig_atomic_t, long>::value && (ATOMIC_LONG_LOCK_FREE == 2)), "expected sig_atomic_t to lock-free");
 
 // Signal handler to catch SIGTERM.
 static void sigterm_handler(int /* signo */) {
   g_terminate = 1;
 }
 #else
+// as we don't use the signal handler on windows, we don't need a signal-safe type
 static bool g_terminate = false;
 #endif
 

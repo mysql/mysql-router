@@ -102,16 +102,18 @@ static const int kPluginExitCheckInterval = 100;  // milliseconds
 
 
 // when Router receives a signal to shut down, this flag is set
-static std::atomic_int g_shutdown_pending { 0 };
+static volatile std::atomic<sig_atomic_t> g_shutdown_pending { 0 };
 
-// we need a signal-safe, thread-safe integer
+// ensure that 'terminate'-flag is thread-safe and signal-safe
 //
-// sigatomic_t is not thread-safe
-// std::atomic is not signal-safe by default
-// only std::atomic's that are lock-free, are signal-safe
-#if ATOMIC_INT_LOCK_FREE != 2
-#error "std::atomic_int is not lock-free :("
-#endif
+// * sigatomic_t is not thread-safe
+// * std::atomic is not signal-safe by default (only lock-free std::atomics are signal-safe)
+//
+// assume that sig_atomic_t is int-or-long
+// (in C++17 we could use std::atomic<sig_atomic_t>.is_always_lock_free)
+static_assert((std::is_same<sig_atomic_t, int>::value && (ATOMIC_INT_LOCK_FREE == 2)) ||
+    (std::is_same<sig_atomic_t, long>::value && (ATOMIC_LONG_LOCK_FREE == 2)), "expected sig_atomic_t to lock-free");
+
 
 // called from sig_handler() on Unix,
 //        from NTService class and Ctrl+C handler on Windows
