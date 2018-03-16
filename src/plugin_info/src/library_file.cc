@@ -32,6 +32,24 @@
 #include "mysql/harness/filesystem.h"
 #endif
 
+#define USE_DLCLOSE 1
+
+// disable dlclose() when built with lsan
+//
+// clang has __has_feature(address_sanitizer)
+// gcc has __SANITIZE_ADDRESS__
+#if defined(__has_feature)
+  #if __has_feature(address_sanitizer)
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+  #endif
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
 struct Library_file::Library_file_impl {
 #ifndef _WIN32
   void* handle;
@@ -127,6 +145,8 @@ template Plugin_abi* Library_file::get_plugin_struct_internal<Plugin_abi>(const 
 template Plugin_v1* Library_file::get_plugin_struct_internal<Plugin_v1>(const std::string&) const;
 
 Library_file::~Library_file() {
+  // disable dlclose() if run with address sanitizer to get good memleak reports
+#if USE_DLCLOSE
 #ifndef _WIN32
   if (impl_->handle)
     dlclose(impl_->handle);
@@ -134,5 +154,6 @@ Library_file::~Library_file() {
   if (impl_->handle) {
     FreeLibrary(impl_->handle);
   }
+#endif
 #endif
 }

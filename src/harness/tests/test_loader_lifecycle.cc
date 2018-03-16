@@ -87,6 +87,25 @@
 # define USE_POSIX_SIGNALS
 #endif
 
+#define USE_DLCLOSE 1
+
+// disable dlclose() when built with lsan
+//
+// clang has __has_feature(address_sanitizer)
+// gcc has __SANITIZE_ADDRESS__
+#if defined(__has_feature)
+  #if __has_feature(address_sanitizer)
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+  #endif
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
+
 using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
@@ -143,6 +162,16 @@ class TestLoader : public Loader {
   void init_lifecycle_plugin(ApiFunctionEnableSwitches switches)
   {
     Plugin* plugin = plugins_.at("lifecycle").plugin;
+
+#if !USE_DLCLOSE
+    // with address sanitizer we don't unload the plugin which means
+    // the overwritten plugin hooks don't get reset to their initial values
+    //
+    // we need to capture original pointers and reset them
+    // each time
+    static Plugin virgin_plugin = *plugin;
+    *plugin = virgin_plugin;
+#endif
 
     // signal plugin to reset state and init our lifecycle_plugin_itc_
     // (we use a special hack (tag the pointer with last bit=1) to tell it that

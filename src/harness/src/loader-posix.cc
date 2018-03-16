@@ -34,6 +34,24 @@
 #include <cassert>
 #include <sstream>
 
+#define USE_DLCLOSE 1
+
+// disable dlclose() when built with lsan
+//
+// clang has __has_feature(address_sanitizer)
+// gcc has __SANITIZE_ADDRESS__
+#if defined(__has_feature)
+  #if __has_feature(address_sanitizer)
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+  #endif
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
 namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
@@ -65,7 +83,9 @@ Loader::PluginInfo::Impl::Impl(const std::string& plugin_folder,
 }
 
 Loader::PluginInfo::Impl::~Impl() {
+#if USE_DLCLOSE
   dlclose(handle);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////
