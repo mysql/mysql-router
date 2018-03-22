@@ -612,6 +612,36 @@ TEST_F(RouterBootstrapTest, BootstrapSucceedWhenServerResponseLessThanReadTimeou
       {});
 }
 
+TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
+  std::vector<Config> config {
+    // member-1: PRIMARY, fails after GRANT
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      get_data_dir().join("bootstrap_access_error_at_grant.js").str(),
+      Path(tmp_dir).join("member-1.json").str()
+    },
+
+    // member-2: defined, but unused
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      "",
+      ""
+    },
+
+    // member-3: defined, but unused
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      "",
+      ""
+    },
+  };
+
+  bootstrap_failover(config, {}, 1,
+    {
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata"
+    });
+}
+
 /**
  * @test
  *        verify connection times at bootstrap can be configured
