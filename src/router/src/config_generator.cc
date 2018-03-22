@@ -799,64 +799,16 @@ inline std::string str(const mysqlrouter::ConfigGenerator::Options::Endpoint &ep
 }
 
 /**
- * Error codes for MySQL Errors
+ * Error codes for MySQL Errors that we handle specifically
  *
- * @todo extend to all MySQL Error codes and move into a place where other can
- * access it too
+ * @todo extend to other MySQL Error codes that need to be handled specifically
+ *       and move into a place where other can access it too
  */
 enum class MySQLErrorc {
   kSyntaxError = 1064,
   kSuperReadOnly = 1290,
   kLostConnection = 2013,
 };
-
-// make MySQLErrorc compatible to std::error_code
-namespace std {
-  template <>
-    struct is_error_code_enum<MySQLErrorc> : true_type {};
-};
-
-namespace detail {
-  struct MySQLErrorCategory : std::error_category {
-    const char *name() const noexcept override;
-    std::string message(int ev) const override;
-  };
-
-  const char *MySQLErrorCategory::name() const noexcept {
-    return "MySQLError";
-  }
-
-  std::string MySQLErrorCategory::message(int ev) const {
-    switch(static_cast<MySQLErrorc>(ev)) {
-    case MySQLErrorc::kSuperReadOnly:
-      return "server is super-read-only";
-    case MySQLErrorc::kSyntaxError:
-      return "Syntax Error in Statement";
-    case MySQLErrorc::kLostConnection:
-      return "Lost connection to MySQL server during query";
-    default:
-      return "unknown error-code";
-    }
-  }
-};
-
-// compile-time initialized error-category for MySQL Errors
-const detail::MySQLErrorCategory theMySQLErrorCategory {};
-
-/**
- * identifies the MySQL error category
- */
-const std::error_category &mysql_error_category() {
-  return theMySQLErrorCategory;
-}
-
-/**
- * map MySQL Error codes to a std::error_code
- */
-std::error_code make_error_code(MySQLErrorc e) {
-  return std::error_code(static_cast<int>(e), mysql_error_category());
-}
-
 
 /**
  * Group Replication-aware decorator for MySQL Sessions
@@ -870,7 +822,7 @@ public:
       unsigned long gr_initial_port,
       const std::string &gr_initial_socket,
       unsigned long connection_timeout,
-      std::set<std::error_code> failure_codes = { make_error_code(MySQLErrorc::kSuperReadOnly), make_error_code(MySQLErrorc::kLostConnection) }): mysql_(sess),
+      std::set<MySQLErrorc> failure_codes = { MySQLErrorc::kSuperReadOnly, MySQLErrorc::kLostConnection }): mysql_(sess),
   gr_initial_username_(gr_initial_username),
   gr_initial_password_(gr_initial_password),
   gr_initial_hostname_(gr_initial_hostname),
@@ -890,7 +842,7 @@ private:
   unsigned long gr_initial_port_;
   const std::string &gr_initial_socket_;
   unsigned long connection_timeout_;
-  std::set<std::error_code> failure_codes_;
+  std::set<MySQLErrorc> failure_codes_;
 };
 
 
@@ -917,13 +869,12 @@ R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
     try {
        return wrapped_func();
     } catch (const MySQLSession::Error &e) {
-      // code not in failure-set
-      std::error_code ec = make_error_code(static_cast<MySQLErrorc>(e.code()));
+      MySQLErrorc ec = static_cast<MySQLErrorc>(e.code());
 
       log_info("Executing statements failed with: '%s' (%d), trying to connect to another node",
-          ec.message().c_str(),
-          e.code());
+          e.what(), e.code());
 
+      // code not in failure-set
       if (failure_codes_.find(ec) == failure_codes_.end()) {
         throw;
       }
