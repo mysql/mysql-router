@@ -175,16 +175,11 @@ static bool check_group_replication_online(MySQLSession *mysql) {
   std::string q = "SELECT member_state"
                   " FROM performance_schema.replication_group_members"
                   " WHERE member_id = @@server_uuid";
-  try {
-    std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
-    if (result && (*result)[0]) {
-      if (strcmp((*result)[0], "ONLINE") == 0)
-        return true;
-      // log_warning("Member state for current server is %s", (*result)[0]);
-      return false;
-    }
-  } catch (const std::exception &e) {
-    //log_error("Error querying for group_replication state: %s", e.what());
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (result && (*result)[0]) {
+    if (strcmp((*result)[0], "ONLINE") == 0)
+      return true;
+    // log_warning("Member state for current server is %s", (*result)[0]);
     return false;
   }
   throw std::logic_error("No result returned for metadata query");
@@ -193,26 +188,21 @@ static bool check_group_replication_online(MySQLSession *mysql) {
 static bool check_group_has_quorum(MySQLSession *mysql) {
   std::string q = "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total"
                   " FROM performance_schema.replication_group_members";
-  try {
-    std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
-    if (result) {
-      if (result->size() != 2) {
-        throw std::out_of_range("Invalid number of values returned from performance_schema.replication_group_members: "
-                                "expected 2 got " + std::to_string(result->size()));
-      }
-      int online = strtoi_checked((*result)[0]);
-      int all = strtoi_checked((*result)[1]);
-      //log_info("%d members online out of %d", online, all);
-      if (online >= all/2+1)
-        return true;
-      return false;
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (result) {
+    if (result->size() != 2) {
+      throw std::out_of_range("Invalid number of values returned from performance_schema.replication_group_members: "
+                              "expected 2 got " + std::to_string(result->size()));
     }
-  } catch (const std::out_of_range &e) {
-    throw;
-  } catch (const std::exception &e) {
-    // log_error("Error querying for group_replication state: %s", e.what());
+    int online = strtoi_checked((*result)[0]);
+    int all = strtoi_checked((*result)[1]);
+    //log_info("%d members online out of %d", online, all);
+    if (online >= all/2+1)
+      return true;
     return false;
   }
+
   throw std::logic_error("No result returned for metadata query");
 }
 
@@ -240,16 +230,7 @@ static bool check_group_member_is_primary(MySQLSession *mysql, std::string &ret_
   int single_primary_mode;
   std::string my_server_uuid;
 
-  try {
-    get_group_member_config(mysql, single_primary_mode, ret_primary, my_server_uuid);
-  } catch (const std::logic_error &e) {
-    // logic-error and out-of-range errors should be forwarded to the upper layers
-    //
-    // note: out-of-range is a logic-error
-    throw;
-  } catch (...) {
-    return false;
-  }
+  get_group_member_config(mysql, single_primary_mode, ret_primary, my_server_uuid);
 
   return (single_primary_mode == 0 || ret_primary == my_server_uuid);
 }
@@ -263,27 +244,21 @@ static bool check_metadata_is_supported(MySQLSession *mysql,
                   "  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset,"
                   " (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)"
                   "  = @@group_replication_group_name as replicaset_is_ours";
-  try {
-    std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
-    if (result) {
-      if (result->size() != 2) {
-        throw std::out_of_range("Invalid number of values returned from query for metadata support: "
-                                "expected 2 got " + std::to_string(result->size()));
-      }
-      bool has_only_one_replicaset = strtoi_checked((*result)[0]) == 1;
-      bool replicaset_is_ours = true;
-      if (version_matches(std::make_tuple(1, 0, 1), version))
-        replicaset_is_ours = strtoi_checked((*result)[1]) == 1;
 
-      // log_info("Replicaset/Cluster is unique = %i, Replicaset is our own = %i",
-      //           has_only_one_replicaset, replicaset_is_ours);
-      return has_only_one_replicaset && replicaset_is_ours;
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (result) {
+    if (result->size() != 2) {
+      throw std::out_of_range("Invalid number of values returned from query for metadata support: "
+                              "expected 2 got " + std::to_string(result->size()));
     }
-  } catch (const std::out_of_range &e) {
-    throw;
-  } catch (const std::exception &e) {
-    // log_error("Error querying for group_replication state: %s", e.what());
-    return false;
+    bool has_only_one_replicaset = strtoi_checked((*result)[0]) == 1;
+    bool replicaset_is_ours = true;
+    if (version_matches(std::make_tuple(1, 0, 1), version))
+      replicaset_is_ours = strtoi_checked((*result)[1]) == 1;
+
+    // log_info("Replicaset/Cluster is unique = %i, Replicaset is our own = %i",
+    //           has_only_one_replicaset, replicaset_is_ours);
+    return has_only_one_replicaset && replicaset_is_ours;
   }
   throw std::logic_error("No result returned for metadata query");
 }
