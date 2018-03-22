@@ -137,17 +137,19 @@ TEST(MetadataCheck, metadata_missing) {
 TEST(MetadataCheck, metadata_bad_version) {
   MySQLSessionReplayer m;
 
-  q_schema_version(m, "0", "0");
-  ASSERT_THROW_LIKE(
-      mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
-      std::runtime_error,
-      "The provided server contains an unsupported InnoDB cluster metadata.");
-
   q_schema_version(m, "0", "0", "0");
   ASSERT_THROW_LIKE(
       mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
       "This version of MySQL Router is not compatible with the provided MySQL InnoDB cluster metadata");
+
+  // unexpected server errors should bubble up to the caller
+  m.expect_query_one("SELECT * FROM mysql_innodb_cluster_metadata.schema_version").
+      then_error("Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'", 1044);
+  ASSERT_THROW_LIKE(
+      mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
+      std::runtime_error,
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'");
 }
 
 // check that the server we're querying contains metadata for the group it's in
@@ -198,11 +200,13 @@ TEST(MetadataCheck, metadata_unsupported) {
       std::runtime_error,
       "The provided server contains an unsupported InnoDB cluster metadata.");
 
+  // unexpected server errors should bubble up to the caller
   q_schema_version(m, "1", "0", "1");
-  q_metadata_only_our_group(m).then_error("error", 1234);
+  q_metadata_only_our_group(m).
+      then_error("Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'", 1044);
   ASSERT_THROW_LIKE(mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
-      "The provided server contains an unsupported InnoDB cluster metadata.");
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'");
 }
 
 // check that the server we're bootstrapping from has GR enabled
@@ -225,13 +229,15 @@ TEST(MetadataCheck, metadata_gr_enabled) {
       std::runtime_error,
       "The provided server is currently not an ONLINE member of a InnoDB cluster.");
 
+  // unexpected server errors should bubble up to the caller
   q_schema_version(m, "1", "0", "1");
   q_metadata_only_our_group(m, "1", "1");
-  q_member_state(m).then_error("some error", 1234);
+  q_member_state(m).
+      then_error("Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'", 1044);
 
   ASSERT_THROW_LIKE(mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
-      "The provided server is currently not an ONLINE member of a InnoDB cluster.");
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'");
 }
 
 TEST(MetadataCheck, metadata_gr_enabled_ok) {
@@ -282,13 +288,14 @@ TEST(MetadataCheck, metadata_has_quorum) {
       std::runtime_error,
       "The provided server is currently not in a InnoDB cluster group with quorum and thus may contain inaccurate or outdated data.");
 
+  // unexpected server errors should bubble up to the caller
   q_schema_version(m, "1", "0", "1");
   q_metadata_only_our_group(m, "1", "1");
   q_member_state(m, "ONLINE");
-  q_quorum(m).then_error("error", 1234);
+  q_quorum(m).then_error("Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'", 1044);
   ASSERT_THROW_LIKE(mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
-      "The provided server is currently not in a InnoDB cluster group with quorum and thus may contain inaccurate or outdated data.");
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'");
 }
 
 TEST(MetadataCheck, metadata_has_quorum_ok) {
@@ -353,14 +360,15 @@ TEST(MetadataCheck, non_primary) {
       std::runtime_error,
       "The provided server is not an updatable member of the cluster. Please try again with the Primary member of the replicaset");
 
+  // unexpected server errors should bubble up to the caller
   q_schema_version(m, "1", "0", "1");
   q_metadata_only_our_group(m, "1", "1");
   q_member_state(m, "ONLINE");
   q_quorum(m, "1", "1");
-  q_single_primary_info(m).then_error("this shouldn't be returned-error", 1234);
+  q_single_primary_info(m).then_error("Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'", 1044);
   ASSERT_THROW_LIKE(mysqlrouter::check_innodb_metadata_cluster_session(&m, false),
       std::runtime_error,
-      "The provided server is not an updatable member of the cluster. Please try again with the Primary member of the replicaset.");
+      "Access denied for user 'native'@'%' to database 'mysql_innodb_cluster_metadata'");
 }
 
 TEST(MetadataCheck, non_primary_ok) {
