@@ -262,4 +262,4 @@ It describes what the mock shall respond with when it receives:
 
 ### Format
 
-\include tests/component/mysqld_mock/mysql_server_mock.json
+\include tests/component/mysqld_mock/mysql_server_mock_schema.json
