@@ -31,17 +31,24 @@
 #endif
 
 #include "rapidjson/document.h"
-#include "rapidjson/filereadstream.h"
 #include "rapidjson/error/en.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/schema.h"
+#include "rapidjson/stringbuffer.h"
 #include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <memory>
+
+#include "mysql_server_mock_schema.h"
 
 namespace {
 
 // default allocator for rapidJson (MemoryPoolAllocator) is broken for SparcSolaris
 using JsonDocument = rapidjson::GenericDocument<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
 using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
+using JsonSchemaDocument = rapidjson::GenericSchemaDocument<JsonValue, rapidjson::CrtAllocator>;
+using JsonSchemaValidator = rapidjson::GenericSchemaValidator<JsonSchemaDocument>;
 
 std::string get_json_value_as_string(const JsonValue& value, size_t repeat = 1) {
   if (value.IsString()) {
@@ -72,15 +79,11 @@ std::string get_json_string_field(const JsonValue& parent,
                                   bool required = false) {
   const bool found = parent.HasMember(field.c_str());
   if (!found) {
-    if (required) {
-      throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
-    }
+    harness_assert(!required);  // schema should have caught this
     return default_val;
   }
 
-  if (!parent[field.c_str()].IsString()) {
-    throw std::runtime_error("Wrong statements document structure: field\"" + field  + "\" has to be string type");
-  }
+  harness_assert(parent[field.c_str()].IsString());  // schema should have caught this
 
   return parent[field.c_str()].GetString();
 }
@@ -91,15 +94,11 @@ double get_json_double_field(const JsonValue& parent,
                              bool required = false) {
   const bool found = parent.HasMember(field.c_str());
   if (!found) {
-    if (required) {
-      throw std::runtime_error("Wrong statements document structure: field\"" + field + "\"");
-    }
+    harness_assert(!required);  // schema should have caught this
     return default_val;
   }
 
-  if (!parent[field.c_str()].IsDouble()) {
-    throw std::runtime_error("Wrong statements document structure: field\"" + field + "\" has to be double type");
-  }
+  harness_assert(parent[field.c_str()].IsDouble());  // schema should have caught this
   return parent[field.c_str()].GetDouble();
 }
 
@@ -110,15 +109,11 @@ INT_TYPE get_json_integer_field(const JsonValue& parent,
                                   bool required = false) {
   const bool found = parent.HasMember(field.c_str());
   if (!found) {
-    if (required) {
-      throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
-    }
+    harness_assert(!required);  // schema should have caught this
     return default_val;
   }
 
-  if (!parent[field.c_str()].IsInt()) {
-    throw std::runtime_error("Wrong statements document structure: field\"" + field  + "\" has to be integer type");
-  }
+  harness_assert(parent[field.c_str()].IsInt());  // schema should have caught this
 
   return static_cast<INT_TYPE>(parent[field.c_str()].GetInt());
 }
@@ -132,53 +127,110 @@ struct QueriesJsonReader::Pimpl {
   JsonDocument json_document_;
   size_t current_stmt_{0u};
 
-  std::unique_ptr<Response> read_result_info(const JsonValue& stmt);
-
-  std::unique_ptr<Response> read_ok_info(const JsonValue& stmt);
-
-  std::unique_ptr<Response> read_error_info(const JsonValue& stmt);
-
   Pimpl(): json_document_() {}
+
+  static JsonDocument load_json_from_file(const std::string& filename);
+  static void validate_json_against_schema(const JsonSchemaDocument& schema, const JsonDocument& json);
+
+  std::unique_ptr<Response> read_result_info(const JsonValue& stmt);
+  std::unique_ptr<Response> read_ok_info(const JsonValue& stmt);
+  std::unique_ptr<Response> read_error_info(const JsonValue& stmt);
 };
 
-QueriesJsonReader::QueriesJsonReader(const std::string &filename):
+QueriesJsonReader::QueriesJsonReader(const std::string &json_filename):
               pimpl_(new Pimpl()){
-  if (filename.empty()) return;
+  if (json_filename.empty()) return;
 
-#ifndef _WIN32
-  const char* OPEN_MODE = "rb"; // after rapidjson doc
-#else
-  const char* OPEN_MODE = "r";
-#endif
-  FILE* fp = fopen(filename.c_str(), OPEN_MODE);
-  if (!fp) {
-    throw std::runtime_error("Could not open json queries file for reading: " + filename);
-  }
-  std::shared_ptr<void> exit_guard(nullptr, [&](void*){fclose(fp);});
+  // load queries JSON; throws std::runtime_error on invalid JSON file
+  pimpl_->json_document_ = pimpl_->load_json_from_file(json_filename);
 
-  char readBuffer[65536];
-  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+  // construct schema JSON; throws std::runtime_error on invalid JSON, but note
+  // that invalid schema will slip by without throwing (but it will cause
+  // validate_json_against_schema() to fail later on)
+  JsonDocument schema_json;
+  if(schema_json.Parse<rapidjson::kParseCommentsFlag>(kSqlQueryJsonSchema).HasParseError())
+    throw std::runtime_error("Parsing JSON schema failed at offset "
+                             + std::to_string(schema_json.GetErrorOffset()) + ": "
+                             + rapidjson::GetParseError_En(schema_json.GetParseError()));
+  JsonSchemaDocument schema(schema_json);
 
-  pimpl_->json_document_.ParseStream<rapidjson::kParseCommentsFlag>(is);
+  // validate JSON against schema; throws std::runtime if validation fails
+  try {
+    pimpl_->validate_json_against_schema(schema, pimpl_->json_document_);
+  } catch (const std::runtime_error& e) {
+    // TODO: we could also get here if schema itself is not valid. To diagnose that,
+    //       another validate_json_against_schema() could be ran here to validate our
+    //       schema against schema spec (http://json-schema.org/draft-04/schema#)
 
-  if (pimpl_->json_document_.HasParseError()) {
-    throw std::runtime_error("Parsing " + filename + " failed at pos " + std::to_string(pimpl_->json_document_.GetErrorOffset()) + ": "
-        + RAPIDJSON_NAMESPACE::GetParseError_En(pimpl_->json_document_.GetParseError()));
-  }
-
-  if (!pimpl_->json_document_.HasMember("stmts")) {
-    throw std::runtime_error("Wrong statements document structure: missing \"stmts\"");
-  }
-
-  if (!pimpl_->json_document_["stmts"].IsArray()) {
-    throw std::runtime_error("Wrong statements document structure: \"stmts\" has to be an array");
+    throw std::runtime_error("JSON file '" + json_filename +
+                             "' failed validation against JSON schema:\n" + e.what());
   }
 
+  // schema should have caught these
+  harness_assert(pimpl_->json_document_.HasMember("stmts"));
+  harness_assert(pimpl_->json_document_["stmts"].IsArray());
 }
 
 // this is needed for pimpl, otherwise compiler complains
 // about pimpl unknown size in std::unique_ptr
 QueriesJsonReader::~QueriesJsonReader() {}
+
+// throws std::runtime_error on
+// - file read error
+// - JSON parse error
+/*static*/ JsonDocument QueriesJsonReader::Pimpl::load_json_from_file(const std::string& filename) {
+
+  // This DOES NOT have to be big enough to contain the entire JSON file.
+  // In such case, FileReadStream will automatically read more from the file
+  // once it reaches end of buffer.
+  constexpr size_t kMaxFileSize = 64 * 1024;
+
+  // open JSON file
+#ifndef _WIN32
+  FILE* fp = fopen(filename.c_str(), "rb"); // after rapidjson doc
+#else
+  FILE* fp = fopen(filename.c_str(), "r");
+#endif
+  if (!fp) {
+    throw std::runtime_error("Could not open JSON file '" + filename
+                             + "' for reading: " + strerror(errno));
+  }
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){fclose(fp);});
+
+  // read JSON file
+  char readBuffer[kMaxFileSize];
+  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+
+  // ensure file is a valid JSON file
+  JsonDocument json;
+  if (json.ParseStream<rapidjson::kParseCommentsFlag>(is).HasParseError()) {
+    throw std::runtime_error("Parsing JSON file '" + filename + "' failed at offset "
+                             + std::to_string(json.GetErrorOffset()) + ": "
+                             + rapidjson::GetParseError_En(json.GetParseError()));
+  }
+
+  return json;
+}
+
+//throws std::runtime_error on failed validation
+/*static*/
+void QueriesJsonReader::Pimpl::validate_json_against_schema(const JsonSchemaDocument& schema,
+                                                            const JsonDocument& json) {
+  // verify JSON against the schema
+  JsonSchemaValidator validator(schema);
+  if (!json.Accept(validator)) {
+    // validation failed - throw an error with info of where the problem is
+    rapidjson::StringBuffer sb_schema;
+    validator.GetInvalidSchemaPointer().StringifyUriFragment(sb_schema);
+    rapidjson::StringBuffer sb_json;
+    validator.GetInvalidDocumentPointer().StringifyUriFragment(sb_json);
+    throw std::runtime_error(
+      std::string("Failed schema directive: ") + sb_schema.GetString() +
+      "\nFailed schema keyword:   " + validator.GetInvalidSchemaKeyword() +
+      "\nFailure location in validated document: " + sb_json.GetString() + "\n"
+    );
+  }
+}
 
 StatementAndResponse QueriesJsonReader::get_next_statement() {
   StatementAndResponse response;
@@ -187,12 +239,10 @@ StatementAndResponse QueriesJsonReader::get_next_statement() {
   if (pimpl_->current_stmt_ >= stmts.Size()) return response;
 
   auto& stmt = stmts[pimpl_->current_stmt_++];
-  if (!stmt.HasMember("stmt") && !stmt.HasMember("stmt.regex")) {
-    throw std::runtime_error("Wrong statements document structure: missing \"stmt\" or \"stmt.regex\"");
-  }
+  harness_assert(stmt.HasMember("stmt") || stmt.HasMember("stmt.regex"));  // schema should have caught this
 
-  if (stmt.HasMember("exec-time")) {
-    double exec_time = get_json_double_field(stmt, "exec-time", 0.0);
+  if (stmt.HasMember("exec_time")) {
+    double exec_time = get_json_double_field(stmt, "exec_time", 0.0);
     response.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
   }
   else {
@@ -205,9 +255,7 @@ StatementAndResponse QueriesJsonReader::get_next_statement() {
     response.statement_is_regex = true;
   }
 
-  if (!stmt[name.c_str()].IsString()) {
-    throw std::runtime_error("Wrong statements document structure: \"stmt\" has to be a string");
-  }
+  harness_assert(stmt[name.c_str()].IsString());  // schema should have caught this
 
   response.statement = stmt[name.c_str()].GetString();
 
@@ -221,7 +269,7 @@ StatementAndResponse QueriesJsonReader::get_next_statement() {
     response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_RESULT;
     response.response = pimpl_->read_result_info(stmt);
   } else {
-    throw std::runtime_error("Wrong statements document structure: expect \"ok|error|result\"");
+    harness_assert_this_should_not_execute(); // schema should have caught this
   }
 
   return response;
@@ -231,8 +279,8 @@ std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
 
   if (pimpl_->json_document_.HasMember("defaults")) {
     auto& defaults = pimpl_->json_document_["defaults"];
-    if (defaults.HasMember("exec-time")) {
-      double exec_time = get_json_double_field(defaults, "exec-time", 0.0);
+    if (defaults.HasMember("exec_time")) {
+      double exec_time = get_json_double_field(defaults, "exec_time", 0.0);
       return std::chrono::microseconds(static_cast<long>(exec_time * 1000));
     }
   }
@@ -250,9 +298,7 @@ std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(const JsonV
   // read columns
   if (result.HasMember("columns")) {
     const auto& columns = result["columns"];
-    if (!columns.IsArray()) {
-      throw std::runtime_error("Wrong statements document structure: \"columns\" has to be an array");
-    }
+    harness_assert(columns.IsArray());  // schema should have caught this
 
     for (size_t i = 0; i < columns.Size(); ++i) {
       auto& column = columns[i];
@@ -278,18 +324,15 @@ std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(const JsonV
   // read rows
   if (result.HasMember("rows")) {
     const auto& rows = result["rows"];
-    if (!rows.IsArray()) {
-      throw std::runtime_error("Wrong statements document structure: \"rows\" has to be an array");
-    }
+    harness_assert(rows.IsArray());  // schema should have caught this
 
     auto columns_size = response->columns.size();
 
     for (size_t i = 0; i < rows.Size(); ++i) {
       auto& row = rows[i];
-      if (!row.IsArray()) {
-        throw std::runtime_error("Wrong statements document structure: \"rows\" instance has to be an array");
-      }
+      harness_assert(row.IsArray());  // schema should have caught this
 
+      // this check cannot be performed by validating against schema, thus we need it in code
       if (row.Size() != columns_size) {
         throw std::runtime_error(std::string("Wrong statements document structure: ") +
             "number of row fields different than number of columns " +

@@ -20,7 +20,38 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-file(GLOB_RECURSE sources ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
+################################################################################
+# build JSON schema embedder, then use it to generate mysql_server_mock_schema.cc
+# (server mock dependency) from mysql_server_mock_schema.json
+################################################################################
+
+# build JSON schema embedder
+add_executable(json_schema_embedder json_schema_embedder.cc)
+
+# generate mysql_server_mock_schema.cc, which embeds mysql_server_mock_schema.json
+# as a c-string. Server mock build will trigger this as its dependency [_HERE_]
+add_custom_command(OUTPUT mysql_server_mock_schema.cc
+                   COMMAND json_schema_embedder
+                     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.json
+                     ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_mock_schema.cc)
+
+
+
+
+
+################################################################################
+# build server mock
+################################################################################
+
+set(mysql_server_mock_sources
+  main.cc
+  json_statement_reader.cc
+  mysql_protocol_decoder.cc
+  mysql_protocol_encoder.cc
+  mysql_protocol_utils.cc
+  mysql_server_mock.cc
+  mysql_server_mock_schema.cc # this one is auto-generated [_HERE_]
+)
 
 # Implementation files that include RapidJSON headers.
 # Used to supress warnings for those.
@@ -52,7 +83,7 @@ else()
   list(APPEND common_libraries -lpthread)
 endif()
 
-add_executable(mysql_server_mock ${sources})
+add_executable(mysql_server_mock ${mysql_server_mock_sources})
 target_include_directories(mysql_server_mock PUBLIC
   ${RAPIDJSON_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include/)
