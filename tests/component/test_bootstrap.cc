@@ -700,12 +700,15 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
+  // NOTE: CREATE USER statements should run in unique(sort(hostname_list)) fashion
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
                               + " -d " + bootstrap_directory
-                              + " --account-host host1"
-                              + " --account-host %"
-                              + " --account-host host3%");
+                              + " --account-host host1"     // 2nd CREATE USER
+                              + " --account-host %"         // 1st CREATE USER
+                              + " --account-host host1"     // \_ redundant, ignored
+                              + " --account-host host1"     // /
+                              + " --account-host host3%");  // 3rd CREATE USER
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 

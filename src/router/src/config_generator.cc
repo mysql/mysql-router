@@ -1199,8 +1199,9 @@ ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &user
   assert(!username.empty());
 
   // we erase any old accounts with the same name, if they exist
-  delete_account_for_all_hosts(username); // throws std::runtime_error
+  delete_account_for_all_hosts(username); // throws MySQLSession::Error, std::logic_error
 
+  // create_router_accounts() throws many things, see its description
   std::string password = create_router_accounts(user_options, multivalue_options, username);
 
   metadata.update_router_info(router_id,
@@ -1577,12 +1578,11 @@ std::pair<std::string, bool> ConfigGenerator::create_account_with_compliant_pass
   unsigned retries = get_password_retries(user_options);  // throws std::runtime_error
   if (!force_password_validation) {
     // 1) Try to create an account using mysql_native_password with the hashed password
-    //    to avoid validate_password verification.
+    //    to avoid validate_password verification (hashing is done inside create_account())
     password = rg.generate_strong_password(kMetadataServerPasswordLength);
-    const std::string hashed_password = compute_password_hash(password);
     try {
-      // throws: plugin_not_loaded, password_too_weak, std::runtime_error
-      create_account(username, hostname, hashed_password, true /*password_hashed*/);
+      // create_account() throws many things, see its description
+      create_account(username, hostname, password, true /*hash password*/);
       return std::make_pair(password, true);
     }
     catch (const plugin_not_loaded&) {
@@ -1597,11 +1597,11 @@ std::pair<std::string, bool> ConfigGenerator::create_account_with_compliant_pass
     password = rg.generate_strong_password(kMetadataServerPasswordLength);
 
     try {
-      // throws: plugin_not_loaded, password_too_weak, std::runtime_error
-      create_account(username, hostname, password, false /*password_hashed*/);
+      // create_account() throws many things, see its description
+      create_account(username, hostname, password, false /*hash password*/);
       return std::make_pair(password, false);
     }
-    catch(const password_too_weak& e) {
+    catch (const password_too_weak& e) {
       if (--retries == 0) {
         // 3) If 2) failed issue an error suggesting the change to validate_password rules
         std::stringstream err_msg;
@@ -1632,14 +1632,14 @@ std::pair<std::string, bool> ConfigGenerator::create_account_with_compliant_pass
 void ConfigGenerator::create_account(const std::string &username,
                                      const std::string &hostname,
                                      const std::string &password,
-                                     bool password_hashed) {
+                                     bool hash_password) {
 
   const std::string account = username + "@" + mysql_->quote(hostname);
   log_info("Creating account %s", account.c_str());
 
   const std::string create_user = "CREATE USER " + account + " IDENTIFIED "
-      + (password_hashed ? "WITH mysql_native_password AS " : "BY ")
-      + mysql_->quote(password);
+      + (hash_password ? "WITH mysql_native_password AS " : "BY ")
+      + mysql_->quote(hash_password ? compute_password_hash(password) : password);
 //    + mysql_->quote(password) + " REQUIRE X509";
 
   const std::vector<std::string> queries{
@@ -1651,7 +1651,7 @@ void ConfigGenerator::create_account(const std::string &username,
 
   for (auto &q : queries) {
     try {
-      mysql_->execute(q);
+      mysql_->execute(q); // throws MySQLSession::Error, std::logic_error
     } catch (MySQLSession::Error &e) {
       // log_error("%s: executing query: %s", e.what(), q.c_str());
       try {
@@ -1678,9 +1678,8 @@ void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) 
   // We need to check if at least 1 accounts exists, because if there were none,
   // prepared SQL statement created [_HERE_] would evaluate to NULL, and fail to execute.
   log_info("Checking for old Router accounts");
-  try {
-
-    // throws MySQLSession
+  {
+    // throws MySQLSession::Error, should be handled by caller
     std::unique_ptr<MySQLSession::ResultRow> result(
         mysql_->query_one("SELECT COUNT(*) FROM mysql.user WHERE user = '" + username + "'"));
 
@@ -1690,9 +1689,6 @@ void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) 
       log_debug("No prior Router accounts found");
       return;
     }
-
-  } catch (std::exception &e) {
-    throw std::runtime_error(std::string("Error querying for existing Router accounts: ") + e.what());
   }
 
   log_info("Found old Router accounts, removing");
@@ -1708,13 +1704,9 @@ void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) 
       "DEALLOCATE PREPARE drop_user_stmt"   // hygienie, not really needed
     };
 
-    for (const std::string& q : queries) {
-      try {
-        mysql_->execute(q);
-      } catch (MySQLSession::Error &e) {
-        throw std::runtime_error(std::string("Error removing old MySQL account for router: ") + e.what());
-      }
-    }
+    // throws MySQLSession::Error, std::logic_error, both should be handled by caller
+    for (const std::string& q : queries)
+      mysql_->execute(q);
   }
 }
 
@@ -1748,13 +1740,18 @@ std::string ConfigGenerator::create_router_accounts(const std::map<std::string, 
   std::pair<std::string, bool> password_and_is_hashed;
 
   // extract --account-host args; if none were given, default to just one: "%"
+  // NOTE: By the time we call this function, all --account-host entries should
+  //       be sorted and any non-unique entries eliminated (to ensure CREATE USER
+  //       does not get called twice for the same user@host). This happens at the
+  //       commandline parsing level during --account-host processing.
   constexpr const char kAccountHost[] = "account-host";
   const std::vector<std::string>& hostnames = multivalue_options.count(kAccountHost)
       ? multivalue_options.at(kAccountHost)
       : std::vector<std::string>{"%"};
 
-  // create_account*() functions below throw std::runtime_error - we let the
-  // higher-level logic deal with it when that happens
+  // NOTE ON EXCEPTIONS:
+  // create_account*() functions throw many things (see their descriptions)
+  // - we let the higher-level logic deal with them when that happens.
 
   // create first account and save password info that got generated in the process
   password_and_is_hashed = create_account_with_compliant_password(
@@ -1762,8 +1759,27 @@ std::string ConfigGenerator::create_router_accounts(const std::map<std::string, 
 
   // and now we use that password info for creation of remaining accounts
   for (auto it = hostnames.begin() + 1; it != hostnames.end(); ++it) {
-    create_account(username, *it, password_and_is_hashed.first /*password*/,
-                   password_and_is_hashed.second /*password_hashed*/);
+    try {
+      create_account(username, *it, password_and_is_hashed.first /*password*/,
+                     password_and_is_hashed.second /*hash password*/);
+    }
+
+    // create_account_with_compliant_password() should have caught these (and
+    // dealt with them accordingly), since these occur either always or never.
+    // The only way these could occur here is if the Server's responses changed
+    // for some reason (reconfigured in the meantime?). Anyhow, probably an
+    // unlikely event.
+    catch (const plugin_not_loaded&) {
+      throw std::runtime_error("Error creating user account: unexpected error: "
+          "plugin not loaded (it seems Server changed its password policy, "
+          "has it been reconfigured in the meantime?)");
+    } catch (const password_too_weak&) {
+      throw std::runtime_error("Error creating user account: unexpected error: "
+          "password too weak (it seems Server changed its password policy, "
+          "has it been reconfigured in the meantime?)");
+    } catch (...) {
+      throw;  // all others we pass
+    }
   }
 
   return password_and_is_hashed.first;

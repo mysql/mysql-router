@@ -208,26 +208,9 @@
 
 
 
-    { "COMMENT" : "iteration #1: --account-host host1",
-      "stmt.regex": "^CREATE USER mysql_router.*'host1'.*",
-      "ok": {}
-    },
-    {
-      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*'host1'",
-      "ok": {}
-    },
-    {
-      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
-      "ok": {}
-    },
-    {
-      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
-      "ok": {}
-    },
+    // NOTE: CREATE USER statements should run in unique(sort(hostname_list)) fashion
 
-
-
-    { "COMMENT" : "iteration #2: --account-host %",
+    { // iteration #1: --account-host %"
       "stmt.regex": "^CREATE USER mysql_router.*'%'.*",
       "ok": {}
     },
@@ -246,7 +229,26 @@
 
 
 
-    { "COMMENT" : "iteration #3: --account-host host3%",
+    { // iteration #2: --account-host host1"
+      "stmt.regex": "^CREATE USER mysql_router.*'host1'.*",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*'host1'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
+      "ok": {}
+    },
+    {
+      "stmt.regex": "^GRANT SELECT ON performance_schema.*'host1'",
+      "ok": {}
+    },
+
+
+
+    { // iteration #3: --account-host host3%"
       "stmt.regex": "^CREATE USER mysql_router.*'host3%'.*",
       "ok": {}
     },

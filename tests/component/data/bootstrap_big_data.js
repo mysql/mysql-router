@@ -128,8 +128,7 @@
           {
             "type": "STRING",
             "name": "fake",
-            "repeat": 4194304,
-            "comment": "Additional field that we use to force generating of big packets"
+            "repeat": 4194304 // "Additional field that we use to force generating of big packets"
           }
         ],
         "rows": [
@@ -214,8 +213,8 @@
     },
 
 
-
-    { "COMMENT": "ConfigGenerator::create_account()",
+    // ConfigGenerator::create_account()
+    {
       "stmt.regex": "^CREATE USER mysql_router.*",
       "ok": {}
     },

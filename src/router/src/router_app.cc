@@ -891,7 +891,16 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "It can be used multiple times to provide multiple patterns. (bootstrap)",
                           CmdOptionValueReq::required, "account-host",
                           [this](const string &host_pattern) {
-        this->bootstrap_multivalue_options_["account-host"].push_back(host_pattern);
+        std::vector<std::string>& hostnames = this->bootstrap_multivalue_options_["account-host"];
+        hostnames.push_back(host_pattern);
+
+        // sort and eliminate any non-unique hostnames; we do this to ensure that
+        // CREATE USER does not get called twice for the same user@host later on
+        // in the ConfigGenerator
+        std::sort(hostnames.begin(), hostnames.end());
+        auto it = std::unique(hostnames.begin(), hostnames.end());
+        hostnames.resize(std::distance(hostnames.begin(), it));
+
         if (this->bootstrap_uri_.empty()) {
           throw std::runtime_error("Option --account-host can only be used together with -B/--bootstrap");
         }

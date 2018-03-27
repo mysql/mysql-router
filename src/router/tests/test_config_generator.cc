@@ -519,7 +519,7 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
     config_gen.init(kServerUrl, {});
     EXPECT_THROW_LIKE(
       config_gen.delete_account_for_all_hosts("cluster_user"),
-      std::runtime_error, "Error querying for existing Router accounts: some error"
+      std::runtime_error, "some error"
     );
 
     EXPECT_TRUE(mock_mysql->empty());
@@ -537,7 +537,7 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
     config_gen.init(kServerUrl, {});
     EXPECT_THROW_LIKE(
       config_gen.delete_account_for_all_hosts("cluster_user"),
-      std::runtime_error, "Error removing old MySQL account for router: some error"
+      std::runtime_error, "some error"
     );
 
     EXPECT_TRUE(mock_mysql->empty());
@@ -561,110 +561,145 @@ TEST_F(ConfigGeneratorTest, create_acount) {
 
   // using hashed password
   {
-    //std::vector<const char*> result{"::fffffff:123.45.67.8"};
-
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED WITH mysql_native_password "
-                               "AS '*89C1E57BE94931A2C11EB6C76E4C254799853B8D'").then_ok();
+                               "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    config_gen.create_account("cluster_user", "%", "*89C1E57BE94931A2C11EB6C76E4C254799853B8D", true);
+    config_gen.create_account("cluster_user", "%", "secret", true); // true = hash the password
   }
 }
 
 TEST_F(ConfigGeneratorTest, create_router_accounts) {
-  auto generate_expected_SQL = [this](const std::string& host, unsigned fail_on = 99) {
-    // 99 => don't fail, 1..4 => fail on 1..4
-    assert((1 <= fail_on && fail_on <= 4) || fail_on == 99);
 
-    if (fail_on > 0) mock_mysql->expect_execute("CREATE USER cluster_user@'" + host + "'").then_ok();
-    if (fail_on > 1) mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'" + host + "'").then_ok();
-    if (fail_on > 2) mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'" + host + "'").then_ok();
-    if (fail_on > 3) mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'" + host + "'").then_ok();
-
-    if (fail_on != 99)
-      mock_mysql->then_error("some error", 1234); // i-th statement will return this error
+  enum TestType {
+    NATIVE,     // CREATE USER using mysql_native_password and hashed password
+    FALLBACK    // CREATE USER using fallback method with plaintext password
   };
 
-  // default hostname
-  {
-    ::testing::InSequence s;
-    common_pass_metadata_checks(mock_mysql.get());
-    generate_expected_SQL("%");
+  for (TestType tt : {NATIVE, FALLBACK}) {
 
-    ConfigGenerator config_gen;
-    config_gen.init(kServerUrl, {});
-    config_gen.create_router_accounts({}, {}, "cluster_user");
-  }
+    auto generate_expected_SQL = [this, tt](const std::string& host,
+                                            bool first_create_user = false,
+                                            unsigned fail_on = 99) {
 
-  // 1 hostname
-  {
-    ::testing::InSequence s;
-    common_pass_metadata_checks(mock_mysql.get());
-    generate_expected_SQL("host1");
+      // 99 => don't fail, 1..4 => fail on 1..4
+      assert((1 <= fail_on && fail_on <= 4) || fail_on == 99);
 
-    ConfigGenerator config_gen;
-    config_gen.init(kServerUrl, {});
-    config_gen.create_router_accounts({}, {{"account-host", {"host1"}}}, "cluster_user");
-  }
+      if (tt == NATIVE) {
+        // CREATE USER using mysql_native_password and hashed password
+        if (fail_on > 0) mock_mysql->expect_execute(
+            "CREATE USER cluster_user@'" + host +
+            "' IDENTIFIED WITH mysql_native_password AS '*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'").then_ok();
+      } else {
+        // fail mysql_native_password method to induce fallback to plaintext method.
+        // Should be called only as the first CREATE USER, after this fallback should
+        // be used on all subsequent CREATE USER calls
+        if (first_create_user) mock_mysql->expect_execute("CREATE USER cluster_user@'" + host +
+            "' IDENTIFIED WITH mysql_native_password AS '*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'").then_error("no such plugin", 1524);
 
-  // many hostnames
-  {
-    ::testing::InSequence s;
-    common_pass_metadata_checks(mock_mysql.get());
+        // CREATE USER using fallback method with plaintext password
+        if (fail_on > 0) mock_mysql->expect_execute(
+            "CREATE USER cluster_user@'" + host + "' IDENTIFIED BY '0123456789012345'").then_ok();
+      }
+      if (fail_on > 1) mock_mysql->expect_execute(
+          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'" + host + "'").then_ok();
+      if (fail_on > 2) mock_mysql->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'" + host + "'").then_ok();
+      if (fail_on > 3) mock_mysql->expect_execute(
+          "GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'" + host + "'").then_ok();
 
-    generate_expected_SQL("host1");
-    generate_expected_SQL("%");
-    generate_expected_SQL("host3%");
+      if (fail_on != 99)
+        mock_mysql->then_error("some error", 1234); // i-th statement will return this error
+    };
 
-    ConfigGenerator config_gen;
-    config_gen.init(kServerUrl, {});
-    config_gen.create_router_accounts({}, {{"account-host", {"host1", "%", "host3%"}}}, "cluster_user");
-  }
-
-  // one of user-creating statements fails
-  for (unsigned fail_host = 1; fail_host < 3; fail_host++)
-  {
-    for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+    // default hostname
     {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
-      switch (fail_host) {
-        case 1:
-          generate_expected_SQL("host1", fail_sql);
-        break;
-        case 2:
-          generate_expected_SQL("host1");
-          generate_expected_SQL("host2", fail_sql);
-        break;
-        case 3:
-          generate_expected_SQL("host1");
-          generate_expected_SQL("host2");
-          generate_expected_SQL("host3", fail_sql);
-        break;
-      }
-
-      // fail_sql-th SQL statement of fail_host will return this error
-      mock_mysql->then_error("some error", 1234);
-
-      mock_mysql->expect_execute("ROLLBACK");
+      generate_expected_SQL("%", true);
 
       ConfigGenerator config_gen;
       config_gen.init(kServerUrl, {});
-      EXPECT_THROW_LIKE(
-        config_gen.create_router_accounts({}, {{"account-host", {"host1", "host2", "host3"}}}, "cluster_user"),
-        std::runtime_error, "Error creating MySQL account for router: some error"
-      );
+      config_gen.create_router_accounts({}, {}, "cluster_user");
+    }
 
-      EXPECT_TRUE(mock_mysql->empty());
+    // 1 hostname
+    {
+      ::testing::InSequence s;
+      common_pass_metadata_checks(mock_mysql.get());
+      generate_expected_SQL("host1", true);
 
-    } // for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
-  } // for (unsigned fail_host = 1; fail_host < 3; fail_host++)
+      ConfigGenerator config_gen;
+      config_gen.init(kServerUrl, {});
+      config_gen.create_router_accounts({}, {{"account-host", {"host1"}}}, "cluster_user");
+    }
+
+    // many hostnames
+    {
+      // NOTE: When we run bootstrap in real life, all --account-host entries should
+      //       get sorted and any non-unique entries eliminated (to ensure CREATE USER
+      //       does not get called twice for the same user@host). However, this happens
+      //       at the commandline parsing level, so by the time ConfigGenerator runs,
+      //       the list of hostnames is already unique and sorted. Here we just give
+      //       an arbitrary list to ensure it will work irrespective of input.
+
+      ::testing::InSequence s;
+      common_pass_metadata_checks(mock_mysql.get());
+
+      generate_expected_SQL("host1", true);
+      generate_expected_SQL("%");
+      generate_expected_SQL("host3%");
+
+      ConfigGenerator config_gen;
+      config_gen.init(kServerUrl, {});
+      config_gen.create_router_accounts({}, {{"account-host", {"host1", "%", "host3%"}}}, "cluster_user");
+    }
+
+    // one of user-creating statements fails
+    for (unsigned fail_host = 1; fail_host < 3; fail_host++)
+    {
+      for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+      {
+        ::testing::InSequence s;
+        common_pass_metadata_checks(mock_mysql.get());
+        switch (fail_host) {
+          case 1:
+            generate_expected_SQL("host1", true, fail_sql);
+          break;
+          case 2:
+            generate_expected_SQL("host1", true);
+            generate_expected_SQL("host2", false, fail_sql);
+          break;
+          case 3:
+            generate_expected_SQL("host1", true);
+            generate_expected_SQL("host2", false);
+            generate_expected_SQL("host3", false, fail_sql);
+          break;
+        }
+
+        // fail_sql-th SQL statement of fail_host will return this error
+        mock_mysql->then_error("some error", 1234);
+
+        mock_mysql->expect_execute("ROLLBACK");
+
+        ConfigGenerator config_gen;
+        config_gen.init(kServerUrl, {});
+        EXPECT_THROW_LIKE(
+          config_gen.create_router_accounts({}, {{"account-host", {"host1", "host2", "host3"}}}, "cluster_user"),
+          std::runtime_error, "Error creating MySQL account for router: some error"
+        );
+
+        EXPECT_TRUE(mock_mysql->empty());
+
+      } // for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+    } // for (unsigned fail_host = 1; fail_host < 3; fail_host++)
+  } // for (TestType tt : {NATIVE, FALLBACK})
 }
 
 TEST_F(ConfigGeneratorTest, create_config_single_master) {

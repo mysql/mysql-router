@@ -194,8 +194,8 @@
             }
         },
 
-
-        { "COMMENT": "ConfigGenerator::delete_account_for_all_hosts()",
+        // ConfigGenerator::delete_account_for_all_hosts()
+        {
             "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
             "result": {
                 "columns": [
@@ -213,7 +213,7 @@
         },
 
         // this SQL will trigger the failover
-        {   "COMMENT": "ConfigGenerator::generate_compliant_password()",
+        {   // ConfigGenerator::generate_compliant_password()
             "stmt.regex": "^CREATE USER mysql_router.*",
             "error": {
                 "code": 1290,

@@ -194,25 +194,93 @@ private:
                      const Options &options,
                      bool print_configs = false);
 
+  /** @brief Deletes (old) Router accounts
+   *
+   * Deletes all accounts (for all hosts) for a particular username (ie. for user
+   * "someuser" it will delete `someuser@host1`, `someuser@host2`, `someuser@%`, etc)
+   *
+   * @param username Router account to be deleted (without the hostname part)
+   *
+   * @throws std::logic_error on not connected
+   *         MySQLSession::Error on SQL error
+   */
   void delete_account_for_all_hosts(const std::string &username);
 
+  /** @brief Creates Router accounts
+   *
+   * Creates Router account for all needed hostnames (ie. `someuser@host1`,
+   * `someuser@host2`, `someuser@%`, etc).
+   *
+   * @note This is the higher-level method, which drives calls to lower-level
+   *       methods like create_account_with_compliant_password() and
+   *       create_account().
+   *
+   * @param user_options key/value map of bootstrap config options
+   * @param multivalue_options key/list-of-values map of bootstrap config options,
+   *        including list of hostnames
+   * @param username Router account to be created (without the hostname part)
+   *
+   * @returns auto-generated password
+   *
+   * @throws std::logic_error on not connected
+   *         std::runtime_error on bad password or Server's password policy
+   *                               changing during bootstrap
+   *         MySQLSession::Error on other (unexpected) SQL error
+   */
   std::string create_router_accounts(const std::map<std::string, std::string> &user_options,
                                      const std::map<std::string, std::vector<std::string>> &multivalue_options,
                                      const std::string &username);
 
-  // returns std::pair, where:
-  // - std::string contains the auto-generated password
-  // - bool states if: password is actualy the hash of std::string value (true), or
-  //                   password is simply the std::string value (false)
+  /** @brief Creates Router account with compliant password
+   *
+   * Creates Router account with a (self-generated) password that will pass Server's
+   * password policy. It first tries creating a hashed password using
+   * mysql_native_password plugin. If that fails, it falls back to using plaintext
+   * password, which the Server may reject for not being strong enough. If that's
+   * the case, it will generate another password and try again 2 more times (for a
+   * total of 3 password-generation attempts), after which it will give up.
+   *
+   * @note This is a higher-level method, with smart logic that drives calls to
+   *       lower-level create_account() method.
+   *
+   * @param user_options key/value map of bootstrap config options
+   * @param username Router account to be created - the username part
+   * @param hostname Router account to be created - the hostname part
+   *
+   * @returns std::pair, where:
+   *   - std::string contains the auto-generated password
+   *   - bool states if account was created with hashed password
+   *     (with mysql_native_password)
+   *
+   * @throws std::logic_error on not connected
+   *         std::runtime_error on bad password
+   *         MySQLSession::Error on other (unexpected) SQL error
+   */
   std::pair<std::string, bool> create_account_with_compliant_password(
                                    const std::map<std::string, std::string> &user_options,
                                    const std::string &username,
                                    const std::string &hostname);
 
+  /** @brief Creates Router account (low-level function)
+   *
+   * Creates Router accout using CREATE USER ang give it GRANTs.
+   *
+   * @param username Router account to be created - the username part
+   * @param hostname Router account to be created - the hostname part
+   * @param password Password for the account
+   * @param hash_password CREATE USER method:
+   *   true: password should be hashed, CREATE USER using mysql_native_password
+   *   false: password should remain plaintext, CREATE USER without mysql_native_password
+   *
+   * @throws std::logic_error on not connected
+   *         password_too_weak on Server not liking the password
+   *         plugin_not_loaded on Server not supporting mysql_native_password
+   *         MySQLSession::Error on other (unexpected) SQL error
+   */
   void create_account(const std::string &username,
                       const std::string &hostname,
                       const std::string &password,
-                      bool password_hashed = false);
+                      bool hash_password = false);
 
   std::pair<uint32_t, std::string> get_router_id_and_name_from_config(const std::string &config_file_path,
                                           const std::string &cluster_name,

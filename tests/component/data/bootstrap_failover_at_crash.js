@@ -50,7 +50,7 @@
 
         // create temp account to figure out the secure password
         // - fail this, to trigger failover
-        {   "COMMENT": "ConfigGenerator::generate_compliant_password()",
+        {   // ConfigGenerator::generate_compliant_password()
             "stmt.regex": "^CREATE USER mysql_router.*",
             "error": {
                 "code": 2013,

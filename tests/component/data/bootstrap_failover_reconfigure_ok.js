@@ -48,8 +48,8 @@
             }
         },
 
-        // finally, create the "real" account
-        {   "COMMENT": "ConfigGenerator::create_account()",
+        // ConfigGenerator::create_account()
+        {
             "stmt.regex": "^CREATE USER mysql_router.*",
             "ok": {}
         },
