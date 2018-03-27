@@ -2,7 +2,7 @@
   "stmts": [
     {
       "stmt": "SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
-      "exec-time": 2000.0,
+      "exec_time": 2000.0,
       "result": {
         "columns": [
           {

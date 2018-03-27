@@ -62,7 +62,7 @@
       "description": "column description",
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": ["type", "name"],
 
       "properties": {
         "type": {
@@ -204,7 +204,7 @@
           "description": "statement text",
           "type": "string"
         },
-        "exec-time" : {
+        "exec_time" : {
           "$ref": "#/definitions/ExecTime"
         },
         "stmt.regex": {
@@ -254,7 +254,7 @@
       "description": "Default options",
       "type": "object",
        "properties" : {
-         "exec-time" : {
+         "exec_time" : {
            "$ref": "#/definitions/ExecTime"
          }
        }
