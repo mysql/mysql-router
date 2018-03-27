@@ -64,45 +64,31 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
-    <!-- For commercial installer include the MSV runtime -->
-    <?if "@GPL@" = "no" ?>
-      <?if NOT("@Platform@" = "x86") ?>
-        <DirectoryRef Id="TARGETDIR">
-          <Merge Id="VCRedist" SourceFile="$(env.ProgramFiles)\Common Files\Merge Modules\Microsoft_VC140_CRT_x64.msm"
-           DiskId="1" Language="0"/>
-        </DirectoryRef>
-      <?endif?>
-      <?if "@Platform@" = "x86" ?>
-         <DirectoryRef Id="TARGETDIR">
-           <Merge Id="VCRedist" SourceFile="$(env.ProgramFiles)\Common Files\Merge Modules\Microsoft_VC140_CRT_x86.msm"
-            DiskId="1" Language="0"/>
-         </DirectoryRef>
-      <?endif?>
-      <Feature Id="VCRedist" Title="Visual C++ 14.0 Runtime" AllowAdvertise="no" Display="hidden" Level="1">
-        <MergeRef Id="VCRedist"/>
-      </Feature>
-    <?endif?>
-
-    <!-- For GPL installer check for the MSV runtime and fail if it's not there -->
-    <?if NOT("@GPL@" = "no") ?>
-      <Property Id="MSVC2015INSTALLED">
-        <RegistrySearch Id="MSVC2015RuntimeSearch"
-          Root="HKLM"
-          Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\14.0\RuntimeMinimum"
-          Type="raw"
-          Name="Version"  />
+    <?if NOT("@Platform@" = "x86") ?>
+      <Property Id="VS14REDISTX64">
+        <RegistrySearch Id="FindRedistVS14"
+            Win64="no"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Version"
+            Type="raw" />
       </Property>
-
-      <?if NOT(%PROCESSOR_ARCHITECTURE = "x86") ?>
-        <Condition Message="Microsoft VC++ x64 Runtime 2015 needs to be installed">
-          <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
-        </Condition>
-      <?endif?>
-      <?if %PROCESSOR_ARCHITECTURE = "x86" ?>
-         <Condition Message="Microsoft VC++ x86 Runtime 2015 needs to be installed">
-            <![CDATA[Installed OR MSVC2015INSTALLED <> ""]]>
-         </Condition>
-      <?endif?>
+      <Condition Message="This application requires Visual Studio 2015 x64 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR VS14REDISTX64
+      </Condition>
+    <?endif?>
+    <?if "@Platform@" = "x86" ?>
+      <Property Id="VS12REDISTX86">
+        <RegistrySearch Id="FindRedistVS14"
+            Win64="no"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86"
+            Name="Version"
+            Type="raw" />
+      </Property>
+      <Condition Message="This application requires Visual Studio 2015 x86 Redistributable. Please install the Redistributable then run this installer again.">
+        Installed OR VS14REDISTX86
+      </Condition>
     <?endif?>
 
     <!-- Save/restore install location -->
