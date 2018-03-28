@@ -724,7 +724,7 @@ MySQLSession::ResultRow *MySQLSession::query_one(const std::string &q) {
       throw Error(ss.str().c_str(), mysql_errno(connection_));
     }
   }
-  throw Error("Not connected", 0);
+  throw Error("Not connected", 0);  //TODO: query() returns std::logic_error() in such case, should probably be the same
 }
 
 uint64_t MySQLSession::last_insert_id() noexcept {
