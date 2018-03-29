@@ -94,7 +94,7 @@ int main(int argc, const char** argv) {
     }
 
     // write last part of array definition
-    if (!fprintf(out_file, "};\n"))
+    if (!fprintf(out_file, "0x00 };\n"))  // 0x00 is the string terminator
       throw_error("Failed writing output file", out_filename);
 
     // close files
