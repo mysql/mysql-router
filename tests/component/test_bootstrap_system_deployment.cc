@@ -72,7 +72,7 @@ protected:
  }
 
  RouterComponentTest::CommandHandle run_server_mock() {
-   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
    server_port_ = port_pool_.get_next_available();
 
    // launch mock server and wait for it to start accepting connections

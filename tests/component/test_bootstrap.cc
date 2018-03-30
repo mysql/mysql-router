@@ -284,7 +284,7 @@ TEST_F(RouterBootstrapTest, BootstrapOk) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap.json").str()
+      get_data_dir().join("bootstrap.js").str()
     },
   };
 
@@ -307,7 +307,7 @@ TEST_F(RouterBootstrapTest, BootstrapOnlySockets) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap.json").str()
+      get_data_dir().join("bootstrap.js").str()
     },
   };
 
@@ -349,7 +349,7 @@ TEST_F(RouterBootstrapTest, BootstrapUnsupportedSchemaVersion) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_unsupported_schema_version.json").str()
+      get_data_dir().join("bootstrap_unsupported_schema_version.js").str()
     },
   };
 
@@ -382,7 +382,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_failover_super_read_only_2.json").str()
+      get_data_dir().join("bootstrap_failover_super_read_only_2.js").str()
     },
     {
       "127.0.0.1", port_pool_.get_next_available(),
@@ -434,7 +434,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly2ndNodeDead) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_failover_super_read_only_2.json").str()
+      get_data_dir().join("bootstrap_failover_super_read_only_2.js").str()
     },
   };
 
@@ -541,7 +541,7 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_failover_super_read_only_2.json").str()
+      get_data_dir().join("bootstrap_failover_super_read_only_2.js").str()
     },
     {
       "127.0.0.1", port_pool_.get_next_available(),
@@ -605,7 +605,7 @@ TEST_F(RouterBootstrapTest, BootstrapSucceedWhenServerResponseLessThanReadTimeou
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_exec_time_2_seconds.json").str()
+      get_data_dir().join("bootstrap_exec_time_2_seconds.js").str()
     },
   };
 
@@ -660,7 +660,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap_exec_time_2_seconds.json").str()
+      get_data_dir().join("bootstrap_exec_time_2_seconds.js").str()
     },
   };
 
@@ -690,7 +690,7 @@ class RouterAccountHostTest : public CommonBootstrapTest {};
  *        - can take '%' as a parameter
  */
 TEST_F(RouterAccountHostTest, multiple_host_patterns) {
-  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_multiple_patterns.json").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_multiple_patterns.js").str();
   const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
@@ -754,7 +754,7 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
  *        the error
  */
 TEST_F(RouterAccountHostTest, illegal_hostname) {
-  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_pattern_too_long.json").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_pattern_too_long.js").str();
   const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
@@ -790,7 +790,7 @@ TEST_F(RouterBootstrapTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader)
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap.json").str()
+      get_data_dir().join("bootstrap.js").str()
     },
   };
 
@@ -848,7 +848,7 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
     {
       "127.0.0.1", port_pool_.get_next_available(),
       "",
-      get_data_dir().join("bootstrap.json").str()
+      get_data_dir().join("bootstrap.js").str()
     },
   };
 

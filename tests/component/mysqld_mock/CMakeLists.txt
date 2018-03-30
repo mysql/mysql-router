@@ -22,17 +22,17 @@
 
 ################################################################################
 # build JSON schema embedder, then use it to generate mysql_server_mock_schema.cc
-# (server mock dependency) from mysql_server_mock_schema.json
+# (server mock dependency) from mysql_server_mock_schema.js
 ################################################################################
 
 # build JSON schema embedder
 add_executable(json_schema_embedder json_schema_embedder.cc)
 
-# generate mysql_server_mock_schema.cc, which embeds mysql_server_mock_schema.json
+# generate mysql_server_mock_schema.cc, which embeds mysql_server_mock_schema.js
 # as a c-string. Server mock build will trigger this as its dependency [_HERE_]
 add_custom_command(OUTPUT mysql_server_mock_schema.cc
                    COMMAND json_schema_embedder
-                     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.json
+                     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.js
                      ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_mock_schema.cc)
 
 

@@ -193,7 +193,7 @@ protected:
  */
 TEST_F(MasterKeyReaderWriterTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader) {
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -237,7 +237,7 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyR
  */
 TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyReader) {
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -291,7 +291,7 @@ TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyR
  */
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -324,7 +324,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.json").str(), server_port, false);
+      get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -362,7 +362,7 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
   write_to_file(keyring_path, "keyring file content");
 
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -423,7 +423,7 @@ TEST_F(MasterKeyReaderWriterTest, IsNewMasterKeyIfReaderReturnsEmptyKeyAndBootst
   write_to_file(Path(tmp_dir_).join("master_key"), "");
 
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -461,7 +461,7 @@ TEST_F(MasterKeyReaderWriterTest, DontWriteMasterKeyAtBootstrapIfMasterKeyAlreay
   write_to_file(Path(tmp_dir_).join("master_key"), "master key value");
 
   unsigned server_port = port_pool_.get_next_available();
-  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.json").str(), server_port, false);
+  auto server_mock = launch_mysql_server_mock(get_data_dir().join("bootstrap.js").str(), server_port, false);
   bool server_ready = wait_for_port_ready(server_port, 1000);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
@@ -661,7 +661,7 @@ protected:
  }
 
  RouterComponentTest::CommandHandle run_server_mock() {
-   const std::string json_stmts = get_data_dir().join("bootstrap.json").str();
+   const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
    server_port_ = port_pool_.get_next_available();
 
    // launch mock server and wait for it to start accepting connections
