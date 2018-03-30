@@ -503,7 +503,7 @@ struct ConnectionThreadInfo {
   MySQLRouting* mysql_routing;
   mysql_harness::PluginFuncEnv* env;
   int client;
-  const sockaddr_storage& client_addr;
+  const sockaddr_storage client_addr;
 };
 
 
