@@ -193,10 +193,26 @@
               "last_insert_id": 8
             }
         },
+
+        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^DROP USER IF EXISTS mysql_router.*",
-            "ok": {}
+            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
+            "result": {
+                "columns": [
+                    {
+                        "type": "LONGLONG",
+                        "name": "COUNT..."
+                    }
+                ],
+                "rows": [
+                    [
+                        "0" // to keep it simple, just tell Router there's no old accounts to erase
+                    ]
+                ]
+            }
         },
+
+        // ConfigGenerator::create_account()
         {
             "stmt.regex": "^CREATE USER mysql_router.*",
             "ok": {}

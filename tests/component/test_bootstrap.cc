@@ -103,8 +103,9 @@ std::string get_my_hostname() {
   return buf;
 }
 
-
-class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
+// we create a number of classes to logically group tests together. But to avoid code
+// duplication, we derive them from a class which contains the common code they need.
+class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
   static void SetUpTestCase() {
     my_hostname = get_my_hostname();
@@ -143,9 +144,9 @@ class RouterBootstrapTest : public RouterComponentTest, public ::testing::Test {
   friend std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterComponentTest::CommandHandle, unsigned int>> &T);
 };
 
-std::string RouterBootstrapTest::my_hostname;
+std::string CommonBootstrapTest::my_hostname;
 
-std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterBootstrapTest::CommandHandle, unsigned int>> &T) {
+std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<CommonBootstrapTest::CommandHandle, unsigned int>> &T) {
   for (auto &t: T) {
     auto &proc = std::get<0>(t);
 
@@ -166,7 +167,7 @@ std::ostream &operator<<(std::ostream & os, const std::vector<std::tuple<RouterB
  * - check output of router contains the expected lines
  */
 void
-RouterBootstrapTest::bootstrap_failover(
+CommonBootstrapTest::bootstrap_failover(
     const std::vector<Config> &mock_server_configs,
     const std::vector<std::string> &router_options,
     int expected_exitcode,
@@ -263,6 +264,10 @@ RouterBootstrapTest::bootstrap_failover(
       << mock_servers;
   }
 }
+
+
+
+class RouterBootstrapTest : public CommonBootstrapTest {};
 
 /**
  * @test
@@ -672,6 +677,107 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
         "Error: Error executing MySQL query: Lost connection to MySQL server during query \\(2013\\)"
       });
 }
+
+
+
+class RouterAccountHostTest : public CommonBootstrapTest {};
+
+/**
+ * @test
+ *        verify that --account-host:
+ *        - works in general
+ *        - can be applied multiple times in one go
+ *        - can take '%' as a parameter
+ */
+TEST_F(RouterAccountHostTest, multiple_host_patterns) {
+  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_multiple_patterns.json").str();
+  const std::string bootstrap_directory = get_tmp_dir();
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " -d " + bootstrap_directory
+                              + " --account-host host1"
+                              + " --account-host %"
+                              + " --account-host host3%");
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
+    ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+  EXPECT_EQ(router.wait_for_exit(), 0);
+}
+
+/**
+ * @test
+ *        verify that --account-host without required argument produces an error
+ *        and exits
+ */
+TEST_F(RouterAccountHostTest, argument_missing) {
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch the router in bootstrap mode
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " --account-host");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("option '--account-host' requires a value.")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --account-host without --bootstrap switch produces an error
+ *        and exits
+ */
+TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
+  // launch the router in bootstrap mode
+  auto router = launch_router("--account-host host1");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("Option --account-host can only be used together with -B/--bootstrap")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --account-host with illegal hostname argument correctly handles
+ *        the error
+ */
+TEST_F(RouterAccountHostTest, illegal_hostname) {
+  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_pattern_too_long.json").str();
+  const std::string bootstrap_directory = get_tmp_dir();
+  const unsigned server_port = port_pool_.get_next_available();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
+  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " -d " + bootstrap_directory
+                              + " --account-host veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost");
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("Error executing MySQL query: String 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost' is too long for host name")
+    ) << router.get_full_output() << std::endl << "server:\n" << server_mock.get_full_output();
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+
 
 /**
  * @test

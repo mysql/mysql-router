@@ -460,29 +460,111 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
 }
 
+TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
+
+  auto gen_check_users_SQL = [this](const char* user_count) {
+    mock_mysql->expect_query_one("SELECT COUNT(*) FROM mysql.user WHERE user = 'cluster_user'").
+                then_return(1, {{mock_mysql->string_or_null(user_count)}});
+  };
+
+  auto gen_drop_users_SQL = [this](unsigned last = 4) {
+    assert (last <= 4);
+    if (last > 0) mock_mysql->expect_execute("SELECT CONCAT('DROP USER ', GROUP_CONCAT(QUOTE(user), '@', QUOTE(host))) INTO @drop_user_sql FROM mysql.user WHERE user LIKE 'cluster_user'");
+    if (last > 1) mock_mysql->expect_execute("PREPARE drop_user_stmt FROM @drop_user_sql");
+    if (last > 2) mock_mysql->expect_execute("EXECUTE drop_user_stmt");
+    if (last > 3) mock_mysql->expect_execute("DEALLOCATE PREPARE drop_user_stmt");
+  };
+
+  auto test_common = [this]() {
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    config_gen.delete_account_for_all_hosts("cluster_user");
+
+    EXPECT_TRUE(mock_mysql->empty());
+  };
+
+  // Router account does not exist
+  {
+    common_pass_metadata_checks(mock_mysql.get());
+    gen_check_users_SQL("0");
+
+    test_common();
+  }
+
+  // Router account exists for 1 host
+  {
+    common_pass_metadata_checks(mock_mysql.get());
+    gen_check_users_SQL("1");
+    gen_drop_users_SQL();
+
+    test_common();
+  }
+
+  // Router account exists for many hosts
+  {
+    common_pass_metadata_checks(mock_mysql.get());
+    gen_check_users_SQL("100");
+    gen_drop_users_SQL();
+
+    test_common();
+  }
+
+  // SELECT COUNT(*) fails
+  {
+    common_pass_metadata_checks(mock_mysql.get());
+    mock_mysql->expect_query_one("SELECT COUNT(*) FROM mysql.user WHERE user = 'cluster_user'").
+                then_error("some error", 1234);
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    EXPECT_THROW_LIKE(
+      config_gen.delete_account_for_all_hosts("cluster_user"),
+      std::runtime_error, "Error querying for existing Router accounts: some error"
+    );
+
+    EXPECT_TRUE(mock_mysql->empty());
+  }
+
+  // one of user-dropping statements fails
+  for (unsigned i = 1; i <= 4; i++)
+  {
+    common_pass_metadata_checks(mock_mysql.get());
+    gen_check_users_SQL("42");
+    gen_drop_users_SQL(i);
+    mock_mysql->then_error("some error", 1234); // i-th statement will return this error
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    EXPECT_THROW_LIKE(
+      config_gen.delete_account_for_all_hosts("cluster_user"),
+      std::runtime_error, "Error removing old MySQL account for router: some error"
+    );
+
+    EXPECT_TRUE(mock_mysql->empty());
+  }
+}
+
 TEST_F(ConfigGeneratorTest, create_acount) {
   // using password directly
   {
-
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
-    mock_mysql->expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
-    mock_mysql->expect_execute("CREATE USER cluster_user@'%'").then_ok();
+    mock_mysql->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED BY 'secret'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'%'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'%'").then_ok();
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    config_gen.create_account("cluster_user", "secret");
+    config_gen.create_account("cluster_user", "%", "secret");
   }
+
   // using hashed password
   {
     //std::vector<const char*> result{"::fffffff:123.45.67.8"};
 
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
-    mock_mysql->expect_execute("DROP USER IF EXISTS cluster_user@'%'").then_ok();
     mock_mysql->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED WITH mysql_native_password "
                                "AS '*89C1E57BE94931A2C11EB6C76E4C254799853B8D'").then_ok();
     mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'%'").then_ok();
@@ -491,8 +573,98 @@ TEST_F(ConfigGeneratorTest, create_acount) {
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
-    config_gen.create_account("cluster_user", "*89C1E57BE94931A2C11EB6C76E4C254799853B8D", true);
+    config_gen.create_account("cluster_user", "%", "*89C1E57BE94931A2C11EB6C76E4C254799853B8D", true);
   }
+}
+
+TEST_F(ConfigGeneratorTest, create_router_accounts) {
+  auto generate_expected_SQL = [this](const std::string& host, unsigned fail_on = 99) {
+    // 99 => don't fail, 1..4 => fail on 1..4
+    assert((1 <= fail_on && fail_on <= 4) || fail_on == 99);
+
+    if (fail_on > 0) mock_mysql->expect_execute("CREATE USER cluster_user@'" + host + "'").then_ok();
+    if (fail_on > 1) mock_mysql->expect_execute("GRANT SELECT ON mysql_innodb_cluster_metadata.* TO cluster_user@'" + host + "'").then_ok();
+    if (fail_on > 2) mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_members TO cluster_user@'" + host + "'").then_ok();
+    if (fail_on > 3) mock_mysql->expect_execute("GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'" + host + "'").then_ok();
+
+    if (fail_on != 99)
+      mock_mysql->then_error("some error", 1234); // i-th statement will return this error
+  };
+
+  // default hostname
+  {
+    ::testing::InSequence s;
+    common_pass_metadata_checks(mock_mysql.get());
+    generate_expected_SQL("%");
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    config_gen.create_router_accounts({}, {}, "cluster_user");
+  }
+
+  // 1 hostname
+  {
+    ::testing::InSequence s;
+    common_pass_metadata_checks(mock_mysql.get());
+    generate_expected_SQL("host1");
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    config_gen.create_router_accounts({}, {{"account-host", {"host1"}}}, "cluster_user");
+  }
+
+  // many hostnames
+  {
+    ::testing::InSequence s;
+    common_pass_metadata_checks(mock_mysql.get());
+
+    generate_expected_SQL("host1");
+    generate_expected_SQL("%");
+    generate_expected_SQL("host3%");
+
+    ConfigGenerator config_gen;
+    config_gen.init(kServerUrl, {});
+    config_gen.create_router_accounts({}, {{"account-host", {"host1", "%", "host3%"}}}, "cluster_user");
+  }
+
+  // one of user-creating statements fails
+  for (unsigned fail_host = 1; fail_host < 3; fail_host++)
+  {
+    for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+    {
+      ::testing::InSequence s;
+      common_pass_metadata_checks(mock_mysql.get());
+      switch (fail_host) {
+        case 1:
+          generate_expected_SQL("host1", fail_sql);
+        break;
+        case 2:
+          generate_expected_SQL("host1");
+          generate_expected_SQL("host2", fail_sql);
+        break;
+        case 3:
+          generate_expected_SQL("host1");
+          generate_expected_SQL("host2");
+          generate_expected_SQL("host3", fail_sql);
+        break;
+      }
+
+      // fail_sql-th SQL statement of fail_host will return this error
+      mock_mysql->then_error("some error", 1234);
+
+      mock_mysql->expect_execute("ROLLBACK");
+
+      ConfigGenerator config_gen;
+      config_gen.init(kServerUrl, {});
+      EXPECT_THROW_LIKE(
+        config_gen.create_router_accounts({}, {{"account-host", {"host1", "host2", "host3"}}}, "cluster_user"),
+        std::runtime_error, "Error creating MySQL account for router: some error"
+      );
+
+      EXPECT_TRUE(mock_mysql->empty());
+
+    } // for (unsigned fail_sql = 1; fail_sql <= 4; fail_sql++)
+  } // for (unsigned fail_host = 1; fail_host < 3; fail_host++)
 }
 
 TEST_F(ConfigGeneratorTest, create_config_single_master) {
@@ -1115,24 +1287,36 @@ enum action_t{ACTION_EXECUTE, ACTION_QUERY, ACTION_ERROR};
 struct query_entry_t{
   const char *query;
   action_t action;
+  unsigned result_cols;
+  std::vector<std::vector<MySQLSessionReplayer::string>> results;
   uint64_t last_insert_id;
   unsigned error_code;
 
   query_entry_t(const char *query_, action_t action_, uint64_t last_insert_id_ = 0, unsigned error_code_ = 0):
-    query(query_), action(action_), last_insert_id(last_insert_id_), error_code(error_code_)
+    query(query_), action(action_), result_cols(0), last_insert_id(last_insert_id_), error_code(error_code_)
+  {}
+  query_entry_t(const char *query_, action_t action_,
+                unsigned results_cols_, const std::vector<std::vector<MySQLSessionReplayer::string>>& results_,
+                uint64_t last_insert_id_ = 0, unsigned error_code_ = 0):
+    query(query_), action(action_), result_cols(results_cols_), results(results_), last_insert_id(last_insert_id_), error_code(error_code_)
   {}
 };
 
 std::vector<query_entry_t> expected_bootstrap_queries = {
   {"START TRANSACTION", ACTION_EXECUTE},
-  {"SELECT host_id, host_name", ACTION_QUERY},
+  {"SELECT host_id, host_name", ACTION_QUERY, 2, {}},
   {"INSERT INTO mysql_innodb_cluster_metadata.hosts", ACTION_EXECUTE},
   {"INSERT INTO mysql_innodb_cluster_metadata.routers", ACTION_EXECUTE, 4},
-  {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", ACTION_EXECUTE},
+
+  // ConfigGenerator::delete_account_for_all_hosts() called before ConfigGenerator::create_router_accounts()
+  {"SELECT COUNT(*) FROM mysql.user WHERE user", ACTION_QUERY, 1, {{"0"}}},
+
+  // ConfigGenerator::create_account()
   {"CREATE USER mysql_router4_012345678901@'%'", ACTION_EXECUTE},
   {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router4_012345678901@'%'", ACTION_EXECUTE},
   {"GRANT SELECT ON performance_schema.replication_group_members TO mysql_router4_012345678901@'%'", ACTION_EXECUTE},
   {"GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router4_012345678901@'%'", ACTION_EXECUTE},
+
   {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ", ACTION_EXECUTE},
   {"COMMIT", ACTION_EXECUTE},
 };
@@ -1146,7 +1330,7 @@ static void expect_bootstrap_queries(MySQLSessionReplayer *m, const char *cluste
       m->expect_execute(query.query).then_ok(query.last_insert_id);
       break;
     case ACTION_QUERY:
-      m->expect_query_one(query.query).then_return(2, {});
+      m->expect_query_one(query.query).then_return(query.result_cols, query.results);
       break;
     default: /*ACTION_ERROR*/
       m->expect_execute(query.query).then_error("ERROR:", query.error_code);
@@ -1176,7 +1360,7 @@ static void bootstrap_name_test(MySQLSessionReplayer *mock_mysql,
   config_gen.set_keyring_info(keyring_info);
 
   config_gen.bootstrap_directory_deployment(dir,
-      options, default_paths);
+      options, {}, default_paths);
 }
 
 } // anonymous namespace
@@ -1250,7 +1434,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-          options, default_paths),
+          options, {}, default_paths),
       mysqlrouter::MySQLSession::Error,
       "boo!");
 
@@ -1275,7 +1459,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-          options, default_paths));
+          options, {}, default_paths));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path("./bug24808634/delme.key").exists());
@@ -1300,7 +1484,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths),
+            options, {}, default_paths),
       std::runtime_error,
       "boo!");
 
@@ -1325,7 +1509,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths),
+            options, {}, default_paths),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -1356,7 +1540,7 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
 
     ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, default_paths));
+            options, {}, default_paths));
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
   }
@@ -1416,7 +1600,7 @@ static void bootstrap_overwrite_test(MySQLSessionReplayer *mock_mysql,
   config_gen.set_keyring_info(keyring_info);
 
   config_gen.bootstrap_directory_deployment(dir,
-    options, default_paths);
+    options, {}, default_paths);
 }
 
 
@@ -1549,7 +1733,7 @@ static void test_key_length(MySQLSessionReplayer *mock_mysql,
   config_gen.set_keyring_info(keyring_info);
 
   config_gen.bootstrap_directory_deployment("key_too_long",
-      options, default_paths);
+      options, {}, default_paths);
 }
 
 TEST_F(ConfigGeneratorTest, key_too_long) {
@@ -1598,7 +1782,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     config_gen.set_keyring_info(keyring_info);
 
     config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths);
+        options, {}, default_paths);
 
     mysql_harness::reset_keyring();
   }
@@ -1621,7 +1805,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
 
     try {
       config_gen.bootstrap_directory_deployment("./delme",
-          options, default_paths);
+          options, {}, default_paths);
       FAIL() << "Was expecting exception but got none\n";
     } catch (std::runtime_error &e) {
       if (strstr(e.what(), ".tmp"))
@@ -1651,7 +1835,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
 
     ASSERT_THROW_LIKE(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths),
+        options, {}, default_paths),
       std::runtime_error,
       "Invalid master key file");
   }
@@ -1677,7 +1861,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
 
   ASSERT_NO_THROW(
       config_gen.bootstrap_directory_deployment("./delme",
-        options, default_paths));
+        options, {}, default_paths));
 
   std::string value;
   mysql_harness::Config config(mysql_harness::Config::allow_keys);
@@ -2250,15 +2434,18 @@ static void bootstrap_password_test(MySQLSessionReplayer* mysql,
   config_gen.set_keyring_info(keyring_info);
 
   config_gen.bootstrap_directory_deployment(dir,
-      options, default_paths);
+      options, {}, default_paths);
 }
+
+static constexpr unsigned kCreateUserQuery = 5;   // measured from front
+static constexpr unsigned kCreateUserQuery2 = 6;  // measured backwards from end
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_force_password_validation) {
   const std::string kDirName = "./gen_pass_test";
 
   // copy expected bootstrap queries brefore CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
-  for (unsigned i = 0; i < 5; ++i) {
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
@@ -2268,9 +2455,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_force_password_validatio
                                 " IDENTIFIED BY", ACTION_EXECUTE } );
 
   // copy the remaining bootstrap queries
-  for (unsigned i = 6; i < expected_bootstrap_queries.size(); ++i) {
+  for (unsigned i = kCreateUserQuery + 1; i < expected_bootstrap_queries.size(); ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
+
+  // verify the user is re-created as required
+  bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) =
+      {"CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY", ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries, "5", true /*force_password_validation*/);
 }
@@ -2280,7 +2471,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // copy expected bootstrap queries brefore CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
-  for (unsigned i = 0; i < 5; ++i) {
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
@@ -2291,14 +2482,42 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
   // that should lead to rollback and retry witout hashed password
   bootstrap_queries.push_back( {"ROLLBACK", ACTION_EXECUTE } );
 
-  bootstrap_queries.push_back( {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", ACTION_EXECUTE} );
   bootstrap_queries.push_back( {"CREATE USER mysql_router4_012345678901@'%'"
                                 " IDENTIFIED BY", ACTION_EXECUTE } );
 
   // copy the remaining bootstrap queries
-  for (unsigned i = 6; i < expected_bootstrap_queries.size(); ++i) {
+  for (unsigned i = kCreateUserQuery + 1; i < expected_bootstrap_queries.size(); ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
+
+  // verify the user is re-created as required
+  bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) =
+      {"CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY", ACTION_EXECUTE};
+
+  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries);
+}
+
+TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
+  const std::string kDirName = "./gen_pass_test";
+
+  // copy expected bootstrap queries brefore CREATE USER
+  std::vector<query_entry_t> bootstrap_queries;
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
+    bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
+  }
+
+  // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
+  bootstrap_queries.push_back( {"CREATE USER mysql_router4_012345678901@'%'"
+                                " IDENTIFIED WITH mysql_native_password AS", ACTION_EXECUTE } );
+
+  // copy the remaining bootstrap queries
+  for (unsigned i = kCreateUserQuery + 1; i < expected_bootstrap_queries.size(); ++i) {
+    bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
+  }
+
+  // verify the user is re-created as required
+  bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) =
+      {"CREATE USER mysql_router4_012345678901@'%' IDENTIFIED WITH mysql_native_password AS", ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries);
 }
@@ -2308,7 +2527,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok)  {
 
   // copy expected bootstrap queries brefore CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
-  for (unsigned i = 0; i < 5; ++i) {
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
@@ -2320,21 +2539,23 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok)  {
   bootstrap_queries.push_back( {"ROLLBACK", ACTION_EXECUTE } );
 
   // emulate error 1819) (password does not satisfy the current policy requirements) after the call to second CREATE USER
-  bootstrap_queries.push_back( {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", ACTION_EXECUTE} );
   bootstrap_queries.push_back( {"CREATE USER mysql_router4_012345678901@'%'"
                                 " IDENTIFIED BY", ACTION_ERROR, 0, 1819 } );
 
   // that should lead to rollback and another retry witout hashed password
   bootstrap_queries.push_back( {"ROLLBACK", ACTION_EXECUTE } );
 
-  bootstrap_queries.push_back( {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", ACTION_EXECUTE} );
   bootstrap_queries.push_back( {"CREATE USER mysql_router4_012345678901@'%'"
                                 " IDENTIFIED BY", ACTION_EXECUTE } );
 
   // copy the remaining bootstrap queries
-  for (unsigned i = 6; i < expected_bootstrap_queries.size(); ++i) {
+  for (unsigned i = kCreateUserQuery + 1; i < expected_bootstrap_queries.size(); ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
+
+  // verify the user is re-created as required
+  bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) =
+      {"CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY", ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths, bootstrap_queries);
 }
@@ -2345,7 +2566,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
 
   // copy expected bootstrap queries brefore CREATE USER
   std::vector<query_entry_t> bootstrap_queries;
-  for (unsigned i = 0; i < 5; ++i) {
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
 
@@ -2357,7 +2578,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
   for (unsigned i = 0; i < kPasswordRetries; ++i) {
     bootstrap_queries.push_back( {"ROLLBACK", ACTION_EXECUTE } );
 
-    bootstrap_queries.push_back( {"DROP USER IF EXISTS mysql_router4_012345678901@'%'", ACTION_EXECUTE} );
     // each time emulate error 1819) (password does not satisfy the current policy requirements) after the call to second CREATE USER
     bootstrap_queries.push_back( {"CREATE USER mysql_router4_012345678901@'%'"
                                  " IDENTIFIED BY", ACTION_ERROR, 0, 1819 } );
@@ -2378,7 +2598,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
 TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   const std::string kDirName = "./gen_pass_test";
   std::vector<query_entry_t> bootstrap_queries;
-  for (unsigned i = 0; i < 5; ++i) {
+  for (unsigned i = 0; i < kCreateUserQuery; ++i) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER

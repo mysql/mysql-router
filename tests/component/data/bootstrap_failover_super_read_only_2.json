@@ -39,16 +39,30 @@
                 "last_insert_id": 8
             }
         },
+
+
+
+        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
         {
-            "stmt.regex": "^DROP USER IF EXISTS mysql_router8_.*@'%'",
-            "exec_time": 73.744025,
-            "ok": {
-                "warning_count": 1
+            "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
+            "result": {
+                "columns": [
+                    {
+                        "type": "LONGLONG",
+                        "name": "COUNT..."
+                    }
+                ],
+                "rows": [
+                    [
+                        "0" // to keep it simple, just tell Router there's no old accounts to erase
+                    ]
+                ]
             }
         },
-        {
-            "stmt.regex": "^CREATE USER mysql_router8_.*@'%' IDENTIFIED WITH mysql_native_password AS '\\*.*'",
-            "exec_time": 5.491393,
+
+        // finally, create the "real" account
+        {   "COMMENT": "ConfigGenerator::create_account()",
+            "stmt.regex": "^CREATE USER mysql_router.*",
             "ok": {}
         },
         {
@@ -66,6 +80,9 @@
             "exec_time": 6.240789,
             "ok": {}
         },
+
+
+
         {
             "stmt": "UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,    'RWEndpoint', '6446'),    'ROEndpoint', '6447'),    'RWXEndpoint', '64460'),    'ROXEndpoint', '64470') WHERE router_id = 8",
             "exec_time": 0.277948,
