@@ -107,6 +107,7 @@ void MetadataCache::start() {
  */
 void MetadataCache::stop() noexcept {
   terminate_ = true;
+  refresh_thread_.join();
 }
 
 /**

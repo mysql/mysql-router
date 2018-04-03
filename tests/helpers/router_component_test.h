@@ -165,11 +165,12 @@ class RouterComponentTest {
       return launcher_.get_pid();
     }
 
-    void kill() {
+    int kill() {
       try {
-        launcher_.kill();
+        return launcher_.kill();
       } catch(std::exception& e) {
         fprintf(stderr, "failed killing process %s: %s\n", launcher_.get_cmd_line().c_str(), e.what());
+        return 1;
       }
     }
 

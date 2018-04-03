@@ -181,19 +181,28 @@ MySQLRouterThread::MySQLRouterThread(size_t thread_stack_size) {
 }
 
 void MySQLRouterThread::run(thread_function run_thread, void* args_ptr, bool detach) {
-  if (detach)
+  if (detach) {
     mysql_router_thread_attr_setdetachstate(&thread_attr_, MYSQL_ROUTER_THREAD_CREATE_DETACHED);
+  } else {
+    should_join_ = true;
+  }
 
   int ret = mysql_router_thread_create(&thread_handle_, &thread_attr_, run_thread, args_ptr);
   if (ret)
     throw std::runtime_error("Cannot create Thread");
 }
 
-MySQLRouterThread::~MySQLRouterThread() {
+void MySQLRouterThread::join() {
   if (mysql_router_thread_started(&thread_handle_) &&
       mysql_router_thread_joinable(&thread_attr_)) {
     mysql_router_thread_join(&thread_handle_, nullptr);
   }
+  should_join_ = false;
+}
+
+MySQLRouterThread::~MySQLRouterThread() {
+  if(should_join_)
+    join();
 }
 
 } // end of harness namespace

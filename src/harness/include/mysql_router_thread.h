@@ -78,8 +78,31 @@ typedef void *(*my_start_routine)(void *);
 class HARNESS_EXPORT MySQLRouterThread {
 public:
   using thread_function = void*(void*);
+
+  /**
+   * Allocates memory for thread of execution.
+   *
+   * @param thread_stack_size the memory size allocated to thread's stack
+   */
   MySQLRouterThread(size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
+
+  /**
+   * Execute run_thread function in thread of execution.
+   *
+   * @param run_thread the pointer to the function that is executed in thread. It has to be non-member void*(void*) function
+   * @param args_ptr pointer to run_thread parameter
+   * @param detach true if thread is detached, false if thread is joinable
+   */
   void run(thread_function run_thread, void* args_ptr, bool detach = false);
+
+  /**
+   * Waits for a thread to finish its execution
+   */
+  void join();
+
+  /**
+   * Waits for a thread to finish its execution if thread is joinable and join wasn't called.
+   */
   ~MySQLRouterThread();
 
 private:
@@ -90,6 +113,8 @@ private:
   /** @brief attribute of thread */
   mysql_harness::mysql_router_thread_attr_t thread_attr_;
 
+  /** @brief true if thread is joinable but join wasn't called, false otherwise */
+  bool should_join_ = false;
 };
 
 } // end of mysql_harness namespace

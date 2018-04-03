@@ -170,7 +170,7 @@ int ProcessLauncher::wait(unsigned int timeout_ms) {
   return dwExit;
 }
 
-void ProcessLauncher::close() {
+int ProcessLauncher::close() {
   DWORD dwExit;
   if (GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
@@ -195,6 +195,7 @@ void ProcessLauncher::close() {
     report_error(NULL);
 
   is_alive = false;
+  return 0;
 }
 
 int ProcessLauncher::read(char *buf, size_t count, unsigned timeout_ms) {
@@ -381,8 +382,9 @@ void ProcessLauncher::start()
   }
 }
 
-void ProcessLauncher::close()
+int ProcessLauncher::close()
 {
+  int result = 0;
   if (is_alive) {
     // only try to kill the pid, if we started it. Not that we hurt someone else.
     if(::kill(childpid, SIGTERM) < 0) {
@@ -392,7 +394,7 @@ void ProcessLauncher::close()
     } else {
       try {
         // wait for it shutdown before using the big hammer
-        wait(static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(kTerminateWaitInterval).count()));
+        result = wait(static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(kTerminateWaitInterval).count()));
       } catch(const std::system_error &e) {
         if(e.code() != std::error_code(ESRCH, std::system_category())) {
           if(::kill(childpid, SIGKILL) < 0) {
@@ -401,7 +403,7 @@ void ProcessLauncher::close()
             }
           }
         }
-        wait();
+        result = wait();
       }
     }
   }
@@ -412,6 +414,8 @@ void ProcessLauncher::close()
   fd_out[0] = -1;
   fd_in[1] = -1;
   is_alive = false;
+
+  return result;
 }
 
 void ProcessLauncher::end_of_write() {
@@ -533,8 +537,8 @@ uint64_t ProcessLauncher::get_fd_read() const
 
 #endif
 
-void ProcessLauncher::kill() {
-  close();
+int ProcessLauncher::kill() {
+  return close();
 }
 
 } // end of namespace mysql_harness

@@ -160,9 +160,9 @@ public:
   int write(const char *buf, size_t count);
 
   /**
-   * Kills the child process.
+   * Kills the child process and returns process' exit code.
    */
-  void kill();
+  int kill();
 
   /**
    * Returns the child process handle.
@@ -203,12 +203,14 @@ private:
   void report_error(const char *msg, const char* prefix = "");
 
   /**
-   * Closes child process
+   * Closes child process and returns process' exit code.
    *
    * @throws std::system_error if sending signal to child process fails
    * @throws std::runtime_error if waiting for process to change state fails
+   *
+   * @return process exit code.
    */
-  void close();
+  int close();
 
   bool is_alive;
 };

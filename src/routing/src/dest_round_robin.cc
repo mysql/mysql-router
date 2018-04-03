@@ -115,6 +115,7 @@ int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout,
 
 DestRoundRobin::~DestRoundRobin() {
   stopping_ = true;
+  quarantine_thread_.join();
 }
 
 void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {

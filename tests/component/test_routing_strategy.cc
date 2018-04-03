@@ -353,6 +353,8 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
       }
     }
   }
+
+  ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
 INSTANTIATE_TEST_CASE_P(MetadataCacheRoutingStrategy,
