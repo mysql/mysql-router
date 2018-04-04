@@ -211,7 +211,7 @@
     // NOTE: CREATE USER statements should run in unique(sort(hostname_list)) fashion
 
     { // iteration #1: --account-host %"
-      "stmt.regex": "^CREATE USER mysql_router.*'%'.*",
+      "stmt.regex": "^CREATE USER mysql_router34_[0-9a-z]{12}@'%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
       "ok": {}
     },
     {
@@ -230,7 +230,7 @@
 
 
     { // iteration #2: --account-host host1"
-      "stmt.regex": "^CREATE USER mysql_router.*'host1'.*",
+      "stmt.regex": "^CREATE USER mysql_router34_[0-9a-z]{12}@'host1' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
       "ok": {}
     },
     {
@@ -249,7 +249,7 @@
 
 
     { // iteration #3: --account-host host3%"
-      "stmt.regex": "^CREATE USER mysql_router.*'host3%'.*",
+      "stmt.regex": "^CREATE USER mysql_router34_[0-9a-z]{12}@'host3%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
       "ok": {}
     },
     {

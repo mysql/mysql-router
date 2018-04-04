@@ -214,7 +214,7 @@
 
         // this SQL will trigger the failover
         {   // ConfigGenerator::generate_compliant_password()
-            "stmt.regex": "^CREATE USER mysql_router.*",
+            "stmt.regex": "^CREATE USER mysql_router8_[0-9a-z]{12}@'%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
             "error": {
                 "code": 1290,
                 "message": "The MySQL server is running with the --super-read-only option so it cannot execute this statement",

@@ -50,7 +50,7 @@
 
         // ConfigGenerator::create_account()
         {
-            "stmt.regex": "^CREATE USER mysql_router.*",
+            "stmt.regex": "^CREATE USER mysql_router8_[0-9a-z]{12}@'%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
             "ok": {}
         },
         {
