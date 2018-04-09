@@ -149,9 +149,11 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
-    // Error: Failed to open //mysqlrouter.log: Permission denied
+    // Error: Cannot create file in directory //mysqlrouter.log: Permission denied
     const std::string out = router.get_full_output();
-    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Permission denied"));
+#ifndef _WIN32
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Cannot create file in directory " + logging_dir + ": Permission denied\n"));
+#endif
   }
 
   // restore writability to tmp dir
@@ -179,15 +181,15 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
-    // Error: Failed to open /etc/passwd/mysqlrouter.log: Not a directory
+    // Error: Cannot create file in directory /etc/passwd/mysqlrouter.log: Not a directory
     const std::string out = router.get_full_output();
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(), StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: Not a directory"));
+    EXPECT_THAT(out.c_str(), StartsWith("Error: Cannot create file in directory " + logging_dir + ": Not a directory\n"));
 #else
     // on Windows emulate (wine) we get ENOTDIR
     // with native windows we get ENOENT
     EXPECT_THAT(out.c_str(), ::testing::AllOf(
-          StartsWith("Error: Failed to open " + logging_dir + "/mysqlrouter.log: "), ::testing::AnyOf(
+          StartsWith("Error: Cannot create file in directory " + logging_dir), ::testing::AnyOf(
             ::testing::EndsWith("Directory name invalid.\n\n"), ::testing::EndsWith("The system cannot find the path specified.\n\n"))));
 #endif
   }

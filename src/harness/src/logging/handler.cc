@@ -139,10 +139,12 @@ FileHandler::FileHandler(const Path& path,
       errno
 #endif
       ;
-    throw std::system_error(
-        last_error,
-        std::system_category(),
-        "Failed to open " + path.str());
+
+    if (path.exists()) {
+      throw std::system_error(last_error, std::system_category(), "File exists, but cannot open for writing " + path.str());
+    } else {
+      throw std::system_error(last_error, std::system_category(), "Cannot create file in directory " + path.dirname().str());
+    }
   }
 }
 

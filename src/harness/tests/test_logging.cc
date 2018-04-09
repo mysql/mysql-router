@@ -441,6 +441,87 @@ TEST_F(LoggingTest, FileHandler) {
   g_registry->remove_handler("TestFileHandler");
 }
 
+/**
+ * @test
+ *      Verify if no exception is throw when file can be opened for writing.
+ */
+TEST_F(LoggingTest, DontThrowIfOpenedLogFileForWriting) {
+    std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
+    Path dir_path(tmp_dir);
+    Path file_path(dir_path.join("test_file.log").str());
+
+    ASSERT_TRUE(dir_path.exists());
+    {
+      std::ofstream file(file_path.str());
+    }
+    ASSERT_TRUE(file_path.exists());
+    ASSERT_NO_THROW(FileHandler{file_path.str()});
+}
+
+#ifndef _WIN32
+/**
+ * @test
+ *       Verify if appropriate system_error is thrown when cannot
+ *       create file in directory.
+ *
+ * There is component test: RouterLoggingTest, bad_logging_folder
+ * that uses file as a directory to veryfy scenario when file cannot
+ * be created in directory.
+ */
+TEST_F(LoggingTest, FileHandlerThrowsNoPermissionToCreateFileInDirectory) {
+
+  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
+  Path dir_path(tmp_dir);
+  Path file_path(dir_path.join("test_file.log").str());
+
+  ASSERT_TRUE(dir_path.exists());
+
+  // set permissions
+  chmod(dir_path.c_str(), S_IRUSR);
+
+  ASSERT_FALSE(file_path.exists());
+  EXPECT_THROW_LIKE(FileHandler(file_path.str()), std::system_error,
+      "Cannot create file in directory " + file_path.dirname().str() +
+      ": Permission denied");
+}
+#endif
+
+/**
+ * @test
+ *      Verify if appropriate system_error is thrown when file cannot
+ *      be opened for writing.
+ */
+TEST_F(LoggingTest, FileHandlerThrowsFileExistsButCannotOpenToWriteReadOnlyFile) {
+  std::string tmp_dir = mysql_harness::get_tmp_dir("logging");
+  Path dir_path(tmp_dir);
+  Path file_path(dir_path.join("test_file.log").str());
+
+  // create empty log file
+  ASSERT_TRUE(dir_path.exists());
+  {
+    std::ofstream file(file_path.str());
+  }
+
+  // set file read-only
+#ifdef _WIN32
+    // set file read-only
+    if (SetFileAttributes(file_path.c_str(), FILE_ATTRIBUTE_READONLY) == FALSE)
+        FAIL() << "cannot set read-only attribute to file\n";
+#else
+    chmod(file_path.c_str(), S_IRUSR);
+#endif
+
+#ifdef _WIN32
+    EXPECT_THROW_LIKE(FileHandler(file_path.str()), std::system_error,
+        "File exists, but cannot open for writing " + file_path.str()
+        + ": Access is denied.");
+#else
+    EXPECT_THROW_LIKE(FileHandler(file_path.str()), std::system_error,
+        "File exists, but cannot open for writing " + file_path.str()
+        + ": Permission denied");
+#endif
+}
+
 TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
   std::stringstream buffer;
 
