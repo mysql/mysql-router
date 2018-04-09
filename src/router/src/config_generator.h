@@ -181,8 +181,6 @@ private:
                                std::string &metadata_replicaset,
                                bool &multi_master);
 
-  std::vector<std::tuple<std::string, unsigned long>> fetch_group_replication_hosts();
-
   void create_config(std::ostream &config_file,
                      uint32_t router_id,
                      const std::string &router_name,

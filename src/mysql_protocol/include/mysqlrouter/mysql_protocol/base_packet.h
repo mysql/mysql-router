@@ -266,25 +266,6 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    */
   std::vector<uint8_t> read_lenenc_bytes() const;
 
-#if 0 //FIXME want?
-  /** @brief Gets a string from packet
-   *
-   * Gets a string from the packet buffer at the current position and advances
-   * it by the length of the read. When size is not given, we read until the
-   * end of the buffer. When nil byte is found before we reach the requested size,
-   * the string will not be size long (if size is not 0).
-   *
-   * When current position is greater than the size of the buffer, an empty
-   * string is returned.
-   *
-   * @param length Length of the string to read (default 0)
-   * @return std::string
-   *
-   * @see read_string_from()
-   */
-  std::string read_string(unsigned long length = UINT_MAX);
-#endif
-
   /** @brief Gets zero-terminated string from packet
    *
    * Gets zero-terminated string from packet buffer at the current position and
