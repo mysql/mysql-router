@@ -1560,6 +1560,79 @@ void ConfigGenerator::create_config(std::ostream &cfp,
   }
 }
 
+/**
+ * create account to be used by Router.
+ *
+ * `<host>` part of `<user>@<host>` will be %, unless user specified otherwise
+ * using --account-host switch. Multiple --account-host switches are allowed.
+ */
+std::string ConfigGenerator::create_router_accounts(const std::map<std::string, std::string> &user_options,
+                                                    const std::map<std::string, std::vector<std::string>> &multivalue_options,
+                                                    const std::string &username) {
+  /*
+  Ideally, we create a single account for the specific host that the router is
+  running on. But that has several problems in real world, including:
+  - if you're configuring on localhost ref to metadata server, the router will
+  think it's in localhost and thus it will need 2 accounts: user@localhost
+  and user@public_ip... further, there could be more than 1 IP for the host,
+  which (like lan IP, localhost, internet IP, VPN IP, IPv6 etc). We don't know
+  which ones are needed, so either we need to automatically create all of those
+  or have some very complicated and unreliable logic.
+  - using hostname is not reliable, because not every place will have name
+  resolution availble
+  - using IP (even if we can detect it correctly) will not work if IP is not
+  static
+
+  Summing up, '%' is the easy way to avoid these problems. But the decision
+  ultimately belongs to the user.
+  */
+
+  // extract --account-host args; if none were given, default to just one: "%"
+  // NOTE: By the time we call this function, all --account-host entries should
+  //       be sorted and any non-unique entries eliminated (to ensure CREATE USER
+  //       does not get called twice for the same user@host). This happens at the
+  //       commandline parsing level during --account-host processing.
+  constexpr const char kAccountHost[] = "account-host";
+  const std::vector<std::string>& hostnames = multivalue_options.count(kAccountHost)
+      ? multivalue_options.at(kAccountHost)
+      : std::vector<std::string>{"%"};
+
+  // NOTE ON EXCEPTIONS:
+  // create_account*() functions throw many things (see their descriptions)
+  // - we let the higher-level logic deal with them when that happens.
+
+  // create first account and save password info that got generated in the process
+  std::pair<std::string, bool> password_and_is_hashed =
+      create_account_with_compliant_password(user_options, username, hostnames.front());
+
+  // and now we use that password info for creation of remaining accounts
+  for (auto it = hostnames.begin() + 1; it != hostnames.end(); ++it) {
+    try {
+      create_account(username, *it, password_and_is_hashed.first /*password*/,
+                     password_and_is_hashed.second /*hash password*/);
+    }
+
+    // create_account_with_compliant_password() should have caught these (and
+    // dealt with them accordingly), since these occur either always or never.
+    // The only way these could occur here is if the Server's responses changed
+    // for some reason (reconfigured in the meantime?). Anyhow, probably an
+    // unlikely event.
+    catch (const plugin_not_loaded&) {
+      throw std::runtime_error("Error creating user account: unexpected error: "
+          "plugin not loaded (it seems Server changed its password policy, "
+          "has it been reconfigured in the meantime?)");
+    } catch (const password_too_weak&) {
+      throw std::runtime_error("Error creating user account: unexpected error: "
+          "password too weak (it seems Server changed its password policy, "
+          "has it been reconfigured in the meantime?)");
+    } catch (...) {
+      throw;  // all others we pass
+    }
+  }
+
+  return password_and_is_hashed.first;
+}
+
 std::pair<std::string, bool> ConfigGenerator::create_account_with_compliant_password(
                                                   const std::map<std::string, std::string> &user_options,
                                                   const std::string &username,
@@ -1702,81 +1775,6 @@ void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) 
     for (const std::string& q : queries)
       mysql_->execute(q);
   }
-}
-
-/**
- * create account to be used by Router.
- *
- * `<host>` part of `<user>@<host>` will be %, unless user specified otherwise
- * using --account-host switch. Multiple --account-host switches are allowed.
- */
-std::string ConfigGenerator::create_router_accounts(const std::map<std::string, std::string> &user_options,
-                                                    const std::map<std::string, std::vector<std::string>> &multivalue_options,
-                                                    const std::string &username) {
-  /*
-  Ideally, we create a single account for the specific host that the router is
-  running on. But that has several problems in real world, including:
-  - if you're configuring on localhost ref to metadata server, the router will
-  think it's in localhost and thus it will need 2 accounts: user@localhost
-  and user@public_ip... further, there could be more than 1 IP for the host,
-  which (like lan IP, localhost, internet IP, VPN IP, IPv6 etc). We don't know
-  which ones are needed, so either we need to automatically create all of those
-  or have some very complicated and unreliable logic.
-  - using hostname is not reliable, because not every place will have name
-  resolution availble
-  - using IP (even if we can detect it correctly) will not work if IP is not
-  static
-
-  Summing up, '%' is the easy way to avoid these problems. But the decision
-  ultimately belongs to the user.
-  */
-
-  std::pair<std::string, bool> password_and_is_hashed;
-
-  // extract --account-host args; if none were given, default to just one: "%"
-  // NOTE: By the time we call this function, all --account-host entries should
-  //       be sorted and any non-unique entries eliminated (to ensure CREATE USER
-  //       does not get called twice for the same user@host). This happens at the
-  //       commandline parsing level during --account-host processing.
-  constexpr const char kAccountHost[] = "account-host";
-  const std::vector<std::string>& hostnames = multivalue_options.count(kAccountHost)
-      ? multivalue_options.at(kAccountHost)
-      : std::vector<std::string>{"%"};
-
-  // NOTE ON EXCEPTIONS:
-  // create_account*() functions throw many things (see their descriptions)
-  // - we let the higher-level logic deal with them when that happens.
-
-  // create first account and save password info that got generated in the process
-  password_and_is_hashed = create_account_with_compliant_password(
-                               user_options, username, hostnames.front());
-
-  // and now we use that password info for creation of remaining accounts
-  for (auto it = hostnames.begin() + 1; it != hostnames.end(); ++it) {
-    try {
-      create_account(username, *it, password_and_is_hashed.first /*password*/,
-                     password_and_is_hashed.second /*hash password*/);
-    }
-
-    // create_account_with_compliant_password() should have caught these (and
-    // dealt with them accordingly), since these occur either always or never.
-    // The only way these could occur here is if the Server's responses changed
-    // for some reason (reconfigured in the meantime?). Anyhow, probably an
-    // unlikely event.
-    catch (const plugin_not_loaded&) {
-      throw std::runtime_error("Error creating user account: unexpected error: "
-          "plugin not loaded (it seems Server changed its password policy, "
-          "has it been reconfigured in the meantime?)");
-    } catch (const password_too_weak&) {
-      throw std::runtime_error("Error creating user account: unexpected error: "
-          "password too weak (it seems Server changed its password policy, "
-          "has it been reconfigured in the meantime?)");
-    } catch (...) {
-      throw;  // all others we pass
-    }
-  }
-
-  return password_and_is_hashed.first;
 }
 
 /**
