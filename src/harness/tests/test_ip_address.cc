@@ -164,7 +164,7 @@ TEST(TestIPv6Address, FromStringFail) {
     std::string str_ipv4{"192.168.14.5"};
     EXPECT_THROW({ IPv6Address ip(str_ipv4); }, std::invalid_argument);
     try {
-      IPv6Address(test_addr);
+      IPv6Address ip{str_ipv4};
     } catch (const std::invalid_argument &exc) {
       EXPECT_THAT(exc.what(), HasSubstr("parsing error"));
     }
@@ -175,7 +175,7 @@ TEST(TestIPv6Address, FromStringFail) {
     std::string str_ipv6_wrong{"fe80::6e40:8ff:fea2:5d7x"}; // x at the end
     EXPECT_THROW({ IPv6Address ip(str_ipv6_wrong); }, std::invalid_argument);
     try {
-      IPv6Address(test_addr);
+      IPv6Address ip{str_ipv6_wrong};
     } catch (const std::invalid_argument &exc) {
       EXPECT_THAT(exc.what(), HasSubstr("parsing error"));
     }

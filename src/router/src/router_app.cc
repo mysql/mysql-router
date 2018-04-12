@@ -914,7 +914,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       }, [this] { this->check_bootstrap_option("--force"); });
 
   char ssl_mode_vals[128];
-  char ssl_mode_desc[256];
+  char ssl_mode_desc[384];
   snprintf(ssl_mode_vals, sizeof(ssl_mode_vals), "%s|%s|%s|%s|%s",
            mysqlrouter::MySQLSession::kSslModeDisabled,
            mysqlrouter::MySQLSession::kSslModePreferred,

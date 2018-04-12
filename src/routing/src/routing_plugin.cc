@@ -154,7 +154,7 @@ static void init(mysql_harness::PluginFuncEnv* env) {
             if (uri.scheme == "metadata-cache") {
               need_metadata_cache = true;
             }
-          } catch (URIError) {
+          } catch (URIError&) {
             // No URI, no extra plugin needed
           }
         } else if (section->name == "metadata_cache") {
@@ -217,7 +217,7 @@ static void start(mysql_harness::PluginFuncEnv* env) {
     try {
       // don't allow rootless URIs as we did already in the get_option_destinations()
       r.set_destinations_from_uri(URI(config.destinations, false));
-    } catch (URIError) {
+    } catch (URIError&) {
       r.set_destinations_from_csv(config.destinations);
     }
     r.start(env);

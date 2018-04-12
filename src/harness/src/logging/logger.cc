@@ -55,7 +55,7 @@ void Logger::handle(const Record& record) {
       std::shared_ptr<Handler> handler;
       try {
         handler = registry_->get_handler(handler_id.c_str());
-      } catch (std::logic_error) {
+      } catch (std::logic_error&) {
         // It may happen that another thread has removed this handler since
         // we got a copy of our Logger object, and we now have a dangling
         // reference. In such case, simply skip it.

@@ -102,7 +102,7 @@ bool CmdArgHandler::is_valid_option_name(const string& name) const noexcept {
   try {
     return std::regex_match(name,
                             std::regex("^--[A-Za-z][A-Za-z_-]*[A-Za-z]$"));
-  } catch (std::regex_error) {
+  } catch (std::regex_error&) {
     // Fall back to some non-regular expression checks
     if (name.size() < 4) {
       return false;
