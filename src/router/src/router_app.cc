@@ -575,6 +575,15 @@ void MySQLRouter::start() {
     return;
   }
 
+#ifndef _WIN32
+  // if the --user parameter was provided on the command line, switch
+  // to the user asap before accessing the external files to check
+  // that the user has rights to use them
+  if (!user_cmd_line_.empty()) {
+    set_user(user_cmd_line_, true, this->sys_user_operations_);
+  }
+#endif
+
   // default configuration for boostrap is not supported
   // extra configuration for bootstrap is not supported
   ConfigFiles config_files(default_config_files_, config_files_, extra_config_files_);
@@ -582,6 +591,14 @@ void MySQLRouter::start() {
   DIM::instance().reset_Config(); // simplifies unit tests
   DIM::instance().set_Config([this, &config_files](){ return make_config(get_default_paths(), config_files); }, std::default_delete<mysql_harness::LoaderConfig>());
   mysql_harness::LoaderConfig& config = DIM::instance().get_Config();
+
+#ifndef _WIN32
+  // --user param given on the command line has a priority over
+  // the user in the configuration
+  if (user_cmd_line_.empty() && config.has_default("user")) {
+    set_user(config.get_default("user"), true, this->sys_user_operations_);
+  }
+#endif
 
   // create logging directory if necessary
   if (config.logging_to_file()) {
@@ -607,14 +624,7 @@ void MySQLRouter::start() {
     throw std::runtime_error("Can not start");
   }
 
-#ifndef _WIN32
-  // if the --user parameter was provided on the command line, switch
-  // to the user asap before accessing the external files to check
-  // that the user has rights to use them
-  if (!user_cmd_line_.empty()) {
-    set_user(user_cmd_line_, true, this->sys_user_operations_);
-  }
-#endif
+
 
   // Using environment variable ROUTER_PID is a temporary solution. We will remove this
   // functionality when Harness introduces the `pid_file` option.
@@ -656,13 +666,6 @@ void MySQLRouter::start() {
         "There is more than one metadata_cache section in the router configuration. Exiting."
     );
 
-#ifndef _WIN32
-  // --user param given on the command line has a priority over
-  // the user in the configuration
-  if (user_cmd_line_.empty() && config.has_default("user")) {
-    set_user(config.get_default("user"), true, this->sys_user_operations_);
-  }
-#endif
   init_keyring(config);
 
   loader_->start();

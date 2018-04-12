@@ -453,6 +453,105 @@ TEST_F(AppTest, CanStartFalse) {
   }
 }
 
+/*
+ * We don't switch user for windows
+ */
+#ifndef _WIN32
+
+/**
+ * @test
+ *       Verify that if --user/-u option is used, then user is switched before logger
+ *       is initialized.
+ */
+TEST_F(AppTest, SetCommandLineUserBeforeInitializingLogger) {
+  const char* user = "mysqlrouter";
+
+  vector<string> argv = {
+      "--config", stage_dir.join("etc").join("mysqlrouter.conf").str(),
+      "--extra-config=" + stage_dir.join("etc").join("mysqlrouter_extra.conf").str(),
+      "--user=" + std::string(user)
+  };
+
+  // set empty Registry (is_ready() return false)
+  std::unique_ptr<mysql_harness::logging::Registry> registry(new mysql_harness::logging::Registry());
+  mysql_harness::DIM::instance().set_LoggingRegistry([&registry](){ return registry.release(); },
+                                      std::default_delete<mysql_harness::logging::Registry>());
+  mysql_harness::DIM::instance().reset_LoggingRegistry();
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(user))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(user), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(
+      testing::DoAll(
+          testing::InvokeWithoutArgs(
+              [&] {
+                ASSERT_FALSE(mysql_harness::DIM::instance().get_LoggingRegistry().is_ready());
+              }), (Return(0))));
+
+  MySQLRouter r(g_origin, argv, mock_sys_user_operations.get());
+  ASSERT_NO_THROW(r.start());
+}
+
+/**
+ * @test
+ *       Verify that if --user/-u option is used, then user is switched before logger
+ *       is initialized.
+ */
+TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
+  const char* user = "mysqlrouter";
+
+  std::string tmp_dir = mysql_harness::get_tmp_dir("AppTest");
+  std::shared_ptr<void> exit_guard(nullptr, [&](void*){mysql_harness::delete_dir_recursive(tmp_dir);});
+
+  // copy config file and add user option to [DEFAULT] section
+  {
+    std::ofstream destination_stream(mysql_harness::Path(tmp_dir).join("mysqlrouter.conf").str());
+    std::ifstream source_stream(stage_dir.join("etc").join("mysqlrouter.conf").str());
+
+    std::string line;
+    while(source_stream.good() && destination_stream.good()) {
+      getline(source_stream, line);
+      destination_stream << line << std::endl;
+      if (line.find("DEFAULT]") != line.npos)
+        destination_stream << "user=" << std::string(user) << std::endl;
+    }
+  }
+
+  vector<string> argv = {
+      "--config", mysql_harness::Path(tmp_dir).join("mysqlrouter.conf").str(),
+      "--extra-config=" + stage_dir.join("etc").join("mysqlrouter_extra.conf").str()
+  };
+
+  // set empty Registry (is_ready() return false)
+  std::unique_ptr<mysql_harness::logging::Registry> registry(new mysql_harness::logging::Registry());
+  mysql_harness::DIM::instance().set_LoggingRegistry([&registry](){ return registry.release(); },
+                                      std::default_delete<mysql_harness::logging::Registry>());
+  mysql_harness::DIM::instance().reset_LoggingRegistry();
+
+  struct passwd user_info;
+  user_info.pw_gid = 12; user_info.pw_uid = 17;
+
+  EXPECT_CALL(*mock_sys_user_operations, geteuid()).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, getpwnam(StrEq(user))).Times(1).WillOnce(Return(&user_info));
+  EXPECT_CALL(*mock_sys_user_operations, initgroups(StrEq(user), (SysUserOperationsBase::gid_type)user_info.pw_gid)).Times(1);
+  EXPECT_CALL(*mock_sys_user_operations, setgid(user_info.pw_gid)).Times(1).WillOnce(Return(0));
+  EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid)).Times(1).WillOnce(
+      testing::DoAll(
+          testing::InvokeWithoutArgs(
+              [&] {
+                ASSERT_FALSE(mysql_harness::DIM::instance().get_LoggingRegistry().is_ready());
+              }), (Return(0))));
+
+  MySQLRouter r(g_origin, argv, mock_sys_user_operations.get());
+  ASSERT_NO_THROW(r.start());
+}
+
+#endif
+
 TEST_F(AppTest, ShowingInfoTrue) {
 
   vector<vector<string> > cases = {
