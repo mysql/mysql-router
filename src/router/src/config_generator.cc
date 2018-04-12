@@ -1741,18 +1741,19 @@ void ConfigGenerator::create_account(const std::string &username,
 }
 
 void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) {
+  std::vector<std::string> hostnames;
 
-  // We need to check if at least 1 accounts exists, because if there were none,
-  // prepared SQL statement created [_HERE_] would evaluate to NULL, and fail to execute.
   log_info("Checking for old Router accounts");
   {
     // throws MySQLSession::Error, should be handled by caller
-    std::unique_ptr<MySQLSession::ResultRow> result(
-        mysql_->query_one("SELECT COUNT(*) FROM mysql.user WHERE user = '" + username + "'"));
+    mysql_->query("SELECT host FROM mysql.user WHERE user = '" + username + "'",
+                  [&hostnames](const std::vector<const char*>& row) -> bool {
+                    harness_assert(row.size() == 1);  // expect just 1 column
+                    hostnames.push_back(row[0]);
+                    return true; // don't stop
+                  });
 
-    harness_assert(result && result->size() == 1);
-    int count = strtoi_checked((*result)[0]);
-    if (count < 1) {
+    if (hostnames.size() < 1) {
       log_debug("No prior Router accounts found");
       return;
     }
@@ -1760,20 +1761,14 @@ void ConfigGenerator::delete_account_for_all_hosts(const std::string& username) 
 
   log_info("Found old Router accounts, removing");
   {
-    // equivalent of pseudo-SQL: DROP USER WHERE user = <account> AND host = <anything>
-    std::vector<std::string> queries {
-      "SELECT CONCAT('DROP USER ', GROUP_CONCAT(QUOTE(user), '@', QUOTE(host)))" // [_HERE_]
-          " INTO @drop_user_sql"
-          " FROM mysql.user"
-          " WHERE user LIKE '" + username + "'",
-      "PREPARE drop_user_stmt FROM @drop_user_sql",
-      "EXECUTE drop_user_stmt",
-      "DEALLOCATE PREPARE drop_user_stmt"   // hygienie, not really needed
-    };
+    // build DROP USER statement to erase all existing accounts
+    std::string query = "DROP USER ";
+    for (std::string& host : hostnames)
+      query += username + "@" + mysql_->quote(host) + ",";
+    query.resize(query.size() - 1); // erase last ','
 
-    // throws MySQLSession::Error, std::logic_error, both should be handled by caller
-    for (const std::string& q : queries)
-      mysql_->execute(q);
+    // throws MySQLSession::Error and std::logic_error, both should be handled by caller
+    mysql_->execute(query);
   }
 }
 

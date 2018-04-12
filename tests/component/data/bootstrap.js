@@ -188,7 +188,7 @@
 
     // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
     {
-      "stmt.regex": "^SELECT COUNT... FROM mysql.user WHERE user = '.*'",
+      "stmt.regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
       "result": {
         "columns": [
           {
@@ -196,11 +196,7 @@
             "name": "COUNT..."
           }
         ],
-        "rows": [
-          [
-            "0" // to keep it simple, just tell Router there's no old accounts to erase
-          ]
-        ]
+        "rows": []  // to keep it simple, just tell Router there's no old accounts to erase
       }
     },
 

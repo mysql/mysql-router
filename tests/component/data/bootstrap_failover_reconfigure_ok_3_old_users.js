@@ -2,12 +2,12 @@
     "stmts": [
         {
             "stmt": "START TRANSACTION",
-            "exec_time": 0.061723,
+            "exec_time": 0.057513,
             "ok": {}
         },
         {
-            "stmt.regex": "^SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '.*' LIMIT 1",
-            "exec_time": 0.237026,
+            "stmt": "SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id WHERE r.router_id = 8",
+            "exec_time": 0.175663,
             "result": {
                 "columns": [
                     {
@@ -17,32 +17,20 @@
                     {
                         "name": "host_name",
                         "type": "VAR_STRING"
-                    },
-                    {
-                        "name": "ip_address",
-                        "type": "VAR_STRING"
                     }
                 ],
                 "rows": [
                     [
                         "8",
-                        "127.0.0.1",
-                        null
+                        process.env.MYSQL_SERVER_MOCK_HOST_NAME
                     ]
                 ]
             }
         },
-        {
-            "stmt": "INSERT INTO mysql_innodb_cluster_metadata.routers        (host_id, router_name) VALUES (8, '')",
-            "exec_time": 0.283136,
-            "ok": {
-                "last_insert_id": 8
-            }
-        },
 
 
 
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
+        // ConfigGenerator::delete_account_for_all_hosts() : check if there exist accounts for this Router
         {
             "stmt.regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
             "result": {
@@ -52,9 +40,15 @@
                         "name": "COUNT..."
                     }
                 ],
-                "rows": []  // to keep it simple, just tell Router there's no old accounts to erase
+                "rows": [["foo"], ["bar"], ["baz"]] // report back that there are 3 accounts
             }
         },
+        // ConfigGenerator::delete_account_for_all_hosts() : erase them
+        {
+           "stmt.regex": "^DROP USER mysql_router8_[0-9a-z]{12}@.*'foo',mysql_router8_[0-9a-z]{12}@.*'bar',mysql_router8_[0-9a-z]{12}@.*'baz'",
+            "ok": {}
+        },
+
 
         // ConfigGenerator::create_account()
         {
@@ -80,13 +74,13 @@
 
 
         {
-            "stmt": "UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET(JSON_SET(JSON_SET(JSON_SET(attributes,    'RWEndpoint', '6446'),    'ROEndpoint', '6447'),    'RWXEndpoint', '64460'),    'ROXEndpoint', '64470') WHERE router_id = 8",
-            "exec_time": 0.277948,
+            "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(attributes,    'RWEndpoint', '6446'\\),    'ROEndpoint', '6447'\\),    'RWXEndpoint', '64460'\\),    'ROXEndpoint', '64470'\\) WHERE router_id = .*",
+            "exec_time": 0.319936,
             "ok": {}
         },
         {
             "stmt": "COMMIT",
-            "exec_time": 0.090678,
+            "exec_time": 0.106985,
             "ok": {}
         }
     ]

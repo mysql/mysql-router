@@ -190,13 +190,11 @@
             "stmt": "INSERT INTO mysql_innodb_cluster_metadata.routers        (host_id, router_name) VALUES (8, '')",
             "exec_time": 0.152557,
             "ok": {
-              "last_insert_id": 8
+                "last_insert_id": 8
             }
         },
 
-
-
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
+        // ConfigGenerator::delete_account_for_all_hosts() : check if there exist accounts for this Router
         {
             "stmt.regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
             "result": {
@@ -206,34 +204,26 @@
                         "name": "COUNT..."
                     }
                 ],
-                "rows": []  // to keep it simple, just tell Router there's no old accounts to erase
+                "rows": [["foo"], ["bar"], ["baz"]] // report back that there are 3 accounts
             }
         },
-
-        // ConfigGenerator::create_account()
+        // ConfigGenerator::delete_account_for_all_hosts() : erase them
         {
-            "stmt.regex": "^CREATE USER mysql_router8_[0-9a-z]{12}@'%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router8_.*@'%'",
-            "exec_time": 8.536869,
-            "error": { // here we trigger the failover
+           "stmt.regex": "^DROP USER mysql_router8_[0-9a-z]{12}@.*'foo',mysql_router8_[0-9a-z]{12}@.*'bar',mysql_router8_[0-9a-z]{12}@.*'baz'",
+            "error": {
                 "code": 1290,
                 "message": "The MySQL server is running with the --super-read-only option so it cannot execute this statement",
                 "sql_state": "HY000"
             }
         },
+
+        // rollback
         {
             "stmt": "ROLLBACK",
-            "exec_time": 0.100835,
             "ok": {}
         },
-        {
-            "stmt": "ROLLBACK",
-            "exec_time": 0.100835,
-            "ok": {}
-        },
+
+        // failover: GrAwareDecorator::fetch_group_replication_hosts()
         {
             "stmt": "SELECT member_host, member_port   FROM performance_schema.replication_group_members  /*!80002 ORDER BY member_role */",
             "exec_time": 0.135675,

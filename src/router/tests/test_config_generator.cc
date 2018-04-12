@@ -462,17 +462,13 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
 TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
 
-  auto gen_check_users_SQL = [this](const char* user_count) {
-    mock_mysql->expect_query_one("SELECT COUNT(*) FROM mysql.user WHERE user = 'cluster_user'").
-                then_return(1, {{mock_mysql->string_or_null(user_count)}});
-  };
+  auto gen_check_users_SQL = [this](const std::vector<const char*>& hostnames_to_return) {
+    std::vector<std::vector<MySQLSessionReplayer::string>> results;
+    for (const char* h : hostnames_to_return)
+      results.push_back({mock_mysql->string_or_null(h)});
 
-  auto gen_drop_users_SQL = [this](unsigned last = 4) {
-    assert (last <= 4);
-    if (last > 0) mock_mysql->expect_execute("SELECT CONCAT('DROP USER ', GROUP_CONCAT(QUOTE(user), '@', QUOTE(host))) INTO @drop_user_sql FROM mysql.user WHERE user LIKE 'cluster_user'");
-    if (last > 1) mock_mysql->expect_execute("PREPARE drop_user_stmt FROM @drop_user_sql");
-    if (last > 2) mock_mysql->expect_execute("EXECUTE drop_user_stmt");
-    if (last > 3) mock_mysql->expect_execute("DEALLOCATE PREPARE drop_user_stmt");
+    mock_mysql->expect_query("SELECT host FROM mysql.user WHERE user = 'cluster_user'").
+                then_return(1, results);
   };
 
   auto test_common = [this]() {
@@ -486,7 +482,7 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
   // Router account does not exist
   {
     common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL("0");
+    gen_check_users_SQL({});
 
     test_common();
   }
@@ -494,8 +490,8 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
   // Router account exists for 1 host
   {
     common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL("1");
-    gen_drop_users_SQL();
+    gen_check_users_SQL({"foo"});
+    mock_mysql->expect_execute("DROP USER cluster_user@'foo'");
 
     test_common();
   }
@@ -503,16 +499,16 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
   // Router account exists for many hosts
   {
     common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL("100");
-    gen_drop_users_SQL();
+    gen_check_users_SQL({"foo", "bar", "baz"});
+    mock_mysql->expect_execute("DROP USER cluster_user@'foo',cluster_user@'bar',cluster_user@'baz'");
 
     test_common();
   }
 
-  // SELECT COUNT(*) fails
+  // SELECT fails
   {
     common_pass_metadata_checks(mock_mysql.get());
-    mock_mysql->expect_query_one("SELECT COUNT(*) FROM mysql.user WHERE user = 'cluster_user'").
+    mock_mysql->expect_query("SELECT host FROM mysql.user WHERE user = 'cluster_user'").
                 then_error("some error", 1234);
 
     ConfigGenerator config_gen;
@@ -525,13 +521,12 @@ TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
     EXPECT_TRUE(mock_mysql->empty());
   }
 
-  // one of user-dropping statements fails
-  for (unsigned i = 1; i <= 4; i++)
+  // DROP USER fails
   {
     common_pass_metadata_checks(mock_mysql.get());
-    gen_check_users_SQL("42");
-    gen_drop_users_SQL(i);
-    mock_mysql->then_error("some error", 1234); // i-th statement will return this error
+    gen_check_users_SQL({"foo", "bar", "baz"});
+    mock_mysql->expect_execute("DROP USER cluster_user@'foo',cluster_user@'bar',cluster_user@'baz'").
+                then_error("some error", 1234);
 
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
@@ -1317,7 +1312,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
 //XXX TODO: add recursive directory delete function
 
 namespace {
-enum action_t{ACTION_EXECUTE, ACTION_QUERY, ACTION_ERROR};
+enum action_t{ACTION_EXECUTE, ACTION_QUERY, ACTION_QUERY_ONE, ACTION_ERROR};
 
 struct query_entry_t{
   const char *query;
@@ -1339,12 +1334,12 @@ struct query_entry_t{
 
 std::vector<query_entry_t> expected_bootstrap_queries = {
   {"START TRANSACTION", ACTION_EXECUTE},
-  {"SELECT host_id, host_name", ACTION_QUERY, 2, {}},
+  {"SELECT host_id, host_name", ACTION_QUERY_ONE, 2, {}},
   {"INSERT INTO mysql_innodb_cluster_metadata.hosts", ACTION_EXECUTE},
   {"INSERT INTO mysql_innodb_cluster_metadata.routers", ACTION_EXECUTE, 4},
 
   // ConfigGenerator::delete_account_for_all_hosts() called before ConfigGenerator::create_router_accounts()
-  {"SELECT COUNT(*) FROM mysql.user WHERE user", ACTION_QUERY, 1, {{"0"}}},
+  {"SELECT host FROM mysql.user WHERE user = 'mysql_router4_012345678901'", ACTION_QUERY, 1, {}},
 
   // ConfigGenerator::create_account()
   {"CREATE USER mysql_router4_012345678901@'%'", ACTION_EXECUTE},
@@ -1365,6 +1360,9 @@ static void expect_bootstrap_queries(MySQLSessionReplayer *m, const char *cluste
       m->expect_execute(query.query).then_ok(query.last_insert_id);
       break;
     case ACTION_QUERY:
+      m->expect_query(query.query).then_return(query.result_cols, query.results);
+      break;
+    case ACTION_QUERY_ONE:
       m->expect_query_one(query.query).then_return(query.result_cols, query.results);
       break;
     default: /*ACTION_ERROR*/

@@ -446,16 +446,17 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonly2ndNodeDead) {
 
 /**
  * @test
- *       verify that bootstrap fails over and continues if create-account.drop-user fails
+ *       verify that bootstrap fails over and continues if create-account fails
+ *       due to 1st node not being writable
  * @test
  *       Group Replication roles:
- *       - PRIMARY-failing
- *       - PRIMARY-online
+ *       - SECONDARY
+ *       - PRIMARY
  *       - SECONDARY (not used)
  */
-TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyCreateAccountDropUserFails) {
+TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyCreateAccountFails) {
   std::vector<Config> config {
-    // member-1: PRIMARY, fails at DROP USER
+    // member-1: SECONDARY, fails at DROP USER due to RW request on RO node
     {
       "127.0.0.1", port_pool_.get_next_available(),
       get_data_dir().join("bootstrap_failover_super_read_only_dead_2nd_1.js").str(),
@@ -466,6 +467,44 @@ TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyCreateAccountDropUserF
     {
       "127.0.0.1", port_pool_.get_next_available(),
       get_data_dir().join("bootstrap_failover_reconfigure_ok.js").str(),
+      Path(tmp_dir).join("member-2.json").str()
+    },
+
+    // member-3: defined, but unused
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      "",
+      ""
+    },
+  };
+
+  bootstrap_failover(config);
+}
+
+/**
+ * @test
+ *       verify that bootstrap fails over and continues if create-account.drop-user fails
+ *       due to 1st node not being writable
+ * @test
+ *       Group Replication roles:
+ *       - SECONDARY
+ *       - PRIMARY
+ *       - SECONDARY (not used)
+ *
+ */
+TEST_F(RouterBootstrapTest, BootstrapFailoverSuperReadonlyCreateAccountDropUserFails) {
+  std::vector<Config> config {
+    // member-1: SECONDARY, fails on CREATE USER due to RW request on RO node
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      get_data_dir().join("bootstrap_failover_super_read_only_delete_user.js").str(),
+      Path(tmp_dir).join("member-1.json").str()
+    },
+
+    // member-2: PRIMARY, succeeds
+    {
+      "127.0.0.1", port_pool_.get_next_available(),
+      get_data_dir().join("bootstrap_failover_reconfigure_ok_3_old_users.js").str(),
       Path(tmp_dir).join("member-2.json").str()
     },
 
