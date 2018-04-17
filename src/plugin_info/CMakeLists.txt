@@ -66,6 +66,11 @@ set_target_output_directory(mysqlrouter_plugin_info RUNTIME_OUTPUT_DIRECTORY bin
 install(TARGETS mysqlrouter_plugin_info
         RUNTIME DESTINATION ${INSTALL_BINDIR})
 
+if(WIN32)
+  install(FILES $<TARGET_PDB_FILE:mysqlrouter_plugin_info>
+        DESTINATION ${INSTALL_BINDIR})
+endif()
+
 if(ENABLE_TESTS)
   enable_testing()
   add_subdirectory(tests/)

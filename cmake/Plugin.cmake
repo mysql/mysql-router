@@ -144,6 +144,8 @@ function(add_harness_plugin NAME)
     if(WIN32)
       install(TARGETS ${NAME}
         RUNTIME DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
+      install(FILES $<TARGET_PDB_FILE:${NAME}>
+            DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR})
     else()
       install(TARGETS ${NAME}
         LIBRARY DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}/${_option_DESTINATION_SUFFIX})
