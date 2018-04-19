@@ -690,32 +690,53 @@ class RouterAccountHostTest : public CommonBootstrapTest {};
  *        - can take '%' as a parameter
  */
 TEST_F(RouterAccountHostTest, multiple_host_patterns) {
-  const std::string json_stmts = get_data_dir().join("bootstrap_account_host_multiple_patterns.js").str();
+  // to avoid duplication of tracefiles, we run the same test twice, with the
+  // only difference that 1st time we run --bootstrap before the --account-host,
+  // and second time we run it after
+
   const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
-  // launch mock server and wait for it to start accepting connections
-  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
-  EXPECT_TRUE(ready) << server_mock.get_full_output();
+  auto test_it = [&](const std::string& cmdline) -> void {
+    const std::string json_stmts = get_data_dir().join("bootstrap_account_host_multiple_patterns.js").str();
 
-  // launch the router in bootstrap mode
+    // launch mock server and wait for it to start accepting connections
+    auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+    bool ready = wait_for_port_ready(server_port, 1000);
+    EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+    // launch the router in bootstrap mode
+    std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
+    auto router = launch_router(cmdline);
+
+    // add login hook
+    router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+    // check if the bootstraping was successful
+    EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
+      ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+    EXPECT_EQ(router.wait_for_exit(), 0);
+  };
+
   // NOTE: CREATE USER statements should run in unique(sort(hostname_list)) fashion
-  std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
-  auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
-                              + " -d " + bootstrap_directory
-                              + " --account-host host1"     // 2nd CREATE USER
-                              + " --account-host %"         // 1st CREATE USER
-                              + " --account-host host1"     // \_ redundant, ignored
-                              + " --account-host host1"     // /
-                              + " --account-host host3%");  // 3rd CREATE USER
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
 
-  // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'test'")
-    ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
-  EXPECT_EQ(router.wait_for_exit(), 0);
+  // --bootstrap before --account-host
+  test_it("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+          + " -d " + bootstrap_directory
+          + " --account-host host1"     // 2nd CREATE USER
+          + " --account-host %"         // 1st CREATE USER
+          + " --account-host host1"     // \_ redundant, ignored
+          + " --account-host host1"     // /
+          + " --account-host host3%");  // 3rd CREATE USER
+
+  // --bootstrap after --account-host
+  test_it("-d " + bootstrap_directory
+          + " --account-host host1"     // 2nd CREATE USER
+          + " --account-host %"         // 1st CREATE USER
+          + " --account-host host1"     // \_ redundant, ignored
+          + " --account-host host1"     // /
+          + " --account-host host3%"    // 3rd CREATE USER
+          + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
 }
 
 /**

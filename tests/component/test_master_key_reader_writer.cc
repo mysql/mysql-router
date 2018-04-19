@@ -233,7 +233,9 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyR
  * @test
  *       verify that when bootstrap is launched using --master-key-reader and
  *       --master-key-writer options then generated config file contains
- *       entries for master_key_reader and master_key_writer
+ *       entries for master_key_reader and master_key_writer.
+ *       Also, verify that --bootstrap can be specified after --master-key-*
+ *       options (all other tests will use it in the beginning).
  */
 TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyReader) {
   unsigned server_port = port_pool_.get_next_available();
@@ -245,10 +247,11 @@ TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyR
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_reader_script() + " --master-key-writer="
-          + script_generator.get_writer_script());
+      "--directory="
+      + bootstrap_dir_ + " --force" + " --master-key-reader="
+      + script_generator.get_reader_script() + " --master-key-writer="
+      + script_generator.get_writer_script()
+      + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

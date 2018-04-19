@@ -816,12 +816,10 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "The tool that can be used to read master key, it has to be used together with --master-key-writer. (bootstrap)",
                           CmdOptionValueReq::required, "",
                           [this](const string &master_key_reader) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --master-key-reader can only be used together with --B/--bootstrap.");
-
         this->keyring_info_.set_master_key_reader(master_key_reader);
       },
       [this] {
+        this->assert_bootstrap_mode("--master-key-reader");
         if (this->keyring_info_.get_master_key_reader().empty() != this->keyring_info_.get_master_key_writer().empty())
           throw std::runtime_error("Option --master-key-reader can only be used together with --master-key-writer.");
       });
@@ -830,12 +828,10 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "The tool that can be used to store master key, it has to be used together with --master-key-reader. (bootstrap)",
                           CmdOptionValueReq::required, "",
                           [this](const string &master_key_writer) {
-        if (this->bootstrap_uri_.empty())
-          throw std::runtime_error("Option --master-key-writer can only be used together with --B/--bootstrap.");
-
         this->keyring_info_.set_master_key_writer(master_key_writer);
       },
       [this] {
+        this->assert_bootstrap_mode("--master-key-writer");
         if (this->keyring_info_.get_master_key_reader().empty() != this->keyring_info_.get_master_key_writer().empty())
           throw std::runtime_error("Option --master-key-writer can only be used together with --master-key-reader.");
       });
@@ -905,11 +901,7 @@ void MySQLRouter::prepare_command_options() noexcept {
         std::sort(hostnames.begin(), hostnames.end());
         auto it = std::unique(hostnames.begin(), hostnames.end());
         hostnames.resize(std::distance(hostnames.begin(), it));
-
-        if (this->bootstrap_uri_.empty()) {
-          throw std::runtime_error("Option --account-host can only be used together with -B/--bootstrap");
-        }
-      });
+      }, [this] { this->assert_bootstrap_mode("--account-host"); });
 
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",

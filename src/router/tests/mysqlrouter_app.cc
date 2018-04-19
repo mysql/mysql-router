@@ -815,7 +815,7 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
 TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutBootstrap) {
   vector<string> argv = { "--master-key-reader=reader.sh" };
   ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
-      "Option --master-key-reader can only be used together with --B/--bootstrap.");
+      "Option --master-key-reader can only be used together with -B/--bootstrap");
 }
 
 /**
@@ -826,7 +826,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutBootstrap) {
 TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutBootstrap) {
   vector<string> argv = { "--master-key-writer=writer.sh" };
   ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()), std::runtime_error,
-      "Option --master-key-writer can only be used together with --B/--bootstrap.");
+      "Option --master-key-writer can only be used together with -B/--bootstrap");
 }
 
 /**
