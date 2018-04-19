@@ -332,11 +332,11 @@ private:
                                        const std::string& option_value);
 
   /**
-   * @brief verify if option is used for bootstrap.
+   * @brief verify that bootstrap option (--bootstrap or -B) was given by user.
    *
    * @throw std::runtime_error if called in non-bootstrap mode.
    */
-  void check_bootstrap_option(const std::string& option_name) const;
+  void assert_bootstrap_mode(const std::string& option_name) const;
 
   /** @brief Shows command line usage and option description
    *
