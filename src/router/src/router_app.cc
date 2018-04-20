@@ -24,6 +24,7 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN ::mysql_harness::logging::kMainLogger // must precede #include "logging.h"
 
+#include "common.h"
 #include "dim.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
@@ -47,24 +48,22 @@
 #include <string>
 #include <vector>
 
-#include "common.h"
-
 #ifndef _WIN32
-#include <fcntl.h>
-#include <unistd.h>
-#include <signal.h>
-const char dir_sep = '/';
-const std::string path_sep = ":";
+#  include <fcntl.h>
+#  include <unistd.h>
+#  include <signal.h>
+   const char dir_sep = '/';
+   const std::string path_sep = ":";
 #else
-#include <windows.h>
-#include <process.h>
-#define getpid _getpid
-#include "mysqlrouter/windows/password_vault.h"
-#include <string.h>
-#include <io.h>
-#define strtok_r strtok_s
-const char dir_sep = '\\';
-const std::string path_sep = ";";
+#  include <windows.h>
+#  include <process.h>
+#  define getpid _getpid
+#  include "mysqlrouter/windows/password_vault.h"
+#  include <string.h>
+#  include <io.h>
+#  define strtok_r strtok_s
+   const char dir_sep = '\\';
+   const std::string path_sep = ";";
 #endif
 
 IMPORT_LOG_FUNCTIONS()

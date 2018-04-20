@@ -152,10 +152,10 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
   /**
    * wait for a non-blocking connect() to finish
    *
+   * call connect_non_blocking_status() to get the final result
+   *
    * @param sock a connected socket
    * @param timeout time to wait for the connect to complete
-   *
-   * call connect_non_blocking_status() to get the final result
    */
   int connect_non_blocking_wait(int sock, std::chrono::milliseconds timeout) override;
 
