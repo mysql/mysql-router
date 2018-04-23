@@ -38,8 +38,31 @@ public:
                                  mysql_harness::SocketOperations::instance())
   : mysql_(mysql), socket_operations_(sockops) {}
 
-  void check_router_id(uint32_t router_id);
-  uint32_t register_router(const std::string &router_name, bool overwrite);
+  /** @brief Checks if Router with id is already registered in metadata database
+   *
+   * @param router_id Router id
+   * @param hostname_override If non-empty, this hostname will be used instead
+   *        of getting queried from OS
+   *
+   * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
+   *         failure, std::runtime_error on other failure
+   */
+  void check_router_id(uint32_t router_id, const std::string& hostname_override = "");
+
+  /** @brief Registers Router in metadata database
+   *
+   * @param router_name Router name
+   * @param overwrite if Router name is already registered, allow this registration
+   *        to be "hijacked" instead of throwing
+   * @param hostname_override If non-empty, this hostname will be used instead
+   *        of getting queried from OS
+   *
+   * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
+   *         failure, std::runtime_error on other failure
+   */
+  uint32_t register_router(const std::string &router_name, bool overwrite,
+                           const std::string &hostname_override = "");
+
   void update_router_info(uint32_t router_id,
     const std::string &rw_endpoint,
     const std::string &ro_endpoint,

@@ -780,6 +780,115 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
 
 
 
+class RouterReportHostTest : public CommonBootstrapTest {};
+
+/**
+ * @test
+ *        verify that --report-host works for the typical use case
+ */
+TEST_F(RouterReportHostTest, typical_usage) {
+  const std::string bootstrap_directory = get_tmp_dir();
+  const unsigned server_port = port_pool_.get_next_available();
+
+  auto test_it = [&](const std::string& cmdline) -> void {
+    const std::string json_stmts = get_data_dir().
+        join("bootstrap_report_host.js").str();
+
+    // launch mock server and wait for it to start accepting connections
+    auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+    bool ready = wait_for_port_ready(server_port, 1000);
+    EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+    // launch the router in bootstrap mode
+    std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
+    auto router = launch_router(cmdline);
+
+    // add login hook
+    router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
+
+    // check if the bootstraping was successful
+    EXPECT_TRUE(router.expect_output("MySQL Router  has now been configured for the InnoDB cluster 'mycluster'")
+      ) << router.get_full_output() << std::endl << "server: " << server_mock.get_full_output();
+    EXPECT_EQ(router.wait_for_exit(), 0);
+  };
+
+  // --bootstrap before --report-host
+  test_it("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+          + " -d " + bootstrap_directory
+          + " --report-host host.foo.bar");
+
+  // --bootstrap after --report-host
+  test_it("-d " + bootstrap_directory
+          + " --report-host host.foo.bar"
+          + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
+}
+
+/**
+ * @test
+ *        verify that multiple --report-host arguments produce an error
+ *        and exit
+ */
+TEST_F(RouterReportHostTest, multiple_hostnames) {
+  // launch the router in bootstrap mode
+  auto router = launch_router("--bootstrap=1.2.3.4:5678 --report-host host1 --report-host host2");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("Option --report-host can only be used once.")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --report-host without required argument produces an error
+ *        and exits
+ */
+TEST_F(RouterReportHostTest, argument_missing) {
+  // launch the router in bootstrap mode
+  auto router = launch_router("--bootstrap=1.2.3.4:5678 --report-host");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("option '--report-host' requires a value.")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --report-host without --bootstrap switch produces an error
+ *        and exits
+ */
+TEST_F(RouterReportHostTest, without_bootstrap_flag) {
+  // launch the router in bootstrap mode
+  auto router = launch_router("--report-host host1");
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("Option --report-host can only be used together with -B/--bootstrap")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --report-host with invalid hostname argument produces an
+ *        error and exits
+ *
+ * @note
+ *        There's a separate suite of unit tests which tests the validating code
+ *        which determines if the hostname is valid or not - therefore here we
+ *        only focus on how this invalid hostname will be handled - we don't
+ *        concern outselves with correctness of hostname validation itself.
+ */
+TEST_F(RouterReportHostTest, invalid_hostname) {
+  // launch the router in bootstrap mode
+  auto router = launch_router({"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"});
+
+  // check if the bootstraping was successful
+  EXPECT_TRUE(router.expect_output("Error: Option --report-host has an invalid value.")
+    ) << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
 /**
  * @test
  *       verify that bootstrap succeeds when master key writer is used

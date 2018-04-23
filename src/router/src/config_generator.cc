@@ -1136,6 +1136,66 @@ void ConfigGenerator::bootstrap_deployment(std::ostream &config_file,
                 !quiet);
 }
 
+void ConfigGenerator::ensure_router_id_is_ours(uint32_t &router_id,
+                                               std::string &username,
+                                               const std::string &hostname_override,
+                                               MySQLInnoDBClusterMetadata &metadata) {
+  std::string attributes;
+  // if router data is valid
+  try {
+    metadata.check_router_id(router_id, hostname_override);
+  } catch (const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError& e) {
+    throw std::runtime_error(
+        std::string("Could not verify if this Router instance is already registered with the "
+                    "cluster because querying this host's hostname from OS failed:\n  ") + e.what()
+        + "\nYou may want to try --report-host option to manually supply this hostname."
+    );
+  } catch (const std::exception &e) {
+    log_warning("WARNING: %s", e.what());
+    // TODO: abort here and suggest --force to force reconfiguration?
+    router_id = 0;
+    username.clear();
+  }
+}
+
+void ConfigGenerator::register_router(uint32_t &router_id,
+                                      const std::string &router_name,
+                                      std::string &username,
+                                      const std::string &hostname_override,
+                                      bool force,
+                                      MySQLInnoDBClusterMetadata &metadata,
+                                      mysql_harness::RandomGeneratorInterface &rg) {
+  try {
+    router_id = metadata.register_router(router_name, force, hostname_override);
+  } catch (const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError& e) {
+    throw std::runtime_error(
+        std::string("Could not register this Router instance with the cluster because "
+                    "querying this host's hostname from OS failed:\n  ") + e.what()
+        + "\nYou may want to try --report-host option to manually supply this hostname."
+    );
+  } catch (MySQLSession::Error &e) {
+    if (e.code() == 1062) { // duplicate key
+      throw std::runtime_error(
+          "It appears that a router instance named '" + router_name +
+          "' has been previously configured in this host. If that instance"
+          " no longer exists, use the --force option to overwrite it."
+      );
+    }
+
+    throw;
+  }
+
+  if (router_id > kMaxRouterId) {
+    throw std::runtime_error("router_id (" + std::to_string(router_id)
+        + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
+  }
+
+  using RandomGen = mysql_harness::RandomGeneratorInterface;
+  username = "mysql_router" + std::to_string(router_id) + "_"
+      + rg.generate_identifier(kNumRandomChars,
+                               RandomGen::AlphabetDigits|RandomGen::AlphabetLowercase);
+}
+
 std::tuple<std::string>
 ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &username,
     const std::string &router_name,
@@ -1147,47 +1207,31 @@ ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &user
     const std::string &rw_x_endpoint,
     const std::string &ro_x_endpoint) {
 
-  using RandomGen = mysql_harness::RandomGeneratorInterface;
-
-  bool force = user_options.find("force") != user_options.end();
-
   MySQLSession::Transaction transaction(mysql_.get());
   MySQLInnoDBClusterMetadata metadata(mysql_.get());
 
-  // if reconfiguration
+  // set hostname override if provided
+  const auto& it = user_options.find("report-host");
+  const std::string& hostname_override = (it != user_options.end())
+                                         ? it->second
+                                         : "";
+  // if reconfiguration;
   if (router_id > 0) {
-    std::string attributes;
-    // if router data is valid
-    try {
-      metadata.check_router_id(router_id);
-    } catch (const std::exception &e) {
-      log_warning("WARNING: %s", e.what());
-      // TODO: abort here and suggest --force to force reconfiguration?
-      router_id = 0;
-      username.clear();
-    }
+    // throws std::runtime if our hostname couldn't be queried,
+    // resets router_id to 0 and clears username if router_id doesn't exist or
+    // belongs to a different host.
+    // NOTE that these were passed by reference to us, thus they are stored
+    //      outside of this function and will be persisted to the next call.
+    ensure_router_id_is_ours(router_id, username, hostname_override, metadata);
   }
-  // router not registered yet (or router_id was invalid)
+
+  // if router not registered yet (or router_id was invalid)
   if (router_id == 0) {
     assert(username.empty());
-    try {
-      router_id = metadata.register_router(router_name, force);
-      if (router_id > kMaxRouterId)
-        throw std::runtime_error("router_id (" + std::to_string(router_id)
-            + ") exceeded max allowable value (" + std::to_string(kMaxRouterId) + ")");
-      username = "mysql_router" + std::to_string(router_id) + "_"
-          + rg.generate_identifier(kNumRandomChars, RandomGen::AlphabetDigits|RandomGen::AlphabetLowercase);
-    } catch (MySQLSession::Error &e) {
-      if (e.code() == 1062) { // duplicate key
-        throw std::runtime_error(
-            "It appears that a router instance named '" + router_name +
-            "' has been previously configured in this host. If that instance"
-            " no longer exists, use the --force option to overwrite it."
-        );
-      }
+    bool force = user_options.find("force") != user_options.end();
 
-      throw;
-    }
+    // throws std::runtime on failure
+    register_router(router_id, router_name, username, hostname_override, force, metadata, rg);
   }
 
   assert(router_id);

@@ -66,11 +66,14 @@ DECLARE_TEST(ConfigGeneratorTest, set_file_owner_no_user);
 DECLARE_TEST(ConfigGeneratorTest, set_file_owner_user_empty);
 DECLARE_TEST(ConfigGeneratorTest, start_sh);
 DECLARE_TEST(ConfigGeneratorTest, stop_sh);
+DECLARE_TEST(ConfigGeneratorTest, register_router_error_message);
+DECLARE_TEST(ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
 #endif
 
 class AutoCleaner;
 
 namespace mysqlrouter {
+class MySQLInnoDBClusterMetadata;
 class MySQLSession;
 class SysUserOperationsBase;
 class SysUserOperations;
@@ -301,6 +304,19 @@ private:
 
   static void set_ssl_options(MySQLSession* sess,
                            const std::map<std::string, std::string>& options);
+
+  void ensure_router_id_is_ours(uint32_t &router_id,
+                                std::string &username,
+                                const std::string &hostname_override,
+                                MySQLInnoDBClusterMetadata &metadata);
+
+  void register_router(uint32_t &router_id,
+                       const std::string &router_name,
+                       std::string &username,
+                       const std::string &hostname_override,
+                       bool force,
+                       MySQLInnoDBClusterMetadata &metadata,
+                       mysql_harness::RandomGeneratorInterface &rg);
 private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
   int connect_timeout_;
@@ -339,6 +355,8 @@ private:
   FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_user_empty);
   FRIEND_TEST(::ConfigGeneratorTest, start_sh);
   FRIEND_TEST(::ConfigGeneratorTest, stop_sh);
+  FRIEND_TEST(::ConfigGeneratorTest, register_router_error_message);
+  FRIEND_TEST(::ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
 #endif
 };
 }

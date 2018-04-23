@@ -105,22 +105,28 @@ TEST_F(ClusterMetadataTest, check_router_id_ok) {
   EXPECT_NO_THROW(cluster_metadata.check_router_id(1));
 }
 
-ACTION(ThrowRuntimeException)
+ACTION_P(ThrowLocalHostnameResolutionError, msg)
 {
-  throw std::runtime_error("");
+  throw mysql_harness::SocketOperationsBase::LocalHostnameResolutionError(msg);
 }
 
+/**
+ * @test verify that check_router_id() will throw if get_my_hostname() fails
+ */
 TEST_F(ClusterMetadataTest, check_router_id_get_hostname_throws) {
   const std::string kHostId = "2";
   const std::string kHostname = "";
   MySQLInnoDBClusterMetadata cluster_metadata(&session_replayer, &hostname_operations);
 
   session_replayer.expect_query_one(kQueryGetHostname).then_return(2, {{kHostId.c_str(), kHostname.c_str()}});
-  EXPECT_CALL(hostname_operations, get_my_hostname()).Times(1).WillOnce(ThrowRuntimeException());
+  EXPECT_CALL(hostname_operations, get_my_hostname()).Times(1).WillOnce(
+      ThrowLocalHostnameResolutionError("some error from get_my_hostname()"));
 
-
-  // get_my_hostname() throwing should be handled inside check_router_id
-  EXPECT_NO_THROW(cluster_metadata.check_router_id(1));
+  EXPECT_THROW_LIKE(
+    cluster_metadata.check_router_id(1),
+    mysql_harness::SocketOperationsBase::LocalHostnameResolutionError,
+    "some error from get_my_hostname()"
+  );
 }
 
 TEST_F(ClusterMetadataTest, check_router_id_router_not_found) {
@@ -167,6 +173,9 @@ TEST_F(ClusterMetadataTest, register_router_ok) {
   EXPECT_NO_THROW(cluster_metadata.register_router(kRouterName, false));
 }
 
+/**
+ * @test verify that register_router() will throw if get_my_hostname() fails
+ */
 TEST_F(ClusterMetadataTest, register_router_get_hostname_throws) {
   const std::string kRouterName = "routername";
   const std::string kHostName = "";
@@ -174,10 +183,15 @@ TEST_F(ClusterMetadataTest, register_router_get_hostname_throws) {
 
   session_replayer.expect_query_one(kCheckHostExists).then_return(3, {{"1", kHostName.c_str(), "127.0.0.1"}});
   session_replayer.expect_execute(kRegisterRouter).then_ok();
-  EXPECT_CALL(hostname_operations, get_my_hostname()).Times(1).WillOnce(ThrowRuntimeException());
+  EXPECT_CALL(hostname_operations, get_my_hostname()).Times(1).WillOnce(
+      ThrowLocalHostnameResolutionError("some error from get_my_hostname()"));
 
   // get_my_hostname() throwing should be handled inside register_router
-  EXPECT_NO_THROW(cluster_metadata.register_router(kRouterName, false));
+  EXPECT_THROW_LIKE(
+    cluster_metadata.register_router(kRouterName, false),
+    mysql_harness::SocketOperationsBase::LocalHostnameResolutionError,
+    "some error from get_my_hostname()"
+  );
 }
 
 int main(int argc, char *argv[]) {

@@ -2794,6 +2794,88 @@ TEST_F(ConfigGeneratorTest, stop_sh) {
 }
 #endif // #ifndef _WIN32
 
+//TODO Create MockSocketOperations with all methods mocked somewhere in a place
+//     commonly accessible to all our tests.  At the time of writing this,
+//     there's several MockSocketOperations we have in our test code, they're
+//     mostly identical, but unfortunately cannot be reused because they're in
+//     different codecases.
+class MockSocketOperations : public mysql_harness::SocketOperationsBase {
+ public:
+  // this one is key to our tests here
+  std::string get_my_hostname() {
+    throw LocalHostnameResolutionError("some error message from get_my_hostname()");
+  }
+
+  // we don't call these, but we need to provide an implementation (they're pure virtual)
+  MOCK_METHOD3(read, ssize_t(int, void*, size_t));
+  MOCK_METHOD3(write, ssize_t(int, void*, size_t));
+  MOCK_METHOD1(close, void(int));
+  MOCK_METHOD1(shutdown, void(int));
+  MOCK_METHOD1(freeaddrinfo, void(addrinfo *ai));
+  MOCK_METHOD4(getaddrinfo, int(const char*, const char*, const addrinfo*, addrinfo**));
+  MOCK_METHOD3(bind, int(int, const struct sockaddr*, socklen_t));
+  MOCK_METHOD3(socket, int(int, int, int));
+  MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
+  MOCK_METHOD2(listen, int(int fd, int n));
+  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
+  MOCK_METHOD2(connect_non_blocking_wait, int(int sock, std::chrono::milliseconds timeout));
+  MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
+  MOCK_METHOD1(set_errno, void(int err));
+  MOCK_METHOD0(get_errno, int());
+};
+
+/**
+ * @test verify that exception thrown by (Mock)SocketOperations::get_my_hostname()
+ *       when local hostname lookup fails in ConfigGenerator::register_router()
+ *       will be caught and rethrown with a user-friendly message
+ */
+TEST_F(ConfigGeneratorTest, register_router_error_message) {
+
+  MockSocketOperations sock_ops;  // this implementation will trigger our scenario by throwing
+
+  mysqlrouter::MySQLInnoDBClusterMetadata metadata(nullptr, &sock_ops);
+  mysql_harness::RandomGenerator rg;
+  uint32_t router_id = 1u;
+  std::string username;
+
+  EXPECT_THROW_LIKE(
+    ConfigGenerator().register_router(router_id, "foo", username, "", false, metadata, rg),
+    std::runtime_error,
+    "Could not register this Router instance with the cluster because querying this host's hostname from OS failed:\n"
+    "  some error message from get_my_hostname()\n"
+    "You may want to try --report-host option to manually supply this hostname."
+  );
+}
+
+/**
+ * @test verify that exception thrown by (Mock)SocketOperations::get_my_hostname()
+ *       when local hostname lookup fails in ConfigGenerator::ensure_router_id_is_ours()
+ *       will be caught and rethrown with a user-friendly message
+ */
+TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
+
+  MockSocketOperations sock_ops;  // this implementation will trigger our scenario by throwing
+
+  MySQLSessionReplayer mysql;
+  mysqlrouter::MySQLInnoDBClusterMetadata metadata(&mysql, &sock_ops);
+  mysql.expect_query_one("SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers "
+                         "r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id "
+                         "WHERE r.router_id = 1").then_return(2, {
+                           {mysql.string_or_null("1"), mysql.string_or_null("foo")}
+                         });
+  mysql_harness::RandomGenerator rg;
+  uint32_t router_id = 1u;
+  std::string username;
+
+  EXPECT_THROW_LIKE(
+    ConfigGenerator().ensure_router_id_is_ours(router_id, username, "", metadata),
+    std::runtime_error,
+    "Could not verify if this Router instance is already registered with the cluster because querying this host's hostname from OS failed:\n"
+    "  some error message from get_my_hostname()\n"
+    "You may want to try --report-host option to manually supply this hostname."
+  );
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();

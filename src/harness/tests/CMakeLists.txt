@@ -56,6 +56,7 @@ SET(TESTS
   test_common.cc
   test_config.cc
   test_filesystem.cc
+  test_hostname_validator.cc
   test_ip_address.cc
   test_bug22104451.cc
   test_resolver.cc

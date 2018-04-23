@@ -266,8 +266,8 @@ void mysqlrouter::check_innodb_metadata_cluster_session(MySQLSession *mysql,
   }
 }
 
-
-void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
+void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id,
+                                                 const std::string& hostname_override) {
   // query metadata for this router_id
   sqlstring query("SELECT h.host_id, h.host_name"
                   " FROM mysql_innodb_cluster_metadata.routers r"
@@ -281,18 +281,10 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id) {
     throw std::runtime_error("router_id "+std::to_string(router_id)+" not found in metadata");
   }
 
-  std::string hostname;
-  try {
-    hostname = socket_operations_->get_my_hostname();
-  }
-  catch (const std::runtime_error& exc) {
-    // If we fail to get the hostname we continue with an empty value.
-    // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
-    // Currently the hostname in the metadata is not being used anyway.
-    log_warning("WARNING: Failed calling get_my_hostname() with error: %s\n"
-                "Continuing with an empty hostname", exc.what());
-    // TODO: also log when the logger is available here
-  }
+  // get_my_hostname() throws LocalHostnameResolutionError (std::runtime_error)
+  std::string hostname = hostname_override.empty()
+                       ? socket_operations_->get_my_hostname()
+                       : hostname_override;
 
   if ((*row)[1] && strcasecmp((*row)[1], hostname.c_str()) == 0) {
     return;
@@ -330,20 +322,14 @@ void MySQLInnoDBClusterMetadata::update_router_info(uint32_t router_id,
 }
 
 uint32_t MySQLInnoDBClusterMetadata::register_router(
-    const std::string &router_name, bool overwrite) {
+    const std::string &router_name, bool overwrite,
+    const std::string &hostname_override) {
   uint32_t host_id;
-  std::string hostname;
-  try {
-    hostname = socket_operations_->get_my_hostname();
-  }
-  catch (const std::runtime_error& exc) {
-    // If we fail to get the hostname we continue with an empty value.
-    // Otherwise it causes the bootstrap fail on the machines with no DNS enabled.
-    // Currently the hostname in the metadata is not being used anyway.
-    log_warning("WARNING: Failed calling get_my_hostname() with error: %s\n"
-                "Continuing with an empty hostname", exc.what());
-    // TODO: also log when the logger is available here
-  }
+
+  // get_my_hostname() throws LocalHostnameResolutionError (std::runtime_error)
+  std::string hostname = hostname_override.empty()
+                       ? socket_operations_->get_my_hostname()
+                       : hostname_override;
 
   // check if the host already exists in the metadata schema and if so, get
   // our host_id.. if it doesn't, insert it and get the host_id

@@ -172,9 +172,13 @@ int SocketOperations::listen(int fd, int n) {
 std::string SocketOperations::get_my_hostname() {
   char buf[1024] = {0};
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
-  if (gethostname(buf, sizeof(buf)) < 0) {
-    // log_error("Could not get hostname: %s", mysql_harness::get_message_error(msg);
-    throw std::runtime_error("Could not get local hostname");
+  int ret = gethostname(buf, sizeof(buf));
+  if (ret < 0) {
+    int err = get_errno();
+    throw LocalHostnameResolutionError("Could not get local hostname: "
+                                       + mysql_harness::get_strerror(err)
+                                       + " (ret: " + std::to_string(ret)
+                                       + ", error: " + std::to_string(err) + ")");
   }
 #else
   struct ifaddrs *ifa = nullptr, *ifap;
@@ -183,9 +187,10 @@ std::string SocketOperations::get_my_hostname() {
 
   std::shared_ptr<ifaddrs> ifa_deleter(nullptr, [&](void*){if (ifa) freeifaddrs(ifa);});
   if ((ret = getifaddrs(&ifa)) != 0 || !ifa) {
-    throw std::runtime_error("Could not get local host address: " + mysql_harness::get_strerror(errno)
-                             + " (ret: " + std::to_string(ret)
-                             + ", errno: " + std::to_string(errno) + ")");
+    throw LocalHostnameResolutionError("Could not get local host address: "
+                                       + mysql_harness::get_strerror(errno)
+                                       + " (ret: " + std::to_string(ret)
+                                       + ", errno: " + std::to_string(errno) + ")");
   }
   for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
     if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) || (!(ifap->ifa_flags & IFF_UP)))
@@ -205,9 +210,10 @@ std::string SocketOperations::get_my_hostname() {
         static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
   }
   if (ret != EAI_NONAME && ret != 0) {
-    throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret))
-                             + " (ret: " + std::to_string(ret)
-                             + ", errno: " + std::to_string(errno) + ")");
+    throw LocalHostnameResolutionError("Could not get local hostname: "
+                                       + std::string(gai_strerror(ret))
+                                       + " (ret: " + std::to_string(ret)
+                                       + ", errno: " + std::to_string(errno) + ")");
   }
 #endif
   return buf;

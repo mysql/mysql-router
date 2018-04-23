@@ -26,6 +26,7 @@
 #define MYSQL_HARNESS_SOCKETOPERATIONS_INCLUDED
 
 #include <chrono>
+#include <stdexcept>
 #include <string>
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -105,6 +106,11 @@ class HARNESS_EXPORT SocketOperationsBase {
    */
   virtual int connect_non_blocking_status(int sock, int &so_error) = 0;
 
+  /** @brief Exception thrown by `get_my_hostname()` on error */
+  class LocalHostnameResolutionError : public std::runtime_error {
+    using std::runtime_error::runtime_error;
+  };
+
   /** @brief return hostname of local host */
   virtual std::string get_my_hostname() = 0;
 };
@@ -171,7 +177,10 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    */
   int connect_non_blocking_status(int sock, int &so_error) override;
 
-  /** @brief return hostname of local host */
+  /** @brief return hostname of local host
+   *
+   * @throws `LocalHostnameResolutionError` (std::runtime_error) on failure
+   */
   std::string get_my_hostname() override;
 
   /**

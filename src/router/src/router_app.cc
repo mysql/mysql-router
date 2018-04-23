@@ -26,6 +26,7 @@
 
 #include "common.h"
 #include "dim.h"
+#include "hostname_validator.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -901,6 +902,21 @@ void MySQLRouter::prepare_command_options() noexcept {
         auto it = std::unique(hostnames.begin(), hostnames.end());
         hostnames.resize(std::distance(hostnames.begin(), it));
       }, [this] { this->assert_bootstrap_mode("--account-host"); });
+
+  arg_handler_.add_option(OptionNames({"--report-host"}),
+                          "Host name of this computer (it will be queried from OS if not provided). "
+                          "It is used as suffix (the part after '@') in Router's database user name; "
+                          "should match host name as seen by the cluster nodes (bootstrap)",
+                          CmdOptionValueReq::required, "report-host",
+                          [this](const string &hostname) {
+
+        if (!mysql_harness::is_valid_hostname(hostname.c_str()))
+          throw std::runtime_error("Option --report-host has an invalid value.");
+
+        auto pr = this->bootstrap_options_.insert({"report-host", hostname});
+        if (pr.second == false)
+          throw std::runtime_error("Option --report-host can only be used once.");
+      }, [this] { this->assert_bootstrap_mode("--report-host"); });
 
   arg_handler_.add_option(OptionNames({"--force"}),
                           "Force reconfiguration of a possibly existing instance of the router. (bootstrap)",
