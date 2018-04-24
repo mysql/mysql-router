@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "socket_operations.h"
 #include "tcp_address.h"
 #include "mysqlrouter/plugin_config.h"
 
@@ -191,53 +192,26 @@ std::string get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept
  */
 void set_socket_blocking(int sock, bool blocking);
 
-/** @class SocketOperationsBase
- * @brief Base class to allow multiple SocketOperations implementations
+
+/** @class RoutingSockOpsInterface
+ * @brief Interface class to allow multiple RoutingSockOps implementations
  *        (at least one "real" and one mock for testing purposes)
  */
-class SocketOperationsBase {
+class RoutingSockOpsInterface {
  public:
-
-  virtual ~SocketOperationsBase() = default;
+  virtual ~RoutingSockOpsInterface() = default;
   virtual int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log = true) noexcept = 0;
-  virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
-  virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
-  virtual void close(int fd) = 0;
-  virtual void shutdown(int fd) = 0;
-  virtual void freeaddrinfo(addrinfo *ai) = 0;
-  virtual int getaddrinfo(const char *node, const char *service, const addrinfo *hints, addrinfo **res) = 0;
-  virtual int bind(int fd, const struct sockaddr *addr, socklen_t len) = 0;
-  virtual int socket(int domain, int type, int protocol) = 0;
-  virtual int setsockopt(int fd, int level, int optname,
-                         const void *optval, socklen_t optlen) = 0;
-  virtual int listen(int fd, int n) = 0;
-
-
-  /** @brief Wrapper around socket library write() with a looping logic
-   *         making sure the whole buffer got written
-   */
-  virtual ssize_t write_all(int fd, void *buffer, size_t nbyte) {
-    ssize_t written = 0;
-    size_t buffer_offset = 0;
-    while (buffer_offset < nbyte) {
-      if ((written = this->write(fd, reinterpret_cast<char*>(buffer)+buffer_offset, nbyte-buffer_offset)) < 0) {
-        return -1;
-      }
-      buffer_offset += static_cast<size_t>(written);
-    }
-    return static_cast<ssize_t>(nbyte);
-  }
-  virtual int get_errno() = 0;
-  virtual void set_errno(int) = 0;
-  virtual int poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout) = 0;
+  virtual mysql_harness::SocketOperationsBase* so() const = 0;
 };
 
-/** @class SocketOperations
+/** @class RoutingSockOps
  * @brief This class provides a "real" (not mock) implementation
  */
-class SocketOperations : public SocketOperationsBase {
+class RoutingSockOps : public RoutingSockOpsInterface {
  public:
-  static SocketOperations* instance();
+  RoutingSockOps(mysql_harness::SocketOperationsBase* sock_ops) : so_(sock_ops) {}
+
+  static RoutingSockOps* instance(mysql_harness::SocketOperationsBase* sock_ops);
 
   /** @brief Returns socket descriptor of connected MySQL server
    *
@@ -258,88 +232,15 @@ class SocketOperations : public SocketOperationsBase {
    */
   int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout, bool log = true) noexcept override;
 
-  /** @brief Thin wrapper around socket library write() */
-  ssize_t write(int fd, void *buffer, size_t nbyte) override;
+  /** @brief Returns SocketOperations implementation used by this class */
+  mysql_harness::SocketOperationsBase* so() const override { return so_; }
 
-  /** @brief Thin wrapper around socket library read() */
-  ssize_t read(int fd, void *buffer, size_t nbyte) override;
-
-  /** @brief Thin wrapper around socket library close() */
-  void close(int fd)  override;
-
-  /** @brief Thin wrapper around socket library shutdown() */
-  void shutdown(int fd) override;
-
-  /** @brief Thin wrapper around socket library freeaddrinfo() */
-  void freeaddrinfo(addrinfo *ai) override;
-
-  /** @brief Thin wrapper around socket library getaddrinfo() */
-  int getaddrinfo(const char *node, const char *service, const addrinfo *hints, addrinfo **res) override;
-
-  /** @brief Thin wrapper around socket library bind() */
-  int bind(int fd, const struct sockaddr *addr, socklen_t len) override;
-
-  /** @brief Thin wrapper around socket library socket() */
-  int socket(int domain, int type, int protocol) override;
-
-  /** @brief Thin wrapper around socket library setsockopt() */
-  int setsockopt(int fd, int level, int optname,
-                 const void *optval, socklen_t optlen) override;
-
-  /** @brief Thin wrapper around socket library listen() */
-  int listen(int fd, int n) override;
-
-  /**
-   * wrapper around poll()/WSAPoll()
-   */
-  int poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout) override;
-
-  /**
-   * wait for a non-blocking connect() to finish
-   *
-   * @param sock a connected socket
-   * @param timeout time to wait for the connect to complete
-   *
-   * call connect_non_blocking_status() to get the final result
-   */
-  int connect_non_blocking_wait(int sock, std::chrono::milliseconds timeout);
-
-  /**
-   * get the non-blocking connect() status
-   *
-   * must be called after connect()ed socket became writable.
-   *
-   * @see connect_non_blocking_wait() and poll()
-   */
-  int connect_non_blocking_status(int sock, int &so_error);
-
-  /**
-   * get the error-code of the last (socket) operation
-   *
-   * @see errno or WSAGetLastError()
-   */
-  int get_errno() override {
-#ifdef _WIN32
-    return WSAGetLastError();
-#else
-    return errno;
-#endif
-  }
-
-  /**
-   * wrapper around errno/WSAGetLastError()
-   */
-  void set_errno(int e) override {
-#ifdef _WIN32
-    WSASetLastError(e);
-#else
-    errno = e;
-#endif
-  }
  private:
-  SocketOperations(const SocketOperations&) = delete;
-  SocketOperations operator=(const SocketOperations&) = delete;
-  SocketOperations() = default;
+  RoutingSockOps() = default;
+  RoutingSockOps(const RoutingSockOps&) = delete;
+  RoutingSockOps operator=(const RoutingSockOps&) = delete;
+
+  mysql_harness::SocketOperationsBase* so_;
 };
 
 } // namespace routing

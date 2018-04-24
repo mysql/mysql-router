@@ -40,10 +40,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 using RoutingProtocolBuffer = mysql_protocol::Packet::vector_t;
 
 namespace routing {
-  class SocketOperationsBase;
+  class RoutingSockOpsInterface;
 }
-
-using routing::SocketOperationsBase;
 
 class BaseProtocol {
 public:
@@ -54,7 +52,7 @@ public:
     kXProtocol
   };
 
-  BaseProtocol(SocketOperationsBase *socket_operations): socket_operations_(socket_operations) {}
+  BaseProtocol(routing::RoutingSockOpsInterface *routing_sock_ops): routing_sock_ops_(routing_sock_ops) {}
   virtual ~BaseProtocol() {}
 
   /** @brief Function that gets called when the client is being blocked
@@ -112,7 +110,7 @@ public:
   /** @brief Gets protocol type. */
   virtual Type get_type() = 0;
 protected:
-  SocketOperationsBase *socket_operations_;
+  routing::RoutingSockOpsInterface *routing_sock_ops_;
 };
 
 #endif // ROUTING_BASEPROTOCOL_INCLUDED

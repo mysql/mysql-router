@@ -51,10 +51,11 @@ using ::testing::Return;
 
 class XProtocolTest : public ::testing::Test {
 protected:
-  XProtocolTest() {
-    mock_socket_operations_.reset(new MockSocketOperations());
-    x_protocol_.reset(new XProtocol(mock_socket_operations_.get()));
-  }
+  XProtocolTest() :
+    mock_routing_sock_ops_(new MockRoutingSockOps()),
+    mock_socket_operations_(mock_routing_sock_ops_->so()),
+    x_protocol_(new XProtocol(mock_routing_sock_ops_.get()))
+  {}
 
   virtual void SetUp() {
     network_buffer_.resize(routing::kDefaultNetBufferLength);
@@ -63,7 +64,8 @@ protected:
     handshake_done_ = false;
   }
 
-  std::unique_ptr<MockSocketOperations> mock_socket_operations_;
+  std::unique_ptr<MockRoutingSockOps> mock_routing_sock_ops_;
+  MockSocketOperations* mock_socket_operations_;
   std::unique_ptr<BaseProtocol> x_protocol_;
 
   void serialize_protobuf_msg_to_buffer(RoutingProtocolBuffer& buffer,

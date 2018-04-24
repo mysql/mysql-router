@@ -132,8 +132,8 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache
                                                const Protocol::Type protocol,
                                                const routing::AccessMode access_mode,
                                                metadata_cache::MetadataCacheAPIBase* cache_api,
-                                               routing::SocketOperationsBase *sock_ops) :
-    RouteDestination(protocol, sock_ops),
+                                               routing::RoutingSockOpsInterface *routing_sock_ops) :
+    RouteDestination(protocol, routing_sock_ops),
     cache_name_(metadata_cache),
     ha_replicaset_(replicaset),
     uri_query_(query),

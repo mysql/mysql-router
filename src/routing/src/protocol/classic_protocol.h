@@ -31,7 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 class ClassicProtocol: public BaseProtocol {
 public:
-  ClassicProtocol(SocketOperationsBase *socket_operations): BaseProtocol(socket_operations) {}
+  ClassicProtocol(routing::RoutingSockOpsInterface *routing_sock_ops)
+      : BaseProtocol(routing_sock_ops) {}
 
   /** @brief Function that gets called when the client is being blocked
    *

@@ -60,20 +60,20 @@ public:
   /** @brief Factory method creating protocol object for handling the routing code that is protocol-specific
    *
    * @param type type of the protocol for which the handler should be created
-   * @param socket_operations socket operations
+   * @param routing_sock_ops socket operations
    *
    * @returns pointer to the created object
    */
   static BaseProtocol* create(Type type,
-                              SocketOperationsBase *socket_operations) {
+                              routing::RoutingSockOpsInterface *routing_sock_ops) {
     BaseProtocol* result{nullptr};
 
     switch (type ) {
     case Type::kClassicProtocol:
-      result =  new ClassicProtocol(socket_operations);
+      result =  new ClassicProtocol(routing_sock_ops);
       break;
     case Type::kXProtocol:
-      result =  new XProtocol(socket_operations);
+      result =  new XProtocol(routing_sock_ops);
       break;
     default:
       throw std::invalid_argument("Invalid protocol: " + std::to_string(static_cast<int>(type)));

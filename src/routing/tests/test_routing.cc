@@ -68,7 +68,8 @@ protected:
   virtual void TearDown() {
   }
 
-  MockSocketOperations socket_op;
+  MockRoutingSockOps routing_sock_ops;
+  MockSocketOperations& socket_op = *routing_sock_ops.so();
 };
 
 TEST_F(RoutingTests, AccessModes) {
@@ -126,7 +127,7 @@ TEST_F(RoutingTests, CopyPacketsSingleWrite) {
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(200));
 
 
-  ClassicProtocol cp(&socket_op);
+  ClassicProtocol cp(&routing_sock_ops);
   int res = cp.copy_packets(sender_socket, receiver_socket, true /* sender is writable */,
                             buffer, &curr_pktnr,
                             handshake_done, &report_bytes_read, false);
@@ -153,7 +154,7 @@ TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
   // third writes the remaining chunk
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[100], 100)).WillOnce(Return(100));
 
-  ClassicProtocol cp(&socket_op);
+  ClassicProtocol cp(&routing_sock_ops);
   int res = cp.copy_packets(sender_socket, receiver_socket, true,
                             buffer, &curr_pktnr,
                             handshake_done, &report_bytes_read, false);
@@ -172,7 +173,7 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
   EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size())).WillOnce(Return(200));
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200)).WillOnce(Return(-1));
 
-  ClassicProtocol cp(&socket_op);
+  ClassicProtocol cp(&routing_sock_ops);
   // will log "Write error: ..." as we don't mock an errno
   int res = cp.copy_packets(sender_socket, receiver_socket, true,
                             buffer, &curr_pktnr,
@@ -191,7 +192,7 @@ public:
   MockServer(uint16_t port) {
     int option_value;
 
-    socket_operations_ = routing::SocketOperations::instance();
+    socket_operations_ = mysql_harness::SocketOperations::instance();
 
     if ((service_tcp_ = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
       throw std::runtime_error(mysql_harness::get_strerror(errno));
@@ -283,7 +284,7 @@ public:
   std::atomic_int max_expected_accepts_ { 0 };
 
 private:
-  routing::SocketOperationsBase* socket_operations_;
+  mysql_harness::SocketOperationsBase* socket_operations_;
   std::thread thread_;
   int service_tcp_;
   std::atomic_bool stop_;
@@ -291,14 +292,15 @@ private:
 
 
 static int connect_local(uint16_t port) {
-  return routing::SocketOperations::instance()->get_mysql_socket(TCPAddress("127.0.0.1", port), std::chrono::milliseconds(100), true);
+  return routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance())
+         ->get_mysql_socket(TCPAddress("127.0.0.1", port), std::chrono::milliseconds(100), true);
 }
 
 static void disconnect(int sock) {
   if (write(sock, kByeMessage, sizeof(kByeMessage)) < 0)
     std::cout << "write(xproto-connection-close) returned error\n";
 
-  routing::SocketOperations::instance()->close(sock);
+  mysql_harness::SocketOperations::instance()->close(sock);
 }
 
 #ifndef _WIN32
@@ -589,7 +591,8 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   // wrong port number
   {
     TCPAddress address("127.0.0.1", 10888);
-    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    int server = routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance())
+                 ->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
     ASSERT_EQ(server, -1);
   }
@@ -599,7 +602,8 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   // wrong port number and IP
   {
     TCPAddress address("127.0.0.11", 10888);
-    int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
+    int server = routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance())
+                 ->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
     ASSERT_EQ(server, -1);
   }

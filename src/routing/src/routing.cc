@@ -135,62 +135,12 @@ void set_socket_blocking(int sock, bool blocking) {
 #endif
 }
 
-SocketOperations* SocketOperations::instance() {
-  static SocketOperations instance_;
-  return &instance_;
+RoutingSockOps* RoutingSockOps::instance(mysql_harness::SocketOperationsBase* sock_ops) {
+  static RoutingSockOps routing_sock_ops(sock_ops);
+  return &routing_sock_ops;
 }
 
-int SocketOperations::poll(struct pollfd *fds, nfds_t nfds, std::chrono::milliseconds timeout_ms) {
-#ifdef _WIN32
-  return ::WSAPoll(fds, nfds, timeout_ms.count());
-#else
-  return ::poll(fds, nfds, timeout_ms.count());
-#endif
-}
-
-int SocketOperations::connect_non_blocking_wait(int sock, std::chrono::milliseconds timeout_ms) {
-  struct pollfd fds[] = {
-    { sock, POLLOUT, 0 },
-  };
-
-  int res = poll(fds, sizeof(fds) / sizeof(fds[0]), timeout_ms);
-
-  if (0 == res) {
-    // timeout
-    this->set_errno(ETIMEDOUT);
-    return -1;
-  } else if (res < 0) {
-    // some error
-    return -1;
-  }
-
-  bool connect_writable = (fds[0].revents & POLLOUT) != 0;
-
-  if (!connect_writable) {
-    // this should not happen
-    this->set_errno(EINVAL);
-    return -1;
-  }
-
-  return 0;
-}
-
-int SocketOperations::connect_non_blocking_status(int sock, int &so_error) {
-  socklen_t error_len = static_cast<socklen_t>(sizeof(so_error));
-
-  if (getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char *>(&so_error), &error_len) == -1) {
-    so_error = get_errno();
-    return -1;
-  }
-
-  if (so_error) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log) noexcept {
+int RoutingSockOps::get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log) noexcept {
   struct addrinfo *servinfo, *info, hints;
 
   memset(&hints, 0, sizeof hints);
@@ -202,7 +152,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
   if ((err = ::getaddrinfo(addr.addr.c_str(), to_string(addr.port).c_str(), &hints, &servinfo)) != 0) {
     if (log) {
 #ifndef _WIN32
-      std::string errstr{(err == EAI_SYSTEM) ? get_message_error(get_errno()) : gai_strerror(err)};
+      std::string errstr{(err == EAI_SYSTEM) ? get_message_error(so_->get_errno()) : gai_strerror(err)};
 #else
       std::string errstr = get_message_error(err);
 #endif
@@ -217,30 +167,30 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
 
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     if ((sock = ::socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-      log_error("Failed opening socket: %s", get_message_error(get_errno()).c_str());
+      log_error("Failed opening socket: %s", get_message_error(so_->get_errno()).c_str());
     } else {
       bool connection_is_good = true;
 
       set_socket_blocking(sock, false);
 
       if (::connect(sock, info->ai_addr, info->ai_addrlen) < 0) {
-        switch (this->get_errno()) {
+        switch (so_->get_errno()) {
 #ifdef _WIN32
           case WSAEINPROGRESS:
           case WSAEWOULDBLOCK:
 #else
           case EINPROGRESS:
 #endif
-            if (0 != connect_non_blocking_wait(sock, connect_timeout_ms)) {
-              log_warning("Timeout reached trying to connect to MySQL Server %s: %s", addr.str().c_str(), get_message_error(get_errno()).c_str());
+            if (0 != so_->connect_non_blocking_wait(sock, connect_timeout_ms)) {
+              log_warning("Timeout reached trying to connect to MySQL Server %s: %s", addr.str().c_str(), get_message_error(so_->get_errno()).c_str());
               connection_is_good = false;
-              timeout_expired = (get_errno() == ETIMEDOUT);
+              timeout_expired = (so_->get_errno() == ETIMEDOUT);
               break;
             }
 
             {
               int so_error = 0;
-              if (0 != connect_non_blocking_status(sock, so_error)) {
+              if (0 != so_->connect_non_blocking_status(sock, so_error)) {
                 connection_is_good = false;
                 break;
               }
@@ -249,7 +199,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
             // success, we can continue
             break;
           default:
-            log_debug("Failed connect() to %s: %s", addr.str().c_str(), get_message_error(get_errno()).c_str());
+            log_debug("Failed connect() to %s: %s", addr.str().c_str(), get_message_error(so_->get_errno()).c_str());
             connection_is_good = false;
             break;
         }
@@ -262,7 +212,7 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
       }
 
       // some error, close the socket again and try the next one
-      this->close(sock);
+      so_->close(sock);
     }
   }
 
@@ -280,74 +230,12 @@ int SocketOperations::get_mysql_socket(TCPAddress addr, std::chrono::millisecond
                  reinterpret_cast<const char*>(&opt_nodelay), // cast keeps Windows happy (const void* on Unix)
                  static_cast<socklen_t>(sizeof(int))) == -1) {
     log_debug("Failed setting TCP_NODELAY on client socket");
-    this->close(sock);
+    so_->close(sock);
 
     return -1;
   }
 
   return sock;
-}
-
-ssize_t SocketOperations::write(int fd, void *buffer, size_t nbyte) {
-#ifndef _WIN32
-  return ::write(fd, buffer, nbyte);
-#else
-  return ::send(fd, reinterpret_cast<const char *>(buffer), nbyte, 0);
-#endif
-}
-
-ssize_t SocketOperations::read(int fd, void *buffer, size_t nbyte) {
-#ifndef _WIN32
-  return ::read(fd, buffer, nbyte);
-#else
-  return ::recv(fd, reinterpret_cast<char *>(buffer), nbyte, 0);
-#endif
-}
-
-void SocketOperations::close(int fd) {
-#ifndef _WIN32
-  ::close(fd);
-#else
-  ::closesocket(fd);
-#endif
-}
-
-void SocketOperations::shutdown(int fd) {
-#ifndef _WIN32
-  ::shutdown(fd, SHUT_RDWR);
-#else
-  ::shutdown(fd, SD_BOTH);
-#endif
-}
-
-void SocketOperations::freeaddrinfo(addrinfo *ai) {
-  return ::freeaddrinfo(ai);
-}
-
-int SocketOperations::getaddrinfo(const char *node, const char *service,
-                                  const addrinfo *hints, addrinfo **res) {
-  return ::getaddrinfo(node, service, hints, res);
-}
-
-int SocketOperations::bind(int fd, const struct sockaddr *addr, socklen_t len) {
-  return ::bind(fd, addr, len);
-}
-
-int SocketOperations::socket(int domain, int type, int protocol) {
-  return ::socket(domain, type, protocol);
-}
-
-int SocketOperations::setsockopt(int fd, int level, int optname,
-                                 const void *optval, socklen_t optlen) {
-#ifndef _WIN32
-  return ::setsockopt(fd, level, optname, optval, optlen);
-#else
-  return ::setsockopt(fd, level, optname, reinterpret_cast<const char*>(optval), optlen);
-#endif
-}
-
-int SocketOperations::listen(int fd, int n) {
-  return ::listen(fd, n);
 }
 
 } // routing

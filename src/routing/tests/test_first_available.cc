@@ -29,8 +29,8 @@
 class FirstAvailableTest : public ::testing::Test {
 
  public:
-  FirstAvailableTest() : sock_ops_(new MockSocketOperations()),
-                         dest_(Protocol::Type::kClassicProtocol, sock_ops_.get()) {
+  FirstAvailableTest() : routing_sock_ops_(new MockRoutingSockOps()),
+                         dest_(Protocol::Type::kClassicProtocol, routing_sock_ops_.get()) {
     dest_.add("41", 1);
     dest_.add("42", 2);
     dest_.add("43", 3);
@@ -41,7 +41,7 @@ class FirstAvailableTest : public ::testing::Test {
   }
 
 protected:
-  std::unique_ptr<MockSocketOperations> sock_ops_;
+  std::unique_ptr<MockRoutingSockOps> routing_sock_ops_;
  private:
   DestFirstAvailable dest_; // this is the class we're testing
 };
@@ -54,7 +54,7 @@ protected:
  *         A -> B -> C -> A -> B -> C -> ...
  *
  *       The switch should occur only when the current active server becomes unavailable.
- *       DestFirstAvailable::get_server_socket() relies on SocketOperationsBase::get_mysql_socket()
+ *       DestFirstAvailable::get_server_socket() relies on RoutingSockOpsInterface::get_mysql_socket()
  *       to return the actual file descriptor, which we mock in this test to simulate connection success
  *       or failure.
  */
@@ -67,95 +67,95 @@ TEST_F(FirstAvailableTest, TypicalFailoverSequence) {
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 5); // 5 good connections
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 5); // 5 good connections
 
   // fail 1st server -> failover to 2nd
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 
   // fail 2nd server -> failover to 3rd
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 
   // fail 3rd server -> back to 1st
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 }
 
 TEST_F(FirstAvailableTest, StartWith1stDown) {
   int dummy;
 
   // fail 1st server -> failover to 2nd
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 42);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 
   // fail 2nd server -> failover to 3rd
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 
   // fail 3rd server -> back to 1st
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 }
 
 TEST_F(FirstAvailableTest, StartWith2ndDown) {
   int dummy;
 
   // fail 1st and 2nd server -> failover to 3rd
-  sock_ops_->get_mysql_socket_fail(2);
+  routing_sock_ops_->get_mysql_socket_fail(2);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 3); // 2 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 3); // 2 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 43);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 
   // fail 3rd server -> no more servers
-  sock_ops_->get_mysql_socket_fail(1);
+  routing_sock_ops_->get_mysql_socket_fail(1);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 2); // 1 failed + 1 good conn
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 4); // 4 more good conns
 }
 
 
@@ -163,13 +163,13 @@ TEST_F(FirstAvailableTest, StartWithAllDown) {
   int dummy;
 
   // fail 1st, 2nd and 3rd server -> no more servers
-  sock_ops_->get_mysql_socket_fail(3);
+  routing_sock_ops_->get_mysql_socket_fail(3);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), -1);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 3); // 3 failed, no more servers
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 3); // 3 failed, no more servers
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41); // back to first
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
   ASSERT_EQ(dest().get_server_socket(std::chrono::seconds::zero(), &dummy), 41);
-  ASSERT_EQ(sock_ops_->get_mysql_socket_call_cnt(), 3); // 3 more good conns
+  ASSERT_EQ(routing_sock_ops_->get_mysql_socket_call_cnt(), 3); // 3 more good conns
 }
 
 int main(int argc, char *argv[]) {

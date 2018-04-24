@@ -47,7 +47,7 @@ class RoundRobinDestinationTest : public ::testing::Test {
 protected:
   virtual void SetUp() {}
 
-  MockSocketOperations mock_socket_operations_;
+  MockRoutingSockOps mock_routing_sock_ops_;
 };
 
 
@@ -156,7 +156,7 @@ TEST_F(RoundRobinDestinationTest, get_server_socket)
   int error;
 
   // create round-robin (read-only) destination and add a few servers
-  DestRoundRobin dest(Protocol::get_default(), &mock_socket_operations_,
+  DestRoundRobin dest(Protocol::get_default(), &mock_routing_sock_ops_,
       mysql_harness::kDefaultStackSizeInKiloBytes);
   std::vector<int> dest_servers_addresses { 11, 12, 13 };
   for (const auto& server_address: dest_servers_addresses) {

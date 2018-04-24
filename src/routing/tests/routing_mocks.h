@@ -48,23 +48,8 @@
 #include <atomic>
 
 
-class MockSocketOperations : public routing::SocketOperationsBase {
+class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  public:
-  int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds, bool = true) noexcept override {
-    get_mysql_socket_call_cnt_++;
-    if (get_mysql_socket_fails_todo_) {
-      set_errno(ECONNREFUSED);
-      get_mysql_socket_fails_todo_--;
-      return -1;  // -1 means server is unavailable
-    } else {
-      set_errno(0);
-
-      // if addr string starts with a number, this will return it. Therefore it's
-      // recommended that addr.addr is set to something like "42"
-      return atoi(addr.addr.c_str());
-    }
-  }
-
   MOCK_METHOD3(read, ssize_t(int, void*, size_t));
   MOCK_METHOD3(write, ssize_t(int, void*, size_t));
   MOCK_METHOD1(close, void(int));
@@ -76,6 +61,8 @@ class MockSocketOperations : public routing::SocketOperationsBase {
   MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
   MOCK_METHOD2(listen, int(int fd, int n));
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
+  MOCK_METHOD2(connect_non_blocking_wait, int(int sock, std::chrono::milliseconds timeout));
+  MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
 
   void set_errno(int err) override {
     // set errno/Windows equivalent. At the time of writing, unit tests
@@ -95,9 +82,27 @@ class MockSocketOperations : public routing::SocketOperationsBase {
     return errno;
 #endif
   }
+};
 
-  void get_mysql_socket_fail(int fail_cnt) {
-    get_mysql_socket_fails_todo_ = fail_cnt;
+class MockRoutingSockOps : public routing::RoutingSockOpsInterface {
+ public:
+  MockRoutingSockOps() : so_(new MockSocketOperations) {}
+
+  MockSocketOperations* so() const override { return so_.get(); }
+
+  int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds, bool = true) noexcept override {
+    get_mysql_socket_call_cnt_++;
+    if (get_mysql_socket_fails_todo_) {
+      so()->set_errno(ECONNREFUSED);
+      get_mysql_socket_fails_todo_--;
+      return -1;  // -1 means server is unavailable
+    } else {
+      so()->set_errno(0);
+
+      // if addr string starts with a number, this will return it. Therefore it's
+      // recommended that addr.addr is set to something like "42"
+      return atoi(addr.addr.c_str());
+    }
   }
 
   int get_mysql_socket_call_cnt() {
@@ -106,9 +111,15 @@ class MockSocketOperations : public routing::SocketOperationsBase {
     return cc;
   }
 
+  void get_mysql_socket_fail(int fail_cnt) {
+    get_mysql_socket_fails_todo_ = fail_cnt;
+  }
+
  private:
   std::atomic_int get_mysql_socket_fails_todo_ { 0 };
   std::atomic_int get_mysql_socket_call_cnt_   { 0 };
+
+  std::unique_ptr<MockSocketOperations> so_;
 };
 
 #ifdef __clang__

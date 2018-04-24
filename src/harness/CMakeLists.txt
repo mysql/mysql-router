@@ -292,6 +292,7 @@ set(harness_source
   src/logging/logging.cc
   src/logging/registry.cc
   src/random_generator.cc
+  src/socket_operations.cc
   src/tcp_address.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc

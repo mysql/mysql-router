@@ -130,7 +130,7 @@ public:
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param socket_operations object handling the operations on network sockets
+   * @param routing_sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   MySQLRouting(routing::RoutingStrategy routing_strategy,
@@ -145,7 +145,8 @@ public:
                unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
                std::chrono::milliseconds connect_timeout = routing::kDefaultClientConnectTimeout,
                unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-               routing::SocketOperationsBase *socket_operations = routing::SocketOperations::instance(),
+               routing::RoutingSockOpsInterface *routing_sock_ops =
+                   routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance()),
                size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
   ~MySQLRouting();
@@ -347,7 +348,7 @@ private:
   std::map<std::array<uint8_t, 16>, size_t> conn_error_counters_;
 
   /** @brief object handling the operations on network sockets */
-  routing::SocketOperationsBase* socket_operations_;
+  routing::RoutingSockOpsInterface* routing_sock_ops_;
   /** @brief object to handle protocol specific stuff */
   std::unique_ptr<BaseProtocol> protocol_;
 

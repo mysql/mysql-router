@@ -51,7 +51,8 @@ public:
                           const Protocol::Type protocol,
                           const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
                           metadata_cache::MetadataCacheAPIBase* cache_api = metadata_cache::MetadataCacheAPI::instance(),
-                          routing::SocketOperationsBase *sock_ops = routing::SocketOperations::instance());
+                          routing::RoutingSockOpsInterface *routing_sock_ops =
+                              routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance()));
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;

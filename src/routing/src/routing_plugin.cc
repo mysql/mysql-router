@@ -211,7 +211,7 @@ static void start(mysql_harness::PluginFuncEnv* env) {
                    config.max_connect_errors,
                    client_connect_timeout,
                    routing::kDefaultNetBufferLength,
-                   routing::SocketOperations::instance(),
+                   routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance()),
                    config.thread_stack_size);
 
     try {

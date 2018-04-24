@@ -59,11 +59,17 @@ public:
 
   using AddrVector = std::vector<mysql_harness::TCPAddress>;
 
-  /** @brief Default constructor */
+  /** @brief Default constructor
+   *
+   * @param protocol Protocol for the destination, defaults to value returned
+   *        by Protocol::get_default()
+   * @param routing_sock_ops Socket operations implementation to use, defaults
+   *        to "real" (not mock) implementation (mysql_harness::SocketOperations)
+   */
   RouteDestination(Protocol::Type protocol = Protocol::get_default(),
-                   routing::SocketOperationsBase *sock_ops =
-                     routing::SocketOperations::instance()) // default = "real" (not mock) implementation
-      : current_pos_(0), socket_operations_(sock_ops), protocol_(protocol) {}
+                   routing::RoutingSockOpsInterface* routing_sock_ops =
+                       routing::RoutingSockOps::instance(mysql_harness::SocketOperations::instance()))
+      : current_pos_(0), routing_sock_ops_(routing_sock_ops), protocol_(protocol) {}
 
   /** @brief Destructor */
   virtual ~RouteDestination() {}
@@ -198,7 +204,7 @@ protected:
   std::mutex mutex_update_;
 
   /** @brief socket operation methods (facilitates dependency injection)*/
-  routing::SocketOperationsBase *socket_operations_;
+  routing::RoutingSockOpsInterface *routing_sock_ops_;
 
   /** @brief Protocol for the destination */
   Protocol::Type protocol_;

@@ -54,7 +54,7 @@ static bool send_message(const std::string &log_prefix,
                          int destination,
                          const int8_t type,
                          const ProtobufMessage &msg,
-                         SocketOperationsBase *socket_operations) {
+                         mysql_harness::SocketOperationsBase *sock_ops) {
   using google::protobuf::io::CodedOutputStream;
 
   const size_t msg_size = msg.ByteSize();
@@ -70,8 +70,8 @@ static bool send_message(const std::string &log_prefix,
     return false;
   }
 
-  if (socket_operations->write_all(destination, &buffer[0], buffer.size()) < 0) {
-    const int last_errno = socket_operations->get_errno();
+  if (sock_ops->write_all(destination, &buffer[0], buffer.size()) < 0) {
+    const int last_errno = sock_ops->get_errno();
 
     log_error("[%s] fd=%d write error: %s", log_prefix.c_str(),
         destination,
@@ -120,7 +120,7 @@ static bool get_next_message(int sender,
                              size_t   &message_offset,
                              int8_t   &message_type,
                              uint32_t &message_size,
-                             SocketOperationsBase *socket_operations,
+                             mysql_harness::SocketOperationsBase *sock_ops,
                              bool &error) {
   using google::protobuf::io::CodedInputStream;
   error = false;
@@ -136,9 +136,9 @@ static bool get_next_message(int sender,
 
   // we need at least 4 bytes to know the message size
   while (bytes_left < 4) {
-    read_res = socket_operations->read(sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
+    read_res = sock_ops->read(sender, &buffer[message_offset + bytes_left], 4 - bytes_left);
     if (read_res < 0) {
-      const int last_errno = socket_operations->get_errno();
+      const int last_errno = sock_ops->get_errno();
       log_error("fd=%d failed reading size of the message: (%d %s %ld)",
           sender,
           last_errno, get_message_error(last_errno).c_str(), static_cast<long>(read_res));
@@ -173,9 +173,9 @@ static bool get_next_message(int sender,
   }
   // next read the remaining part of the message if needed
   while (message_size + 4 > bytes_left) {
-    read_res = socket_operations->read(sender, &buffer[message_offset+bytes_left], message_size + 4 - bytes_left);
+    read_res = sock_ops->read(sender, &buffer[message_offset+bytes_left], message_size + 4 - bytes_left);
     if (read_res < 0) {
-      const int last_errno = socket_operations->get_errno();
+      const int last_errno = sock_ops->get_errno();
 
       log_error("fd=%d failed reading part of X protocol message: (%d %s %ld)",
           sender,
@@ -208,16 +208,17 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
   auto buffer_length = buffer.size();
   size_t bytes_read = 0;
 
+  mysql_harness::SocketOperationsBase* const so = routing_sock_ops_->so();
   if (sender_is_readable) {
-    if ((res = socket_operations_->read(sender, &buffer.front(), buffer_length)) <= 0) {
+    if ((res = so->read(sender, &buffer.front(), buffer_length)) <= 0) {
       if (res == -1) {
-        const int last_errno = socket_operations_->get_errno();
+        const int last_errno = so->get_errno();
         log_error("fd=%d sender read failed: (%d %s)",
             sender,
             last_errno, get_message_error(last_errno).c_str());
       } else {
         // the caller assumes that errno == 0 on plain connection closes.
-        socket_operations_->set_errno(0);
+        so->set_errno(0);
       }
       return -1;
     }
@@ -236,7 +237,7 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
       // and that the whole message that is being processed is in the buffer
       bool msg_read_error = false;
       while (get_next_message(sender, buffer, bytes_read, message_offset, message_type,
-                              message_size, socket_operations_, msg_read_error)
+                              message_size, so, msg_read_error)
              && !msg_read_error) {
 
 
@@ -280,8 +281,8 @@ int XProtocol::copy_packets(int sender, int receiver, bool sender_is_readable,
       }
     }
 
-    if (socket_operations_->write_all(receiver, &buffer[0], bytes_read) < 0) {
-      const int last_errno = socket_operations_->get_errno();
+    if (so->write_all(receiver, &buffer[0], bytes_read) < 0) {
+      const int last_errno = so->get_errno();
       log_error("fd=%d write error: %s",
           receiver,
           get_message_error(last_errno).c_str());
@@ -303,7 +304,8 @@ bool XProtocol::send_error(int destination,
   error.set_sql_state(sql_state);
   error.set_msg(message);
 
-  return send_message(log_prefix, destination, Mysqlx::ServerMessages::ERROR, error, socket_operations_);
+  return send_message(log_prefix, destination, Mysqlx::ServerMessages::ERROR,
+                      error, routing_sock_ops_->so());
 }
 
 
@@ -318,5 +320,5 @@ bool XProtocol::on_block_client_host(int server, const std::string &log_prefix) 
   Mysqlx::Connection::CapabilitiesGet capabilities_get;
 
   return send_message(log_prefix, server, Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
-                      capabilities_get, socket_operations_);
+                      capabilities_get, routing_sock_ops_->so());
 }

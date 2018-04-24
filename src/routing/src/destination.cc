@@ -113,5 +113,5 @@ size_t RouteDestination::get_next_server() {
 }
 
 int RouteDestination::get_mysql_socket(const TCPAddress &addr, std::chrono::milliseconds connect_timeout, const bool log_errors) {
-  return socket_operations_->get_mysql_socket(addr, connect_timeout, log_errors);
+  return routing_sock_ops_->get_mysql_socket(addr, connect_timeout, log_errors);
 }

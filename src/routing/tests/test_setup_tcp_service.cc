@@ -71,7 +71,8 @@ class TestSetupTcpService : public ::testing::Test {
   }
 
  protected:
-  MockSocketOperations socket_op;
+  MockRoutingSockOps routing_sock_ops;
+  MockSocketOperations& socket_op = *routing_sock_ops.so();
  private:
   std::vector<std::unique_ptr<addrinfo>> addresses_to_release_;
 };
@@ -81,7 +82,7 @@ TEST_F(TestSetupTcpService, single_addr_ok) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(1);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
@@ -110,7 +111,7 @@ TEST_F(TestSetupTcpService, getaddrinfo_fails) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _)).WillOnce(Return(-1));
 
@@ -124,7 +125,7 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(2);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
@@ -147,7 +148,7 @@ TEST_F(TestSetupTcpService, socket_fails) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(2);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
@@ -180,7 +181,7 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(2);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
@@ -215,7 +216,7 @@ TEST_F(TestSetupTcpService, bind_fails) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(2);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))
@@ -251,7 +252,7 @@ TEST_F(TestSetupTcpService, listen_fails) {
                  Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "routing-name",
                  1, std::chrono::seconds(1), 1, std::chrono::seconds(1), routing::kDefaultNetBufferLength,
-                 &socket_op);
+                 &routing_sock_ops);
 
   const auto addr_list = get_test_addresses_list(2);
   EXPECT_CALL(socket_op, getaddrinfo(_, _, _, _))

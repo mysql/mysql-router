@@ -44,10 +44,11 @@ using namespace mysql_protocol;
 
 class ClassicProtocolTest : public ::testing::Test {
 protected:
-  ClassicProtocolTest() {
-    mock_socket_operations_.reset(new MockSocketOperations());
-    sut_protocol_.reset(new ClassicProtocol(mock_socket_operations_.get()));
-  }
+  ClassicProtocolTest() :
+    mock_routing_sock_ops_(new MockRoutingSockOps()),
+    mock_socket_operations_(mock_routing_sock_ops_->so()),
+    sut_protocol_(new ClassicProtocol(mock_routing_sock_ops_.get()))
+  {}
 
   virtual void SetUp() {
     network_buffer_.resize(routing::kDefaultNetBufferLength);
@@ -56,7 +57,9 @@ protected:
     handshake_done_ = false;
   }
 
-  std::unique_ptr<MockSocketOperations> mock_socket_operations_;
+  std::unique_ptr<MockRoutingSockOps> mock_routing_sock_ops_;
+  MockSocketOperations* mock_socket_operations_;
+
   // the tested object:
   std::unique_ptr<BaseProtocol> sut_protocol_;
 
@@ -98,7 +101,7 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostWriteFail)
 {
   auto packet = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "", "fake_router_login");
 
-  mock_socket_operations_->set_errno(ECONNREFUSED);
+  mock_routing_sock_ops_->so()->set_errno(ECONNREFUSED);
 
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, packet.size())).WillOnce(Return(-1));
 
@@ -268,7 +271,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
                        routing::kDefaultMaxConnectErrors,
                        routing::kDefaultClientConnectTimeout,
                        routing::kDefaultNetBufferLength,
-                       mock_socket_operations_.get());
+                       mock_routing_sock_ops_.get());
 
 
   constexpr int client_socket = 1;
@@ -279,7 +282,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   client_addr.sin6_family = AF_INET6;
   memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
 
-  mock_socket_operations_->get_mysql_socket_fail(1);
+  mock_routing_sock_ops_->get_mysql_socket_fail(1);
   auto error_packet = mysql_protocol::ErrorPacket(0, 2003, "Can't connect to remote MySQL server for client connected to '127.0.0.1:7001'", "HY000");
   const auto error_packet_size = static_cast<ssize_t>(error_packet.size());
 
