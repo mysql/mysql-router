@@ -28,7 +28,7 @@
 
 #include "cluster_metadata.h"
 
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 
 #ifdef _WIN32
 #  ifdef metadata_cache_tests_DEFINE_STATIC

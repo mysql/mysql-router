@@ -44,7 +44,7 @@ IMPORT_LOG_FUNCTIONS()
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
  */
 MetadataCache::MetadataCache(
-  const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+  const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
   std::shared_ptr<MetaData> cluster_metadata, // this could be changed to UniquePtr
   unsigned int ttl,
   const mysqlrouter::SSLOptions &ssl_options,

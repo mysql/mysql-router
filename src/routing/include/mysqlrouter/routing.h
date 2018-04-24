@@ -25,7 +25,7 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 #include "mysqlrouter/plugin_config.h"
 
 #include <map>
@@ -199,7 +199,7 @@ class SocketOperationsBase {
  public:
 
   virtual ~SocketOperationsBase() = default;
-  virtual int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log = true) noexcept = 0;
+  virtual int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout_ms, bool log = true) noexcept = 0;
   virtual ssize_t write(int  fd, void *buffer, size_t nbyte) = 0;
   virtual ssize_t read(int fd, void *buffer, size_t nbyte) = 0;
   virtual void close(int fd) = 0;
@@ -256,7 +256,7 @@ class SocketOperations : public SocketOperationsBase {
    * @param log whether to log errors or not
    * @return a socket descriptor
    */
-  int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds connect_timeout, bool log = true) noexcept override;
+  int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout, bool log = true) noexcept override;
 
   /** @brief Thin wrapper around socket library write() */
   ssize_t write(int fd, void *buffer, size_t nbyte) override;

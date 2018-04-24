@@ -36,13 +36,13 @@
 #endif
 
 #include "keyring/keyring_manager.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/config_parser.h"
+#include "tcp_address.h"
 
 using metadata_cache::LookupResult;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using std::string;
 IMPORT_LOG_FUNCTIONS()
 

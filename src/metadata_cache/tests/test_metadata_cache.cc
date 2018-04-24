@@ -35,10 +35,11 @@
 #include "metadata_factory.h"
 #include "mock_metadata.h"
 #include "mysql_session_replayer.h"
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 #include "test/helpers.h"
 
 using metadata_cache::ManagedInstance;
+using mysql_harness::TCPAddress;
 
 class MetadataCacheTest : public ::testing::Test {
 public:
@@ -46,7 +47,7 @@ public:
   MetadataCache cache;
 
   MetadataCacheTest() : mf("admin", "admin", 1, 1, 1, 10),
-                      cache({mysqlrouter::TCPAddress("localhost", 32275)},
+                      cache({TCPAddress("localhost", 32275)},
                               get_instance("admin", "admin", 1, 1, 1, 10,
                                            mysqlrouter::SSLOptions()),
                               10, mysqlrouter::SSLOptions(), "replicaset-1") {}
@@ -132,7 +133,7 @@ class MetadataCacheTest2 : public ::testing::Test {
   std::shared_ptr<ClusterMetadata> cmeta;
   std::shared_ptr<MetadataCache> cache;
 
-  std::vector<mysqlrouter::TCPAddress> metadata_servers {
+  std::vector<TCPAddress> metadata_servers {
     {"localhost", 3000},
     {"localhost", 3001},
     {"localhost", 3002},

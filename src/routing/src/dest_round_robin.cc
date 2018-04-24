@@ -40,7 +40,7 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 
 // Timeout for trying to connect with quarantined servers
 static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout(1 * 1000);

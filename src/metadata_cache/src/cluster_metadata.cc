@@ -26,10 +26,10 @@
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "tcp_address.h"
 
 #include <algorithm>
 #include <cassert>

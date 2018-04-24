@@ -47,7 +47,7 @@
 
 using mysqlrouter::to_string;
 using mysqlrouter::string_format;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 IMPORT_LOG_FUNCTIONS()
 
 namespace routing {

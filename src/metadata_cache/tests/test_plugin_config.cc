@@ -33,6 +33,8 @@ using ::testing::StrEq;
 using ::testing::Eq;
 using ::testing::ContainerEq;
 
+using mysql_harness::TCPAddress;
+
 // demangle the symbols returned by typeid().name() if needed
 //
 // typeid() on gcc/clang returns a mangled name, msvc doesn't.
@@ -61,7 +63,7 @@ struct GoodTestData {
     std::string user;
     unsigned int ttl;
     std::string metadata_cluster;
-    std::vector<mysqlrouter::TCPAddress> bootstrap_addresses;
+    std::vector<TCPAddress> bootstrap_addresses;
   } expected;
 };
 
@@ -69,7 +71,7 @@ class MetadataCachePluginConfigGoodTest : public ::testing::Test,
   public ::testing::WithParamInterface<GoodTestData> {
 };
 
-namespace mysqlrouter {
+namespace mysql_harness {
   // operator needs to be defined in the namespace of the printed type
   std::ostream& operator<<(std::ostream& os, const TCPAddress& addr) {
     return os << addr.str();
@@ -132,7 +134,7 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         "foo",
         metadata_cache::kDefaultMetadataTTL,
         "",
-        std::vector<mysqlrouter::TCPAddress>()
+        std::vector<TCPAddress>()
       }
     },
     // TTL value can be parsed
@@ -148,7 +150,7 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         "foo",
         123,
         "",
-        std::vector<mysqlrouter::TCPAddress>()
+        std::vector<TCPAddress>()
       }
     },
     // bootstrap_servers, nicely split into pieces
@@ -164,9 +166,9 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         "foo",
         123,
         "",
-        std::vector<mysqlrouter::TCPAddress>({
-          { mysqlrouter::TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
-          { mysqlrouter::TCPAddress("fuzzbozz", metadata_cache::kDefaultMetadataPort), },
+        std::vector<TCPAddress>({
+          { TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
+          { TCPAddress("fuzzbozz", metadata_cache::kDefaultMetadataPort), },
         })
       }
     },
@@ -183,8 +185,8 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         "foo",
         metadata_cache::kDefaultMetadataTTL,
         "",
-        std::vector<mysqlrouter::TCPAddress>({
-          { mysqlrouter::TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
+        std::vector<TCPAddress>({
+          { TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
         })
       }
     },
@@ -203,9 +205,9 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         "foo",
         123,
         "whatisthis",
-        std::vector<mysqlrouter::TCPAddress>({
-          { mysqlrouter::TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
-          { mysqlrouter::TCPAddress("fuzzbozz", metadata_cache::kDefaultMetadataPort), },
+        std::vector<TCPAddress>({
+          { TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
+          { TCPAddress("fuzzbozz", metadata_cache::kDefaultMetadataPort), },
         })
       }
     },

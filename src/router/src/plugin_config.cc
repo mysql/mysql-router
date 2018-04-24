@@ -70,14 +70,14 @@ string BasePluginConfig::get_log_prefix(const std::string &option,
       (section ? section->get_section_name(option) : section_name) + "]";
 }
 
-TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
+mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                     const string &option,
                                                     bool require_port,
                                                     int default_port) {
   std::string value = get_option_string(section, option);
 
   if (value.empty()) {
-    return TCPAddress{};
+    return mysql_harness::TCPAddress{};
   }
 
   try {
@@ -93,7 +93,7 @@ TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigS
       }
     }
 
-    return mysqlrouter::TCPAddress(bind_info.first, port);
+    return mysql_harness::TCPAddress(bind_info.first, port);
 
   } catch (const std::runtime_error &exc) {
     throw invalid_argument(get_log_prefix(option) + " is incorrect (" + exc.what() + ")");

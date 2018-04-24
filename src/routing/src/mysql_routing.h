@@ -37,12 +37,12 @@
 #include "router_config.h"
 #include "destination.h"
 #include "mysql/harness/filesystem.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "plugin_config.h"
 #include "utils.h"
 #include "mysqlrouter/routing.h"
 #include "mysql_router_thread.h"
+#include "tcp_address.h"
 namespace mysql_harness { class PluginFuncEnv; }
 
 #include <array>
@@ -328,7 +328,7 @@ private:
   /** @brief Size of buffer to store receiving packets */
   unsigned int net_buffer_length_;
   /** @brief IP address and TCP port for setting up TCP service */
-  const mysqlrouter::TCPAddress bind_address_;
+  const mysql_harness::TCPAddress bind_address_;
   /** @brief Path to named socket for setting up named socket service */
   const mysql_harness::Path bind_named_socket_;
   /** @brief Socket descriptor of the TCP service */

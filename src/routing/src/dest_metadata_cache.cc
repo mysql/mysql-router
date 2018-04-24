@@ -35,9 +35,9 @@
 #  include <netinet/tcp.h>
 #endif
 
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "mysql/harness/logging/logging.h"
+#include "tcp_address.h"
 
 using mysqlrouter::to_string;
 using std::out_of_range;
@@ -172,14 +172,14 @@ DestMetadataCacheGroup::AvailableDestinations DestMetadataCacheGroup::get_availa
     // role=PRIMARY_AND_SECONDARY
     if ((server_role_ == ServerRole::PrimaryAndSecondary) &&
         (it.mode == metadata_cache::ServerMode::ReadWrite || it.mode == metadata_cache::ServerMode::ReadOnly)) {
-      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.address.push_back(mysql_harness::TCPAddress(it.host, port));
       result.id.push_back(it.mysql_server_uuid);
       continue;
     }
 
     // role=SECONDARY
     if (server_role_ == ServerRole::Secondary && it.mode == metadata_cache::ServerMode::ReadOnly) {
-      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.address.push_back(mysql_harness::TCPAddress(it.host, port));
       result.id.push_back(it.mysql_server_uuid);
       continue;
     }
@@ -187,7 +187,7 @@ DestMetadataCacheGroup::AvailableDestinations DestMetadataCacheGroup::get_availa
     // role=PRIMARY
     if ((server_role_ == ServerRole::Primary || primary_fallback)
          && it.mode == metadata_cache::ServerMode::ReadWrite) {
-      result.address.push_back(mysqlrouter::TCPAddress(it.host, port));
+      result.address.push_back(mysql_harness::TCPAddress(it.host, port));
       result.id.push_back(it.mysql_server_uuid);
       continue;
     }

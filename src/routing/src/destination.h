@@ -36,10 +36,10 @@
 #include <thread>
 #include <vector>
 
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
 #include "mysql/harness/logging/logging.h"
 #include "protocol/protocol.h"
+#include "tcp_address.h"
 IMPORT_LOG_FUNCTIONS()
 
 /** @class RouteDestination
@@ -57,7 +57,7 @@ IMPORT_LOG_FUNCTIONS()
 class RouteDestination {
 public:
 
-  using AddrVector = std::vector<mysqlrouter::TCPAddress>;
+  using AddrVector = std::vector<mysql_harness::TCPAddress>;
 
   /** @brief Default constructor */
   RouteDestination(Protocol::Type protocol = Protocol::get_default(),
@@ -79,7 +79,7 @@ public:
    *
    * @param dest destination address
    */
-  virtual void add(const mysqlrouter::TCPAddress dest);
+  virtual void add(const mysql_harness::TCPAddress dest);
 
   /** @overload */
   virtual void add(const std::string &address, uint16_t port);
@@ -106,9 +106,9 @@ public:
    *
    * @param address IP or name
    * @param port Port number
-   * @return an instance of mysqlrouter::TCPAddress
+   * @return an instance of mysql_harness::TCPAddress
    */
-  virtual mysqlrouter::TCPAddress get(const std::string &address, uint16_t port);
+  virtual mysql_harness::TCPAddress get(const std::string &address, uint16_t port);
 
   /** @brief Removes all destinations
    *
@@ -180,7 +180,7 @@ protected:
    * @param log_errors whether to log errors or not
    * @return a socket descriptor
    */
-  virtual int get_mysql_socket(const mysqlrouter::TCPAddress &addr, std::chrono::milliseconds connect_timeout, bool log_errors = true);
+  virtual int get_mysql_socket(const mysql_harness::TCPAddress &addr, std::chrono::milliseconds connect_timeout, bool log_errors = true);
 
   /** @brief Gets the id of the next server to connect to.
    *

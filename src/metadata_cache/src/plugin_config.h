@@ -33,8 +33,8 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
-#include <mysqlrouter/datatypes.h>
 #include <mysqlrouter/plugin_config.h>
+#include "tcp_address.h"
 
 
 extern "C"
@@ -68,7 +68,7 @@ public:
   bool is_required(const std::string &option) const override;
 
   /** @brief MySQL Metadata host to connect with */
-  const std::vector<mysqlrouter::TCPAddress> bootstrap_addresses;
+  const std::vector<mysql_harness::TCPAddress> bootstrap_addresses;
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
   /** @brief TTL used for storing data in the cache */
@@ -93,9 +93,9 @@ private:
    * @param section Instance of ConfigSection
    * @param option Option name in section
    * @param default_port Use this port when none was provided
-   * @return std::vector<mysqlrouter::TCPAddress>
+   * @return std::vector<mysql_harness::TCPAddress>
    */
-  std::vector<mysqlrouter::TCPAddress> get_bootstrap_servers(
+  std::vector<mysql_harness::TCPAddress> get_bootstrap_servers(
     const mysql_harness::ConfigSection *section, const std::string &option,
     uint16_t default_port);
 };

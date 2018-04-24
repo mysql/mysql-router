@@ -26,7 +26,6 @@
 
 #include "keyring/keyring_manager.h"
 #include "config_generator.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/uri.h"
 #include "common.h"
 #include "dim.h"
@@ -39,6 +38,7 @@
 #include "utils.h"
 #include "router_app.h"
 #include "mysqlrouter/sha1.h"
+#include "tcp_address.h"
 IMPORT_LOG_FUNCTIONS()
 
 #ifdef _WIN32
@@ -92,6 +92,7 @@ using mysql_harness::truncate_string;
 using mysql_harness::Path;
 using mysql_harness::UniquePtr;
 using mysql_harness::DIM;
+using mysql_harness::TCPAddress;
 using namespace mysqlrouter;
 
 namespace {

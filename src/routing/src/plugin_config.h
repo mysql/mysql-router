@@ -28,12 +28,12 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
 
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/plugin_config.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "protocol/protocol.h"
+#include "tcp_address.h"
 
 #include "utils.h"
 
@@ -43,7 +43,7 @@
 using std::map;
 using std::string;
 using mysqlrouter::to_string;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
@@ -75,7 +75,7 @@ public:
   /** @brief `bind_port` option read from configuration section */
   const int bind_port;
   /** @brief `bind_address` option read from configuration section */
-  const mysqlrouter::TCPAddress bind_address;
+  const mysql_harness::TCPAddress bind_address;
   /** @brief `socket` option read from configuration section is stored as named_socket */
   const mysql_harness::Path named_socket;
   /** @brief `connect_timeout` option read from configuration section */

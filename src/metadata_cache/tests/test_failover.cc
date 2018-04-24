@@ -31,11 +31,10 @@
 #include "dim.h"
 #include "cluster_metadata.h"
 #include "mysql_session_replayer.h"
+#include "tcp_address.h"
 #include "test/helpers.h"
 
 #include "gmock/gmock.h"
-
-#include "mysqlrouter/datatypes.h"
 
 using namespace metadata_cache;
 
@@ -62,7 +61,7 @@ public:
   }
 
   void init_cache() {
-    cache.reset(new MetadataCache({mysqlrouter::TCPAddress("localhost", 32275)},
+    cache.reset(new MetadataCache({mysql_harness::TCPAddress("localhost", 32275)},
                                   cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1"));
   }
 

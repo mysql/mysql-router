@@ -28,7 +28,7 @@
 
 #include "mock_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 #include "test/helpers.h"
 
 #include <chrono>
@@ -52,9 +52,9 @@ const int kDefaultMetadataPort = 32275; // 32275
 const unsigned int kDefaultMetadataTTL = 1; // reduced from original 10 to speed up test execution, try increasing if tests fail
 const std::string kDefaultMetadataReplicaset = "replicaset-1";
 
-const mysqlrouter::TCPAddress bootstrap_server(kDefaultMetadataHost,
+const mysql_harness::TCPAddress bootstrap_server(kDefaultMetadataHost,
                                                kDefaultMetadataPort);
-const std::vector<mysqlrouter::TCPAddress> bootstrap_server_vector =
+const std::vector<mysql_harness::TCPAddress> bootstrap_server_vector =
 {bootstrap_server};
 
 using std::thread;

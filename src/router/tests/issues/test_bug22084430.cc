@@ -30,13 +30,13 @@
 #include "gmock/gmock.h"
 
 #include "router_test_helpers.h"
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #endif
 
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 
 class Bug22084430 : public ::testing::Test {
   virtual void SetUp() {}

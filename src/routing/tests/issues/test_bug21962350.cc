@@ -54,7 +54,7 @@
 #pragma clang diagnostic pop
 #endif
 
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using mysqlrouter::to_string;
 using ::testing::HasSubstr;
 using ::testing::Return;

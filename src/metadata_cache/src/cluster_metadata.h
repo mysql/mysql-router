@@ -25,10 +25,10 @@
 #ifndef METADATA_CACHE_METADATA_INCLUDED
 #define METADATA_CACHE_METADATA_INCLUDED
 
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "metadata.h"
+#include "tcp_address.h"
 
 #include <vector>
 #include <memory>

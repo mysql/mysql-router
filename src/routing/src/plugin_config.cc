@@ -235,7 +235,7 @@ string RoutingPluginConfig::get_option_destinations(const mysql_harness::ConfigS
       if (info.second == 0) {
        info.second = Protocol::get_default_port(protocol_type);
       }
-      mysqlrouter::TCPAddress addr(info.first, info.second);
+      mysql_harness::TCPAddress addr(info.first, info.second);
       if (!addr.is_valid()) {
         throw invalid_argument(get_log_prefix(option) + " has an invalid destination address '" + addr.str() + "'");
       }

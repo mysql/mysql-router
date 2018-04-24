@@ -28,8 +28,8 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
+#include "tcp_address.h"
 
 #include <cerrno>
 #include <cassert>
@@ -159,7 +159,7 @@ protected:
    * @param option Option name in section
    * @param min_value Minimum value
    * @param max_value Maximum value
-   * @return mysqlrouter::TCPAddress
+   * @return mysql_harness::TCPAddress
    */
   template<typename T>
   T get_uint_option(const mysql_harness::ConfigSection *section, const std::string &option,
@@ -199,9 +199,9 @@ protected:
    * @param option Option name in section
    * @param require_port Whether a TCP port is required
    * @param default_port default port
-   * @return mysqlrouter::TCPAddress
+   * @return mysql_harness::TCPAddress
    */
-  TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const std::string &option,
+  mysql_harness::TCPAddress get_option_tcp_address(const mysql_harness::ConfigSection *section, const std::string &option,
                                     bool require_port = false, int default_port = -1);
 
   int get_option_tcp_port(const mysql_harness::ConfigSection *section, const std::string &option);

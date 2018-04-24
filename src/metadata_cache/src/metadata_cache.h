@@ -63,7 +63,7 @@ public:
    * @param cluster The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
-  MetadataCache(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+  MetadataCache(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                 std::shared_ptr<MetaData> cluster_metadata,
                 unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
                 const std::string &cluster_name,

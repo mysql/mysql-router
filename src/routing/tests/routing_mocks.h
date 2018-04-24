@@ -50,7 +50,7 @@
 
 class MockSocketOperations : public routing::SocketOperationsBase {
  public:
-  int get_mysql_socket(mysqlrouter::TCPAddress addr, std::chrono::milliseconds, bool = true) noexcept override {
+  int get_mysql_socket(mysql_harness::TCPAddress addr, std::chrono::milliseconds, bool = true) noexcept override {
     get_mysql_socket_call_cnt_++;
     if (get_mysql_socket_fails_todo_) {
       set_errno(ECONNREFUSED);

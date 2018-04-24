@@ -24,14 +24,14 @@
 
 #include "gmock/gmock.h"
 
-#include "mysqlrouter/datatypes.h"
 #include "router_test_helpers.h"
+#include "tcp_address.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
 #endif
 
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 
 class TCPAddressTest : public ::testing::Test {
 protected:

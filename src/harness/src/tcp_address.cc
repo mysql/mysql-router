@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 
 #include <cstring>
-#include <iostream>
 #include <sstream>
 #ifndef _WIN32
 #  include <netdb.h>
@@ -37,7 +36,7 @@
 #  include <ws2tcpip.h>
 #endif
 
-namespace mysqlrouter {
+namespace mysql_harness {
 
 void TCPAddress::detect_family() noexcept {
   // Function only run once by setting ip_family_ > Family::UNKNOWN
@@ -102,4 +101,5 @@ bool TCPAddress::is_valid() noexcept {
   return !(addr.empty() || port == 0 || ip_family_ == Family::INVALID);
 }
 
-} // namespace
+} // namespace mysql_harness
+

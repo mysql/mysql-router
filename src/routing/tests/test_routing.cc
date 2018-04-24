@@ -47,6 +47,7 @@
 
 using routing::AccessMode;
 using routing::set_socket_blocking;
+using mysql_harness::TCPAddress;
 
 using ::testing::ContainerEq;
 using ::testing::Eq;
@@ -587,7 +588,7 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
 
   // wrong port number
   {
-    mysqlrouter::TCPAddress address("127.0.0.1", 10888);
+    TCPAddress address("127.0.0.1", 10888);
     int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
     ASSERT_EQ(server, -1);
@@ -597,7 +598,7 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
 #if !defined(__APPLE__) && !defined(__sun)
   // wrong port number and IP
   {
-    mysqlrouter::TCPAddress address("127.0.0.11", 10888);
+    TCPAddress address("127.0.0.11", 10888);
     int server = routing::SocketOperations::instance()->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when connecting with the wrong port
     ASSERT_EQ(server, -1);

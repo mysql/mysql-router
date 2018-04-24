@@ -33,14 +33,14 @@
 //
 #include "dest_round_robin.h"
 
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 #include "routing_mocks.h"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using ::testing::StrEq;
 
 class RoundRobinDestinationTest : public ::testing::Test {

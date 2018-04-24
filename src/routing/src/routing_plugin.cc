@@ -39,7 +39,7 @@
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using std::string;

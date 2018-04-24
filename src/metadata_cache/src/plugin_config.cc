@@ -64,7 +64,7 @@ bool MetadataCachePluginConfig::is_required(const std::string &option) const {
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
-std::vector<mysqlrouter::TCPAddress>
+std::vector<mysql_harness::TCPAddress>
 MetadataCachePluginConfig::get_bootstrap_servers(
   const mysql_harness::ConfigSection *section, const std::string &option,
   uint16_t default_port) {
@@ -75,7 +75,7 @@ MetadataCachePluginConfig::get_bootstrap_servers(
   std::pair<std::string, uint16_t> bind_info;
 
   std::string address;
-  std::vector<mysqlrouter::TCPAddress> address_vector;
+  std::vector<mysql_harness::TCPAddress> address_vector;
 
   // Fetch the string that contains the list of bootstrap servers separated
   // by a delimiter (,).
@@ -88,7 +88,7 @@ MetadataCachePluginConfig::get_bootstrap_servers(
       if (bind_info.second == 0) {
         bind_info.second = default_port;
       }
-      address_vector.push_back(mysqlrouter::TCPAddress(bind_info.first,
+      address_vector.push_back(mysql_harness::TCPAddress(bind_info.first,
                                                      bind_info.second));
     } catch (const std::runtime_error &exc) {
       throw invalid_argument(get_log_prefix(option) + " is incorrect (" +

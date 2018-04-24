@@ -25,10 +25,10 @@
 #include "common.h"
 #include "destination.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "utils.h"
+#include "tcp_address.h"
 
 #include <algorithm>
 #include <cassert>
@@ -46,7 +46,7 @@
 
 
 using mysqlrouter::to_string;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using std::out_of_range;
 IMPORT_LOG_FUNCTIONS()
 

@@ -84,7 +84,7 @@ using routing::RoutingStrategy;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
-using mysqlrouter::TCPAddress;
+using mysql_harness::TCPAddress;
 using mysqlrouter::is_valid_socket_name;
 IMPORT_LOG_FUNCTIONS()
 

@@ -28,7 +28,7 @@
 #include <memory>
 
 #include "metadata.h"
-#include "mysqlrouter/datatypes.h"
+#include "tcp_address.h"
 
 //This provides a factory method that returns a pluggable instance
 //to the underlying transport layer implementation. The transport

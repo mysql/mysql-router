@@ -69,7 +69,7 @@ MetadataCacheAPIBase* MetadataCacheAPI::instance() {
  *                     server should timeout.
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
  */
-void MetadataCacheAPI::cache_init(const std::vector<mysqlrouter::TCPAddress> &bootstrap_servers,
+void MetadataCacheAPI::cache_init(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
                   unsigned int ttl,

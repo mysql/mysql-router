@@ -36,6 +36,7 @@
 #include "random_generator.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/keyring_info.h"
+#include "tcp_address.h"
 
 namespace mysql_harness {
   class Path;
