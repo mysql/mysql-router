@@ -104,6 +104,9 @@ class HARNESS_EXPORT SocketOperationsBase {
    * @see connect_non_blocking_wait() and poll()
    */
   virtual int connect_non_blocking_status(int sock, int &so_error) = 0;
+
+  /** @brief return hostname of local host */
+  virtual std::string get_my_hostname() = 0;
 };
 
 /** @class SocketOperations
@@ -167,6 +170,9 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    * @see connect_non_blocking_wait() and poll()
    */
   int connect_non_blocking_status(int sock, int &so_error) override;
+
+  /** @brief return hostname of local host */
+  std::string get_my_hostname() override;
 
   /**
    * get the error-code of the last (socket) operation

@@ -21,28 +21,15 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#include <chrono>
-#include <fstream>
-#include <regex>
-#include <system_error>
 
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <netdb.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#ifndef __APPLE__
-#include <ifaddrs.h>
-#include <net/if.h>
-#endif
-#endif
+#include <fstream>
 
 #include "gmock/gmock.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "random_generator.h"
 #include "router_component_test.h"
+#include "socket_operations.h"
 #include "script_generator.h"
 #include "tcp_port_pool.h"
 #include "utils.h"
@@ -54,61 +41,12 @@
 
 Path g_origin_path;
 
-/**
- * @todo  this is a copy of HostnameOperations from cluster_metadata.cc
- *        and shouldn't be here.
- */
-static
-std::string get_my_hostname() {
-  char buf[1024] = {0};
-#if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
-  if (gethostname(buf, sizeof(buf)) < 0) {
-    // log_error("Could not get hostname: %s", mysql_harness::get_message_error(msg);
-    throw std::runtime_error("Could not get local hostname");
-  }
-#else
-  struct ifaddrs *ifa = nullptr, *ifap;
-  int ret = -1, family;
-  socklen_t addrlen;
-
-  std::shared_ptr<ifaddrs> ifa_deleter(nullptr, [&](void*){if (ifa) freeifaddrs(ifa);});
-  if ((ret = getifaddrs(&ifa)) != 0 || !ifa) {
-    throw std::runtime_error("Could not get local host address: " + std::generic_category().default_error_condition(errno).message()
-                             + " (ret: " + std::to_string(ret)
-                             + ", errno: " + std::to_string(errno) + ")");
-  }
-  for (ifap = ifa; ifap != NULL; ifap = ifap->ifa_next) {
-    if ((ifap->ifa_addr == NULL) || (ifap->ifa_flags & IFF_LOOPBACK) || (!(ifap->ifa_flags & IFF_UP)))
-      continue;
-    family = ifap->ifa_addr->sa_family;
-    if (family != AF_INET && family != AF_INET6)
-      continue;
-    if (family == AF_INET6) {
-      struct sockaddr_in6 *sin6;
-
-      sin6 = (struct sockaddr_in6 *)ifap->ifa_addr;
-      if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) || IN6_IS_ADDR_MC_LINKLOCAL(&sin6->sin6_addr))
-        continue;
-    }
-    addrlen = static_cast<socklen_t>((family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
-    ret = getnameinfo(ifap->ifa_addr, addrlen, buf,
-        static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
-  }
-  if (ret != EAI_NONAME && ret != 0) {
-    throw std::runtime_error("Could not get local host address: " + std::string(gai_strerror(ret))
-                             + " (ret: " + std::to_string(ret)
-                             + ", errno: " + std::to_string(errno) + ")");
-  }
-#endif
-  return buf;
-}
-
 // we create a number of classes to logically group tests together. But to avoid code
 // duplication, we derive them from a class which contains the common code they need.
 class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
   static void SetUpTestCase() {
-    my_hostname = get_my_hostname();
+    my_hostname = mysql_harness::SocketOperations::instance()->get_my_hostname();
   }
 
   void SetUp() override {

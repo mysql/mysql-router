@@ -63,6 +63,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
   MOCK_METHOD2(connect_non_blocking_wait, int(int sock, std::chrono::milliseconds timeout));
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
+  MOCK_METHOD0(get_my_hostname, std::string());
 
   void set_errno(int err) override {
     // set errno/Windows equivalent. At the time of writing, unit tests

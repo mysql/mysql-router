@@ -25,30 +25,18 @@
 #ifndef ROUTER_CLUSTER_METADATA_INCLUDED
 #define ROUTER_CLUSTER_METADATA_INCLUDED
 
-#include "mysqlrouter/mysql_session.h"
 #include "config_generator.h"
+#include "mysqlrouter/mysql_session.h"
+#include "socket_operations.h"
 
 namespace mysqlrouter {
-
-class HostnameOperationsBase {
-public:
-  virtual std::string get_my_hostname() = 0;
-  virtual ~HostnameOperationsBase() = default;
-};
-
-class HostnameOperations: public HostnameOperationsBase {
-public:
-  virtual std::string get_my_hostname() override;
-  static HostnameOperations* instance();
-protected:
-  HostnameOperations() {}
-};
 
 class MySQLInnoDBClusterMetadata {
 public:
   MySQLInnoDBClusterMetadata(MySQLSession *mysql,
-                             HostnameOperationsBase *hostname_operations = HostnameOperations::instance())
-  : mysql_(mysql), hostname_operations_(hostname_operations) {}
+                             mysql_harness::SocketOperationsBase *sockops =
+                                 mysql_harness::SocketOperations::instance())
+  : mysql_(mysql), socket_operations_(sockops) {}
 
   void check_router_id(uint32_t router_id);
   uint32_t register_router(const std::string &router_name, bool overwrite);
@@ -59,7 +47,7 @@ public:
     const std::string &ro_x_endpoint);
 private:
   MySQLSession *mysql_;
-  HostnameOperationsBase *hostname_operations_;
+  mysql_harness::SocketOperationsBase *socket_operations_;
 };
 
 

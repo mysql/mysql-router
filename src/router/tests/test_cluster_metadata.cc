@@ -48,13 +48,29 @@
 using ::testing::Return;
 using namespace testing;
 using mysqlrouter::MySQLInnoDBClusterMetadata;
-using mysqlrouter::HostnameOperationsBase;
 
-class MockHostnameOperations: public HostnameOperationsBase {
+class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  public:
+  // this is what we test
   MOCK_METHOD0(get_my_hostname, std::string());
-};
 
+  // we don't call these, but we need to provide an implementation (they're pure virtual)
+  MOCK_METHOD3(read, ssize_t(int, void*, size_t));
+  MOCK_METHOD3(write, ssize_t(int, void*, size_t));
+  MOCK_METHOD1(close, void(int));
+  MOCK_METHOD1(shutdown, void(int));
+  MOCK_METHOD1(freeaddrinfo, void(addrinfo *ai));
+  MOCK_METHOD4(getaddrinfo, int(const char*, const char*, const addrinfo*, addrinfo**));
+  MOCK_METHOD3(bind, int(int, const struct sockaddr*, socklen_t));
+  MOCK_METHOD3(socket, int(int, int, int));
+  MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
+  MOCK_METHOD2(listen, int(int fd, int n));
+  MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
+  MOCK_METHOD2(connect_non_blocking_wait, int(int sock, std::chrono::milliseconds timeout));
+  MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
+  MOCK_METHOD1(set_errno, void(int err));
+  MOCK_METHOD0(get_errno, int());
+};
 
 class ClusterMetadataTest : public  ::testing::Test {
 protected:
@@ -62,7 +78,7 @@ protected:
   }
 
   MySQLSessionReplayer session_replayer;
-  MockHostnameOperations hostname_operations;
+  MockSocketOperations hostname_operations;
 };
 
 const std::string kQueryGetHostname = "SELECT h.host_id, h.host_name"
