@@ -49,7 +49,7 @@ class ClusterMetadata;
  * MySQL Server.
  *
  */
-class METADATA_API MetadataCache {
+class METADATA_API MetadataCache : public metadata_cache::ReplicasetStateNotifierInterface {
 
 public:
 
@@ -121,6 +121,25 @@ public:
 
   /** @brief run refresh thread */
   static void* run_thread(void* context);
+
+
+  /**
+   * @brief Register observer that is notified when there is a change in the replicaset nodes setup/state
+   *        discovered.
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that is notified when replicaset nodes state is changed.
+   */
+  void add_listener(const std::string& replicaset_name, metadata_cache::ReplicasetStateListenerInterface* listener) override;
+
+  /**
+   * @brief Unregister observer previously registered with add_listener()
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that should be unregistered.
+   */
+  void remove_listener(const std::string& replicaset_name, metadata_cache::ReplicasetStateListenerInterface* listener) override;
+
 private:
 
   /** @brief Refreshes the cache
@@ -128,6 +147,10 @@ private:
    * Refreshes the cache.
    */
   void refresh();
+
+  // Called each time the metadata has changed and we need to notify
+  // the subscribed observers
+  void on_instances_changed(const bool md_servers_reachable);
 
   // Stores the list replicasets and their server instances.
   // Keyed by replicaset name
@@ -172,6 +195,12 @@ private:
 
   // Flag used to terminate the refresh thread.
   std::atomic_bool terminate_;
+
+  // map of lists (per each replicaset name) of registered callbacks to be called
+  // on selected replicaset instances change event
+  std::mutex replicaset_instances_change_callbacks_mtx_;
+
+  std::map<std::string, std::set<metadata_cache::ReplicasetStateListenerInterface*>> listeners_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);

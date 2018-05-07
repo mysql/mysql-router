@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_DEST_NEXT_AVAILABLE
-#define ROUTING_DEST_NEXT_AVAILABLE
+#ifndef ROUTING_MYSQLROUTING_COMMON_INCLUDED
+#define ROUTING_MYSQLROUTING_COMMON_INCLUDED
 
-#include "destination.h"
-#include "mysqlrouter/routing.h"
+#include <string>
 
-#include "mysql/harness/logging/logging.h"
+/**
+ * @brief return a short string suitable to be used as a thread name
+ *
+ * @param config_name configuration name (e.g: "routing", "routing:test_default_x_ro", etc)
+ * @param prefix thread name prefix (e.g. "RtS")
+ *
+ * @return a short string (example: "RtS:x_ro")
+ */
+std::string get_routing_thread_name(const std::string& config_name, const std::string& prefix);
 
-class DestNextAvailable final : public RouteDestination {
- public:
-  using RouteDestination::RouteDestination;
-
-  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
-                        mysql_harness::TCPAddress *address = nullptr) noexcept override;
-};
-
-
-#endif // ROUTING_DEST_NEXT_AVAILABLE
+#endif /* ROUTING_MYSQLROUTING_COMMON_INCLUDED */

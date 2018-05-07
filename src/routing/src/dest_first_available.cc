@@ -34,7 +34,8 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-int DestFirstAvailable::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
+int DestFirstAvailable::get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
+                                          mysql_harness::TCPAddress *address) noexcept {
   if (destinations_.empty()) {
     return -1;
   }
@@ -46,6 +47,7 @@ int DestFirstAvailable::get_server_socket(std::chrono::milliseconds connect_time
               static_cast<long unsigned>(i)); // 32bit Linux requires cast
     auto sock = get_mysql_socket(addr, connect_timeout);
     if (sock >= 0) {
+      if (address) *address = addr;
       return sock;
     } else {
       if (++current_pos_ >= destinations_.size()) current_pos_ = 0;

@@ -93,20 +93,20 @@ TEST_F(TestBlockClients, BlockClientHost) {
                  "127.0.0.1", mysql_harness::Path(), "routing:connect_erros",
                  1, std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 
-  ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1")));
+  ASSERT_FALSE(r.get_context().block_client_host(client_ip_array1, string("::1")));
   ASSERT_THAT(get_log_stream().str(), HasSubstr("1 connection errors for ::1 (max 2)"));
   reset_ssout();
-  ASSERT_TRUE(r.block_client_host(client_ip_array1, string("::1")));
+  ASSERT_TRUE(r.get_context().block_client_host(client_ip_array1, string("::1")));
   ASSERT_THAT(get_log_stream().str(), HasSubstr("blocking client host ::1"));
 
-  auto blocked_hosts = r.get_blocked_client_hosts();
+  auto blocked_hosts = r.get_context().get_blocked_client_hosts();
   ASSERT_GE(blocked_hosts.size(), 1u);
   ASSERT_THAT(blocked_hosts[0], ContainerEq(client_ip_array1));
 
-  ASSERT_FALSE(r.block_client_host(client_ip_array2, string("::2")));
-  ASSERT_TRUE(r.block_client_host(client_ip_array2, string("::2")));
+  ASSERT_FALSE(r.get_context().block_client_host(client_ip_array2, string("::2")));
+  ASSERT_TRUE(r.get_context().block_client_host(client_ip_array2, string("::2")));
 
-  blocked_hosts = r.get_blocked_client_hosts();
+  blocked_hosts = r.get_context().get_blocked_client_hosts();
   ASSERT_THAT(blocked_hosts[0], ContainerEq(client_ip_array1));
   ASSERT_THAT(blocked_hosts[1], ContainerEq(client_ip_array2));
 }
@@ -132,7 +132,7 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
 
   std::FILE* fd_response = std::fopen("fake_response.data", "w");
 
-  ASSERT_FALSE(r.block_client_host(client_ip_array1, string("::1"), fileno(fd_response)));
+  ASSERT_FALSE(r.get_context().block_client_host(client_ip_array1, string("::1"), fileno(fd_response)));
   std::fclose(fd_response);
 #ifndef _WIN32
   // block_client_host() will not be able to write data to the file because in windows, the

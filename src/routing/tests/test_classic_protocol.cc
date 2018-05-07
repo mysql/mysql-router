@@ -275,6 +275,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
 
 
   constexpr int client_socket = 1;
+  constexpr int server_socket = -1;
   union {
     sockaddr_storage client_addr_storage;
     sockaddr_in6 client_addr;
@@ -282,7 +283,6 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   client_addr.sin6_family = AF_INET6;
   memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
 
-  mock_routing_sock_ops_->get_mysql_socket_fail(1);
   auto error_packet = mysql_protocol::ErrorPacket(0, 2003, "Can't connect to remote MySQL server for client connected to '127.0.0.1:7001'", "HY000");
   const auto error_packet_size = static_cast<ssize_t>(error_packet.size());
 
@@ -294,9 +294,12 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   EXPECT_CALL(*mock_socket_operations_, close(client_socket));
 
   routing.set_destinations_from_csv("127.0.0.1:7004");
+  mysql_harness::TCPAddress server_address("127.0.0.1", 7004);
 
-  routing.routing_select_thread(nullptr, // it will return before nullptr is dereferenced
-                                client_socket, client_addr_storage);
+  MySQLRoutingConnection connection(routing.get_context(), client_socket,
+      client_addr_storage, server_socket, server_address, [](MySQLRoutingConnection*) {});
+  connection.run();
+
 }
 
 int main(int argc, char *argv[]) {

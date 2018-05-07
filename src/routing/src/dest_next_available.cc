@@ -34,7 +34,8 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-int DestNextAvailable::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
+int DestNextAvailable::get_server_socket(std::chrono::milliseconds connect_timeout,
+                                         int *error, mysql_harness::TCPAddress *address) noexcept {
   // Say for example, that we have three servers: A, B and C.
   // The active server should be failed-over in such fashion:
   //
@@ -54,6 +55,7 @@ int DestNextAvailable::get_server_socket(std::chrono::milliseconds connect_timeo
     auto sock = get_mysql_socket(addr, connect_timeout);
     if (sock >= 0) {
       current_pos_ = i;
+      if (address) *address = addr;
       return sock;
     }
   }

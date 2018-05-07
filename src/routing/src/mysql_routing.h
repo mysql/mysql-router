@@ -43,6 +43,9 @@
 #include "mysqlrouter/routing.h"
 #include "mysql_router_thread.h"
 #include "tcp_address.h"
+#include "connection.h"
+#include "context.h"
+#include "connection_container.h"
 namespace mysql_harness { class PluginFuncEnv; }
 
 #include <array>
@@ -157,7 +160,7 @@ public:
    * MySQL client connections. Each connection will be further handled
    * in a separate thread.
    *
-   * Throws std::runtime_error on errors.
+   * @throw std::runtime_error on errors.
    *
    */
   void start(mysql_harness::PluginFuncEnv* env);
@@ -178,64 +181,35 @@ public:
 
   void set_destinations_from_uri(const mysqlrouter::URI &uri);
 
-  /** @brief Descriptive name of the connection routing */
-  const std::string name;
-
   /** @brief Returns timeout when connecting to destination
    *
    * @return Timeout in seconds as int
    */
   std::chrono::milliseconds get_destination_connect_timeout() const noexcept {
-    return destination_connect_timeout_;
+    return context_.get_destination_connect_timeout();
   }
 
   /** @brief Sets timeout when connecting to destination
    *
-   * Sets timeout connecting with destination servers.
+   * Checks timeout connecting with destination servers.
    *
-   * Throws std::invalid_argument when an invalid value was provided.
+   * @throw std::invalid_argument when an invalid value was provided.
    *
    * @param timeout Timeout
-   * @return New value as int
    */
-  std::chrono::milliseconds set_destination_connect_timeout(std::chrono::milliseconds timeout);
+  void validate_destination_connect_timeout(std::chrono::milliseconds timeout);
 
   /** @brief Sets maximum active connections
    *
    * Sets maximum of active connections. Maximum must be between 1 and
    * 65535.
    *
-   * Throws std::invalid_argument when an invalid value was provided.
+   * @throw std::invalid_argument when an invalid value was provided.
    *
    * @param maximum Max number of connections allowed
    * @return New value as int
    */
   int set_max_connections(int maximum);
-
-  /** @brief Checks and if needed, blocks a host from using this routing
-   *
-   * Blocks a host from using this routing adding its IP address to the
-   * list of blocked hosts when the maximum client errors has been
-   * reached. Each call of this function will increment the number of
-   * times it was called with the client IP address.
-   *
-   * When a client host is actually blocked, true will be returned,
-   * otherwise false.
-   *
-   * @param client_ip_array IP address as array[16] of uint8_t
-   * @param client_ip_str IP address as string (for logging purposes)
-   * @param server Server file descriptor to wish to send
-   *               fake handshake reply (default is not to send anything)
-   * @return bool
-   */
-  bool block_client_host(const std::array<uint8_t, 16> &client_ip_array,
-                         const std::string &client_ip_str, int server = -1);
-
-  /** @brief Returns list of blocked client hosts
-   *
-   * Returns list of the blocked client hosts.
-   */
-  const std::vector<std::array<uint8_t, 16>> get_blocked_client_hosts() const;
 
   /** @brief Returns maximum active connections
    *
@@ -245,12 +219,22 @@ public:
     return max_connections_;
   }
 
+  /**
+   * @brief create new connection to MySQL Server than can handle client's traffic
+   *        and adds it to connection container. Every connection runs in it's own
+   *        thread of execution.
+   *
+   * @param client_socket socket used to send/receive data to/from client
+   * @param client_addr address of client
+   */
+  void create_connection(int client_socket, const sockaddr_storage& client_addr);
+
 private:
   /** @brief Sets up the TCP service
    *
    * Sets up the TCP service binding to IP addresses and TCP port.
    *
-   * @throws std::runtime_error on errors.
+   * @throw std::runtime_error on errors.
    */
   void setup_tcp_service();
 
@@ -258,7 +242,7 @@ private:
    *
    * Sets up the named socket service creating a socket file on UNIX systems.
    *
-   * Throws std::runtime_error on errors.
+   * @throw std::runtime_error on errors.
    */
   void setup_named_socket_service();
 
@@ -266,38 +250,28 @@ private:
    *         to all users (no-op on Windows)
    * @param socket_file path to socket file
    *
-   * @throws std::runtime_error if chmod() inside fails
+   * @throw std::runtime_error if chmod() inside fails
    */
   static void set_unix_socket_permissions(const char* socket_file);
 
-  /** @brief Worker function for thread
-   *
-   * Worker function handling incoming connection from a MySQL client using
-   * the select-method.
-   *
-   * Errors are logged.
-   *
-   * @param env pointer to PluginFuncEnv passed to plugin start() function
-   * @param client socket descriptor fo the client connection
-   * @param client_addr IP address as sockaddr_storage struct
-   */
-  void routing_select_thread(mysql_harness::PluginFuncEnv* env,
-                             int client,
-                             const sockaddr_storage &client_addr) noexcept;
+public:
 
+  MySQLRoutingContext& get_context() {
+    return context_;
+  }
 
-  /** @brief run client thread which will service this new connection */
-  static void* run_thread(void* context);
+private:
 
   void start_acceptor(mysql_harness::PluginFuncEnv* env);
 
-  /** @brief return a short string suitable to be used as a thread name
-   * @param config_name configuration name (e.g: "routing", "routing:test_default_x_ro", etc)
-   * @param prefix thread name prefix (e.g. "RtS")
-   *
-   * @return a short string (example: "RtS:x_ro")
-   */
-  static std::string make_thread_name(const std::string& config_name, const std::string& prefix);
+  /** @brief wrapper for data used by all connections */
+  MySQLRoutingContext context_;
+
+  /** @brief object handling the operations on network sockets */
+  routing::RoutingSockOpsInterface* routing_sock_ops_;
+
+  /** @brief Destination object to use when getting next connection */
+  std::unique_ptr<RouteDestination> destination_;
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;
@@ -312,54 +286,21 @@ private:
    * connections since it is one-to-one with incoming.
    */
   int max_connections_;
-  /** @brief Timeout connecting to destination
-   *
-   * This timeout is used when trying to connect with a destination
-   * server. When the timeout is reached, another server will be
-   * tried. It is good to leave this time out to 1 second or higher
-   * if using an unstable network.
-   */
-  std::chrono::milliseconds destination_connect_timeout_;
-  /** @brief Max connect errors blocking hosts when handshake not completed */
-  unsigned long long max_connect_errors_;
-  /** @brief Timeout waiting for handshake response from client */
-  std::chrono::milliseconds client_connect_timeout_;
-  /** @brief Size of buffer to store receiving packets */
-  unsigned int net_buffer_length_;
-  /** @brief IP address and TCP port for setting up TCP service */
-  const mysql_harness::TCPAddress bind_address_;
-  /** @brief Path to named socket for setting up named socket service */
-  const mysql_harness::Path bind_named_socket_;
+
   /** @brief Socket descriptor of the TCP service */
   int service_tcp_;
   /** @brief Socket descriptor of the named socket service */
   int service_named_socket_;
-  /** @brief Destination object to use when getting next connection */
-  std::unique_ptr<RouteDestination> destination_;
-  /** @brief Number of active routes */
-  std::atomic<uint16_t> info_active_routes_;
-  /** @brief Number of handled routes */
-  std::atomic<uint64_t> info_handled_routes_;
 
-  /** @brief Connection error counters for IPv4 or IPv6 hosts */
-  mutable std::mutex mutex_conn_errors_;
-  std::map<std::array<uint8_t, 16>, size_t> conn_error_counters_;
+  /** @brief used to unregister from subscription on allowed nodes changes */
+  AllowedNodesChangeCallbacksListIterator allowed_nodes_list_iterator_;
 
-  /** @brief object handling the operations on network sockets */
-  routing::RoutingSockOpsInterface* routing_sock_ops_;
-  /** @brief object to handle protocol specific stuff */
-  std::unique_ptr<BaseProtocol> protocol_;
+  /** @brief container for connections */
+  ConnectionContainer connection_container_;
 
-  /** number of active client threads. */
-  uint64_t active_client_threads_ {0};
-  std::condition_variable active_client_threads_cond_;
-  std::mutex active_client_threads_cond_m_;
-
-  /** @brief memory in kilobytes allocated for thread's stack */
-  size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
-  FRIEND_TEST(RoutingTests, make_thread_name);
+  FRIEND_TEST(RoutingTests, get_routing_thread_name);
   FRIEND_TEST(ClassicProtocolRoutingTest, NoValidDestinations);
   FRIEND_TEST(TestSetupTcpService, single_addr_ok);
   FRIEND_TEST(TestSetupTcpService, getaddrinfo_fails);

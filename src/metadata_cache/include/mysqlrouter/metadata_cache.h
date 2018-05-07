@@ -29,6 +29,7 @@
 #include <exception>
 #include <vector>
 #include <map>
+#include <list>
 #include <string>
 
 #include "mysqlrouter/utils.h"
@@ -168,7 +169,59 @@ public:
   const std::vector<metadata_cache::ManagedInstance> instance_vector;
 };
 
-METADATA_API class MetadataCacheAPIBase {
+/**
+ * @brief Abstract class that provides interface for listener on
+ *        replicaset status changes.
+ *
+ *        When state of replicaset is changed, notify function is called.
+ */
+class METADATA_API ReplicasetStateListenerInterface {
+public:
+
+  /**
+   * @brief Callback function that is called when state of replicaset is changed.
+   *
+   * @param instances allowed nodes
+   * @param md_servers_reachable true if metadata changed, false if metadata unavailable
+   */
+  virtual void notify(const LookupResult& instances, const bool md_servers_reachable) noexcept = 0;
+  virtual ~ReplicasetStateListenerInterface();
+};
+
+/**
+ * @brief Abstract class that provides interface for adding and removing
+ *        observers on replicaset status changes.
+ *
+ *        When state of replicaset is changed, then ReplicasetStateListenerInterface::notify
+ *        function is called for every registered observer.
+ */
+class METADATA_API ReplicasetStateNotifierInterface {
+public:
+
+  /**
+   * @brief Register observer that is notified when there is a change in the replicaset nodes setup/state
+   *        discovered.
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that is notified when replicaset nodes state is changed.
+   *
+   * @throw std::runtime_error if metadata cache not initialized
+   */
+  virtual void add_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) = 0;
+
+  /**
+   * @brief Unregister observer previously registered with add_listener()
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that should be unregistered.
+   *
+   * @throw std::runtime_error if metadata cache not initialized
+   */
+  virtual void remove_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) = 0;
+  virtual ~ReplicasetStateNotifierInterface();
+};
+
+METADATA_API class MetadataCacheAPIBase : public ReplicasetStateNotifierInterface {
  public:
 
   /** @brief Initialize a MetadataCache object and start caching
@@ -247,6 +300,23 @@ METADATA_API class MetadataCacheAPIBase {
   virtual bool wait_primary_failover(const std::string &replicaset_name,
                                           int timeout) = 0;
 
+  /**
+   * @brief Register observer that is notified when there is a change in the replicaset nodes setup/state
+   *        discovered.
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that is notified when replicaset nodes state is changed.
+   */
+  virtual void add_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) = 0;
+
+  /**
+   * @brief Unregister observer previously registered with add_listener()
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that should be unregistered.
+   */
+  virtual void remove_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) = 0;
+
   virtual  ~MetadataCacheAPIBase() {}
 };
 
@@ -269,6 +339,10 @@ METADATA_API class MetadataCacheAPI: public MetadataCacheAPIBase {
 
   bool wait_primary_failover(const std::string &replicaset_name,
                              int timeout) override;
+
+  void add_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) override;
+  void remove_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) override;
+
  private:
   MetadataCacheAPI() {}
   MetadataCacheAPI(const MetadataCacheAPI&) = delete;

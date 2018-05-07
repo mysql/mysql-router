@@ -57,7 +57,8 @@ class DestRoundRobin : public RouteDestination {
 
   virtual void start() override;
 
-  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept override;
+  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
+                        mysql_harness::TCPAddress *address = nullptr) noexcept override;
 
   /** @brief Returns number of quarantined servers
    *

@@ -41,6 +41,8 @@
 # include <stdint.h>
 #endif
 
+using ClientIpArray = std::array<uint8_t, 16>;
+
 /**
  * Socket address from either IPv4 or IPv6
  *
@@ -80,9 +82,9 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
  * std::array of size 16.
  *
  * @param addr a sockaddr_storage struct
- * @return std::array<uint8_t, 16>
+ * @return ClientIpArray
  */
-std::array<uint8_t, 16> in_addr_to_array(const sockaddr_storage& addr);
+ClientIpArray in_addr_to_array(const sockaddr_storage& addr);
 
 std::string get_message_error(int errcode);
 

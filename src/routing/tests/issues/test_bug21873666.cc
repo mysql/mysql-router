@@ -82,16 +82,6 @@ TEST_F(Bug21771595, Constructor) {
   ASSERT_EQ(r.get_max_connections(), expect_max_connections);
 }
 
-TEST_F(Bug21771595, GetterSetterDestinationConnectionTimeout) {
-  MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
-                 7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-                 "127.0.0.1", mysql_harness::Path(), "test");
-  ASSERT_EQ(r.get_destination_connect_timeout(), routing::kDefaultDestinationConnectionTimeout);
-  auto expected = routing::kDefaultDestinationConnectionTimeout + std::chrono::seconds(1);
-  ASSERT_EQ(r.set_destination_connect_timeout(expected), expected);
-  ASSERT_EQ(r.get_destination_connect_timeout(), expected);
-}
-
 TEST_F(Bug21771595, GetterSetterMaxConnections) {
   MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
                  7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
@@ -102,14 +92,14 @@ TEST_F(Bug21771595, GetterSetterMaxConnections) {
   ASSERT_EQ(r.get_max_connections(), expected);
 }
 
-TEST_F(Bug21771595, InvalidSetterDestinationConnectTimeout) {
+TEST_F(Bug21771595, InvalidDestinationConnectTimeout) {
   MySQLRouting r(routing::RoutingStrategy::kRoundRobin,
                  7001, Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
                  "127.0.0.1", mysql_harness::Path(), "test");
-  ASSERT_THROW(r.set_destination_connect_timeout(std::chrono::seconds(-1)), std::invalid_argument);
+  ASSERT_THROW(r.validate_destination_connect_timeout(std::chrono::seconds(-1)), std::invalid_argument);
   // ASSERT_THROW(r.set_destination_connect_timeout(UINT16_MAX+1), std::invalid_argument);
   try {
-    r.set_destination_connect_timeout(std::chrono::seconds(0));
+    r.validate_destination_connect_timeout(std::chrono::seconds(0));
   } catch (const std::invalid_argument &exc) {
     ASSERT_THAT(exc.what(), HasSubstr(
       "tried to set destination_connect_timeout using invalid value, was 0 ms"));

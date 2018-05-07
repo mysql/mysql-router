@@ -36,7 +36,8 @@ class DestFirstAvailable final : public RouteDestination {
  public:
   using RouteDestination::RouteDestination;
 
-  int get_server_socket(std::chrono::milliseconds connect_timeout_ms, int *error) noexcept override;
+  int get_server_socket(std::chrono::milliseconds connect_timeout_ms, int *error,
+                        mysql_harness::TCPAddress *address = nullptr) noexcept override;
 };
 
 

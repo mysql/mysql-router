@@ -50,6 +50,23 @@ using mysql_harness::TCPAddress;
 using std::out_of_range;
 IMPORT_LOG_FUNCTIONS()
 
+// class DestinationNodesStateNotifier
+
+AllowedNodesChangeCallbacksListIterator
+  DestinationNodesStateNotifier::register_allowed_nodes_change_callback(
+    const AllowedNodesChangedCallback& clb) {
+  std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
+  return allowed_nodes_change_callbacks_.insert(allowed_nodes_change_callbacks_.end(), clb);
+}
+
+void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
+    const AllowedNodesChangeCallbacksListIterator& it) {
+  std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
+  allowed_nodes_change_callbacks_.erase(it);
+}
+
+// class RouteDestination
+
 void RouteDestination::add(const TCPAddress dest) {
   auto dest_end = destinations_.end();
 

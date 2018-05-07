@@ -35,7 +35,7 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysql/harness/logging/logging.h"
 
-class DestMetadataCacheGroup final : public RouteDestination {
+class DestMetadataCacheGroup final : public RouteDestination, public metadata_cache::ReplicasetStateListenerInterface {
 public:
    enum ServerRole {
      Primary,
@@ -66,7 +66,10 @@ public:
   /** @brief Move assignment */
   DestMetadataCacheGroup &operator=(DestMetadataCacheGroup &&) = delete;
 
-  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept override;
+  int get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
+                        mysql_harness::TCPAddress *address = nullptr) noexcept override;
+
+  ~DestMetadataCacheGroup();
 
   void add(const std::string &, uint16_t) override { }
 
@@ -82,15 +85,6 @@ public:
    */
   bool empty() const noexcept override {
     return false;
-  }
-
-  /** @brief Prepares destinations
-   *
-   * Prepares the list of destination by fetching data from the
-   * Metadata Cache.
-   */
-  void prepare() noexcept {
-    destinations_ = get_available().address;
   }
 
   /** @brief empty implementation
@@ -148,7 +142,8 @@ private:
    * servers.
    *
    */
-  AvailableDestinations get_available();
+  AvailableDestinations get_available(const metadata_cache::LookupResult& managed_servers,
+                                      bool for_new_connections = true);
 
   size_t get_next_server(const DestMetadataCacheGroup::AvailableDestinations& available);
 
@@ -161,6 +156,18 @@ private:
   ServerRole server_role_;
 
   metadata_cache::MetadataCacheAPIBase* cache_api_;
+
+
+  std::mutex subscribed_for_metadata_cache_changes_mutex_;
+  bool subscribed_for_metadata_cache_changes_{false};
+
+  bool disconnect_on_promoted_to_primary_{false};
+  bool disconnect_on_metadata_unavailable_{false};
+
+  void on_instances_change(const metadata_cache::LookupResult &instances, const bool md_servers_reachable);
+  void subscribe_for_metadata_cache_changes();
+
+  void notify(const metadata_cache::LookupResult& instances, const bool md_servers_reachable) noexcept override;
 };
 
 

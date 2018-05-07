@@ -48,10 +48,20 @@ const std::string kDefaultMetadataCluster = ""; // blank cluster name means pick
 const unsigned int kDefaultConnectTimeout = 30;
 const unsigned int kDefaultReadTimeout = 30;
 
+ReplicasetStateListenerInterface::~ReplicasetStateListenerInterface() = default;
+ReplicasetStateNotifierInterface::~ReplicasetStateNotifierInterface() = default;
+
 MetadataCacheAPIBase* MetadataCacheAPI::instance() {
   static MetadataCacheAPI instance_;
   return &instance_;
 }
+
+#define LOCK_METADATA_AND_CHECK_INITIALIZED() \
+  std::lock_guard<std::mutex> lock(g_metadata_cache_m); \
+  if (g_metadata_cache == nullptr) { \
+    throw std::runtime_error("Metadata Cache not initialized"); \
+  }
+
 
 /**
  * Initialize the metadata cache.
@@ -106,11 +116,7 @@ void MetadataCacheAPI::cache_stop() noexcept {
  *
  */
 LookupResult MetadataCacheAPI::lookup_replicaset(const std::string &replicaset_name) {
-  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
-
-  if (g_metadata_cache == nullptr) {
-    throw std::runtime_error("Metadata Cache not initialized");
-  }
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
 
   return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
 }
@@ -118,20 +124,24 @@ LookupResult MetadataCacheAPI::lookup_replicaset(const std::string &replicaset_n
 
 void MetadataCacheAPI::mark_instance_reachability(const std::string &instance_id,
                                 InstanceStatus status) {
-  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
-  if (g_metadata_cache == nullptr) {
-    throw std::runtime_error("Metadata Cache not initialized");
-  }
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
 
   g_metadata_cache->mark_instance_reachability(instance_id, status);
 }
 
 bool MetadataCacheAPI::wait_primary_failover(const std::string &replicaset_name, int timeout) {
-  std::lock_guard<std::mutex> lock(g_metadata_cache_m);
-  if (g_metadata_cache == nullptr) {
-    throw std::runtime_error("Metadata Cache not initialized");
-  }
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
 
   return g_metadata_cache->wait_primary_failover(replicaset_name, timeout);
 }
+
+void MetadataCacheAPI::add_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  g_metadata_cache->add_listener(replicaset_name, listener);
+}
+void MetadataCacheAPI::remove_listener(const std::string& replicaset_name, ReplicasetStateListenerInterface* listener) {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  g_metadata_cache->remove_listener(replicaset_name, listener);
+}
+
 } // namespace metadata_cache

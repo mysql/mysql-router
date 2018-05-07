@@ -83,6 +83,8 @@ public:
    * Allocates memory for thread of execution.
    *
    * @param thread_stack_size the memory size allocated to thread's stack
+   *
+   * @throw std::runtime_error if cannot adjust thread size
    */
   MySQLRouterThread(size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
@@ -92,6 +94,8 @@ public:
    * @param run_thread the pointer to the function that is executed in thread. It has to be non-member void*(void*) function
    * @param args_ptr pointer to run_thread parameter
    * @param detach true if thread is detached, false if thread is joinable
+   *
+   * @throw std::runtime_error if cannot create new thread of execution
    */
   void run(thread_function run_thread, void* args_ptr, bool detach = false);
 

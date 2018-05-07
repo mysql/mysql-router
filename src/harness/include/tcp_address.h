@@ -92,6 +92,15 @@ public:
     return (left.addr == right.addr) && (left.port == right.port);
   }
 
+  /**
+   * @brief Function for performing comparision of TCPAddresses
+   */
+  friend bool operator<(const TCPAddress& left, const TCPAddress& right) {
+    if (left.addr < right.addr) return true;
+    else if (left.addr > right.addr) return false;
+    return left.port < right.port;
+  }
+
   /** @brief Returns whether the TCPAddress is valid
    *
    * Returns whether the address and port are valid. This function also

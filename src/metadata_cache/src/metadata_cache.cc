@@ -612,6 +612,22 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
  */
 void MetadataCache::refresh() {
 
+  // used when something unusual happens that prevents
+  // us from querying the metadata
+  auto clear_metadata_for_replicaset = [&]() {
+    bool clearing;
+    {
+      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+      clearing = !replicaset_data_.empty();
+      if (clearing)
+        replicaset_data_.clear();
+    }
+    if (clearing) {
+      log_info("... cleared current routing table as a precaution");
+      on_instances_changed(/*md_servers_reachable=*/false);
+    }
+  };
+
   {
     #if 0 // not used anywhere else so far
     std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
@@ -619,15 +635,7 @@ void MetadataCache::refresh() {
     // TODO: connect() could really be called from inside of metadata_->fetch_instances()
     if (!meta_data_->connect(metadata_servers_)) { // metadata_servers_ come from config file
       log_error("Failed connecting to metadata servers");
-      bool clearing;
-      {
-        std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-        clearing = !replicaset_data_.empty();
-        if (clearing)
-          replicaset_data_.clear();
-      }
-      if (clearing)
-        log_info("... cleared current routing table as a precaution");
+      clear_metadata_for_replicaset();
       return;
     }
   }
@@ -681,6 +689,8 @@ void MetadataCache::refresh() {
           }
         }
       }
+
+      on_instances_changed(/*md_servers_reachable=*/true);
     }
 
     /* Not sure about this, the metadata server could be stored elsewhere
@@ -696,7 +706,22 @@ void MetadataCache::refresh() {
       metadata_servers_ = metadata_servers_temp_;
     }*/
   } catch (const std::runtime_error &exc) {
+    // fetching the meatadata failed
     log_error("Failed fetching metadata: %s", exc.what());
+    clear_metadata_for_replicaset();
+  }
+}
+
+void MetadataCache::on_instances_changed(const bool md_servers_reachable) {
+  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
+
+  for (auto& replicaset_clb: listeners_) {
+    const std::string replicaset_name = replicaset_clb.first;
+    auto res = replicaset_lookup(replicaset_name);
+
+    for(auto each : listeners_[replicaset_name]) {
+      each->notify(res, md_servers_reachable);
+    }
   }
 }
 
@@ -765,4 +790,14 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   return false;
+}
+
+void MetadataCache::add_listener(const std::string& replicaset_name, metadata_cache::ReplicasetStateListenerInterface* listener) {
+  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
+  listeners_[replicaset_name].insert(listener);
+}
+
+void MetadataCache::remove_listener(const std::string& replicaset_name, metadata_cache::ReplicasetStateListenerInterface* listener) {
+  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
+  listeners_[replicaset_name].erase(listener);
 }

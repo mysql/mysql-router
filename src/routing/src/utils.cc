@@ -107,8 +107,8 @@ std::vector<std::string> split_string(const std::string& data, const char delimi
   return split_string(data, delimiter, true);
 }
 
-std::array<uint8_t, 16> in_addr_to_array(const sockaddr_storage &addr) {
-  std::array<uint8_t, 16> result{{0}};
+ClientIpArray in_addr_to_array(const sockaddr_storage &addr) {
+  ClientIpArray result{{0}};
 
   switch (addr.ss_family) {
   case AF_INET6:

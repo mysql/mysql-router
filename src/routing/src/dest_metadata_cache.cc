@@ -54,7 +54,9 @@ IMPORT_LOG_FUNCTIONS()
 // TODO: possibly this should be made into a configurable option
 static const int kPrimaryFailoverTimeout = 10;
 
-static const std::set<std::string> supported_params{"role", "allow_primary_reads"};
+static const std::set<std::string> supported_params{"role", "allow_primary_reads",
+                                                    "disconnect_on_promoted_to_primary",
+                                                    "disconnect_on_metadata_unavailable"};
 
 namespace {
 
@@ -121,7 +123,54 @@ bool mode_is_valid(const routing::AccessMode mode, const DestMetadataCacheGroup:
   return false;
 }
 
+// throws:
+// - runtime_error if invalid value for the option was discovered
+// - check_option_allowed() throws std::runtime_error (it is expected to throw if the given
+//   option is not allowed (because of wrong combination with other params. etc.))
+bool get_yes_no_option(const mysqlrouter::URIQuery &uri,
+                       const std::string& option_name,
+                       const bool defalut_res,
+                       const std::function<void()>& check_option_allowed) {
+  if (uri.find(option_name) == uri.end())
+    return defalut_res;
+
+  check_option_allowed(); // this should throw if this option is not allowed for given configuration
+
+  std::string value_lc = uri.at(option_name);
+  std::transform(value_lc.begin(), value_lc.end(), value_lc.begin(), ::tolower);
+
+  if (value_lc == "no")
+    return false;
+  else if (value_lc == "yes")
+    return true;
+  else
+    throw std::runtime_error("Invalid value for option '" + option_name + "'. Allowed are 'yes' and 'no'");
+}
+
+// throws runtime_error if the parameter has wrong value or is not allowed for given configuration
+bool get_disconnect_on_promoted_to_primary(const mysqlrouter::URIQuery &uri,
+                                            const DestMetadataCacheGroup::ServerRole& role) {
+  const std::string kOptionName = "disconnect_on_promoted_to_primary";
+  auto check_option_allowed = [&]() {
+    if (role != DestMetadataCacheGroup::ServerRole::Secondary) {
+      throw std::runtime_error("Option '" + kOptionName + "' is valid only for mode=SECONDARY");
+    }
+  };
+
+  return get_yes_no_option(uri, kOptionName, /*default=*/ false, check_option_allowed);
+}
+
+// throws runtime_error if the parameter has wrong value or is not allowed for given configuration
+bool get_disconnect_on_metadata_unavailable(const mysqlrouter::URIQuery &uri) {
+  const std::string kOptionName = "disconnect_on_metadata_unavailable";
+  auto check_option_allowed = [&]() {}; // always allowed
+
+  return get_yes_no_option(uri, kOptionName, /*default=*/ false, check_option_allowed);
+}
+
 } // namespace {
+
+
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 // doxygen confuses 'const mysqlrouter::URIQuery &query' with 'std::map<std::string, std::string>'
@@ -141,29 +190,44 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(const std::string &metadata_cache
     routing_strategy_(routing_strategy),
     access_mode_(access_mode),
     server_role_(get_server_role_from_uri(query)),
-    cache_api_(cache_api) {
+    cache_api_(cache_api),
+    disconnect_on_promoted_to_primary_(get_disconnect_on_promoted_to_primary(query, server_role_)),
+    disconnect_on_metadata_unavailable_(get_disconnect_on_metadata_unavailable(query)) {
 
   init();
 }
 #endif
 
-DestMetadataCacheGroup::AvailableDestinations DestMetadataCacheGroup::get_available() {
-  auto managed_servers = cache_api_->lookup_replicaset(ha_replicaset_).instance_vector;
+DestMetadataCacheGroup::AvailableDestinations DestMetadataCacheGroup::get_available(const metadata_cache::LookupResult& managed_servers,
+                                                                                    bool for_new_connections) {
+  // TODO: this is a workaround. We should do it in the init() but currently
+  // there is no way to check if metadata_cache is initialized so we postpone it to
+  // first connection request
+  subscribe_for_metadata_cache_changes();
+
   DestMetadataCacheGroup::AvailableDestinations result;
 
   bool primary_fallback{false};
+  const auto& managed_servers_vec = managed_servers.instance_vector;
   if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
     // if there are no secondaries available we fall-back to primaries
-    auto secondary = std::find_if(managed_servers.begin(), managed_servers.end(),
+    auto secondary = std::find_if(managed_servers_vec.begin(), managed_servers_vec.end(),
             [](const metadata_cache::ManagedInstance& i)
             {
               return i.mode == metadata_cache::ServerMode::ReadOnly;
             });
 
-    primary_fallback = secondary == managed_servers.end();
+    primary_fallback = secondary == managed_servers_vec.end();
   }
 
-  for (auto &it: managed_servers) {
+  // if we are gathering the nodes for the decision about keeping existing connections
+  // we look also at the disconnect_on_promoted_to_primary_ setting
+  // if set to 'no' we need to allow primaries for role=SECONDARY
+  if (!for_new_connections && server_role_ == ServerRole::Secondary && !disconnect_on_promoted_to_primary_) {
+    primary_fallback = true;
+  }
+
+  for (const auto &it: managed_servers_vec) {
     if (!(it.role == "HA")) {
       continue;
     }
@@ -265,6 +329,21 @@ void DestMetadataCacheGroup::init() {
   }
 }
 
+void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
+  std::lock_guard<std::mutex> lock(subscribed_for_metadata_cache_changes_mutex_);
+  if (subscribed_for_metadata_cache_changes_) return;
+  subscribed_for_metadata_cache_changes_ = true;
+  using namespace std::placeholders;
+
+  cache_api_->add_listener(ha_replicaset_, this);
+}
+
+DestMetadataCacheGroup::~DestMetadataCacheGroup() {
+  if (subscribed_for_metadata_cache_changes_) {
+    cache_api_->remove_listener(ha_replicaset_, this);
+  }
+}
+
 size_t DestMetadataCacheGroup::get_next_server(
     const DestMetadataCacheGroup::AvailableDestinations& available) {
   std::lock_guard<std::mutex> lock(mutex_update_);
@@ -295,10 +374,11 @@ size_t DestMetadataCacheGroup::get_next_server(
   return result;
 }
 
-int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
+int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
+                                              mysql_harness::TCPAddress *address) noexcept {
   while (true) {
     try {
-      auto available = get_available();
+      auto available = get_available(cache_api_->lookup_replicaset(ha_replicaset_).instance_vector);
       if (available.address.empty()) {
         log_warning("No available servers found for '%s' %s routing",
             ha_replicaset_.c_str(),
@@ -321,6 +401,7 @@ int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_
           continue; // retry
         }
       }
+      if (address) *address = available.address.at(next_up);
       return fd;
     } catch (std::runtime_error & re) {
       log_error("Failed getting managed servers from the Metadata server: %s",
@@ -331,4 +412,27 @@ int DestMetadataCacheGroup::get_server_socket(std::chrono::milliseconds connect_
 
   *error = errno;
   return -1;
+}
+
+void DestMetadataCacheGroup::on_instances_change(const metadata_cache::LookupResult &instances, const bool md_servers_reachable) {
+  // we got notified that the metadata has changed.
+  // If instances is empty then (most like is empty)
+  // the metadata-cache cannot connect to the metadata-servers
+  // In that case we only trigger the callbacks (resulting in disconnects) if the user
+  // configured that it should happen (disconnect_on_metadata_unavailable_ == true)
+  if (!md_servers_reachable && !disconnect_on_metadata_unavailable_)
+    return;
+
+  const std::string reason = md_servers_reachable ? "metadata change" : "metadata unavailable";
+
+  const auto& available_nodes = get_available(instances,  /*for_new_connections=*/ false);
+  std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
+  // notify all the registered listeneres about the list of available nodes change
+  for (auto& clb: allowed_nodes_change_callbacks_) {
+    clb(available_nodes.address, reason);
+  }
+}
+
+void DestMetadataCacheGroup::notify(const metadata_cache::LookupResult& instances, const bool md_servers_reachable) noexcept {
+  on_instances_change(instances, md_servers_reachable);
 }

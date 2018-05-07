@@ -60,7 +60,8 @@ void DestRoundRobin::start() {
 }
 
 
-int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout, int *error) noexcept {
+int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout, int *error,
+                                      mysql_harness::TCPAddress *address) noexcept {
   size_t server_pos;
 
   const size_t num_servers = size();
@@ -89,6 +90,7 @@ int DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout,
     auto sock = get_mysql_socket(server_addr, connect_timeout);
     if (sock >= 0) {
       // Server is available
+      if (address) *address = server_addr;
       return sock;
     } else {
 #ifndef _WIN32

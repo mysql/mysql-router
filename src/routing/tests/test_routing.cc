@@ -32,6 +32,7 @@
 #include "protocol/classic_protocol.h"
 #include "test/helpers.h"
 #include "tcp_port_pool.h"
+#include "mysql_routing_common.h"
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -373,7 +374,7 @@ TEST_F(RoutingTests, bug_24841281) {
   server.stop_after_n_accepts(6);
 #endif
 
-  EXPECT_EQ(routing.info_active_routes_.load(), 0);
+  EXPECT_EQ(routing.get_context().info_active_routes_.load(), 0);
 
   // open connections to the socket and see if we get a matching outgoing
   // socket connection attempt to our mock server
@@ -389,13 +390,13 @@ TEST_F(RoutingTests, bug_24841281) {
 
   EXPECT_TRUE(call_until([&server]() -> bool { return server.num_connections_ == 2; }))
     << "timed out, got " << server.num_connections_ << " connections";
-  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; }))
-    << "timed out, got " << routing.info_active_routes_.load() << " active routes";
+  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 2; }))
+    << "timed out, got " << routing.get_context().info_active_routes_.load() << " active routes";
 
   disconnect(sock1);
 
-  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; }))
-    << "timed out, got " << routing.info_active_routes_.load() << " active routes";
+  EXPECT_TRUE(call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 1; }))
+    << "timed out, got " << routing.get_context().info_active_routes_.load() << " active routes";
 
   {
     int sock11 = connect_local(router_port);
@@ -407,24 +408,24 @@ TEST_F(RoutingTests, bug_24841281) {
     EXPECT_TRUE(call_until([&server]() -> bool { return server.num_connections_ == 3; }))
       << "timed out: " << server.num_connections_;
 
-    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 3; });
-    EXPECT_EQ(3, routing.info_active_routes_.load());
+    call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 3; });
+    EXPECT_EQ(3, routing.get_context().info_active_routes_.load());
 
     disconnect(sock11);
-    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
-    EXPECT_EQ(2, routing.info_active_routes_.load());
+    call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 2; });
+    EXPECT_EQ(2, routing.get_context().info_active_routes_.load());
 
     disconnect(sock12);
-    call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
-    EXPECT_EQ(1, routing.info_active_routes_.load());
+    call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 1; });
+    EXPECT_EQ(1, routing.get_context().info_active_routes_.load());
 
     call_until([&server]() -> bool { return server.num_connections_ == 1; });
     EXPECT_EQ(1, server.num_connections_);
   }
 
   disconnect(sock2);
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 0; });
-  EXPECT_EQ(0, routing.info_active_routes_.load());
+  call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 0; });
+  EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
 
 #ifndef _WIN32
   // now try the same with socket ops
@@ -437,16 +438,16 @@ TEST_F(RoutingTests, bug_24841281) {
   call_until([&server]() -> bool { return server.num_connections_ == 2; });
   EXPECT_EQ(2, server.num_connections_);
 
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 2; });
-  EXPECT_EQ(2, routing.info_active_routes_.load());
+  call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 2; });
+  EXPECT_EQ(2, routing.get_context().info_active_routes_.load());
 
   disconnect(sock3);
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 1; });
-  EXPECT_EQ(1, routing.info_active_routes_.load());
+  call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 1; });
+  EXPECT_EQ(1, routing.get_context().info_active_routes_.load());
 
   disconnect(sock4);
-  call_until([&routing]() -> bool { return routing.info_active_routes_.load() == 0; });
-  EXPECT_EQ(0, routing.info_active_routes_.load());
+  call_until([&routing]() -> bool { return routing.get_context().info_active_routes_.load() == 0; });
+  EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
 #endif
   env.clear_running();  // shut down MySQLRouting
   server.stop();
@@ -549,32 +550,32 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
 #endif // #ifndef _WIN32 [_HERE_]
 
-TEST_F(RoutingTests, make_thread_name) {
+TEST_F(RoutingTests, get_routing_thread_name) {
   // config name must begin with "routing" (name of the plugin passed from configuration file)
-  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name("", "").c_str());
-  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name("routin", "").c_str());
-  EXPECT_STREQ(":parse err", MySQLRouting::make_thread_name(" routing", "").c_str());
-  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name("", "pre").c_str());
-  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name("routin", "pre").c_str());
-  EXPECT_STREQ("pre:parse err", MySQLRouting::make_thread_name(" routing", "pre").c_str());
+  EXPECT_STREQ(":parse err", get_routing_thread_name("", "").c_str());
+  EXPECT_STREQ(":parse err", get_routing_thread_name("routin", "").c_str());
+  EXPECT_STREQ(":parse err", get_routing_thread_name(" routing", "").c_str());
+  EXPECT_STREQ("pre:parse err", get_routing_thread_name("", "pre").c_str());
+  EXPECT_STREQ("pre:parse err", get_routing_thread_name("routin", "pre").c_str());
+  EXPECT_STREQ("pre:parse err", get_routing_thread_name(" routing", "pre").c_str());
 
   // normally prefix would never be empty, so the behavior below is not be very meaningful;
   // it should not crash however
-  EXPECT_STREQ(":", MySQLRouting::make_thread_name("routing",  "").c_str());
-  EXPECT_STREQ(":", MySQLRouting::make_thread_name("routing:", "").c_str());
+  EXPECT_STREQ(":", get_routing_thread_name("routing",  "").c_str());
+  EXPECT_STREQ(":", get_routing_thread_name("routing:", "").c_str());
 
   // realistic (but unanticipated) cases - removing everything up to _default_ will fail,
   // in which case we fall back of <prefix>:<everything after "routing:">, trimmed to 15 chars
-  EXPECT_STREQ("RtS:test_def_ul", MySQLRouting::make_thread_name("routing:test_def_ult_x_ro", "RtS").c_str());
-  EXPECT_STREQ("RtS:test_def_ul", MySQLRouting::make_thread_name("routing:test_def_ult_ro",   "RtS").c_str());
-  EXPECT_STREQ("RtS:",          MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
-  EXPECT_STREQ("RtS:test_x_ro", MySQLRouting::make_thread_name("routing:test_x_ro", "RtS").c_str());
-  EXPECT_STREQ("RtS:test_ro",   MySQLRouting::make_thread_name("routing:test_ro",   "RtS").c_str());
+  EXPECT_STREQ("RtS:test_def_ul", get_routing_thread_name("routing:test_def_ult_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:test_def_ul", get_routing_thread_name("routing:test_def_ult_ro",   "RtS").c_str());
+  EXPECT_STREQ("RtS:",          get_routing_thread_name("routing",                   "RtS").c_str());
+  EXPECT_STREQ("RtS:test_x_ro", get_routing_thread_name("routing:test_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:test_ro",   get_routing_thread_name("routing:test_ro",   "RtS").c_str());
 
   // real cases
-  EXPECT_STREQ("RtS:x_ro", MySQLRouting::make_thread_name("routing:test_default_x_ro", "RtS").c_str());
-  EXPECT_STREQ("RtS:ro",   MySQLRouting::make_thread_name("routing:test_default_ro",   "RtS").c_str());
-  EXPECT_STREQ("RtS:",     MySQLRouting::make_thread_name("routing",                   "RtS").c_str());
+  EXPECT_STREQ("RtS:x_ro", get_routing_thread_name("routing:test_default_x_ro", "RtS").c_str());
+  EXPECT_STREQ("RtS:ro",   get_routing_thread_name("routing:test_default_ro",   "RtS").c_str());
+  EXPECT_STREQ("RtS:",     get_routing_thread_name("routing",                   "RtS").c_str());
 }
 
 /*
