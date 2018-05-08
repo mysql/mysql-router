@@ -240,6 +240,20 @@ class RouterComponentTest {
                               bool catch_stderr = true,
                               bool with_sudo = false) const;
 
+  /** @brief Launches the MySQLRouter process.
+   *
+   * @param   params vector<string> containing command line parameters to pass to process
+   * @param   catch_stderr bool flag indicating if the process' error output stream
+   *                       should be included in the output caught from the process
+   * @param   with_sudo    bool flag indicating if the process' should be execute with
+   *                       sudo priviledges
+   *
+   * @returns handle to the launched proccess
+   */
+  CommandHandle launch_router(const std::vector<std::string> &params,
+                              bool catch_stderr = true,
+                              bool with_sudo = false) const;
+
   /** @brief Launches the MySQLServerMock process.
    *
    * @param   json_file  path to the json file containing expected queries definitions
@@ -264,6 +278,19 @@ class RouterComponentTest {
    */
   CommandHandle launch_command(const std::string &command,
                                const std::string &params,
+                               bool catch_stderr = true) const;
+
+
+  /** @brief Launches a process.
+   *
+   * @param command       path to executable
+   * @param params        array of commanline parameters to pass to the executable
+   * @param catch_stderr  if true stderr will also be captured (combined with stdout)
+   *
+   * @returns handle to the launched proccess
+   */
+  CommandHandle launch_command(const std::string &command,
+                               const std::vector<std::string> &params,
                                bool catch_stderr = true) const;
 
   /** @brief Removes non-empty directory recursively.

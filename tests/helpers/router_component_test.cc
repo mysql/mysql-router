@@ -45,8 +45,6 @@
 #  include <codecvt>
 #endif
 
-#include <deque>
-
 #include <fcntl.h>
 #include "router_component_test.h"
 
@@ -139,7 +137,7 @@ void RouterComponentTest::SetUp() {
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_command(const std::string &command,
                                     const std::string &params,
-                                    bool catch_stderr) const {
+                                    bool catch_stderr /* = true */) const {
   auto params_vec = split_str(params, ' ');
   const char* params_arr[MAX_PARAMS];
   get_params(command, params_vec, params_arr);
@@ -148,17 +146,24 @@ RouterComponentTest::launch_command(const std::string &command,
 }
 
 RouterComponentTest::CommandHandle
-RouterComponentTest::launch_router(const std::string &params,
-                                   bool catch_stderr,
-                                   bool with_sudo) const {
+RouterComponentTest::launch_command(const std::string &command,
+                                    const std::vector<std::string> &params,
+                                    bool catch_stderr /* = true */) const {
+
+  const char* params_arr[MAX_PARAMS];
+  get_params(command, params, params_arr);
+
+  return RouterComponentTest::CommandHandle(command, params_arr, catch_stderr);
+}
+
+static std::vector<std::string> build_exec_args(const std::string &mysqlrouter_exec,
+                                                bool with_sudo) {
   const std::string sudo_cmd = "sudo";
   const std::string sudo_args = "--non-interactive";
   const std::string valgrind_cmd = "valgrind";
   const std::string valgrind_args = "--error-exitcode=1 --quiet";
-  std::deque<std::string> args;
+  std::vector<std::string> args;
 
-
-  // build list of arguments
   if (with_sudo) {
     args.emplace_back(sudo_cmd);
     args.emplace_back(sudo_args);
@@ -169,18 +174,46 @@ RouterComponentTest::launch_router(const std::string &params,
     args.emplace_back(valgrind_args);
   }
 
-  args.emplace_back(mysqlrouter_exec_.str());
+  args.emplace_back(mysqlrouter_exec);
+
+  return args;
+}
+
+RouterComponentTest::CommandHandle
+RouterComponentTest::launch_router(const std::string &params,
+                                   bool catch_stderr /* = true */,
+                                   bool with_sudo /* = false */) const {
+  std::vector<std::string> args =
+      build_exec_args(mysqlrouter_exec_.str(), with_sudo);
   args.emplace_back(params);
 
+  // first argument is special - it needs to be passed as "command" to launch_router()
   auto it = args.begin();
-  std::string cmd(*it++);      // first element is 'cmd', the others are the args as a string
-  std::string cmd_args(*it++); // we have at least two elements, no need to check
+  std::string cmd(*it++);
 
-  for (; it < args.end(); it++) {
-    cmd_args += " " + *it;
-  }
+  // and the rest of them go into 'cmd_args', separated by spaces
+  std::string cmd_args;
+  for (; it < args.end(); it++)
+    cmd_args += *it + " ";
+  cmd_args.resize(cmd_args.size() - 1); // remove last space
 
   return launch_command(cmd, cmd_args, catch_stderr);
+}
+
+RouterComponentTest::CommandHandle
+RouterComponentTest::launch_router(const std::vector<std::string> &params,
+                                   bool catch_stderr /* = true */,
+                                   bool with_sudo /* = false */) const {
+
+  std::vector<std::string> args =
+      build_exec_args(mysqlrouter_exec_.str(), with_sudo);
+
+  // 1st argument is special - it needs to be passed as "command" to launch_router()
+  std::string cmd = args.at(0);
+  args.erase(args.begin());
+  std::copy(params.begin(), params.end(), std::back_inserter(args));
+
+  return launch_command(cmd, args, catch_stderr);
 }
 
 RouterComponentTest::CommandHandle
