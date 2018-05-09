@@ -31,7 +31,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <regex>
 #include <vector>
 
 using std::string;
@@ -40,6 +39,7 @@ using std::unique_ptr;
 
 using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
+using mysql_harness::utility::regex_pattern_matches;
 
 #ifndef NDEBUG
 bool CmdArgHandler::debug_check_option_names(
@@ -99,37 +99,7 @@ bool CmdArgHandler::is_valid_option_name(const string& name) const noexcept {
   }
 
   // Handle tokens like --help or --with-sauce
-  try {
-    return std::regex_match(name,
-                            std::regex("^--[A-Za-z][A-Za-z_-]*[A-Za-z]$"));
-  } catch (std::regex_error&) {
-    // Fall back to some non-regular expression checks
-    if (name.size() < 4) {
-      return false;
-    } else if (name.find("--") != 0) {
-      return false;
-    } else if (name.back() == '-' || name.back() == '_') {
-      return false;
-    }
-
-    // First 2 characters after -- must be alpha
-    if (!(isalpha(name.at(2)) && isalpha(name.at(3)))) {
-      return false;
-    }
-
-    if (name.size() == 4) {
-      return true;
-    }
-
-    // Rest can be either alpha, dash or underscore
-    if (name.size() == 4) {
-      return true;
-    }
-    return std::find_if(name.begin() + 4, name.end(),
-                        [](char c) {
-                          return isalpha(c) || c == '-' || c == '_';
-                        }) != name.end();
-  }
+  return regex_pattern_matches(name, "^--[A-Za-z][A-Za-z_-]*[A-Za-z]$");
 }
 
 void CmdArgHandler::process(const vector<string>& arguments) {

@@ -70,7 +70,7 @@ bool pattern_matching(const std::string &s,
   regfree(&regex);
   return (r == 0);
 #else
-  std::regex regex(pattern);
+  std::regex regex(pattern, std::regex::extended);
   return std::regex_match(s, regex);
 #endif
 }

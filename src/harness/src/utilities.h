@@ -216,6 +216,11 @@ std::vector<std::string> wrap_string(const std::string& to_wrap,
 bool matches_glob(const std::string& word, const std::string& pattern);
 std::string get_message_error(int errcode);
 
+/*
+ * Checks wheter given string matches the pattern using extended posix regex.
+*/
+bool regex_pattern_matches(const std::string &s, const std::string &pattern);
+
 }  // namespace utility
 
 } // namespace mysql_harness

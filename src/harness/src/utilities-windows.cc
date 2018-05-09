@@ -28,6 +28,7 @@
 #include <Winsock2.h>
 #include <Shlwapi.h>
 
+#include <regex>
 #include <string>
 
 namespace mysql_harness {
@@ -66,6 +67,13 @@ std::string get_message_error(int errcode) {
     return "SystemError: " + std::to_string(errcode);
   }
 }
+
+bool regex_pattern_matches(const std::string &s,
+                            const std::string &pattern) {
+  std::regex regex(pattern, std::regex::extended);
+  return std::regex_match(s, regex);
+}
+
 
 }  // namespace utility
 

@@ -26,7 +26,7 @@
 
 #include <fnmatch.h>
 #include <unistd.h>
-
+#include <regex.h>
 #include <string>
 
 namespace mysql_harness {
@@ -39,6 +39,18 @@ bool matches_glob(const std::string& word, const std::string& pattern) {
 
 void sleep_seconds(unsigned int seconds) {
   sleep(seconds);
+}
+
+bool regex_pattern_matches(const std::string &s,
+                      const std::string &pattern) {
+  regex_t regex;
+  auto r = regcomp(&regex, pattern.c_str(), REG_EXTENDED);
+  if (r) {
+    throw std::runtime_error("Error compiling regex pattern: " + pattern);
+  }
+  r = regexec(&regex, s.c_str(), 0, NULL, 0);
+  regfree(&regex);
+  return (r == 0);
 }
 
 }  // namespace utility
