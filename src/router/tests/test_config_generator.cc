@@ -579,12 +579,13 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
 
   for (TestType tt : {NATIVE, FALLBACK}) {
 
+    constexpr unsigned kDontFail = 99;
     auto generate_expected_SQL = [this, tt](const std::string& host,
-                                            bool first_create_user = false,
-                                            unsigned fail_on = 99) {
+                                            bool first_create_user,
+                                            unsigned fail_on) {
 
-      // 99 => don't fail, 1..4 => fail on 1..4
-      assert((1 <= fail_on && fail_on <= 4) || fail_on == 99);
+      // kDontFail => don't fail, 1..4 => fail on 1..4
+      assert((1 <= fail_on && fail_on <= 4) || fail_on == kDontFail);
 
       if (tt == NATIVE) {
         // CREATE USER using mysql_native_password and hashed password
@@ -609,7 +610,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
       if (fail_on > 3) mock_mysql->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats TO cluster_user@'" + host + "'").then_ok();
 
-      if (fail_on != 99)
+      if (fail_on != kDontFail)
         mock_mysql->then_error("some error", 1234); // i-th statement will return this error
     };
 
@@ -617,7 +618,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
     {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
-      generate_expected_SQL("%", true);
+      generate_expected_SQL("%", true, kDontFail);
 
       ConfigGenerator config_gen;
       config_gen.init(kServerUrl, {});
@@ -628,7 +629,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
     {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
-      generate_expected_SQL("host1", true);
+      generate_expected_SQL("host1", true, kDontFail);
 
       ConfigGenerator config_gen;
       config_gen.init(kServerUrl, {});
@@ -647,9 +648,9 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
       ::testing::InSequence s;
       common_pass_metadata_checks(mock_mysql.get());
 
-      generate_expected_SQL("host1", true);
-      generate_expected_SQL("%");
-      generate_expected_SQL("host3%");
+      generate_expected_SQL("host1", true, kDontFail);
+      generate_expected_SQL("%", false, kDontFail);
+      generate_expected_SQL("host3%", false, kDontFail);
 
       ConfigGenerator config_gen;
       config_gen.init(kServerUrl, {});
@@ -668,12 +669,12 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
             generate_expected_SQL("host1", true, fail_sql);
           break;
           case 2:
-            generate_expected_SQL("host1", true);
+            generate_expected_SQL("host1", true, kDontFail);
             generate_expected_SQL("host2", false, fail_sql);
           break;
           case 3:
-            generate_expected_SQL("host1", true);
-            generate_expected_SQL("host2", false);
+            generate_expected_SQL("host1", true, kDontFail);
+            generate_expected_SQL("host2", false, kDontFail);
             generate_expected_SQL("host3", false, fail_sql);
           break;
         }
