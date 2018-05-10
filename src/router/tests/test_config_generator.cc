@@ -580,7 +580,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
   for (TestType tt : {NATIVE, FALLBACK}) {
 
     constexpr unsigned kDontFail = 99;
-    auto generate_expected_SQL = [this, tt](const std::string& host,
+    auto generate_expected_SQL = [this, tt, kDontFail](const std::string& host,
                                             bool first_create_user,
                                             unsigned fail_on) {
 
