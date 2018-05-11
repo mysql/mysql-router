@@ -46,7 +46,7 @@ Path g_origin_path;
 class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
   static void SetUpTestCase() {
-    my_hostname = mysql_harness::SocketOperations::instance()->get_my_hostname();
+    my_hostname = mysql_harness::SocketOperations::instance()->get_local_hostname();
   }
 
   void SetUp() override {

@@ -106,13 +106,13 @@ class HARNESS_EXPORT SocketOperationsBase {
    */
   virtual int connect_non_blocking_status(int sock, int &so_error) = 0;
 
-  /** @brief Exception thrown by `get_my_hostname()` on error */
+  /** @brief Exception thrown by `get_local_hostname()` on error */
   class LocalHostnameResolutionError : public std::runtime_error {
     using std::runtime_error::runtime_error;
   };
 
   /** @brief return hostname of local host */
-  virtual std::string get_my_hostname() = 0;
+  virtual std::string get_local_hostname() = 0;
 };
 
 /** @class SocketOperations
@@ -181,7 +181,7 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    *
    * @throws `LocalHostnameResolutionError` (std::runtime_error) on failure
    */
-  std::string get_my_hostname() override;
+  std::string get_local_hostname() override;
 
   /**
    * get the error-code of the last (socket) operation

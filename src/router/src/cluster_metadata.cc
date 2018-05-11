@@ -281,9 +281,9 @@ void MySQLInnoDBClusterMetadata::check_router_id(uint32_t router_id,
     throw std::runtime_error("router_id "+std::to_string(router_id)+" not found in metadata");
   }
 
-  // get_my_hostname() throws LocalHostnameResolutionError (std::runtime_error)
+  // get_local_hostname() throws LocalHostnameResolutionError (std::runtime_error)
   std::string hostname = hostname_override.empty()
-                       ? socket_operations_->get_my_hostname()
+                       ? socket_operations_->get_local_hostname()
                        : hostname_override;
 
   if ((*row)[1] && strcasecmp((*row)[1], hostname.c_str()) == 0) {
@@ -326,9 +326,9 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
     const std::string &hostname_override) {
   uint32_t host_id;
 
-  // get_my_hostname() throws LocalHostnameResolutionError (std::runtime_error)
+  // get_local_hostname() throws LocalHostnameResolutionError (std::runtime_error)
   std::string hostname = hostname_override.empty()
-                       ? socket_operations_->get_my_hostname()
+                       ? socket_operations_->get_local_hostname()
                        : hostname_override;
 
   // check if the host already exists in the metadata schema and if so, get

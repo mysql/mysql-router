@@ -2802,8 +2802,8 @@ TEST_F(ConfigGeneratorTest, stop_sh) {
 class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  public:
   // this one is key to our tests here
-  std::string get_my_hostname() {
-    throw LocalHostnameResolutionError("some error message from get_my_hostname()");
+  std::string get_local_hostname() {
+    throw LocalHostnameResolutionError("some error message from get_local_hostname()");
   }
 
   // we don't call these, but we need to provide an implementation (they're pure virtual)
@@ -2825,7 +2825,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
 };
 
 /**
- * @test verify that exception thrown by (Mock)SocketOperations::get_my_hostname()
+ * @test verify that exception thrown by (Mock)SocketOperations::get_local_hostname()
  *       when local hostname lookup fails in ConfigGenerator::register_router()
  *       will be caught and rethrown with a user-friendly message
  */
@@ -2842,13 +2842,13 @@ TEST_F(ConfigGeneratorTest, register_router_error_message) {
     ConfigGenerator().register_router(router_id, "foo", username, "", false, metadata, rg),
     std::runtime_error,
     "Could not register this Router instance with the cluster because querying this host's hostname from OS failed:\n"
-    "  some error message from get_my_hostname()\n"
+    "  some error message from get_local_hostname()\n"
     "You may want to try --report-host option to manually supply this hostname."
   );
 }
 
 /**
- * @test verify that exception thrown by (Mock)SocketOperations::get_my_hostname()
+ * @test verify that exception thrown by (Mock)SocketOperations::get_local_hostname()
  *       when local hostname lookup fails in ConfigGenerator::ensure_router_id_is_ours()
  *       will be caught and rethrown with a user-friendly message
  */
@@ -2871,7 +2871,7 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
     ConfigGenerator().ensure_router_id_is_ours(router_id, username, "", metadata),
     std::runtime_error,
     "Could not verify if this Router instance is already registered with the cluster because querying this host's hostname from OS failed:\n"
-    "  some error message from get_my_hostname()\n"
+    "  some error message from get_local_hostname()\n"
     "You may want to try --report-host option to manually supply this hostname."
   );
 }

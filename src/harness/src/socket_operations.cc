@@ -169,7 +169,7 @@ int SocketOperations::listen(int fd, int n) {
   return ::listen(fd, n);
 }
 
-std::string SocketOperations::get_my_hostname() {
+std::string SocketOperations::get_local_hostname() {
   char buf[1024] = {0};
 #if defined(_WIN32) || defined(__APPLE__) || defined(__FreeBSD__)
   int ret = gethostname(buf, sizeof(buf));
