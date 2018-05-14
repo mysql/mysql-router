@@ -1389,6 +1389,7 @@ static void bootstrap_name_test(MySQLSessionReplayer *mock_mysql,
   options["name"] = name;
   options["quiet"] = "1";
   options["id"] = "4";
+  options["report-host"] = "dont_query_dns";
 
   KeyringInfo keyring_info("delme", "delme.key");
   config_gen.set_keyring_info(keyring_info);
@@ -1451,6 +1452,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
 
   ASSERT_FALSE(mysql_harness::Path(dir).exists());
   ASSERT_FALSE(mysql_harness::Path("./bug24808634/delme.key").exists());
+
+  std::map<std::string, std::string> options;
+  options["name"] = "foobar";
+  options["quiet"] = "1";
+  options["report-host"] = "dont_query_dns";
+
   // cleanup on failure when dir didn't exist before
   {
     ConfigGenerator config_gen;
@@ -1458,10 +1465,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("SELECT F.cluster_name").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
-
-    std::map<std::string, std::string> options;
-    options["name"] = "foobar";
-    options["quiet"] = "1";
 
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
@@ -1484,10 +1487,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
 
-    std::map<std::string, std::string> options;
-    options["name"] = "foobar";
-    options["quiet"] = "1";
-
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
 
@@ -1508,10 +1507,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     mock_mysql->expect_query("").then_return(4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
     // force a failure during account creationg
     mock_mysql->expect_execute("").then_error("boo!", 1234);
-
-    std::map<std::string, std::string> options;
-    options["name"] = "foobar";
-    options["quiet"] = "1";
 
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
@@ -1534,16 +1529,15 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
 
-    std::map<std::string, std::string> options;
-    options["name"] = "force\nfailure";
-    options["quiet"] = "1";
+    std::map<std::string, std::string> options2 = options;
+    options2["name"] = "force\nfailure";
 
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
 
     ASSERT_THROW(
       config_gen.bootstrap_directory_deployment(dir,
-            options, {}, default_paths),
+            options2, {}, default_paths),
       std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -1568,6 +1562,7 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
     options["use-sockets"] = "1";
+    options["report-host"] = "dont_query_dns";
 
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
@@ -1627,6 +1622,7 @@ static void bootstrap_overwrite_test(MySQLSessionReplayer *mock_mysql,
   std::map<std::string, std::string> options;
   options["name"] = name;
   options["quiet"] = "1";
+  options["report-host"] = "dont_query_dns";
   if (force)
     options["force"] = "1";
 
@@ -1762,6 +1758,7 @@ static void test_key_length(MySQLSessionReplayer *mock_mysql,
   std::map<std::string, std::string> options;
   options["name"] = "test";
   options["quiet"] = "1";
+  options["report-host"] = "dont_query_dns";
 
   KeyringInfo keyring_info("delme", "");
   config_gen.set_keyring_info(keyring_info);
@@ -1798,6 +1795,12 @@ TEST_F(ConfigGeneratorTest, key_too_long) {
 TEST_F(ConfigGeneratorTest, bad_master_key) {
   // bug #24955928
   delete_dir_recursive("./delme");
+
+  std::map<std::string, std::string> options;
+  options["name"] = "foo";
+  options["quiet"] = "1";
+  options["report-host"] = "dont_query_dns";
+
   // reconfiguring with an empty master key file throws an error referencing
   // the temporary file name instead of the actual name
   {
@@ -1807,10 +1810,6 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
-
-    std::map<std::string, std::string> options;
-    options["name"] = "foo";
-    options["quiet"] = "1";
 
     KeyringInfo keyring_info("delme", "key");
     config_gen.set_keyring_info(keyring_info);
@@ -1829,10 +1828,6 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
-
-    std::map<std::string, std::string> options;
-    options["name"] = "foo";
-    options["quiet"] = "1";
 
     KeyringInfo keyring_info("delme", "emptyfile");
     config_gen.set_keyring_info(keyring_info);
@@ -1860,10 +1855,6 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     config_gen.init(kServerUrl, {});
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
 
-    std::map<std::string, std::string> options;
-    options["name"] = "foo";
-    options["quiet"] = "1";
-
     KeyringInfo keyring_info("delme", ".");
     config_gen.set_keyring_info(keyring_info);
 
@@ -1889,6 +1880,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   std::map<std::string, std::string> options;
   options["name"] = "foo";
   options["quiet"] = "1";
+  options["report-host"] = "dont_query_dns";
 
   KeyringInfo keyring_info("delme", "masterkey");
   config_gen.set_keyring_info(keyring_info);
@@ -2457,6 +2449,7 @@ static void bootstrap_password_test(MySQLSessionReplayer* mysql,
   std::map<std::string, std::string> options;
   options["name"] = "name";
   options["password-retries"] = password_retries;
+  options["report-host"] = "dont_query_dns";
   if (force_password_validation)
     options["force-password-validation"] = "1";
 

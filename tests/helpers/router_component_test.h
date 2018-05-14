@@ -291,7 +291,7 @@ class RouterComponentTest {
    */
   CommandHandle launch_command(const std::string &command,
                                const std::vector<std::string> &params,
-                               bool catch_stderr = true) const;
+                               bool catch_stderr) const;
 
   /** @brief Removes non-empty directory recursively.
    *

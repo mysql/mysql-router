@@ -137,7 +137,7 @@ void RouterComponentTest::SetUp() {
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_command(const std::string &command,
                                     const std::string &params,
-                                    bool catch_stderr /* = true */) const {
+                                    bool catch_stderr) const {
   auto params_vec = split_str(params, ' ');
   const char* params_arr[MAX_PARAMS];
   get_params(command, params_vec, params_arr);
@@ -148,7 +148,7 @@ RouterComponentTest::launch_command(const std::string &command,
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_command(const std::string &command,
                                     const std::vector<std::string> &params,
-                                    bool catch_stderr /* = true */) const {
+                                    bool catch_stderr) const {
 
   const char* params_arr[MAX_PARAMS];
   get_params(command, params, params_arr);
@@ -181,8 +181,8 @@ static std::vector<std::string> build_exec_args(const std::string &mysqlrouter_e
 
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_router(const std::string &params,
-                                   bool catch_stderr /* = true */,
-                                   bool with_sudo /* = false */) const {
+                                   bool catch_stderr,
+                                   bool with_sudo) const {
   std::vector<std::string> args =
       build_exec_args(mysqlrouter_exec_.str(), with_sudo);
   args.emplace_back(params);
@@ -202,8 +202,8 @@ RouterComponentTest::launch_router(const std::string &params,
 
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_router(const std::vector<std::string> &params,
-                                   bool catch_stderr /* = true */,
-                                   bool with_sudo /* = false */) const {
+                                   bool catch_stderr,
+                                   bool with_sudo) const {
 
   std::vector<std::string> args =
       build_exec_args(mysqlrouter_exec_.str(), with_sudo);

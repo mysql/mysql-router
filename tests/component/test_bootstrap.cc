@@ -46,7 +46,7 @@ Path g_origin_path;
 class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
   static void SetUpTestCase() {
-    my_hostname = mysql_harness::SocketOperations::instance()->get_local_hostname();
+    my_hostname = "dont_query_dns";
   }
 
   void SetUp() override {
@@ -163,8 +163,10 @@ CommonBootstrapTest::bootstrap_failover(
       router_cmdline += " ";
     }
   } else {
-    router_cmdline = "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1") + ":" + env_vars.at("MYSQL_SERVER_MOCK_PORT_1")
-      + " -d " + bootstrap_dir;
+    router_cmdline = "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1")
+                   + ":" + env_vars.at("MYSQL_SERVER_MOCK_PORT_1")
+                   + " --report-host " + my_hostname
+                   + " -d " + bootstrap_dir;
   }
 
   // launch the router
@@ -252,6 +254,7 @@ TEST_F(RouterBootstrapTest, BootstrapOnlySockets) {
   std::vector<std::string> router_options = {
     "--bootstrap=" + mock_servers.at(0).ip + ":" + std::to_string(mock_servers.at(0).port),
     "-d", bootstrap_dir,
+    "--report-host", my_hostname,
     "--conf-skip-tcp",
     "--conf-use-sockets"
   };
@@ -588,6 +591,7 @@ TEST_F(RouterBootstrapTest, BootstrapSucceedWhenServerResponseLessThanReadTimeou
 
   std::vector<std::string> router_options = {
     "--bootstrap=" + mock_servers.at(0).ip + ":" + std::to_string(mock_servers.at(0).port),
+    "--report-host", my_hostname,
     "-d", bootstrap_dir,
     "--connect-timeout=3",
     "--read-timeout=3"
@@ -699,6 +703,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
   // --bootstrap before --account-host
   test_it("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+          + " --report-host " + my_hostname
           + " -d " + bootstrap_directory
           + " --account-host host1"     // 2nd CREATE USER
           + " --account-host %"         // 1st CREATE USER
@@ -708,6 +713,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
   // --bootstrap after --account-host
   test_it("-d " + bootstrap_directory
+          + " --report-host " + my_hostname
           + " --account-host host1"     // 2nd CREATE USER
           + " --account-host %"         // 1st CREATE USER
           + " --account-host host1"     // \_ redundant, ignored
@@ -767,6 +773,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_directory);});
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " --report-host " + my_hostname
                               + " -d " + bootstrap_directory
                               + " --account-host veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost");
   // add login hook
@@ -908,6 +915,7 @@ TEST_F(RouterBootstrapTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader)
 
   std::vector<std::string> router_options = {
     "--bootstrap=" + config.at(0).ip + ":" + std::to_string(config.at(0).port),
+    "--report-host", my_hostname,
     "-d", bootstrap_dir,
     "--master-key-reader=" + script_generator.get_reader_script(),
     "--master-key-writer=" + script_generator.get_writer_script()
@@ -964,6 +972,7 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
 
   std::vector<std::string> router_options = {
     "--bootstrap=" + mock_servers.at(0).ip + ":" + std::to_string(mock_servers.at(0).port),
+    "--report-host", my_hostname,
     "-d", bootstrap_dir,
     "--force"
   };

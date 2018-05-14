@@ -201,10 +201,12 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyR
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_reader_script() + " --master-key-writer="
-          + script_generator.get_writer_script());
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port)
+      + " --report-host dont_query_dns"
+      + " --directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_reader_script()
+      + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -247,10 +249,11 @@ TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyR
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--directory="
-      + bootstrap_dir_ + " --force" + " --master-key-reader="
-      + script_generator.get_reader_script() + " --master-key-writer="
-      + script_generator.get_writer_script()
+      "--directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_reader_script()
+      + " --master-key-writer=" + script_generator.get_writer_script()
+      + " --report-host dont_query_dns"
       + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
 
   // add login hook
@@ -302,10 +305,12 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_fake_reader_script() + " --master-key-writer="
-          + script_generator.get_writer_script());
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port)
+      + " --report-host dont_query_dns"
+      + " --directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_fake_reader_script()
+      + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -335,10 +340,12 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_reader_script() + " --master-key-writer="
-          + script_generator.get_fake_writer_script());
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port)
+      + " --report-host dont_query_dns"
+      + " --directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_reader_script()
+      + " --master-key-writer=" + script_generator.get_fake_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -434,10 +441,12 @@ TEST_F(MasterKeyReaderWriterTest, IsNewMasterKeyIfReaderReturnsEmptyKeyAndBootst
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_reader_script() + " --master-key-writer="
-          + script_generator.get_writer_script());
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port)
+      + " --report-host dont_query_dns"
+      + " --directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_reader_script()
+      + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -460,7 +469,7 @@ TEST_F(MasterKeyReaderWriterTest, IsNewMasterKeyIfReaderReturnsEmptyKeyAndBootst
  *       verify that if master key exists and is not empty and bootstrap pass, then
  *       original master key is not overriden.
  */
-TEST_F(MasterKeyReaderWriterTest, DontWriteMasterKeyAtBootstrapIfMasterKeyAlreayExists) {
+TEST_F(MasterKeyReaderWriterTest, DontWriteMasterKeyAtBootstrapIfMasterKeyAlreadyExists) {
   write_to_file(Path(tmp_dir_).join("master_key"), "master key value");
 
   unsigned server_port = port_pool_.get_next_available();
@@ -472,10 +481,12 @@ TEST_F(MasterKeyReaderWriterTest, DontWriteMasterKeyAtBootstrapIfMasterKeyAlreay
 
   // launch the router in bootstrap mode
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " --directory="
-          + bootstrap_dir_ + " --force" + " --master-key-reader="
-          + script_generator.get_reader_script() + " --master-key-writer="
-          + script_generator.get_writer_script());
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port)
+      + " --report-host dont_query_dns"
+      + " --directory=" + bootstrap_dir_
+      + " --force"
+      + " --master-key-reader=" + script_generator.get_reader_script()
+      + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -699,9 +710,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-      + " --master-key-reader="
-      + script_generator.get_reader_script() + " --master-key-writer="
-      + script_generator.get_writer_script());
+                              + " --report-host dont_query_dns"
+                              + " --master-key-reader=" + script_generator.get_reader_script()
+                              + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -731,9 +742,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapFailsWhenCannotRunMas
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-      + " --master-key-reader="
-      + script_generator.get_fake_reader_script() + " --master-key-writer="
-      + script_generator.get_writer_script());
+                              + " --report-host dont_query_dns"
+                              + " --master-key-reader=" + script_generator.get_fake_reader_script()
+                              + " --master-key-writer=" + script_generator.get_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -761,9 +772,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapFailsWhenCannotRunMas
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-      + " --master-key-reader="
-      + script_generator.get_reader_script() + " --master-key-writer="
-      + script_generator.get_fake_writer_script());
+                              + " --report-host dont_query_dns"
+                              + " --master-key-reader=" + script_generator.get_reader_script()
+                              + " --master-key-writer=" + script_generator.get_fake_writer_script());
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

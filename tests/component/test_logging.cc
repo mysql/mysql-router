@@ -325,6 +325,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
+                              + " --report-host dont_query_dns"
                               + " -d " + bootstrap_dir);
 
   // add login hook
@@ -361,7 +362,8 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
       bootstrap_conf, "bootstrap.conf");
 
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
-                              + "--force -d " + bootstrap_dir + " -c " + conf_file);
+                              + " --report-host dont_query_dns"
+                              + " --force -d " + bootstrap_dir + " -c " + conf_file);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -397,7 +399,8 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   const std::string conf_file = create_config_file("[logger]\nlevel = DEBUG\n", &params);
 
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
-                              + "--force -d " + bootstrap_dir + " -c " + conf_file);
+                              + " --report-host dont_query_dns"
+                              + " --force -d " + bootstrap_dir + " -c " + conf_file);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -440,7 +443,8 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
       bootstrap_conf, "bootstrap.conf");
 
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
-                              + "--force -d " + bootstrap_dir + " -c " + conf_file, false /*false = capture only stdout*/);
+                              + " --report-host dont_query_dns"
+                              + " --force -d " + bootstrap_dir + " -c " + conf_file, false /*false = capture only stdout*/);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");

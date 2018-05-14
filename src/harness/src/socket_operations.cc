@@ -27,6 +27,7 @@
 #include "common.h"
 
 #include <memory>
+//#include <string.h>
 #ifndef _WIN32
 # include <arpa/inet.h>
 # include <fcntl.h>
@@ -45,6 +46,7 @@
 # endif
 #else
 # define WIN32_LEAN_AND_MEAN
+//# include <io.h>
 # include <windows.h>
 # include <winsock2.h>
 # include <ws2tcpip.h>

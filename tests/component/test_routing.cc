@@ -84,6 +84,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   // via first router instance
   std::shared_ptr<void> exit_guard(nullptr, [&](void*){purge_dir(bootstrap_dir);});
   auto router_bootstrapping = launch_router("--bootstrap=localhost:" + std::to_string(router_port)
+                                            + " --report-host dont_query_dns"
                                             + " -d " +  bootstrap_dir);
 
   router_bootstrapping.register_response("Please enter MySQL password for root: ", "fake-pass\n");
