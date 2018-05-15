@@ -1,4 +1,4 @@
-mysql-router (8.0.11-1debian9) stretch; urgency=low
+mysql-router (8.0.12-1debian9) stretch; urgency=low
 
   * For release notes, please refer to https://dev.mysql.com/doc/relnotes/mysql-router/en/changes-8.0.x.html
 
