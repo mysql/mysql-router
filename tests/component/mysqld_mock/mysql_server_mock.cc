@@ -32,6 +32,8 @@
 #include <atomic>
 #include <condition_variable>
 #include <system_error>
+#include <deque>
+#include <queue>
 
 #ifndef _WIN32
 #  include <netdb.h>
@@ -87,8 +89,8 @@ MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
                                  unsigned bind_port, bool debug_mode):
   bind_port_(bind_port),
   debug_mode_(debug_mode),
-  json_reader_(expected_queries_file),
-  protocol_decoder_(&read_packet) {
+  expected_queries_file_{expected_queries_file}
+  {
   if (debug_mode_)
     std::cout << "\n\nExpected SQL queries come from file '"
               << expected_queries_file << "'\n\n" << std::flush;
@@ -169,7 +171,7 @@ static void sigterm_handler(int /* signo */) {
 static bool g_terminate = false;
 #endif
 
-void MySQLServerMock::send_handshake(
+void MySQLServerMockSession::send_handshake(
     socket_t client_socket,
     mysql_protocol::Capabilities::Flags our_capabilities) {
 
@@ -181,7 +183,7 @@ void MySQLServerMock::send_handshake(
   send_packet(client_socket, buf);
 }
 
-mysql_protocol::HandshakeResponsePacket MySQLServerMock::handle_handshake_response(
+mysql_protocol::HandshakeResponsePacket MySQLServerMockSession::handle_handshake_response(
     socket_t client_socket,
     mysql_protocol::Capabilities::Flags our_capabilities) {
 
@@ -232,7 +234,7 @@ mysql_protocol::HandshakeResponsePacket MySQLServerMock::handle_handshake_respon
   }
 }
 
-void MySQLServerMock::handle_auth_switch(socket_t client_socket) {
+void MySQLServerMockSession::handle_auth_switch(socket_t client_socket) {
 
   constexpr uint8_t seq_nr = 2;
 
@@ -271,7 +273,7 @@ void MySQLServerMock::handle_auth_switch(socket_t client_socket) {
 
 }
 
-void MySQLServerMock::send_fast_auth(socket_t client_socket) {
+void MySQLServerMockSession::send_fast_auth(socket_t client_socket) {
   // a mysql-8 client will send us a cache-256-password-scramble
   // and expects a \x03 back (fast-auth) + a OK packet
   // Here we send the 1st of the two.
@@ -286,6 +288,126 @@ void MySQLServerMock::send_fast_auth(socket_t client_socket) {
   send_packet(client_socket, switch_auth, sizeof(switch_auth));
 }
 
+void non_blocking(socket_t handle_, bool mode) {
+  int flags = fcntl(handle_, F_GETFL, 0);
+  fcntl(handle_, F_SETFL, (flags & ~O_NONBLOCK) | (mode ? O_NONBLOCK : 0));
+}
+
+MySQLServerMockSession::MySQLServerMockSession(socket_t client_sock, std::string expected_queries_file, bool debug_mode):
+  client_socket_{client_sock},
+  protocol_decoder_{&read_packet},
+  json_reader_{expected_queries_file},
+  debug_mode_{debug_mode}
+{
+  // if it doesn't work, no problem.
+  int one = 1;
+  setsockopt(client_socket_, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
+
+  non_blocking(client_socket_, false);
+
+}
+
+MySQLServerMockSession::~MySQLServerMockSession() {
+  if (client_socket_ != -1) {
+    close_socket(client_socket_);
+  }
+}
+
+void MySQLServerMockSession::run() {
+  try {
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    // This is the handshake packet that my server v8.0.5 emits:
+    //
+    //        <header >   v10  <--- server version
+    //  0000: 6c00 0000   0a   38 2e30 2e35 2d65 6e74 6572 7072 6973 652d 636f 6d6d 6572 6369 616c            l....8.0.5-enterprise-commercial
+    //
+    //                         server version -> <conn id> <-- auth data 1 -->  zero cap.low char status
+    //  0020: 2d61 6476 616e 6365 642d 6c6f 6700 0800 0000 5b09 4e78 3d48 0a11   00   ff ff   ff   0200       -advanced-log.....[.Nx=H........
+    //
+    //      cap.hi  auth-len  <- reserved 10 0-bytes ->   <SECURE_CONN && auth-data 2    >   <PLUGIN_AUTH && auth-plugin name
+    //  0040: ffc3     15     00 0000 0000 0000 0000 00   64 1242 070c 5263 2d01 710c 4100   6361 6368 696e   .............d.B..Rc-.q.A.cachin
+    //
+    //        auth-plugin name --------------------->
+    //  0060: 675f 7368 6132 5f70 6173 7377 6f72 6400                                                         g_sha2_password.
+    //
+    //
+    //  client v8.0.5 reponds with capability flags: 05ae ff01
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+
+    using namespace mysql_protocol;
+
+    constexpr Capabilities::Flags our_capabilities = Capabilities::PROTOCOL_41
+                                                   | Capabilities::PLUGIN_AUTH
+                                                   | Capabilities::SECURE_CONNECTION;
+
+    send_handshake(client_socket_, our_capabilities);
+    HandshakeResponsePacket handshake_response = handle_handshake_response(
+                                                     client_socket_, our_capabilities);
+
+    uint8_t packet_seq = 2u;
+    if (handshake_response.get_auth_plugin() == kAuthCachingSha2Password) {
+      // typically, client >= 8.0.4 will trigger this branch
+
+      handle_auth_switch(client_socket_);
+      send_fast_auth(client_socket_);
+      packet_seq += 3;  // 2 from auth-switch + 1 from fast-auth
+
+    } else if (handshake_response.get_auth_plugin() == kAuthNativePassword) {
+      // typically, client <= 5.7 will trigger this branch; do nothing, we're good
+    } else {
+      // unexpected auth-plugin name
+      assert(0);
+    }
+
+    send_ok(client_socket_, packet_seq);
+
+    bool res = process_statements(client_socket_);
+    if (!res) {
+      std::cout << "Error processing statements with client: " << client_socket_ << std::endl;
+    }
+  }
+  catch (const std::exception &e) {
+    std::cerr << "Exception caught in connection loop: " <<  e.what() << std::endl;
+  }
+}
+
+struct Work {
+  socket_t client_socket;
+  std::string expected_queries_file;
+  bool debug_mode;
+};
+
+template<typename Data>
+class concurrent_queue {
+public:
+  Data pop() {
+    std::unique_lock<std::mutex> mlock(mutex_);
+
+    while(queue_.empty()) {
+      cond_.wait(mlock);
+    }
+
+    auto item = queue_.front();
+    queue_.pop();
+    return item;
+  }
+
+  void push(Data&& item) {
+    std::unique_lock<std::mutex> mlock(mutex_);
+
+    queue_.push(std::move(item));
+
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+private:
+  std::queue<Data> queue_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+};
 
 void MySQLServerMock::handle_connections() {
   struct sockaddr_storage client_addr;
@@ -323,87 +445,25 @@ void MySQLServerMock::handle_connections() {
   pthread_sigmask(SIG_BLOCK, &thread_sig_action.sa_mask, NULL);
 #endif
 
-  uint64_t active_client_threads { 0 };
+  concurrent_queue<Work> work_queue;
 
-  std::condition_variable active_client_threads_cond;
-  std::mutex active_client_threads_cond_m;
+  auto connection_handler = [&]() -> void {
+    while (true) {
+      auto work = work_queue.pop();
 
-  auto connection_handler = [&](socket_t client_socket) -> void {
-    // increment the active thread count
-    {
-      std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
-      active_client_threads++;
-    }
-    active_client_threads_cond.notify_all();
+      if (work.client_socket == -1) break;
 
-    // ... and make sure decrement it again on exit ... and close the socket
-    std::shared_ptr<void> exit_guard(nullptr, [&](void*){
-      close_socket(client_socket);
-
-      {
-        std::lock_guard<std::mutex> lk(active_client_threads_cond_m);
-        active_client_threads--;
-        active_client_threads_cond.notify_all();
-      }
-    });
-    try {
-      ////////////////////////////////////////////////////////////////////////////////
-      //
-      // This is the handshake packet that my server v8.0.5 emits:
-      //
-      //        <header >   v10  <--- server version
-      //  0000: 6c00 0000   0a   38 2e30 2e35 2d65 6e74 6572 7072 6973 652d 636f 6d6d 6572 6369 616c            l....8.0.5-enterprise-commercial
-      //
-      //                         server version -> <conn id> <-- auth data 1 -->  zero cap.low char status
-      //  0020: 2d61 6476 616e 6365 642d 6c6f 6700 0800 0000 5b09 4e78 3d48 0a11   00   ff ff   ff   0200       -advanced-log.....[.Nx=H........
-      //
-      //      cap.hi  auth-len  <- reserved 10 0-bytes ->   <SECURE_CONN && auth-data 2    >   <PLUGIN_AUTH && auth-plugin name
-      //  0040: ffc3     15     00 0000 0000 0000 0000 00   64 1242 070c 5263 2d01 710c 4100   6361 6368 696e   .............d.B..Rc-.q.A.cachin
-      //
-      //        auth-plugin name --------------------->
-      //  0060: 675f 7368 6132 5f70 6173 7377 6f72 6400                                                         g_sha2_password.
-      //
-      //
-      //  client v8.0.5 reponds with capability flags: 05ae ff01
-      //
-      ////////////////////////////////////////////////////////////////////////////////
-
-      using namespace mysql_protocol;
-
-      constexpr Capabilities::Flags our_capabilities = Capabilities::PROTOCOL_41
-                                                     | Capabilities::PLUGIN_AUTH
-                                                     | Capabilities::SECURE_CONNECTION;
-
-      send_handshake(client_socket, our_capabilities);
-      HandshakeResponsePacket handshake_response = handle_handshake_response(
-                                                       client_socket, our_capabilities);
-
-      uint8_t packet_seq = 2u;
-      if (handshake_response.get_auth_plugin() == kAuthCachingSha2Password) {
-        // typically, client >= 8.0.4 will trigger this branch
-
-        handle_auth_switch(client_socket);
-        send_fast_auth(client_socket);
-        packet_seq += 3;  // 2 from auth-switch + 1 from fast-auth
-
-      } else if (handshake_response.get_auth_plugin() == kAuthNativePassword) {
-        // typically, client <= 5.7 will trigger this branch; do nothing, we're good
-      } else {
-        // unexpected auth-plugin name
-        assert(0);
-      }
-
-      send_ok(client_socket, packet_seq);
-
-      bool res = process_statements(client_socket);
-      if (!res) {
-        std::cout << "Error processing statements with client: " << client_socket << std::endl;
-      }
-    }
-    catch (const std::exception &e) {
-      std::cerr << "Exception caught in connection loop: " <<  e.what() << std::endl;
+      MySQLServerMockSession session(work.client_socket, work.expected_queries_file, work.debug_mode);
+      session.run();
     }
   };
+
+  non_blocking(listener_, true);
+
+  std::deque<std::thread> worker_threads;
+  for (size_t ndx = 0; ndx < 4; ndx++) {
+    worker_threads.emplace_back(connection_handler);
+  }
 
   while (!g_terminate) {
     fd_set fds;
@@ -426,29 +486,39 @@ void MySQLServerMock::handle_connections() {
     }
 
     if (FD_ISSET(listener_, &fds)) {
-      socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
-      if (client_socket < 0) {
-        // if we got interrupted at shutdown, just leave
-        if (g_terminate) break;
+      while (true) {
+        socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
+        if (client_socket < 0) {
+          // if we got interrupted at shutdown, just leave
+          if (g_terminate) break;
 
-        throw std::runtime_error("accept() failed: " + get_socket_errno_str());
+          if (errno == EAGAIN) break;
+          if (errno == EWOULDBLOCK) break;
+          if (errno == EINTR) continue;
+
+          std::cerr << "accept() failed: " << get_socket_errno_str() << std::endl;
+          g_terminate = true;
+          break;
+        }
+
+        // std::cout << "Accepted client " << client_socket << std::endl;
+        work_queue.push(Work {client_socket, expected_queries_file_, debug_mode_});
       }
-
-      // if it doesn't work, no problem.
-      int one = 1;
-      setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof(one));
-
-      std::cout << "Accepted client " << client_socket << std::endl;
-      std::thread(connection_handler, client_socket).detach();
     }
   }
 
-  // wait until all threads have shutdown
-  std::unique_lock<std::mutex> lk(active_client_threads_cond_m);
-  active_client_threads_cond.wait(lk, [&]{ return active_client_threads == 0;});
+  // std::cerr << "sending death-signal to threads" << std::endl;
+  for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
+    work_queue.push(Work { -1, "", 0});
+  }
+  // std::cerr << "joining threads" << std::endl;
+  for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
+    worker_threads[ndx].join();
+  }
+  // std::cerr << "done" << std::endl;
 }
 
-bool MySQLServerMock::process_statements(socket_t client_socket) {
+bool MySQLServerMockSession::process_statements(socket_t client_socket) {
   using mysql_protocol::Command;
 
   while (true) {
@@ -489,7 +559,7 @@ bool MySQLServerMock::process_statements(socket_t client_socket) {
     }
     break;
     case Command::QUIT:
-      std::cout << "received QUIT command from the client" << std::endl;
+      // std::cout << "received QUIT command from the client" << std::endl;
       return true;
     default:
       std::cerr << "received unsupported command from the client: "
@@ -513,7 +583,7 @@ static void debug_trace_result(const ResultsetResponse *resultset) {
   std::cout << "\n\n\n" << std::flush;
 }
 
-void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
+void MySQLServerMockSession::handle_statement(socket_t client_socket, uint8_t seq_no,
                     const StatementAndResponse& statement) {
   using StatementResponseType = StatementAndResponse::StatementResponseType;
 
@@ -561,7 +631,7 @@ void MySQLServerMock::handle_statement(socket_t client_socket, uint8_t seq_no,
   }
 }
 
-void MySQLServerMock::send_error(socket_t client_socket, uint8_t seq_no,
+void MySQLServerMockSession::send_error(socket_t client_socket, uint8_t seq_no,
                                  uint16_t error_code,
                                  const std::string &error_msg,
                                  const std::string &sql_state) {
@@ -570,7 +640,7 @@ void MySQLServerMock::send_error(socket_t client_socket, uint8_t seq_no,
   send_packet(client_socket, buf);
 }
 
-void MySQLServerMock::send_ok(socket_t client_socket, uint8_t seq_no,
+void MySQLServerMockSession::send_ok(socket_t client_socket, uint8_t seq_no,
     uint64_t affected_rows,
     uint64_t last_insert_id,
     uint16_t server_status,

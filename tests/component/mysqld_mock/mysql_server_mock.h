@@ -31,6 +31,50 @@
 
 namespace server_mock {
 
+class MySQLServerMockSession {
+public:
+  MySQLServerMockSession(socket_t client_sock,
+      std::string expected_queries_file,
+      bool debug_mode);
+
+  ~MySQLServerMockSession();
+
+  void send_handshake(socket_t client_socket,
+                      mysql_protocol::Capabilities::Flags our_capabilities);
+
+  mysql_protocol::HandshakeResponsePacket handle_handshake_response(
+      socket_t client_socket,
+      mysql_protocol::Capabilities::Flags our_capabilities);
+
+  void handle_auth_switch(socket_t client_socket);
+
+  void send_fast_auth(socket_t client_socket);
+
+  bool process_statements(socket_t client_socket);
+
+  void handle_statement(socket_t client_socket, uint8_t seq_no,
+                        const StatementAndResponse& statement);
+
+  void send_error(socket_t client_socket, uint8_t seq_no,
+                  uint16_t error_code,
+                  const std::string &error_msg,
+                  const std::string &sql_state = "HY000");
+
+  void send_ok(socket_t client_socket, uint8_t seq_no,
+      uint64_t affected_rows=0,
+      uint64_t last_insert_id=0,
+      uint16_t server_status=0,
+      uint16_t warning_count=0);
+
+  void run();
+private:
+  socket_t client_socket_;
+  MySQLProtocolEncoder protocol_encoder_;
+  MySQLProtocolDecoder protocol_decoder_;
+  QueriesJsonReader json_reader_;
+  bool debug_mode_;
+};
+
 /** @class MySQLServerMock
  *
  * @brief Main class. Resposible for accepting and handling client's connections.
@@ -64,40 +108,12 @@ class MySQLServerMock {
 
   void handle_connections();
 
-  void send_handshake(socket_t client_socket,
-                      mysql_protocol::Capabilities::Flags our_capabilities);
-
-  mysql_protocol::HandshakeResponsePacket handle_handshake_response(
-      socket_t client_socket,
-      mysql_protocol::Capabilities::Flags our_capabilities);
-
-  void handle_auth_switch(socket_t client_socket);
-
-  void send_fast_auth(socket_t client_socket);
-
-  bool process_statements(socket_t client_socket);
-
-  void handle_statement(socket_t client_socket, uint8_t seq_no,
-                        const StatementAndResponse& statement);
-
-  void send_error(socket_t client_socket, uint8_t seq_no,
-                  uint16_t error_code,
-                  const std::string &error_msg,
-                  const std::string &sql_state = "HY000");
-
-  void send_ok(socket_t client_socket, uint8_t seq_no,
-      uint64_t affected_rows=0,
-      uint64_t last_insert_id=0,
-      uint16_t server_status=0,
-      uint16_t warning_count=0);
-
-  static constexpr int kListenQueueSize = 5;
+  // allow a target backlog of accepted connections
+  static constexpr int kListenQueueSize = SOMAXCONN;
   unsigned bind_port_;
   bool debug_mode_;
   socket_t listener_{socket_t(-1)};
-  QueriesJsonReader json_reader_;
-  MySQLProtocolEncoder protocol_encoder_;
-  MySQLProtocolDecoder protocol_decoder_;
+  std::string expected_queries_file_;
 };
 
 } // namespace
