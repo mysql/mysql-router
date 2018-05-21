@@ -93,9 +93,10 @@ public:
 
   /** @brief Update the status of the instance
    *
-   * Called when an instance from a replicaset cannot be reached for one reason or
-   * another. When an instance becomes unreachable, the rate of refresh of
-   * the metadata cache increases to once per second until a (potentialy new) primary is detected.
+   * Called when an instance from a replicaset cannot be reached for one reason
+   * or another. When an instance becomes unreachable, an emergency mode is set
+   * (the rate of refresh of the metadata cache increases to once per second)
+   * and lasts until disabled after a suitable metadata cache refresh.
    *
    * @param instance_id - the mysql_server_uuid that identifies the server instance
    * @param status - the status of the instance
@@ -162,10 +163,11 @@ private:
   std::mutex metadata_servers_mutex_;
   #endif
 
-  // Contains a set of replicaset names that have no primary
-  std::set<std::string> lost_primary_replicasets_;
+  // Contains a set of replicaset names that have at least one unreachable
+  // (primary or secondary) node appearing in the routing table
+  std::set<std::string> replicasets_with_unreachable_nodes_;
 
-  std::mutex lost_primary_replicasets_mutex_;
+  std::mutex replicasets_with_unreachable_nodes_mtx_;
 
   // Flag used to terminate the refresh thread.
   std::atomic_bool terminate_;

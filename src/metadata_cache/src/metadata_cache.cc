@@ -78,17 +78,17 @@ void MetadataCache::refresh_thread() {
   while (!terminate_) {
     refresh();
 
-    // wait for up to TTL until next refresh, unless some replicaset
-    // loses the primary server.. in that case, we refresh every 1s
-    // until we detect a new one was elected
+    // wait for up to TTL until next refresh, unless some replicaset loses an
+    // online (primary or secondary) server - in that case, "emergency mode" is
+    // enabled and we refresh every 1s until "emergency mode" is called off.
     unsigned int seconds_waited = 0;
     while (seconds_waited < ttl_ && !terminate_) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       seconds_waited++;
       {
-        std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
-        if (!lost_primary_replicasets_.empty())
-          break;
+        std::lock_guard<std::mutex> lock(replicasets_with_unreachable_nodes_mtx_);
+        if (!replicasets_with_unreachable_nodes_.empty())
+          break;  // we're in "emergency mode", don't wait until TTL expires
       }
     }
   }
@@ -227,16 +227,16 @@ void MetadataCache::refresh() {
                 mi.port, mi.xport, mi.role.c_str(), str_mode(mi.mode));
 
             if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-              // If we were running without a primary and a new one was elected
-              // disable the frequent update mode
-              std::lock_guard<std::mutex> lock(lost_primary_replicasets_mutex_);
-              auto lost_primary = lost_primary_replicasets_.find(rs.first);
-              if (lost_primary != lost_primary_replicasets_.end()) {
-                log_info("Replicaset '%s' has a new Primary %s:%i [%s].",
-                         rs.first.c_str(),
-                         mi.host.c_str(), mi.port,
-                         mi.mysql_server_uuid.c_str());
-                lost_primary_replicasets_.erase(lost_primary);
+              // If we were running with a primary or secondary node gone
+              // missing before (in so-called "emergency mode"), we trust that
+              // the update fixed the problem. This is a bug that should be
+              // fixed, see notes [05] and [06] in Notes section of Metadata
+              // Cache module in Doxygen.
+              std::lock_guard<std::mutex> lock(replicasets_with_unreachable_nodes_mtx_);
+              auto rs_with_unreachable_node = replicasets_with_unreachable_nodes_.find(rs.first);
+              if (rs_with_unreachable_node != replicasets_with_unreachable_nodes_.end()) {
+                // disable "emergency mode" for this replicaset
+                replicasets_with_unreachable_nodes_.erase(rs_with_unreachable_node);
               }
             }
           }
@@ -263,9 +263,12 @@ void MetadataCache::refresh() {
 
 void MetadataCache::mark_instance_reachability(const std::string &instance_id,
                                 metadata_cache::InstanceStatus status) {
-  // If the status is that the primary instance is physically unreachable,
-  // we temporarily increase the refresh rate to 1/s until the replicaset
-  // is back to having a primary instance.
+  // If the status is that the primary or secondary instance is physically
+  // unreachable, we enable "emergency mode" (temporarily increase the refresh
+  // rate to 1/s) until the replicaset routing table reflects this reality (or
+  // at least that is the the intent; in practice this mechanism is buggy - see
+  // Metadata Cache module documentation in Doxygen, section "Emergency mode")
+
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
   // the replicaset that the given instance belongs to
   metadata_cache::ManagedInstance *instance = nullptr;
@@ -285,21 +288,21 @@ void MetadataCache::mark_instance_reachability(const std::string &instance_id,
   // If the instance got marked as invalid we want to trigger metadata-cache update ASAP
   // to aviod keeping try to route to that instance
   if (replicaset) {
-    std::lock_guard<std::mutex> lplock(lost_primary_replicasets_mutex_);
+    std::lock_guard<std::mutex> lplock(replicasets_with_unreachable_nodes_mtx_);
     switch (status) {
       case metadata_cache::InstanceStatus::Reachable:
         break;
       case metadata_cache::InstanceStatus::InvalidHost:
-        log_warning("Primary instance '%s:%i' [%s] of replicaset '%s' is invalid. Increasing metadata cache refresh frequency.",
+        log_warning("Instance '%s:%i' [%s] of replicaset '%s' is invalid. Increasing metadata cache refresh frequency.",
                     instance->host.c_str(), instance->port, instance_id.c_str(),
                     replicaset->name.c_str());
-        lost_primary_replicasets_.insert(replicaset->name);
+        replicasets_with_unreachable_nodes_.insert(replicaset->name);
         break;
       case metadata_cache::InstanceStatus::Unreachable:
-        log_warning("Primary instance '%s:%i' [%s] of replicaset '%s' is unreachable. Increasing metadata cache refresh frequency.",
+        log_warning("Instance '%s:%i' [%s] of replicaset '%s' is unreachable. Increasing metadata cache refresh frequency.",
                     instance->host.c_str(), instance->port, instance_id.c_str(),
                     replicaset->name.c_str());
-        lost_primary_replicasets_.insert(replicaset->name);
+        replicasets_with_unreachable_nodes_.insert(replicaset->name);
         break;
       case metadata_cache::InstanceStatus::Unusable:
         break;
@@ -315,7 +318,7 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
   while (std::time(NULL) - stime <= timeout) {
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (lost_primary_replicasets_.find(replicaset_name) == lost_primary_replicasets_.end()) {
+      if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
         return true;
       }
     }

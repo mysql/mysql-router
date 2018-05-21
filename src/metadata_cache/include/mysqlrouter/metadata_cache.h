@@ -223,9 +223,10 @@ METADATA_API class MetadataCacheAPIBase {
 
   /** @brief Update the status of the instance
    *
-   * Called when an instance from a replicaset cannot be reached for one reason or
-   * another. When a primary instance becomes unreachable, the rate of refresh of
-   * the metadata cache increases to once per second until a new primary is detected.
+   * Called when an instance from a replicaset cannot be reached for one reason
+   * or another. When an instance becomes unreachable, an emergency mode is set
+   * (the rate of refresh of the metadata cache increases to once per second)
+   * and lasts until disabled after a suitable metadata cache refresh.
    *
    * @param instance_id - the mysql_server_uuid that identifies the server instance
    * @param status - the status of the instance
