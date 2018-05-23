@@ -205,6 +205,9 @@ class METADATA_API ClusterMetadata : public MetaData {
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Recovering);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_ErrorAndOther);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive);
+  FRIEND_TEST(MetadataTest, CheckReplicasetStatus_Cornercase1Common);
 #endif
 };
 

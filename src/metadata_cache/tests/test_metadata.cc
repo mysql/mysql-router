@@ -1113,6 +1113,182 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
   }
 }
 
+/**
+ * @test
+ * Here we test an interesting cornercase:
+ *
+ *   MD defines nodes A, B, C
+ *   GR defines nodes A, B, C, D, E
+ *   A, B are alive; C, D, E are dead
+ *
+ * Availability calculation should deem replicaset to be unavailable, because
+ * only 2 of 5 nodes are alive, even though looking purely from MD point-of-view,
+ * 2 of its 3 nodes are still alive, thus could be considered a quorum.
+ */
+TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
+
+  // MD defines 3 nodes
+  std::vector<ManagedInstance> servers_in_metadata {
+    {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+  };
+
+  // GR reports 5 nodes, of which only 2 are alive (no qourum), BUT from
+  // perspective of MD-defined nodes, 2 of its 3 are alive (have quorum).
+  // We choose to be pessimistic (no quorum)
+  for (State dead_state : {State::Offline, State::Error, State::Unreachable, State::Other}) {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "node-A", {"", "", 0, State::Online, Role::Primary  } },
+      { "node-B", {"", "", 0, State::Online, Role::Secondary} },
+      { "node-C", {"", "", 0, dead_state, Role::Secondary} },
+      { "node-D", {"", "", 0, dead_state, Role::Secondary} },
+      { "node-E", {"", "", 0, dead_state, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(servers_in_metadata, server_status));
+    // should log error "Member <host>:<port> (node-D) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (node-E) found in replicaset, yet is not defined in metadata!"
+
+    // meeting these is not strictly required, because when the cluster is
+    // unavailable, ATTOW these results will be ignored. But OTOH, there's no
+    // reason why these computations should fail - so we use the opportunity to
+    // check if they still compute correctly despite replicaset being
+    // unavailable. If one day we need these results to compute differently,
+    // please feel free to erase these tests.
+    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added
+    EXPECT_EQ(ServerMode::ReadWrite,   servers_in_metadata.at(0).mode);
+    EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(1).mode);
+    EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
+  }
+}
+
+/**
+ * @test
+ * Here we test an interesting cornercase:
+ *
+ *   MD defines nodes A, B, C
+ *   GR defines nodes A, B, C, D, E
+ *   A, B are dead, C, D, E are alive
+ *
+ * Availability calculation, if fully GR-aware, could deem replicaset as
+ * available, because looking from purely GR perspective, 3 of 5 nodes form
+ * quorum.
+ *
+ * However, our availability calculation in
+ * `ClusterMetadata::check_replicaset_status()` always assumes that MD is in
+ * sync with GR (which it always should be), but just in case it violates this
+ * assumption, it prefers to err on the side of caution. This erring on the side
+ * of caution is demonstrated in this test, where the availability is judged as
+ * not available, even though it could be. But that's the price we pay in
+ * exchange for the safety the algorithm provides which is demonstrated in the
+ * CheckReplicasetStatus_Cornercase2of5Alive testcase.
+ */
+TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
+
+  // NOTE: If this test starts failing one day because check_replicaset_status()
+  //       starts returning that the replicaset is available, it might be a good
+  //       thing, BUT ONLY AS LONG as CheckReplicasetStatus_Cornercase2of5Alive
+  //       is also passing. Please read the description of that test, and this
+  //       one, before drawing conclusions.
+
+  // MD defines 3 nodes
+  std::vector<ManagedInstance> servers_in_metadata {
+    {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+  };
+
+  // GR reports 5 nodes, of which 3 are alive (have qourum), BUT from
+  // the perspective of MD-defined nodes, only 1 of its 3 is alive (no quorum).
+  // We choose to be pessimistic (no quorum)
+  for (State dead_state : {State::Offline, State::Error, State::Unreachable, State::Other}) {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "node-A", {"", "", 0, dead_state, Role::Primary  } },
+      { "node-B", {"", "", 0, dead_state, Role::Secondary} },
+      { "node-C", {"", "", 0, State::Online, Role::Secondary} },
+      { "node-D", {"", "", 0, State::Online, Role::Secondary} },
+      { "node-E", {"", "", 0, State::Online, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(servers_in_metadata, server_status));
+    // should log error "Member <host>:<port> (node-D) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (node-E) found in replicaset, yet is not defined in metadata!"
+
+    // meeting these is not strictly required, because when the cluster is
+    // unavailable, ATTOW these results will be ignored. But OTOH, there's no
+    // reason why these computations should fail - so we use the opportunity to
+    // check if they still compute correctly despite replicaset being
+    // unavailable. If one day we need these results to compute differently,
+    // please feel free to erase these tests.
+    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added
+    EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(1).mode);
+    EXPECT_EQ(ServerMode::ReadOnly,      servers_in_metadata.at(2).mode);
+  }
+}
+
+/**
+ * @test
+ * Here we test an interesting cornercase:
+ *
+ *   MD defines nodes A, B, C
+ *   GR defines nodes       C, D, E
+ *   A, B are not reported by GR, C, D, E are alive
+ *
+ * According to GR, there's a quorum between nodes C, D and E. However, from MD
+ * point-of-view, A, B went missing and only C is known to be alive.
+ *
+ * Our availability calculation in `ClusterMetadata::check_replicaset_status()`
+ * always assumes that MD is in sync with GR (which it always should be), but
+ * just in case it violates this assumption, it prefers to err on the side of
+ * caution. This erring on the side of caution is demonstrated in this test,
+ * where the availability is judged as not available, even though it could be.
+ * But that's the price we pay in exchange for the safety the algorithm provides
+ * which is demonstrated in the CheckReplicasetStatus_Cornercase2of5Alive
+ * testcase.
+ */
+TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
+
+  // NOTE: If this test starts failing one day because check_replicaset_status()
+  //       starts returning that the replicaset is available, it might be a good
+  //       thing, BUT ONLY AS LONG as CheckReplicasetStatus_Cornercase2of5Alive
+  //       is also passing. Please read the description of that test, and this
+  //       one, before drawing conclusions.
+
+  // MD defines 3 nodes
+  std::vector<ManagedInstance> servers_in_metadata {
+    {"", "node-A", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-B", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+    {"", "node-C", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
+  };
+
+  // GR reports 3 nodes, of which 3 are alive (have qourum), BUT from
+  // the perspective of MD-defined nodes, only 1 of its 3 is alive (no quorum).
+  // We choose to be pessimistic (no quorum)
+  {
+    std::map<std::string, GroupReplicationMember> server_status {
+      { "node-C", {"", "", 0, State::Online, Role::Primary  } },
+      { "node-D", {"", "", 0, State::Online, Role::Secondary} },
+      { "node-E", {"", "", 0, State::Online, Role::Secondary} },
+    };
+    EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(servers_in_metadata, server_status));
+    // should log warning "Member <host>:<port> (node-A) defined in metadata not found in actual replicaset"
+    // should log warning "Member <host>:<port> (node-B) defined in metadata not found in actual replicaset"
+    // should log error "Member <host>:<port> (node-D) found in replicaset, yet is not defined in metadata!"
+    // should log error "Member <host>:<port> (node-E) found in replicaset, yet is not defined in metadata!"
+
+    // meeting these is not strictly required, because when the cluster is
+    // unavailable, ATTOW these results will be ignored. But OTOH, there's no
+    // reason why these computations should fail - so we use the opportunity to
+    // check if they still compute correctly despite replicaset being
+    // unavailable. If one day we need these results to compute differently,
+    // please feel free to erase these tests.
+    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added, nor old ones removed
+    EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(0).mode);
+    EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(1).mode);
+    EXPECT_EQ(ServerMode::ReadWrite,     servers_in_metadata.at(2).mode);
+  }
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
