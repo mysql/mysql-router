@@ -20,5 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-add_harness_plugin(syslog SOURCES src/syslog.cc)
-
+IF(NOT WIN32)
+  add_harness_plugin(syslog SOURCES src/syslog.cc)
+ENDIF()

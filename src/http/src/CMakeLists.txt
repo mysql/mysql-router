@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,39 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_SUBDIRECTORY(harness)
-ADD_SUBDIRECTORY(http)
-ADD_SUBDIRECTORY(keepalive)
-ADD_SUBDIRECTORY(metadata_cache)
-ADD_SUBDIRECTORY(mysql_protocol)
-ADD_SUBDIRECTORY(plugin_info)
-ADD_SUBDIRECTORY(router)
-ADD_SUBDIRECTORY(routing)
-ADD_SUBDIRECTORY(syslog)
-ADD_SUBDIRECTORY(x_protocol)
+ADD_LIBRARY(http_common
+  SHARED
+  http_common.cc
+  http_time.cc
+  )
+
+ADD_LIBRARY(http_server_component
+  SHARED
+  http_server_component.cc)
+TARGET_LINK_LIBRARIES(http_server_component
+  event_extra
+  event_core
+  http_common)
+
+ADD_HARNESS_PLUGIN(http_server
+  SOURCES http_server_plugin.cc
+  static_files.cc
+  REQUIRES router_lib;http_server_component)
+
+ADD_LIBRARY(http_client
+  SHARED
+  http_client.cc
+  )
+
+ADD_EXECUTABLE(rest_cli
+  rest_cli.cc)
+TARGET_LINK_LIBRARIES(rest_cli
+  harness-library
+  http_client http_common event_core event_extra)
+
+
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/ext/rapidjson/include/)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/http/include/)
