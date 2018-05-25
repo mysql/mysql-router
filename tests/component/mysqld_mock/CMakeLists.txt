@@ -39,20 +39,6 @@ add_custom_command(OUTPUT mysql_server_mock_schema.cc
 
 
 
-################################################################################
-# build server mock
-################################################################################
-
-set(mysql_server_mock_sources
-  main.cc
-  json_statement_reader.cc
-  mysql_protocol_decoder.cc
-  mysql_protocol_encoder.cc
-  mysql_protocol_utils.cc
-  mysql_server_mock.cc
-  mysql_server_mock_schema.cc # this one is auto-generated [_HERE_]
-)
-
 # Implementation files that include RapidJSON headers.
 # Used to supress warnings for those.
 set(json_sources json_statement_reader.cc)
@@ -75,18 +61,67 @@ ENDIF()
 
 
 set(common_libraries)
+set(math_libraries)
 if(WIN32)
   list(APPEND common_libraries Ws2_32.lib)
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   list(APPEND common_libraries -lnsl -lsocket -lpthread)
+  LIST(APPEND math_libraries -lm)
 else()
   list(APPEND common_libraries -lpthread)
+  LIST(APPEND math_libraries -lm)
 endif()
 
-add_executable(mysql_server_mock ${mysql_server_mock_sources})
-target_include_directories(mysql_server_mock PUBLIC
-  ${RAPIDJSON_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/src/mysql_protocol/include/)
+## Ubuntu 18.02 has duktape-2.2.0
+SET(DUKTAPE_SOURCE_DIR ${PROJECT_SOURCE_DIR}/ext/duktape/duktape-2.1.0/)
 
-target_link_libraries(mysql_server_mock ${common_libraries} mysql_protocol)
+add_library(duktape SHARED
+  ${DUKTAPE_SOURCE_DIR}/src/duktape.c
+  ${DUKTAPE_SOURCE_DIR}/extras/logging/duk_logging.c
+  ${DUKTAPE_SOURCE_DIR}/extras/module-node/duk_module_node.c
+  )
+target_include_directories(duktape PUBLIC
+  ${DUKTAPE_SOURCE_DIR}/src/
+  ${DUKTAPE_SOURCE_DIR}/extras/logging/
+  ${DUKTAPE_SOURCE_DIR}/extras/module-node/
+  )
+target_link_libraries(duktape ${math_libraries})
+
+include(Plugin)
+
+add_harness_plugin(mock_server
+        SOURCES json_statement_reader.cc
+  duktape_statement_reader.cc
+  mysql_protocol_decoder.cc
+  mysql_protocol_encoder.cc
+  mysql_protocol_utils.cc
+  mysql_server_mock.cc
+  mysql_server_mock_schema.cc
+  duk_module_shim.c
+  duk_node_fs.c
+  mock_server_plugin.cc
+  mock_server_component.cc
+  REQUIRES mysql_protocol;duktape)
+target_include_directories(mock_server PUBLIC
+  ${RAPIDJSON_INCLUDE_DIRS}
+  ${DUKTAPE_SOURCE_DIR}/src/
+  ${DUKTAPE_SOURCE_DIR}/extras/logging/
+  ${DUKTAPE_SOURCE_DIR}/extras/module-node/
+  ${DUKTAPE_SOURCE_DIR}/extras/module-duktape/
+  ${PROJECT_SOURCE_DIR}/src/router/include
+  ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
+  )
+
+add_harness_plugin(rest_mock_server
+        SOURCES rest_mock_server.cc
+  REQUIRES mock_server;http_server_component)
+target_include_directories(rest_mock_server PUBLIC
+  ${PROJECT_SOURCE_DIR}/src/http/include
+  )
+
+add_executable(mysql_server_mock
+  main.cc
+  )
+
+target_link_libraries(mysql_server_mock ${common_libraries} harness-library)
 set_target_output_directory(mysql_server_mock RUNTIME_OUTPUT_DIRECTORY bin)

@@ -226,9 +226,9 @@ RouterComponentTest::launch_mysql_server_mock(const std::string& json_file,
                                               unsigned port,
                                               bool debug_mode) const {
 
-  return launch_command(mysqlserver_mock_exec_.str(), json_file
-                        + " " + std::to_string(port)
-                        + " " + (debug_mode ? "1" : "0"),
+  return launch_command(mysqlserver_mock_exec_.str(), "--filename=" + json_file
+                        + " --port=" + std::to_string(port)
+                        + (debug_mode ? " --verbose" : ""),
                         true);
 }
 

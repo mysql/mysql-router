@@ -42,6 +42,13 @@
 
 #include "mysql_server_mock_schema.h"
 
+#ifdef _WIN32
+#  include <regex>
+#else
+#  include <regex.h>
+#endif
+#include "mysql_protocol_encoder.h"
+
 namespace {
 
 // default allocator for rapidJson (MemoryPoolAllocator) is broken for SparcSolaris
@@ -170,7 +177,7 @@ QueriesJsonReader::QueriesJsonReader(const std::string &json_filename):
 
 // this is needed for pimpl, otherwise compiler complains
 // about pimpl unknown size in std::unique_ptr
-QueriesJsonReader::~QueriesJsonReader() {}
+QueriesJsonReader::~QueriesJsonReader() = default;
 
 // throws std::runtime_error on
 // - file read error
@@ -229,7 +236,29 @@ void QueriesJsonReader::Pimpl::validate_json_against_schema(const JsonSchemaDocu
   }
 }
 
-StatementAndResponse QueriesJsonReader::get_next_statement() {
+namespace {
+
+bool pattern_matching(const std::string &s,
+                      const std::string &pattern) {
+#ifndef _WIN32
+  regex_t regex;
+  auto r = regcomp(&regex, pattern.c_str(), REG_EXTENDED);
+  if (r) {
+    throw std::runtime_error("Error compiling regex pattern: " + pattern);
+  }
+  r = regexec(&regex, s.c_str(), 0, NULL, 0);
+  regfree(&regex);
+  return (r == 0);
+#else
+  std::regex regex(pattern);
+  return std::regex_match(s, regex);
+#endif
+}
+
+} // unnamed namespace
+
+
+StatementAndResponse QueriesJsonReader::handle_statement(const std::string &statement_received) {
   StatementAndResponse response;
 
   const JsonValue& stmts = pimpl_->json_document_["stmts"];
@@ -246,17 +275,31 @@ StatementAndResponse QueriesJsonReader::get_next_statement() {
     response.exec_time = get_default_exec_time();
   }
 
+  bool statement_is_regex = false;
   std::string name{"stmt"};
   if (stmt.HasMember("stmt.regex")) {
     name = "stmt.regex";
-    response.statement_is_regex = true;
+    statement_is_regex = true;
   }
 
   harness_assert(stmt[name.c_str()].IsString());  // schema should have caught this
 
-  response.statement = stmt[name.c_str()].GetString();
+  std::string statement = stmt[name.c_str()].GetString();
 
-  if (stmt.HasMember("ok")) {
+  bool statement_matching{false};
+  if (!statement_is_regex) { // not regex
+    statement_matching = (statement_received == statement);
+  } else { // regex
+    statement_matching = pattern_matching(statement_received,
+                                          statement);
+  }
+
+  if (!statement_matching) {
+    response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+    response.response.reset(new ErrorResponse(MYSQL_PARSE_ERROR,
+        std::string("Unexpected stmt, got: \"") + statement_received +
+        "\"; expected: \"" + statement + "\""));
+  } else if (stmt.HasMember("ok")) {
     response.response_type = StatementAndResponse::StatementResponseType::STMT_RES_OK;
     response.response = pimpl_->read_ok_info(stmt);
   } else if (stmt.HasMember("error")) {

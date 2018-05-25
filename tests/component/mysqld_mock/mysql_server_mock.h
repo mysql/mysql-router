@@ -25,16 +25,18 @@
 #ifndef MYSQLD_MOCK_MYSQL_SERVER_MOCK_INCLUDED
 #define MYSQLD_MOCK_MYSQL_SERVER_MOCK_INCLUDED
 
-#include "json_statement_reader.h"
+#include "statement_reader.h"
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
+#include "mock_server_component.h"
+#include "mysql/harness/plugin.h"
 
 namespace server_mock {
 
 class MySQLServerMockSession {
 public:
   MySQLServerMockSession(socket_t client_sock,
-      std::string expected_queries_file,
+      std::unique_ptr<StatementReaderBase> statement_processor,
       bool debug_mode);
 
   ~MySQLServerMockSession();
@@ -71,7 +73,7 @@ private:
   socket_t client_socket_;
   MySQLProtocolEncoder protocol_encoder_;
   MySQLProtocolDecoder protocol_decoder_;
-  QueriesJsonReader json_reader_;
+  std::unique_ptr<StatementReaderBase> json_reader_;
   bool debug_mode_;
 };
 
@@ -92,28 +94,36 @@ class MySQLServerMock {
    * @param debug_mode Flag indicating if the handled queries should be printed to
    *                   the standard output
    */
-  MySQLServerMock(const std::string &expected_queries_file,
-                  unsigned bind_port,
-                  bool debug_mode);
+  MySQLServerMock(
+      const std::string &expected_queries_file,
+      const std::string &module_prefix,
+      unsigned bind_port,
+      bool debug_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
    */
-  void run();
+  void run(mysql_harness::PluginFuncEnv* env);
+
+  std::shared_ptr<MockServerGlobalScope> get_global_scope() {
+    return shared_globals_;
+  }
 
   ~MySQLServerMock();
 
  private:
   void setup_service();
 
-  void handle_connections();
+  void handle_connections(mysql_harness::PluginFuncEnv* env);
 
-  // allow a target backlog of accepted connections
-  static constexpr int kListenQueueSize = SOMAXCONN;
+  static constexpr int kListenQueueSize = 128;
   unsigned bind_port_;
   bool debug_mode_;
   socket_t listener_{socket_t(-1)};
   std::string expected_queries_file_;
+  std::string module_prefix_;
+
+  std::shared_ptr<MockServerGlobalScope> shared_globals_ {new MockServerGlobalScope};
 };
 
 } // namespace

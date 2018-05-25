@@ -24,6 +24,11 @@
 
 #include "mysql_server_mock.h"
 #include "mysql_protocol_utils.h"
+#include "json_statement_reader.h"
+#include "duktape_statement_reader.h"
+
+#include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
 
 #include <cstring>
 #include <functional>
@@ -46,38 +51,14 @@
 #  include <sys/types.h>
 #  include <netinet/tcp.h>
 #  include <unistd.h>
-#  include <regex.h>
 #else
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
-typedef long ssize_t;
-#include <regex>
 #endif
 
 using namespace std::placeholders;
-
-namespace {
-
-bool pattern_matching(const std::string &s,
-                      const std::string &pattern) {
-#ifndef _WIN32
-  regex_t regex;
-  auto r = regcomp(&regex, pattern.c_str(), REG_EXTENDED);
-  if (r) {
-    throw std::runtime_error("Error compiling regex pattern: " + pattern);
-  }
-  r = regexec(&regex, s.c_str(), 0, NULL, 0);
-  regfree(&regex);
-  return (r == 0);
-#else
-  std::regex regex(pattern, std::regex::extended);
-  return std::regex_match(s, regex);
-#endif
-}
-
-} // unnamed namespace
 
 namespace server_mock {
 
@@ -85,11 +66,14 @@ constexpr char kAuthCachingSha2Password[] = "caching_sha2_password";
 constexpr char kAuthNativePassword[] = "mysql_native_password";
 constexpr size_t kReadBufSize = 16 * 1024;  // size big enough to contain any packet we're likely to read
 
-MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
-                                 unsigned bind_port, bool debug_mode):
-  bind_port_(bind_port),
-  debug_mode_(debug_mode),
-  expected_queries_file_{expected_queries_file}
+MySQLServerMock::MySQLServerMock(
+    const std::string &expected_queries_file,
+    const std::string &module_prefix,
+    unsigned bind_port, bool debug_mode):
+  bind_port_{bind_port},
+  debug_mode_{debug_mode},
+  expected_queries_file_{expected_queries_file},
+  module_prefix_{module_prefix}
   {
   if (debug_mode_)
     std::cout << "\n\nExpected SQL queries come from file '"
@@ -105,9 +89,9 @@ MySQLServerMock::~MySQLServerMock() {
   }
 }
 
-void MySQLServerMock::run() {
+void MySQLServerMock::run(mysql_harness::PluginFuncEnv* env) {
   setup_service();
-  handle_connections();
+  handle_connections(env);
 }
 
 void MySQLServerMock::setup_service() {
@@ -139,8 +123,7 @@ void MySQLServerMock::setup_service() {
 
   err = bind(listener_, ainfo->ai_addr, ainfo->ai_addrlen);
   if (err < 0) {
-    throw std::runtime_error("bind() failed: " + get_socket_errno_str()
-                             + "; port=" + std::to_string(bind_port_));
+    throw std::runtime_error("bind('0.0.0.0', " + std::to_string(bind_port_)+ ") failed: " + strerror(get_socket_errno()) + " (" + get_socket_errno_str() + ")");
   }
 
   err = listen(listener_, kListenQueueSize);
@@ -148,28 +131,6 @@ void MySQLServerMock::setup_service() {
     throw std::runtime_error("listen() failed: " + get_socket_errno_str());
   }
 }
-
-#ifndef _WIN32
-static volatile std::atomic<sig_atomic_t> g_terminate { 0 };
-
-// ensure that 'terminate'-flag is thread-safe and signal-safe
-//
-// * sigatomic_t is not thread-safe
-// * std::atomic is not signal-safe by default (only lock-free std::atomics are signal-safe)
-//
-// assume that sig_atomic_t is int-or-long
-// (in C++17 we could use std::atomic<sig_atomic_t>.is_always_lock_free)
-static_assert((std::is_same<sig_atomic_t, int>::value && (ATOMIC_INT_LOCK_FREE == 2)) ||
-    (std::is_same<sig_atomic_t, long>::value && (ATOMIC_LONG_LOCK_FREE == 2)), "expected sig_atomic_t to lock-free");
-
-// Signal handler to catch SIGTERM.
-static void sigterm_handler(int /* signo */) {
-  g_terminate = 1;
-}
-#else
-// as we don't use the signal handler on windows, we don't need a signal-safe type
-static bool g_terminate = false;
-#endif
 
 void MySQLServerMockSession::send_handshake(
     socket_t client_socket,
@@ -293,10 +254,26 @@ void non_blocking(socket_t handle_, bool mode) {
   fcntl(handle_, F_SETFL, (flags & ~O_NONBLOCK) | (mode ? O_NONBLOCK : 0));
 }
 
-MySQLServerMockSession::MySQLServerMockSession(socket_t client_sock, std::string expected_queries_file, bool debug_mode):
+class StatementReaderFactory {
+public:
+  static StatementReaderBase *create(const std::string &filename, std::string &module_prefix, std::shared_ptr<MockServerGlobalScope> shared_globals) {
+    if (filename.substr(filename.size() - 3) == ".js") {
+      return new DuktapeStatementReader(filename, module_prefix, shared_globals);
+    } else if (filename.substr(filename.size() - 5) == ".json") {
+      return new QueriesJsonReader(filename);
+    } else {
+      throw std::runtime_error("can't create reader for " + filename);
+    }
+  }
+};
+
+MySQLServerMockSession::MySQLServerMockSession(
+    socket_t client_sock,
+    std::unique_ptr<StatementReaderBase> statement_processor,
+    bool debug_mode):
   client_socket_{client_sock},
   protocol_decoder_{&read_packet},
-  json_reader_{expected_queries_file},
+  json_reader_{std::move(statement_processor)},
   debug_mode_{debug_mode}
 {
   // if it doesn't work, no problem.
@@ -376,6 +353,7 @@ void MySQLServerMockSession::run() {
 struct Work {
   socket_t client_socket;
   std::string expected_queries_file;
+  std::string module_prefix;
   bool debug_mode;
 };
 
@@ -409,41 +387,11 @@ private:
   std::condition_variable cond_;
 };
 
-void MySQLServerMock::handle_connections() {
+void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
 
-  std::cout << "Starting to handle connections on port: " << bind_port_ << std::endl;
-
-#ifndef _WIN32
-  // Install the signal handler for SIGTERM.
-  struct sigaction sig_action;
-  sig_action.sa_handler = sigterm_handler;
-  sigemptyset(&sig_action.sa_mask);
-  sig_action.sa_flags = 0;
-  sigaction(SIGTERM, &sig_action, NULL);
-  sigaction(SIGINT, &sig_action, NULL);
-
-
-  // start signal handling thread, new thread inherits the signal mask
-  auto signal_handler = [&] {
-    while (!g_terminate) {
-      int ret = pause(); // sleep until the signal is delivered
-      if (ret == -1) {
-        std::cout << "Signal was caught: " << strerror(errno) << std::endl;
-      }
-    }
-  };
-  std::thread(signal_handler).detach();
-
-  // all other threads should block SIGTERM and SIGINT
-  struct sigaction thread_sig_action;
-  sigemptyset(&thread_sig_action.sa_mask);
-  thread_sig_action.sa_flags = 0;
-  sigaddset(&thread_sig_action.sa_mask, SIGTERM);
-  sigaddset(&thread_sig_action.sa_mask, SIGINT);
-  pthread_sigmask(SIG_BLOCK, &thread_sig_action.sa_mask, NULL);
-#endif
+  log_info("Starting to handle connections on port: %d", bind_port_);
 
   concurrent_queue<Work> work_queue;
 
@@ -451,10 +399,30 @@ void MySQLServerMock::handle_connections() {
     while (true) {
       auto work = work_queue.pop();
 
+      // exit
       if (work.client_socket == -1) break;
 
-      MySQLServerMockSession session(work.client_socket, work.expected_queries_file, work.debug_mode);
-      session.run();
+      try {
+        std::unique_ptr<StatementReaderBase> statement_reader {
+          StatementReaderFactory::create(
+              work.expected_queries_file,
+              work.module_prefix,
+              shared_globals_)};
+
+        try {
+          MySQLServerMockSession session(
+              work.client_socket,
+              std::move(statement_reader),
+              work.debug_mode);
+          session.run();
+        } catch (const std::exception &e) {
+          log_error("%s", e.what());
+        }
+      } catch (const std::exception &e) {
+        // close the connection as we failed early
+        close_socket(work.client_socket);
+        log_error("%s", e.what());
+      }
     }
   };
 
@@ -465,7 +433,7 @@ void MySQLServerMock::handle_connections() {
     worker_threads.emplace_back(connection_handler);
   }
 
-  while (!g_terminate) {
+  while (is_running(env)) {
     fd_set fds;
     FD_ZERO (&fds);
     FD_SET (listener_, &fds);
@@ -490,26 +458,25 @@ void MySQLServerMock::handle_connections() {
         socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
         if (client_socket < 0) {
           // if we got interrupted at shutdown, just leave
-          if (g_terminate) break;
+          if (!is_running(env)) break;
 
           if (errno == EAGAIN) break;
           if (errno == EWOULDBLOCK) break;
           if (errno == EINTR) continue;
 
           std::cerr << "accept() failed: " << get_socket_errno_str() << std::endl;
-          g_terminate = true;
-          break;
+          return;
         }
 
         // std::cout << "Accepted client " << client_socket << std::endl;
-        work_queue.push(Work {client_socket, expected_queries_file_, debug_mode_});
+        work_queue.push(Work {client_socket, expected_queries_file_, module_prefix_, debug_mode_});
       }
     }
   }
 
   // std::cerr << "sending death-signal to threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
-    work_queue.push(Work { -1, "", 0});
+    work_queue.push(Work { -1, "", "", 0});
   }
   // std::cerr << "joining threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
@@ -527,35 +494,9 @@ bool MySQLServerMockSession::process_statements(socket_t client_socket) {
     switch (cmd) {
     case Command::QUERY: {
       std::string statement_received = protocol_decoder_.get_statement();
-      const auto &next_statement = json_reader_.get_next_statement();
+      const auto &next_statement = json_reader_->handle_statement(statement_received);
 
-      bool statement_matching{false};
-      if (!next_statement.statement_is_regex) { // not regex
-        statement_matching = (statement_received == next_statement.statement);
-      } else { // regex
-        statement_matching = pattern_matching(statement_received,
-                                              next_statement.statement);
-      }
-
-      if (debug_mode_) {
-        // debug trace: show SQL statement that was received vs what was expected
-        std::cout << "vvvv---- received statement ----vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"
-          << statement_received << std::endl
-          << "----\n"
-          << next_statement.statement << std::endl
-          << "^^^^---- expected statement ----^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
-          << (statement_matching ? "[MATCH OK]\n" : "[MATCH FAILED]\n\n\n\n") << std::flush;
-      }
-
-      if (!statement_matching) {
-        uint8_t packet_seq = protocol_decoder_.packet_seq() + 1; // rollover to 0 is ok
-        std::this_thread::sleep_for(json_reader_.get_default_exec_time());
-        send_error(client_socket, packet_seq, MYSQL_PARSE_ERROR,
-            std::string("Unexpected stmt, got: \"") + statement_received +
-            "\"; expected: \"" + next_statement.statement + "\"");
-      } else {
-        handle_statement(client_socket, protocol_decoder_.packet_seq(), next_statement);
-      }
+      handle_statement(client_socket, protocol_decoder_.packet_seq(), next_statement);
     }
     break;
     case Command::QUIT:
@@ -565,7 +506,7 @@ bool MySQLServerMockSession::process_statements(socket_t client_socket) {
       std::cerr << "received unsupported command from the client: "
                 << static_cast<int>(cmd) << "\n";
       uint8_t packet_seq = protocol_decoder_.packet_seq() + 1;   // rollover to 0 is ok
-      std::this_thread::sleep_for(json_reader_.get_default_exec_time());
+      std::this_thread::sleep_for(json_reader_->get_default_exec_time());
       send_error(client_socket, packet_seq, 1064, "Unsupported command: " + std::to_string(cmd));
     }
   }
