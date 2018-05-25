@@ -95,8 +95,9 @@ public:
    *
    * Called when an instance from a replicaset cannot be reached for one reason
    * or another. When an instance becomes unreachable, an emergency mode is set
-   * (the rate of refresh of the metadata cache increases to once per second)
-   * and lasts until disabled after a suitable metadata cache refresh.
+   * (the rate of refresh of the metadata cache increases to once per second if
+   * currently lower) and lasts until disabled after a suitable change in the
+   * metadata cache is discovered.
    *
    * @param instance_id - the mysql_server_uuid that identifies the server instance
    * @param status - the status of the instance

@@ -229,9 +229,9 @@ void MetadataCache::refresh() {
             if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
               // If we were running with a primary or secondary node gone
               // missing before (in so-called "emergency mode"), we trust that
-              // the update fixed the problem. This is a bug that should be
-              // fixed, see notes [05] and [06] in Notes section of Metadata
-              // Cache module in Doxygen.
+              // the update fixed the problem. This is wrong behavior that
+              // should be fixed, see notes [05] and [06] in Notes section of
+              // Metadata Cache module in Doxygen.
               std::lock_guard<std::mutex> lock(replicasets_with_unreachable_nodes_mtx_);
               auto rs_with_unreachable_node = replicasets_with_unreachable_nodes_.find(rs.first);
               if (rs_with_unreachable_node != replicasets_with_unreachable_nodes_.end()) {
@@ -265,9 +265,10 @@ void MetadataCache::mark_instance_reachability(const std::string &instance_id,
                                 metadata_cache::InstanceStatus status) {
   // If the status is that the primary or secondary instance is physically
   // unreachable, we enable "emergency mode" (temporarily increase the refresh
-  // rate to 1/s) until the replicaset routing table reflects this reality (or
-  // at least that is the the intent; in practice this mechanism is buggy - see
-  // Metadata Cache module documentation in Doxygen, section "Emergency mode")
+  // rate to 1/s if currently lower) until the replicaset routing table
+  // reflects this reality (or at least that is the the intent; in practice
+  // this mechanism is buggy - see Metadata Cache module documentation in
+  // Doxygen, section "Emergency mode")
 
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
   // the replicaset that the given instance belongs to
