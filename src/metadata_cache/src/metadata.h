@@ -44,8 +44,7 @@ public:
 #endif
   virtual ReplicaSetsByName fetch_instances(const std::string &cluster_name) = 0;
 
-  virtual bool connect(const std::vector<metadata_cache::ManagedInstance>
-                       & metadata_servers) = 0;
+  virtual bool connect(const metadata_cache::ManagedInstance &metadata_server) = 0;
   virtual void disconnect() = 0;
   virtual ~MetaData() { }
 };

@@ -108,8 +108,7 @@ public:
    *
    * @return a boolean to indicate if the connection was successful.
    */
-  bool connect(const std::vector<metadata_cache::ManagedInstance> &
-               metadata_servers) noexcept override;
+  bool connect(const metadata_cache::ManagedInstance &metadata_server) noexcept override;
 
   /** @brief Mock disconnect method.
    *

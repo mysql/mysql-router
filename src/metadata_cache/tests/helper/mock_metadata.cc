@@ -199,9 +199,8 @@ ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(const std::string &cl
  *
  * @return a boolean to indicate if the connection was successful.
  */
-bool MockNG::connect(const std::vector<metadata_cache::ManagedInstance>
-                     & metadata_servers) noexcept {
-  (void)metadata_servers;
+bool MockNG::connect(const metadata_cache::ManagedInstance& metadata_server) noexcept {
+  (void)metadata_server;
   return true;
 }
 

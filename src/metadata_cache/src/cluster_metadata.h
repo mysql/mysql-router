@@ -97,18 +97,13 @@ class METADATA_API ClusterMetadata : public MetaData {
 
   /** @brief Connects with the Metadata server
    *
-   * Connect to first server that succeeds from the list of servers provided.
-   * Connections to servers are attempted in order provided by the list.
-   * If no connection succeeded, returns false, else true.
-   * (handle to the successful connection will be set in metadata_connection_)
    *
-   * @param metadata_servers the set of servers from which the metadata
-   *                         information is fetched.
+   * @param metadata_server the server instance for which the connection
+   *                        should be attempted.
    *
    * @return a boolean to indicate if the connection was successful.
    */
-  bool connect(const std::vector<metadata_cache::ManagedInstance> &
-               metadata_servers) noexcept override;
+  bool connect(const metadata_cache::ManagedInstance &metadata_server) noexcept override;
 
   /** @brief Disconnects from the Metadata server
    *

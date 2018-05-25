@@ -301,13 +301,11 @@ class MetadataTest : public ::testing::Test {
 
     std::vector<ManagedInstance> metadata_servers {
       {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100},
-      {"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "127.0.0.1", 3320, 33200},
-      {"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300},
     };
     session_factory.get(0).set_good_conns({"127.0.0.1:3310", "127.0.0.1:3320", "127.0.0.1:3330"});
 
     EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
-    EXPECT_TRUE(metadata.connect(metadata_servers));
+    EXPECT_TRUE(metadata.connect(metadata_servers[0]));
   }
 
   void enable_connection(unsigned session, unsigned port) {
@@ -383,84 +381,23 @@ class MetadataTest : public ::testing::Test {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(MetadataTest, ConnectToMetadataServer_1st) {
+TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
 
-  std::vector<ManagedInstance> metadata_servers {
-    {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100},  // good
-    {"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "127.0.0.1", 3320, 33200},
-    {"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300},
-  };
+  ManagedInstance metadata_server{"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100};
   session_factory.get(0).set_good_conns({"127.0.0.1:3310"});
 
-  // should connect to 1st server
+  // should connect successfully
   EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3310)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3320)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3320)).Times(0);
-  EXPECT_TRUE(metadata.connect(metadata_servers));
-
-  EXPECT_EQ(1, session_factory.create_cnt());
+  EXPECT_TRUE(metadata.connect(metadata_server));
 }
 
-TEST_F(MetadataTest, ConnectToMetadataServer_2nd) {
+TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
 
-  std::vector<ManagedInstance> metadata_servers {
-    {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100},  // bad
-    {"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "127.0.0.1", 3320, 33200},  // good
-    {"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300},
-  };
-  session_factory.get(0).set_good_conns({"127.0.0.1:3320"});
+  ManagedInstance metadata_server{"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100};
 
-  // should connect to 2nd server
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3310)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3320)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3320)).Times(0);
-  EXPECT_TRUE(metadata.connect(metadata_servers));
-
-  EXPECT_EQ(1, session_factory.create_cnt());
-}
-
-TEST_F(MetadataTest, ConnectToMetadataServer_3rd) {
-
-  std::vector<ManagedInstance> metadata_servers {
-    {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100},  // bad
-    {"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "127.0.0.1", 3320, 33200},  // bad
-    {"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300},  // good
-  };
-  session_factory.get(0).set_good_conns({"127.0.0.1:3330"});
-
-  // should connect to 3rd server
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3310)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3320)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3320)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3330)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3330)).Times(0);
-  EXPECT_TRUE(metadata.connect(metadata_servers));
-
-  EXPECT_EQ(1, session_factory.create_cnt());
-}
-
-TEST_F(MetadataTest, ConnectToMetadataServer_none) {
-
-  std::vector<ManagedInstance> metadata_servers {
-    {"replicaset-1", "instance-1", "", ServerMode::ReadWrite, 0, 0, "", "localhost", 3310, 33100},  // bad
-    {"replicaset-1", "instance-2", "", ServerMode::ReadOnly,  0, 0, "", "127.0.0.1", 3320, 33200},  // bad
-    {"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300},  // bad
-  };
-  session_factory.get(0).set_good_conns({});
-
-  // should connect to first server
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3310)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3320)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3320)).Times(1);
-  EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3330)).Times(0);
-  EXPECT_CALL(session_factory.get(0), flag_fail   (_, 3330)).Times(1);
-  EXPECT_FALSE(metadata.connect(metadata_servers));
-
-  EXPECT_EQ(1, session_factory.create_cnt());
+  // connetion attempt should fail
+  EXPECT_CALL(session_factory.get(0), flag_fail(_, 3310)).Times(1);
+  EXPECT_FALSE(metadata.connect(metadata_server));
 }
 
 

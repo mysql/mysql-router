@@ -119,10 +119,7 @@ bool ClusterMetadata::do_connect(MySQLSession& connection, const metadata_cache:
   }
 }
 
-// this function establishes connection to the first metadata server that succeeds from the list given
-// (its name is not very informative, API requirement)
-bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
-                           & metadata_servers) noexcept {
+bool ClusterMetadata::connect(const metadata_cache::ManagedInstance &metadata_server) noexcept {
 
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
@@ -134,28 +131,19 @@ bool ClusterMetadata::connect(const std::vector<metadata_cache::ManagedInstance>
     return false;
   }
 
-  // Iterate through the list of servers in the metadata replicaset
-  // to fetch a valid connection from which the metadata can be
-  // fetched.
-  for (const metadata_cache::ManagedInstance& mi : metadata_servers) {
-    if (do_connect(*metadata_connection_, mi)) {
-      log_info("Connected with metadata server running on %s:%i", mi.host.c_str(), mi.port);
-      break;
-    } else {
-      log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
-                mi.host.c_str(), mi.port,
-                metadata_connection_->last_error(),
-                metadata_connection_->last_errno());
-    }
+  if (do_connect(*metadata_connection_, metadata_server)) {
+    log_info("Connected with metadata server running on %s:%i", metadata_server.host.c_str(), metadata_server.port);
+    return true;
   }
 
-  if (metadata_connection_->is_connected()) {
-    return true;
-  } else {
-    log_error("Failed connecting with any of the bootstrap servers");
-    metadata_connection_.reset();
-    return false;
-  }
+  // connection attempt failed
+  log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
+              metadata_server.host.c_str(), metadata_server.port,
+              metadata_connection_->last_error(),
+              metadata_connection_->last_errno());
+
+  metadata_connection_.reset();
+  return false;
 }
 
 void ClusterMetadata::update_replicaset_status(const std::string &name,

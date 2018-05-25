@@ -611,10 +611,20 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
  * Refresh the metadata information in the cache.
  */
 void MetadataCache::refresh() {
+  // fetch metadata
+  for (auto &metadata_server: metadata_servers_) {
+    if (!meta_data_->connect(metadata_server)) {
+      log_error("Failed to connect to metadata server %s", metadata_server.mysql_server_uuid.c_str());
+      continue;
+     }
+     bool result = fetch_metadata_from_connected_instance();
+     if (result) return; // successfully updated metadata
+  }
 
-  // used when something unusual happens that prevents
-  // us from querying the metadata
-  auto clear_metadata_for_replicaset = [&]() {
+  // we failed to fetch metadata from any of the metadata servers
+  log_error("Failed connecting with any of the metadata servers");
+  // clearing metadata
+  {
     bool clearing;
     {
       std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
@@ -626,20 +636,10 @@ void MetadataCache::refresh() {
       log_info("... cleared current routing table as a precaution");
       on_instances_changed(/*md_servers_reachable=*/false);
     }
-  };
-
-  {
-    #if 0 // not used anywhere else so far
-    std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
-    #endif
-    // TODO: connect() could really be called from inside of metadata_->fetch_instances()
-    if (!meta_data_->connect(metadata_servers_)) { // metadata_servers_ come from config file
-      log_error("Failed connecting to metadata servers");
-      clear_metadata_for_replicaset();
-      return;
-    }
   }
+}
 
+bool MetadataCache::fetch_metadata_from_connected_instance() {
   try {
     // Fetch the metadata and store it in a temporary variable.
     std::map<std::string, metadata_cache::ManagedReplicaSet>
@@ -708,8 +708,10 @@ void MetadataCache::refresh() {
   } catch (const std::runtime_error &exc) {
     // fetching the meatadata failed
     log_error("Failed fetching metadata: %s", exc.what());
-    clear_metadata_for_replicaset();
+    return false;
   }
+
+  return true;
 }
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable) {

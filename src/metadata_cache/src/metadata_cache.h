@@ -144,9 +144,14 @@ private:
 
   /** @brief Refreshes the cache
    *
-   * Refreshes the cache.
    */
   void refresh();
+
+  /** @brief Fetches metadata from the metadata server we are currently connected to.
+   *
+   * @return true if the operation succeeded, false otherwise
+   */
+  bool fetch_metadata_from_connected_instance();
 
   // Called each time the metadata has changed and we need to notify
   // the subscribed observers

@@ -614,7 +614,7 @@ TEST_F(MetadataCacheLoggingTest, log_error_when_cannot_connect_to_any_metadata_s
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting with any of the bootstrap servers
   auto matcher = [](const std::string& line) -> bool {
     return line.find("metadata_cache ERROR") != line.npos &&
-        line.find("Failed connecting with any of the bootstrap servers") != line.npos;
+        line.find("Failed connecting with any of the metadata servers") != line.npos;
   };
 
   EXPECT_TRUE(find_in_log(logging_folder, matcher, "mysqlrouter.log", std::chrono::milliseconds(5000)));
