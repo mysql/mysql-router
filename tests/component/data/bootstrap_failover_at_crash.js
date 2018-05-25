@@ -1,4 +1,4 @@
-{
+({
     "stmts": [
         {
             "stmt": "START TRANSACTION",
@@ -55,4 +55,4 @@
             }
         }
     ]
-}
+})

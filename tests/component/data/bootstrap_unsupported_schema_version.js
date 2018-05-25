@@ -1,4 +1,4 @@
-{
+({
   "stmts": [
     {
       "stmt": "SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
@@ -27,4 +27,4 @@
       }
     }
   ]
-}
+})
