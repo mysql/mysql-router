@@ -140,6 +140,10 @@ struct DuktapeStatementReader::Pimpl {
       throw std::runtime_error("expect a object");
     }
     duk_get_prop_string(ctx, idx, "columns");
+
+    if (!duk_is_array(ctx, idx)) {
+      throw std::runtime_error("expect a object");
+    }
     // iterate over the column meta
     duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
     while (duk_next(ctx, -1, 1)) {
@@ -172,29 +176,36 @@ struct DuktapeStatementReader::Pimpl {
     duk_pop(ctx);
     duk_get_prop_string(ctx, idx, "rows");
 
-    duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
-    while (duk_next(ctx, -1, 1)) {
-      // @-2 row-ndx
-      // @-1 row
-      RowValueType row_values;
+    // object|undefined
+    if (duk_is_object(ctx, -1)) {
+      // no rows
 
       duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
       while (duk_next(ctx, -1, 1)) {
-        if (duk_is_null(ctx, -1)) {
-          row_values.push_back(std::make_pair(false, ""));
-        } else {
-          row_values.push_back(std::make_pair(true, duk_to_string(ctx, -1)));
-        }
-        duk_pop(ctx); // field
-        duk_pop(ctx); // field-ndx
-      }
-      duk_pop(ctx); // field-enum
-      response->rows.push_back(row_values);
+        // @-2 row-ndx
+        // @-1 row
+        RowValueType row_values;
 
-      duk_pop(ctx); // row
-      duk_pop(ctx); // row-ndx
+        duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
+        while (duk_next(ctx, -1, 1)) {
+          if (duk_is_null(ctx, -1)) {
+            row_values.push_back(std::make_pair(false, ""));
+          } else {
+            row_values.push_back(std::make_pair(true, duk_to_string(ctx, -1)));
+          }
+          duk_pop(ctx); // field
+          duk_pop(ctx); // field-ndx
+        }
+        duk_pop(ctx); // field-enum
+        response->rows.push_back(row_values);
+
+        duk_pop(ctx); // row
+        duk_pop(ctx); // row-ndx
+      }
+      duk_pop(ctx); // rows-enum
+    } else if (!duk_is_undefined(ctx, -1)) {
+      log_warning("rows: expected array or undefined, got something else. Ignoring");
     }
-    duk_pop(ctx); // rows-enum
 
     duk_pop(ctx); // "rows"
 
@@ -202,14 +213,6 @@ struct DuktapeStatementReader::Pimpl {
   }
   duk_context *ctx {nullptr};
 };
-
-#define DUMP_DUK_STACK(ctx) \
-  duk_push_context_dump(ctx); \
-  std::cerr \
-    << __PRETTY_FUNCTION__ << ":" << __LINE__ << ": " \
-    << duk_to_string(ctx, -1) \
-    << std::endl; \
-  duk_pop(ctx);
 
 duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
   duk_push_c_function(ctx, duk_node_fs_read_file_sync, 1);
@@ -357,7 +360,6 @@ DuktapeStatementReader::DuktapeStatementReader(
       "}");
   if (rc != DUK_EXEC_SUCCESS) {
     duk_get_prop_string(ctx, -1, "stack");
-    log_warning("%s:%d: %s", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
     duk_pop(ctx);
 
     throw std::runtime_error("...");
@@ -365,7 +367,6 @@ DuktapeStatementReader::DuktapeStatementReader(
   rc = duk_pcall(ctx, 0);
   if (rc != DUK_EXEC_SUCCESS) {
     duk_get_prop_string(ctx, -1, "stack");
-    log_warning("%s:%d: %s", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
     duk_pop(ctx);
 
     throw std::runtime_error("...");
@@ -491,11 +492,21 @@ StatementAndResponse DuktapeStatementReader::handle_statement(const std::string 
 
   // value must be an object
   if (!duk_is_object(ctx, -1)) {
-    DUMP_DUK_STACK(ctx);
     throw std::runtime_error("expected a object, got " + std::to_string(duk_get_type(ctx, -1)));
   }
 
   StatementAndResponse response;
+  duk_get_prop_string(ctx, -1, "exec_time");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_number(ctx, -1)) {
+      throw std::runtime_error("exec_time must be a number, if set");
+    }
+
+    double exec_time = duk_get_number(ctx, -1);;
+    response.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+  }
+  duk_pop(ctx);
+
 
   duk_get_prop_string(ctx, -1, "result");
   if (!duk_is_undefined(ctx, -1)) {
