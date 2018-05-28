@@ -71,7 +71,7 @@ struct StatementAndResponse {
    * Response expected for given SQL statement.
    **/
   enum class StatementResponseType {
-     STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
+     STMT_RES_UNKNOWN, STMT_RES_OK, STMT_RES_ERROR, STMT_RES_RESULT
   };
 
   // exected response type for the statement
