@@ -175,21 +175,23 @@ HttpRequest::RequestHandler HttpRequest::sync_callback = [](HttpRequest *req, vo
 
 HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
   auto *ev_req = evhttp_request_new(
-      [](evhttp_request *ev_req, void *ev_cb_arg) {
+      [](evhttp_request *req, void *ev_cb_arg) {
         auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
         ctx->req->pImpl->req.release(); // the old request object may already be free()ed in case of error
-        ctx->req->pImpl->req.reset(ev_req); // just update with what we have
+        ctx->req->pImpl->req.reset(req); // just update with what we have
         ctx->cb(ctx->req, ctx->cb_data);
 
         delete ctx;
       }, new RequestHandlerCtx{this, cb, cb_arg});
 
+#if LIBEVENT_VERSION_NUMBER > 0x02010000
   evhttp_request_set_error_cb(ev_req, [](evhttp_request_error err_code, void *ev_cb_arg){
       auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
       ctx->req->error_code(err_code);
       });
+#endif
 
   pImpl.reset(new impl {
       std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>(
