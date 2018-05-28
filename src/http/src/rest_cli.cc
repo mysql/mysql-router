@@ -27,6 +27,7 @@
 #include <stdio.h>
 
 #include "mysqlrouter/http_common.h"
+#include "mysqlrouter/rest_client.h"
 #include "dim.h"
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
@@ -43,37 +44,6 @@ struct RestClientConfig {
   bool request_data_stdin { false };
   HttpMethod::type method { HttpMethod::GET };
   std::string request_data;
-};
-
-class RestClient {
-public:
-  RestClient(IOContext &io_ctx, const std::string &address, uint16_t port):
-    http_client_{io_ctx, address, port},
-    hostname_{address}
-  {}
-
-  HttpRequest request_sync(HttpMethod::type method, const std::string &uri, const std::string &request_body = {}, const std::string &content_type = "application/json") {
-    HttpRequest req {HttpRequest::sync_callback, nullptr};
-
-    // TRACE forbids a request-body
-    if (!request_body.empty()) {
-      if (method == HttpMethod::TRACE) {
-        throw std::logic_error("TRACE can't have request-body");
-      }
-      req.get_output_headers().add("Content-Type", content_type.c_str());
-      auto out_buf = req.get_output_buffer();
-      out_buf.add(request_body.data(), request_body.size());
-    }
-
-    // ask the server the close the connection after this request
-    req.get_output_headers().add("Connection", "close");
-    req.get_output_headers().add("Host", hostname_.c_str());
-    http_client_.make_request_sync(&req, method, uri);
-
-    return req;
-  }
-  HttpClient http_client_;
-  std::string hostname_;
 };
 
 class RestClientFrontend {
