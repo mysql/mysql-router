@@ -29,7 +29,7 @@ class HttpRequest::impl {
 public:
   using evhttp_req_type = std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>;
 
-  int error_code;
+  int error_code {0};
 
   evhttp_req_type req;
 
