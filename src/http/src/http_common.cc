@@ -291,16 +291,15 @@ unsigned HttpRequest::get_response_code() const {
 }
 
 std::string HttpRequest::get_response_code_line() const {
-#if LIBEVENT_VERSION_NUMBER >= 0x02010000
   auto *ev_req = pImpl->req.get();
-
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
   }
 
+#if LIBEVENT_VERSION_NUMBER >= 0x02010000
   return evhttp_request_get_response_code_line(ev_req);
 #else
-  return HttpStatusCode::get_default_status_text(evhttp_request_get_response_code());
+  return HttpStatusCode::get_default_status_text(evhttp_request_get_response_code(ev_req));
 #endif
 }
 
