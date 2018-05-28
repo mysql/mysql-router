@@ -261,12 +261,15 @@ class RouterComponentTest {
    *                     client connections
    * @param   debug_mode if true all the queries and result get printed on the
    *                     standard output
+   * @param   http_port  port number where the http_server module of the mock server
+   *                     will accept REST client requests
    *
    * @returns handle to the launched proccess
    */
   CommandHandle launch_mysql_server_mock(const std::string& json_file,
                                          unsigned port,
-                                         bool debug_mode = false) const;
+                                         bool debug_mode = true,
+                                         uint16_t http_port = 0) const;
 
   /** @brief Launches a process.
    *

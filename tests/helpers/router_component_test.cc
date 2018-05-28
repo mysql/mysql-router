@@ -147,6 +147,7 @@ RouterComponentTest::launch_command(const std::string &command,
   const char* params_arr[MAX_PARAMS];
   get_params(command, params_vec, params_arr);
 
+  if (command.empty()) throw std::logic_error("path to launchable executable must not be empty");
   return RouterComponentTest::CommandHandle(command, params_arr, catch_stderr);
 }
 
@@ -158,6 +159,7 @@ RouterComponentTest::launch_command(const std::string &command,
   const char* params_arr[MAX_PARAMS];
   get_params(command, params, params_arr);
 
+  if (command.empty()) throw std::logic_error("path to launchable executable must not be empty");
   return RouterComponentTest::CommandHandle(command, params_arr, catch_stderr);
 }
 
@@ -224,10 +226,14 @@ RouterComponentTest::launch_router(const std::vector<std::string> &params,
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_mysql_server_mock(const std::string& json_file,
                                               unsigned port,
-                                              bool debug_mode) const {
+                                              bool debug_mode,
+                                              uint16_t http_port
+                                              ) const {
 
+  if (mysqlserver_mock_exec_.str().empty()) throw std::logic_error("path to mysql-server-mock must not be empty");
   return launch_command(mysqlserver_mock_exec_.str(), "--filename=" + json_file
                         + " --port=" + std::to_string(port)
+                        + " --http-port=" + std::to_string(http_port)
                         + (debug_mode ? " --verbose" : ""),
                         true);
 }
