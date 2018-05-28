@@ -346,7 +346,7 @@ void MySQLServerMockSession::run() {
     }
   }
   catch (const std::exception &e) {
-    std::cerr << "Exception caught in connection loop: " <<  e.what() << std::endl;
+    log_warning("Exception caught in connection loop: %s", e.what());
   }
 }
 
@@ -494,9 +494,9 @@ bool MySQLServerMockSession::process_statements(socket_t client_socket) {
     switch (cmd) {
     case Command::QUERY: {
       std::string statement_received = protocol_decoder_.get_statement();
-      const auto &next_statement = json_reader_->handle_statement(statement_received);
 
-      handle_statement(client_socket, protocol_decoder_.packet_seq(), next_statement);
+      handle_statement(client_socket, protocol_decoder_.packet_seq(),
+          json_reader_->handle_statement(statement_received));
     }
     break;
     case Command::QUIT:

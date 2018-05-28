@@ -20,7 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR} MODULE "component")
+add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+  MODULE "component"
+  INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/http/include/;${RAPIDJSON_INCLUDE_DIRS}
+  LIB_DEPENDS http_client;http_common;event_core;event_extra
+  )
 
 add_executable(master_key_test_writer ../helpers/master_key_test_writer.cc)
 

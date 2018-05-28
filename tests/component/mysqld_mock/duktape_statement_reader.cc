@@ -397,7 +397,7 @@ DuktapeStatementReader::DuktapeStatementReader(
   }
 
   if (!duk_is_object(ctx, -1)) {
-    throw std::runtime_error("expected an object on top of the stack");
+    throw std::runtime_error(filename + ": expected statement handler to return an object");
   }
   duk_get_prop_string(ctx, -1, "stmts");
   if (duk_is_undefined(ctx, -1)) {
