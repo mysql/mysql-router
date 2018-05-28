@@ -185,7 +185,7 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
         delete ctx;
       }, new RequestHandlerCtx{this, cb, cb_arg});
 
-#if LIBEVENT_VERSION_NUMBER > 0x02010000
+#if LIBEVENT_VERSION_NUMBER >= 0x02010000
   evhttp_request_set_error_cb(ev_req, [](evhttp_request_error err_code, void *ev_cb_arg){
       auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
@@ -227,12 +227,14 @@ int HttpRequest::error_code() {
 
 std::string HttpRequest::error_msg() {
   switch(pImpl->error_code) {
+#if LIBEVENT_VERSION_NUMBER >= 0x02010000
   case EVREQ_HTTP_TIMEOUT: return "timeout";
   case EVREQ_HTTP_EOF: return "eof";
   case EVREQ_HTTP_INVALID_HEADER: return "invalid-header";
   case EVREQ_HTTP_BUFFER_ERROR: return "buffer-error";
   case EVREQ_HTTP_REQUEST_CANCEL: return "request-cancel";
   case EVREQ_HTTP_DATA_TOO_LONG: return "data-too-long";
+#endif
   default: return "unknown";
   }
 }
@@ -279,7 +281,6 @@ HttpBuffer HttpRequest::get_output_buffer() {
 }
 
 unsigned HttpRequest::get_response_code() const {
-  // wrap a non-owned pointer
   auto *ev_req = pImpl->req.get();
 
   if (nullptr == ev_req) {
@@ -290,7 +291,7 @@ unsigned HttpRequest::get_response_code() const {
 }
 
 std::string HttpRequest::get_response_code_line() const {
-  // wrap a non-owned pointer
+#if LIBEVENT_VERSION_NUMBER >= 0x02010000
   auto *ev_req = pImpl->req.get();
 
   if (nullptr == ev_req) {
@@ -298,6 +299,9 @@ std::string HttpRequest::get_response_code_line() const {
   }
 
   return evhttp_request_get_response_code_line(ev_req);
+#else
+  return HttpStatusCode::get_default_status_text(evhttp_request_get_response_code());
+#endif
 }
 
 

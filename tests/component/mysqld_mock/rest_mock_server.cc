@@ -65,18 +65,18 @@ public:
 
     if (!((HttpMethod::GET|HttpMethod::PUT) & req.get_method())) {
       req.get_output_headers().add("Allow", "GET, PUT");
-      req.send_reply(HttpStatusCode::MethodNotAllowed, "Method Not Allowed");
+      req.send_reply(HttpStatusCode::MethodNotAllowed);
       return;
     }
 
     if (req.get_input_headers().get("Content-Range")) {
-      req.send_reply(HttpStatusCode::NotImplemented, "Not Implemented");
+      req.send_reply(HttpStatusCode::NotImplemented);
       return;
     }
 
     if (HttpMethod::GET & req.get_method()) {
       if (!is_modified_since(req, last_modified)) {
-        req.send_reply(HttpStatusCode::NotModified, "Not Modified");
+        req.send_reply(HttpStatusCode::NotModified);
         return;
       }
 
@@ -103,7 +103,7 @@ public:
             value_doc.Parse(element.second.c_str()); // value is a json-value as string
 
             if (value_doc.HasParseError()) {
-              req.send_reply(HttpStatusCode::InternalError, "Internal Error");
+              req.send_reply(HttpStatusCode::InternalError);
               return;
             }
 
@@ -131,7 +131,7 @@ public:
       //
       // required content-type: application/json
       if (nullptr == content_type || std::string(content_type) != "application/json") {
-        req.send_reply(HttpStatusCode::UnsupportedMediaType, "Unsupported Media Type");
+        req.send_reply(HttpStatusCode::UnsupportedMediaType);
         return;
       }
       auto body = req.get_input_buffer();
@@ -155,7 +155,7 @@ public:
       }
 
       if (!body_doc.IsObject()) {
-        req.send_reply(HttpStatusCode::UnprocessableEntity, "Unprocessable Entity");
+        req.send_reply(HttpStatusCode::UnprocessableEntity);
         return;
       }
 
@@ -173,7 +173,7 @@ public:
       auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
       shared_globals->reset(all_globals);
 
-      req.send_reply(HttpStatusCode::NoContent, "No Content");
+      req.send_reply(HttpStatusCode::NoContent);
     }
   }
 };

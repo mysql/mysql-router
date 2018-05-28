@@ -71,11 +71,11 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   if (-1 == stat(file_path.c_str(), &st)) {
     if (errno == ENOENT) {
       // if it was a directory
-      req.send_error(HttpStatusCode::NotFound, "Not Found");
+      req.send_error(HttpStatusCode::NotFound);
 
       return;
     } else {
-      req.send_error(HttpStatusCode::InternalError, "Internal Error");
+      req.send_error(HttpStatusCode::InternalError);
 
       return;
     }
@@ -88,11 +88,11 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
     if (-1 == stat(file_path.c_str(), &st)) {
       if (errno == ENOENT) {
         // if it was a directory
-        req.send_error(HttpStatusCode::NotFound, "Not Found");
+        req.send_error(HttpStatusCode::NotFound);
 
         return;
       } else {
-        req.send_error(HttpStatusCode::InternalError, "Internal Error");
+        req.send_error(HttpStatusCode::InternalError);
 
         return;
       }
@@ -106,17 +106,17 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   if (file_fd < 0) {
     if (errno == ENOENT) {
       // if it was a directory
-      req.send_error(HttpStatusCode::NotFound, "Not Found");
+      req.send_error(HttpStatusCode::NotFound);
 
       return;
     } else {
-      req.send_error(HttpStatusCode::InternalError, "Internal Error");
+      req.send_error(HttpStatusCode::InternalError);
 
       return;
     }
   } else {
     if (!is_modified_since(req, st.st_mtim.tv_sec)) {
-      req.send_error(HttpStatusCode::NotModified, "Not Modified");
+      req.send_error(HttpStatusCode::NotModified);
       return;
     }
 
@@ -137,7 +137,7 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       close(file_fd);
     }
 
-    req.send_reply(HttpStatusCode::Ok, "Ok", chunk);
+    req.send_reply(HttpStatusCode::Ok, HttpStatusCode::get_default_status_text(HttpStatusCode::Ok), chunk);
 
     return;
   }
