@@ -53,7 +53,7 @@ ELSE()
   SET(PROTOBUF_MYSQLX_DIR "${MySQLRouter_SOURCE_DIR}/src/x_protocol/proto/")
 ENDIF()
 
-find_package(LibEvent REQUIRED)
+find_package(LibEvent2 2.0 MODULE REQUIRED)
 
 include(cmake/settings.cmake)
 
