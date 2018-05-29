@@ -22,37 +22,31 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <string>
+#ifndef MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
+#define MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
+
 #include <memory>
-#include <mutex>
 
-#include "mock_server_plugin.h"
-#include "mock_server_component.h"
-#include "mysql/harness/logging/logging.h"
-#include "mock_server_global_scope.h"
-#include "mysql_server_mock.h"
+#include "mysqlrouter/mock_server_global_scope.h"
 
-IMPORT_LOG_FUNCTIONS()
-//
-// HTTP Server's public API
-//
-std::shared_ptr<MockServerGlobalScope> MockServerComponent::getGlobalScope()
-{
-  if (auto srv = srv_.lock()) {
-    return srv->get_global_scope();
-  } else {
-    return {};
-  }
+namespace server_mock {
+  class MySQLServerMock;
 }
 
-void MockServerComponent::init(std::shared_ptr<server_mock::MySQLServerMock> srv) {
-  srv_ = srv;
-}
+class MockServerComponent {
+  // disable copy, as we are a single-instance
+  MockServerComponent(MockServerComponent const &) = delete;
+  void operator=(MockServerComponent const &) = delete;
 
+  std::weak_ptr<server_mock::MySQLServerMock> srv_;
 
-MockServerComponent& MockServerComponent::getInstance() {
-  static MockServerComponent instance;
+  MockServerComponent() = default;
+public:
+  static MockServerComponent& getInstance();
 
-  return instance;
-}
+  void init(std::shared_ptr<server_mock::MySQLServerMock> srv);
 
+  std::shared_ptr<MockServerGlobalScope> getGlobalScope();
+};
+
+#endif

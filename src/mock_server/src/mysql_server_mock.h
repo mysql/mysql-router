@@ -28,7 +28,7 @@
 #include "statement_reader.h"
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
-#include "mock_server_component.h"
+#include "mysqlrouter/mock_server_component.h"
 #include "mysql/harness/plugin.h"
 
 namespace server_mock {

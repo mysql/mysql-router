@@ -87,8 +87,6 @@ target_include_directories(duktape PUBLIC
   )
 target_link_libraries(duktape ${math_libraries})
 
-include(Plugin)
-
 add_harness_plugin(mock_server
         SOURCES json_statement_reader.cc
   duktape_statement_reader.cc
@@ -103,6 +101,7 @@ add_harness_plugin(mock_server
   mock_server_component.cc
   REQUIRES mysql_protocol;duktape)
 target_include_directories(mock_server PUBLIC
+  ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${RAPIDJSON_INCLUDE_DIRS}
   ${DUKTAPE_SOURCE_DIR}/src/
   ${DUKTAPE_SOURCE_DIR}/extras/logging/

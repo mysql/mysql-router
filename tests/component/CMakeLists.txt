@@ -28,8 +28,6 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 
 add_executable(master_key_test_writer ../helpers/master_key_test_writer.cc)
 
-add_subdirectory(mysqld_mock)
-
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.
 # Since component tests may not have access to directories defined

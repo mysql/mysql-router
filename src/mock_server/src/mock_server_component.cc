@@ -22,32 +22,30 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLD_MOCK_DUKTAPE_STATEMENT_READER_INCLUDED
-#define MYSQLD_MOCK_DUKTAPE_STATEMENT_READER_INCLUDED
+#include "mysqlrouter/mock_server_component.h"
+#include "mysqlrouter/mock_server_global_scope.h"
+#include "mysql_server_mock.h"
 
-#include <string>
-#include <map>
-
-#include "mock_server_global_scope.h"
-#include "statement_reader.h"
-
-namespace server_mock {
-class DuktapeStatementReader: public StatementReaderBase {
-public:
-  DuktapeStatementReader(const std::string &filename,
-      const std::string &module_prefix,
-      std::shared_ptr<MockServerGlobalScope> shared_globals);
-
-  StatementAndResponse handle_statement(const std::string &statement) override;
-
-  std::chrono::microseconds get_default_exec_time() override;
-
-  ~DuktapeStatementReader();
-private:
-  struct Pimpl;
-  std::unique_ptr<Pimpl> pimpl_;
-  std::shared_ptr<MockServerGlobalScope> shared_;
-};
+//
+// HTTP Server's public API
+//
+std::shared_ptr<MockServerGlobalScope> MockServerComponent::getGlobalScope()
+{
+  if (auto srv = srv_.lock()) {
+    return srv->get_global_scope();
+  } else {
+    return {};
+  }
 }
 
-#endif
+void MockServerComponent::init(std::shared_ptr<server_mock::MySQLServerMock> srv) {
+  srv_ = srv;
+}
+
+
+MockServerComponent& MockServerComponent::getInstance() {
+  static MockServerComponent instance;
+
+  return instance;
+}
+

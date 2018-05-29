@@ -40,7 +40,7 @@
 #include "mysqlrouter/plugin_config.h"
 
 #include "mysqlrouter/http_server_component.h"
-#include "mock_server_component.h"
+#include "mysqlrouter/mock_server_component.h"
 
 IMPORT_LOG_FUNCTIONS()
 
