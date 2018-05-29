@@ -23,7 +23,7 @@
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "component"
   INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/http/include/;${RAPIDJSON_INCLUDE_DIRS}
-  LIB_DEPENDS http_client;http_common;event_core;event_extra
+  LIB_DEPENDS http_client;http_common;${LIBEVENT_CORE};${LIBEVENT_EXTRA}
   )
 
 add_executable(master_key_test_writer ../helpers/master_key_test_writer.cc)

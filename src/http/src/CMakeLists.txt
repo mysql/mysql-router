@@ -30,8 +30,8 @@ ADD_LIBRARY(http_server_component
   SHARED
   http_server_component.cc)
 TARGET_LINK_LIBRARIES(http_server_component
-  event_extra
-  event_core
+  ${LIBEVENT_EXTRA}
+  ${LIBEVENT_CORE}
   http_common)
 
 ADD_HARNESS_PLUGIN(http_server
@@ -48,7 +48,7 @@ ADD_EXECUTABLE(rest_cli
   rest_cli.cc)
 TARGET_LINK_LIBRARIES(rest_cli
   harness-library
-  http_client http_common event_core event_extra)
+  http_client http_common ${LIBEVENT_CORE} ${LIBEVENT_EXTRA})
 
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
