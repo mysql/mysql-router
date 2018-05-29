@@ -27,6 +27,8 @@
 #include "tcp_port_pool.h"
 #include "mysql_session.h"
 #include "rapidjson/document.h"
+#include "mysql/harness/logging/registry.h"
+#include "dim.h"
 
 #include "mysqlrouter/rest_client.h"
 
@@ -339,6 +341,7 @@ TEST_F(RestMockServerTest, select_port) {
   // mysql query
   mysqlrouter::MySQLSession client;
 
+  SCOPED_TRACE("// connecting via mysql protocol");
   ASSERT_NO_THROW(
       client.connect("127.0.0.1", server_port, "username", "password", "", "")) << server_mock.get_full_output();
 
@@ -346,7 +349,7 @@ TEST_F(RestMockServerTest, select_port) {
     client.query_one("select @@port")};
   ASSERT_NE(nullptr, result.get());
   ASSERT_EQ(1u, result->size());
-  EXPECT_EQ("3306", std::string((*result)[0]));
+  EXPECT_EQ(std::to_string(server_port), std::string((*result)[0]));
 }
 
 /**
@@ -371,22 +374,23 @@ TEST_F(RestMockServerTest, js_test_empty_file) {
   mysqlrouter::MySQLSession client;
 
   // connection should succeed on TCP, but fail to get the query
+  SCOPED_TRACE("// connecting via mysql protocol");
   ASSERT_THROW(
       client.connect("127.0.0.1", server_port, "username", "password", "", ""), std::exception);
 }
 
 /**
- * test storing globals in mock_server via REST bridge.
+ * ensure 'stmts' being empty triggers an assertions at query.
  *
  * - start the mock-server
  * - make a client connect to the mock-server
  */
-TEST_F(RestMockServerTest, js_test_empty_statements) {
+TEST_F(RestMockServerTest, js_test_stmts_is_empty) {
   SCOPED_TRACE("// start mock-server with http-port");
 
   const unsigned server_port = port_pool_.get_next_available();
   const unsigned http_port = port_pool_.get_next_available();
-  const std::string json_stmts = get_data_dir().join("js_test_empty_statements.js").str();
+  const std::string json_stmts = get_data_dir().join("js_test_stmts_is_empty.js").str();
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
 
   std::string http_hostname = "127.0.0.1";
@@ -396,18 +400,186 @@ TEST_F(RestMockServerTest, js_test_empty_statements) {
 
   mysqlrouter::MySQLSession client;
 
+  SCOPED_TRACE("// connecting via mysql protocol");
   ASSERT_NO_THROW(
       client.connect("127.0.0.1", server_port, "username", "password", "", ""));
 
-  // no handler
+  // no handler, it should throw
+  SCOPED_TRACE("// select @@port");
   ASSERT_THROW(client.query_one("select @@port"), std::exception);
+}
+
+/**
+ * ensure 'stmts' can be function.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, js_test_stmts_is_function) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("js_test_stmts_is_function.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""));
+
+  SCOPED_TRACE("// ping");
+  ASSERT_NO_THROW(client.execute("ping"));
+}
+
+/**
+ * ensure 'stmts' can be generator.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, js_test_stmts_is_coroutine) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("js_test_stmts_is_coroutine.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""));
+
+  SCOPED_TRACE("// ping");
+  ASSERT_NO_THROW(client.execute("ping"));
+}
+
+/**
+ * ensure 'stmts' can't be string.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, js_test_stmts_is_string) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("js_test_stmts_is_string.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""), mysqlrouter::MySQLSession::Error);
+}
+
+/**
+ * ensure 'stmts' is array works.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, js_test_stmts_is_array) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("js_test_stmts_is_array.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""));
+
+  SCOPED_TRACE("// ping");
+  ASSERT_NO_THROW(client.execute("ping"));
+}
+
+
+/**
+ * ensure 'metadata_3_secondaries.js' works.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, metadata_3_secondaries_js) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("metadata_3_secondaries.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""));
+
+  SCOPED_TRACE("// select @@port");
+  ASSERT_NO_THROW(client.execute("select @@port"));
 }
 
 
 
+static void init_DIM() {
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+
+  // logging facility
+  dim.set_LoggingRegistry(
+    []() {
+      static mysql_harness::logging::Registry registry;
+      return &registry;
+    },
+    [](mysql_harness::logging::Registry*){}  // don't delete our static!
+  );
+  mysql_harness::logging::Registry& registry = dim.get_LoggingRegistry();
+
+  mysql_harness::logging::g_HACK_default_log_level = "warning";
+  mysql_harness::Config config;
+  mysql_harness::logging::init_loggers(registry, config,
+      {mysql_harness::logging::kMainLogger, "sql"},
+      mysql_harness::logging::kMainLogger);
+  mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
+
+  registry.set_ready();
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
+  init_DIM();
   g_origin_path = Path(argv[0]).dirname();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

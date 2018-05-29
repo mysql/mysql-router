@@ -256,9 +256,12 @@ void non_blocking(socket_t handle_, bool mode) {
 
 class StatementReaderFactory {
 public:
-  static StatementReaderBase *create(const std::string &filename, std::string &module_prefix, std::shared_ptr<MockServerGlobalScope> shared_globals) {
+  static StatementReaderBase *create(const std::string &filename,
+      std::string &module_prefix,
+      std::map<std::string, std::string> session_data,
+      std::shared_ptr<MockServerGlobalScope> shared_globals) {
     if (filename.substr(filename.size() - 3) == ".js") {
-      return new DuktapeStatementReader(filename, module_prefix, shared_globals);
+      return new DuktapeStatementReader(filename, module_prefix, session_data, shared_globals);
     } else if (filename.substr(filename.size() - 5) == ".json") {
       return new QueriesJsonReader(filename);
     } else {
@@ -403,23 +406,36 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
       if (work.client_socket == -1) break;
 
       try {
+        sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        if (-1 == getsockname(work.client_socket, reinterpret_cast<sockaddr *>(&addr), &addr_len)) {
+          throw std::system_error(get_socket_errno(), std::system_category(), "getsockname() failed");
+        }
         std::unique_ptr<StatementReaderBase> statement_reader {
           StatementReaderFactory::create(
               work.expected_queries_file,
               work.module_prefix,
+              // expose session data json-encoded string
+              {
+                { "port", std::to_string(ntohs(addr.sin_port)) },
+              },
               shared_globals_)};
 
+        MySQLServerMockSession session(
+            work.client_socket,
+            std::move(statement_reader),
+            work.debug_mode);
         try {
-          MySQLServerMockSession session(
-              work.client_socket,
-              std::move(statement_reader),
-              work.debug_mode);
           session.run();
         } catch (const std::exception &e) {
           log_error("%s", e.what());
         }
       } catch (const std::exception &e) {
-        // close the connection as we failed early
+        // close the connection before Session took over.
+        send_packet(work.client_socket,
+            MySQLProtocolEncoder().encode_error_message(
+              0, 1064, "", "reader error: " + std::string(e.what())),
+            0);
         close_socket(work.client_socket);
         log_error("%s", e.what());
       }

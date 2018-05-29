@@ -36,6 +36,7 @@ class DuktapeStatementReader: public StatementReaderBase {
 public:
   DuktapeStatementReader(const std::string &filename,
       const std::string &module_prefix,
+      std::map<std::string, std::string> session_data,
       std::shared_ptr<MockServerGlobalScope> shared_globals);
 
   StatementAndResponse handle_statement(const std::string &statement) override;

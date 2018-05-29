@@ -37,6 +37,38 @@ IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
 
+class DuktapeRuntimeError: public std::runtime_error {
+public:
+  static std::string what_from_error(duk_context *ctx, duk_idx_t error_ndx) noexcept {
+    if (duk_is_error(ctx, error_ndx)) {
+      duk_get_prop_string(ctx, -1, "stack");
+      std::string err_stack { duk_safe_to_string(ctx, error_ndx) };
+      duk_pop(ctx);
+      duk_get_prop_string(ctx, -1, "fileName");
+      std::string err_filename { duk_safe_to_string(ctx, error_ndx) };
+      duk_pop(ctx);
+      duk_get_prop_string(ctx, -1, "lineNumber");
+      std::string err_fileline { duk_safe_to_string(ctx, error_ndx) };
+      duk_pop(ctx);
+
+      duk_pop(ctx); // error-obj
+
+      return "at " + err_filename + ":" + err_fileline + ": " + err_stack;
+    } else {
+      std::string err_msg { duk_safe_to_string(ctx, error_ndx) };
+
+      duk_pop(ctx); // error-obj
+
+      return err_msg;
+    }
+  }
+  DuktapeRuntimeError(duk_context *ctx, duk_idx_t error_ndx):
+    std::runtime_error{what_from_error(ctx, error_ndx)}
+  {
+  }
+};
+
+
 struct DuktapeStatementReader::Pimpl {
   std::string get_object_string_value(duk_idx_t idx,
       const std::string &field,
@@ -302,10 +334,62 @@ public:
   }
 };
 
+/*
+ * get the names of the type.
+ *
+ * returns a comma-seperated string
+ *
+ * useful for debugging
+ */
+static
+std::string duk_get_type_names(duk_context *ctx, duk_idx_t ndx) {
+  std::string names;
+  bool is_first = true;
+
+  std::vector<std::pair<std::function<bool(duk_context *, duk_idx_t)>, std::string>> type_checks = {
+    { duk_is_array, "array" },
+    { duk_is_boolean, "boolean" },
+    { duk_is_buffer, "buffer" },
+    { duk_is_buffer_data, "buffer_data" },
+    { duk_is_c_function, "c-function" },
+    { duk_is_dynamic_buffer, "dynamic-buffer" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_callable(_ctx, _ndx); }, "callable" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_error(_ctx, _ndx); }, "error" },
+    { duk_is_function, "function" },
+    { duk_is_ecmascript_function, "ecmascript-function" },
+    { duk_is_null, "null" },
+    { duk_is_number, "number" },
+    { duk_is_object, "object" },
+    { duk_is_pointer, "pointer" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_primitive(_ctx, _ndx); }, "primitive" },
+    { duk_is_string, "string" },
+    { duk_is_symbol, "symbol" },
+    { duk_is_thread, "thread" },
+    { duk_is_undefined, "undefined" },
+  };
+
+  for (auto &check: type_checks) {
+    if (check.first(ctx, ndx)) {
+      if (is_first) {
+        is_first = false;
+      } else {
+        names.append(", ");
+      }
+
+      names.append(check.second);
+    }
+  }
+
+  return names;
+
+
+}
+
 
 DuktapeStatementReader::DuktapeStatementReader(
     const std::string &filename,
     const std::string &module_prefix,
+    std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals):
   pimpl_{new Pimpl()},
   shared_{shared_globals}
@@ -342,34 +426,36 @@ DuktapeStatementReader::DuktapeStatementReader(
 
   duk_pop(ctx);
 
+  // mysqld = {
+  //   session: {
+  //     port: 3306
+  //   }
+  //   global: // proxy that calls process.get_shared()/.set_shared()
+  // }
   duk_push_global_object(ctx);
   duk_push_object(ctx);
   duk_push_object(ctx);
 
-  duk_push_int(ctx, 3306); // TODO gets the mock's bound port
-  duk_put_prop_string(ctx, -2, "port");
+  // map of string and json-string
+  for (auto &el: session_data) {
+    duk_push_lstring(ctx, el.second.data(), el.second.size());
+    duk_json_decode(ctx, -1);
+    duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
+  }
 
   duk_put_prop_string(ctx, -2, "session");
 
-  duk_ret_t rc = duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
       "function () {\n"
       "  return new Proxy({}, {\n"
       "    get: function(targ, key, recv) {return process.get_shared(key);},\n"
       "    set: function(targ, key, val, recv) {return process.set_shared(key, val);}\n"
       "  });\n"
-      "}");
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    duk_pop(ctx);
-
-    throw std::runtime_error("...");
+      "}")) {
+    throw DuktapeRuntimeError(ctx, -1);
   }
-  rc = duk_pcall(ctx, 0);
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    duk_pop(ctx);
-
-    throw std::runtime_error("...");
+  if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
+    throw DuktapeRuntimeError(ctx, -1);
   }
 
   duk_put_prop_string(ctx, -2, "global");
@@ -377,41 +463,18 @@ DuktapeStatementReader::DuktapeStatementReader(
   duk_put_prop_string(ctx, -2, "mysqld");
 
   if (DUK_EXEC_SUCCESS != duk_peval_file(ctx, filename.c_str())) {
-    if (duk_is_error(ctx, -1)) {
-      duk_get_prop_string(ctx, -1, "stack");
-      std::string err_stack { duk_safe_to_string(ctx, -1) };
-      duk_pop(ctx);
-      duk_get_prop_string(ctx, -1, "fileName");
-      std::string err_filename { duk_safe_to_string(ctx, -1) };
-      duk_pop(ctx);
-      duk_get_prop_string(ctx, -1, "lineNumber");
-      std::string err_fileline { duk_safe_to_string(ctx, -1) };
-      duk_pop(ctx);
-
-      throw std::runtime_error("at " + err_filename + ":" + err_fileline + ": " + err_stack);
-    } else {
-      std::string err_message{duk_safe_to_string(ctx, -1)};
-
-      throw std::runtime_error(err_message);
-    }
+    throw DuktapeRuntimeError(ctx, -1);
   }
 
   if (!duk_is_object(ctx, -1)) {
-    throw std::runtime_error(filename + ": expected statement handler to return an object");
+    throw std::runtime_error(filename + ": expected statement handler to return an object, got " + duk_get_type_names(ctx, -1));
   }
   duk_get_prop_string(ctx, -1, "stmts");
-  if (duk_is_undefined(ctx, -1)) {
-    duk_pop(ctx);
-
-    throw std::runtime_error("has no 'stmts'");
+  if (!(duk_is_callable(ctx, -1) || duk_is_thread(ctx, -1) || duk_is_array(ctx, -1))) {
+    throw std::runtime_error("expected 'stmts' to be one of callable, thread or array, got " + duk_get_type_names(ctx, -1));
   }
 
-  // TODO: allow function too
-  // TODO: be strict on what we accept here
-  //       - enumable
-  //       - thread
-  //       - function
-  if (!duk_is_thread(ctx, -1)) {
+  if (duk_is_array(ctx, -1)) {
     duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
   }
 
@@ -428,58 +491,31 @@ DuktapeStatementReader::~DuktapeStatementReader() {
 
 StatementAndResponse DuktapeStatementReader::handle_statement(const std::string &statement) {
   auto *ctx = pimpl_->ctx;
-  bool is_thread = false;
+  bool is_enumable = false;
 
   if (duk_is_thread(ctx, -1)) {
-    is_thread = true;
-    int rc = duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION, "function (t, stmt) { return Duktape.Thread.resume(t, stmt); }");
-    if (DUK_EXEC_SUCCESS != rc) {
-      if (duk_is_error(ctx, -1)) {
-        duk_get_prop_string(ctx, -1, "stack");
-        std::string err_stack { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-        duk_get_prop_string(ctx, -1, "fileName");
-        std::string err_filename { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-        duk_get_prop_string(ctx, -1, "lineNumber");
-        std::string err_fileline { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-
-        throw std::runtime_error("at " + err_filename + ":" + err_fileline + ": " + err_stack);
-      } else {
-        std::string err_msg { duk_safe_to_string(ctx, -1) };
-
-        throw std::runtime_error(err_msg);
-      }
-    }
-    if (!duk_is_thread(ctx, -2)) {
-      throw std::runtime_error("oops");
+    if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION, "function (t, stmt) { return Duktape.Thread.resume(t, stmt); }")) {
+      throw DuktapeRuntimeError(ctx, -1);
     }
     duk_dup(ctx, -2); // the thread
     duk_push_lstring(ctx, statement.c_str(), statement.size());
 
-    rc = duk_pcall(ctx, 2);
-    if (DUK_EXEC_SUCCESS != rc) {
-      if (duk_is_error(ctx, -1)) {
-        duk_get_prop_string(ctx, -1, "stack");
-        std::string err_stack { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-        duk_get_prop_string(ctx, -1, "fileName");
-        std::string err_filename { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-        duk_get_prop_string(ctx, -1, "lineNumber");
-        std::string err_fileline { duk_safe_to_string(ctx, -1) };
-        duk_pop(ctx);
-
-        throw std::runtime_error("at " + err_filename + ":" + err_fileline + ": " + err_stack);
-      } else {
-        std::string err_msg { duk_safe_to_string(ctx, -1) };
-
-        throw std::runtime_error(err_msg);
-      }
+    if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 2)) {
+      throw DuktapeRuntimeError(ctx, -1);
     }
     // @-1 result of resume
+  } else if (duk_is_callable(ctx, -1)) {
+    duk_dup(ctx, -1); // copy the function to keep it on the stack for the next run
+    duk_push_lstring(ctx, statement.c_str(), statement.size());
+
+    if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 1)) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
   } else {
+    if (!duk_is_object(ctx, -1)) { // enumarator is an object
+      throw std::runtime_error("expected 'stmts' enumerator to be an object, got " + duk_get_type_names(ctx, -1));
+    }
+
     // @-1 is an enumarator
     if (0 == duk_next(ctx, -1, true)) {
       duk_pop(ctx);
@@ -488,18 +524,19 @@ StatementAndResponse DuktapeStatementReader::handle_statement(const std::string 
     // @-3 is an enumarator
     // @-2 is key
     // @-1 is value
+    is_enumable = true;
   }
 
   // value must be an object
   if (!duk_is_object(ctx, -1)) {
-    throw std::runtime_error("expected a object, got " + std::to_string(duk_get_type(ctx, -1)));
+    throw std::runtime_error("expected 'stmts' to return an 'object', got " + duk_get_type_names(ctx, -1));
   }
 
   StatementAndResponse response;
   duk_get_prop_string(ctx, -1, "exec_time");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_number(ctx, -1)) {
-      throw std::runtime_error("exec_time must be a number, if set");
+      throw std::runtime_error("exec_time must be a number, if set, get " + duk_get_type_names(ctx, -1));
     }
 
     double exec_time = duk_get_number(ctx, -1);;
@@ -532,7 +569,7 @@ StatementAndResponse DuktapeStatementReader::handle_statement(const std::string 
   duk_pop(ctx); // last prop
 
   duk_pop(ctx); // value
-  if (!is_thread) {
+  if (is_enumable) {
     duk_pop(ctx); // key
   }
 
