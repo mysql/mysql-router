@@ -89,6 +89,7 @@ class MySQLServerMock {
    *
    * @param expected_queries_file Path to the json file with definitins
    *                        of the expected SQL statements and responses
+   * @param module_prefix prefix of javascript modules used by the nodejs compatible module-loader
    * @param bind_port Number of the port on which the server accepts clients
    *                        connections
    * @param debug_mode Flag indicating if the handled queries should be printed to

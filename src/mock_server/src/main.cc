@@ -39,6 +39,12 @@
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
 
+#ifndef PATH_MAX
+#ifdef _MAX_PATH
+// windows has _MAX_PATH instead
+#define PATH_MAX _MAX_PATH
+#endif
+#endif
 
 struct MysqlServerMockConfig {
   std::string queries_filename;
@@ -89,7 +95,7 @@ public:
     stage_dir_ = mysql_harness::Path(stage_dir_c ? stage_dir_c : "./stage");
 #ifdef CMAKE_INTDIR
     if (!origin_dir_.str().empty()) {
-      stage_dir_ = Path(stage_dir_.join(origin_dir_.basename()));
+      stage_dir_ = mysql_harness::Path(stage_dir_.join(origin_dir_.basename()));
     }
     else {
       throw std::runtime_error("Origin dir not set");

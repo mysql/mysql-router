@@ -22,6 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef _WIN32
+#include <direct.h>  // getcwd
+#else
+#include <unistd.h>  // getcwd
+#endif
+
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/config_parser.h"
@@ -30,6 +36,14 @@
 #include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
+
+#ifndef PATH_MAX
+#ifdef _MAX_PATH
+// windows has _MAX_PATH instead
+#define PATH_MAX _MAX_PATH
+#endif
+#endif
+
 
 static const std::string kSectionName = "mock_server";
 

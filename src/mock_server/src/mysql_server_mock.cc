@@ -58,6 +58,13 @@ IMPORT_LOG_FUNCTIONS()
 #  include <ws2tcpip.h>
 #endif
 
+#ifdef _WIN32
+constexpr socket_t kInvalidSocket = INVALID_SOCKET;
+#else
+constexpr socket_t kInvalidSocket = -1;
+#endif
+
+
 using namespace std::placeholders;
 
 namespace server_mock {
@@ -250,8 +257,13 @@ void MySQLServerMockSession::send_fast_auth(socket_t client_socket) {
 }
 
 void non_blocking(socket_t handle_, bool mode) {
+#ifdef _WIN32
+  u_long arg = mode ? 1 : 0;
+  ioctlsocket(handle_, FIONBIO, &arg);
+#else
   int flags = fcntl(handle_, F_GETFL, 0);
   fcntl(handle_, F_SETFL, (flags & ~O_NONBLOCK) | (mode ? O_NONBLOCK : 0));
+#endif
 }
 
 class StatementReaderFactory {
@@ -403,7 +415,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
       auto work = work_queue.pop();
 
       // exit
-      if (work.client_socket == -1) break;
+      if (work.client_socket == kInvalidSocket) break;
 
       try {
         sockaddr_in addr;
@@ -454,7 +466,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
     FD_ZERO (&fds);
     FD_SET (listener_, &fds);
 
-    // timeval is initialized in loop because value of timeval may be override by calling select.
+    // timeval is initialized in loop because value of timeval may be overriden by calling select.
     timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = 10000;
@@ -492,7 +504,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
 
   // std::cerr << "sending death-signal to threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
-    work_queue.push(Work { -1, "", "", 0});
+    work_queue.push(Work { kInvalidSocket, "", "", 0});
   }
   // std::cerr << "joining threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {

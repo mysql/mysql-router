@@ -29,8 +29,35 @@
 #include "duk_node_fs.h"
 
 #include <string.h>
-#include <unistd.h>
+#include <stdlib.h> // _fullpath
 #include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h> // getcwd
+#else
+#include <unistd.h>
+#endif
+
+#ifndef PATH_MAX
+#ifdef _MAX_PATH
+// windows has MAX_PATH instead
+#define PATH_MAX _MAX_PATH
+#endif
+#endif
+
+#ifndef STDIN_FILENO
+#define STDIN_FILENO 0
+#endif
+
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
+
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
+
+
 
 static
 duk_ret_t node_path_join(duk_context *ctx) {
@@ -50,9 +77,15 @@ duk_ret_t node_path_join(duk_context *ctx) {
 static
 duk_ret_t normalize_path(duk_context *ctx, duk_idx_t obj_idx) {
   const char *p = duk_require_string(ctx, obj_idx);
+
+#ifdef _WIN32
+  char resolved_path[_MAX_PATH];
+  duk_push_string(ctx, _fullpath(resolved_path, p, sizeof(resolved_path)));
+#else
   char resolved_path[PATH_MAX];
 
   duk_push_string(ctx, realpath(p, resolved_path));
+#endif
   return 1;
 }
 
@@ -126,25 +159,16 @@ static const duk_function_list_entry path_module_funcs[] = {
 
 static
 duk_ret_t node_util_inherits(duk_context *ctx) {
-  duk_ret_t rc = duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
-    "function inherits(ctor, superCtor) {\n"
-    "  ctor.super_ = superCtor\n"
-    "  Object.setPrototypeOf(ctor.prototype, superCtor.prototype);\n"
-    "});\n"
-    );
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    fprintf(stderr, "%s:%d: %s\n", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
-    duk_pop(ctx);
+  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+        "function inherits(ctor, superCtor) {\n"
+        "  ctor.super_ = superCtor\n"
+        "  Object.setPrototypeOf(ctor.prototype, superCtor.prototype);\n"
+        "});\n")) {
     return duk_throw(ctx);
   }
   duk_dup(ctx, 0);
   duk_dup(ctx, 1);
-  rc = duk_pcall(ctx, 2);
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    fprintf(stderr, "%s:%d: %s\n", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
-    duk_pop(ctx);
+  if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 2)) {
     return duk_throw(ctx);
   }
 
@@ -193,7 +217,11 @@ static const duk_function_list_entry console_module_funcs[] = {
 
 static
 duk_ret_t node_tty_isatty(duk_context *ctx) {
+#ifndef _WIN32
   duk_push_boolean(ctx, isatty(duk_require_int(ctx, 0)));
+#else
+  duk_push_boolean(ctx, 0);
+#endif
   return 1;
 };
 
@@ -311,18 +339,10 @@ duk_ret_t dukopen_process_module(duk_context *ctx) {
 static
 duk_ret_t dukopen_process_module_init_env(duk_context *ctx) {
   duk_get_global_string(ctx, "process");
-  duk_ret_t rc = duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION, "function () { return new Proxy({}, {get: function(targ, key, recv) {return process.getenv(key);}}); }");
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    fprintf(stderr, "%s:%d: %s\n", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
-    duk_pop(ctx);
+  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION, "function () { return new Proxy({}, {get: function(targ, key, recv) {return process.getenv(key);}}); }")) {
     return duk_throw(ctx);
   }
-  rc = duk_pcall(ctx, 0);
-  if (rc != DUK_EXEC_SUCCESS) {
-    duk_get_prop_string(ctx, -1, "stack");
-    fprintf(stderr, "%s:%d: %s\n", __PRETTY_FUNCTION__, __LINE__, duk_safe_to_string(ctx, -1));
-    duk_pop(ctx);
+  if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
     return duk_throw(ctx);
   }
 

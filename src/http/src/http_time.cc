@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <ctime>     // mktime
+#include <ctime>     // mktime, gmtime_r, gmtime_s
 #include <cstring>   // memset
 #include <map>
 
@@ -36,7 +36,13 @@
 int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len) {
   struct tm t_m;
 
+#ifdef _WIN32
+  // returns a errno_t
+  gmtime_s(&t_m, &ts);
+#else
+  // return int
   gmtime_r(&ts, &t_m);
+#endif
 
   const char *DAYS[7] = {
     "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
