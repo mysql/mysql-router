@@ -110,6 +110,7 @@ mkdir release && pushd release
 %{?el7:export CXX=/opt/rh/devtoolset-6/root/usr/bin/g++}
 cmake .. -DINSTALL_LAYOUT=RPM \
   -DWITH_STATIC=yes -DWITH_MYSQL="%{with_mysql}" %{?project_edition} \
+  -DWITH_LIBEVENT="%{with_libevent}" \
   -DWITH_SSL="%{with_ssl}" \
   -DENABLE_TESTS=yes -DENABLE_GCOV=yes
 make %{?_smp_mflags} VERBOSE=1
