@@ -23,6 +23,8 @@
 */
 
 #include <ctime>     // mktime
+#include <cstring>   // memset
+#include <map>
 
 #include <regex>     // date parser
 #include <iostream>  // cerr
@@ -32,7 +34,7 @@
 #include "mysqlrouter/http_common.h"
 
 static int ts_to_rfc1123(time_t ts, char *date_buf, size_t date_buf_len) {
-  struct tm t_m {};
+  struct tm t_m;
 
   gmtime_r(&ts, &t_m);
 
@@ -53,7 +55,8 @@ static time_t ts_from_http_date(const char *date_buf) {
   std::cmatch fields;
 
   if (std::regex_search(date_buf, fields, http_date_re)) {
-    struct tm t_m {};
+    struct tm t_m;
+    memset(&t_m, 0, sizeof(t_m));
 
     t_m.tm_mday = std::strtol(fields[2].str().c_str(), nullptr, 10);
     t_m.tm_mon = std::map<std::string, decltype(t_m.tm_mon)> {

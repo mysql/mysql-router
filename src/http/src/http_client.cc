@@ -61,7 +61,11 @@ public:
 
 HttpClient::HttpClient(IOContext &io_ctx, const std::string &address, uint16_t port):
   pImpl{new impl()},
-  io_ctx_{io_ctx}
+
+  // gcc-4.8 requires a () here, instead of {}
+  //
+  // invalid initialization of non-const reference of type ‘IOContext&’ from an rvalue of type ‘<brace-enclosed initializer list>’
+  io_ctx_(io_ctx)
 {
   auto *ev_base = io_ctx_.pImpl->ev_base.get();
   pImpl->conn.reset(evhttp_connection_base_new(ev_base, NULL, address.c_str(), port));

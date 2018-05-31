@@ -35,9 +35,10 @@
 static
 duk_ret_t node_path_join(duk_context *ctx) {
   duk_idx_t arg_count = duk_get_top(ctx);
+  duk_idx_t i;
 
   duk_push_string(ctx, "/");
-  for (duk_idx_t i = 0; i < arg_count; i++) {
+  for (i = 0; i < arg_count; i++) {
     duk_dup(ctx, i);
   }
   duk_join(ctx, arg_count);

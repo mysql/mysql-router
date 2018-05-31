@@ -241,7 +241,8 @@ struct DuktapeStatementReader::Pimpl {
 
     duk_pop(ctx); // "rows"
 
-    return response;
+    // gcc-4.8 needs a std::move, other's don't
+    return std::move(response);
   }
   duk_context *ctx {nullptr};
 };

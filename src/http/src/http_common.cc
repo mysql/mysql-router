@@ -87,9 +87,9 @@ size_t HttpBuffer::length() const {
   return evbuffer_get_length(pImpl->buffer.get());
 }
 
-std::vector<uint8_t> HttpBuffer::pop_front(size_t length) {
+std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
   std::vector<uint8_t> data;
-  data.resize(length);
+  data.resize(len);
 
   int bytes_read;
   if (-1 == (bytes_read = evbuffer_remove(pImpl->buffer.get(), data.data(), data.size()))) {

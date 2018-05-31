@@ -65,8 +65,6 @@ class MySQLProtocolDecoder {
   MySQLProtocolDecoder(const ReadCallback& read_clb);
 
   /** @brief Reads single packet from the network socket.
-   *
-   * @returns Read packet data.
    **/
   void read_message(socket_t client_socket, int flags=0);
 

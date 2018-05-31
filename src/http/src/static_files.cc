@@ -67,7 +67,7 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
     }
   }
 
-  struct stat st {};
+  struct stat st;
   if (-1 == stat(file_path.c_str(), &st)) {
     if (errno == ENOENT) {
       // if it was a directory
@@ -115,12 +115,12 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       return;
     }
   } else {
-    if (!is_modified_since(req, st.st_mtim.tv_sec)) {
+    if (!is_modified_since(req, st.st_mtime)) {
       req.send_error(HttpStatusCode::NotModified);
       return;
     }
 
-    add_last_modified(req, st.st_mtim.tv_sec);
+    add_last_modified(req, st.st_mtime);
 
     auto chunk = req.get_output_buffer();
     // if the file-size is 0, there is nothing to send ... and it triggers a mmap() error
