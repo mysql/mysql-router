@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <thread>
+
 #include "gmock/gmock.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
@@ -36,6 +38,8 @@ Path g_origin_path;
 
 const std::string kMockServerGlobalsRestUri = "/api/v1/mock_server/globals/";
 const std::string kMockServerInvalidRestUri = "/api/v1/mock_server/global/";
+constexpr std::chrono::milliseconds kMockServerMaxRestEndpointWaitTime{1000};
+constexpr std::chrono::milliseconds kMockServerMaxRestEndpointStepTime{50};
 
 class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
 protected:
@@ -43,6 +47,32 @@ protected:
 
   void SetUp() override {
     RouterComponentTest::SetUp();
+  }
+
+  /**
+   * wait until a REST endpoint returns !404.
+   *
+   * at mock startup the socket starts to listen before the REST endpoint gets
+   * registered. As long as it returns 404 Not Found we should wait and retry.
+   *
+   * @param rest_client initialized rest-client
+   * @param uri REST endpoint URI to check
+   * @param max_wait_time max time to wait for endpoint being ready
+   * @returns true once endpoint doesn't return 404 anymore, fails otherwise
+   */
+  bool wait_for_rest_endpoint_ready(RestClient &rest_client, const std::string &uri, std::chrono::milliseconds max_wait_time) const noexcept {
+    while (max_wait_time.count() > 0) {
+      auto req = rest_client.request_sync(HttpMethod::GET, uri);
+
+      if (req && req.get_response_code() != 404) return true;
+
+      auto wait_time = std::min(kMockServerMaxRestEndpointStepTime, max_wait_time);
+      std::this_thread::sleep_for(wait_time);
+
+      max_wait_time -= wait_time;
+    }
+
+    return false;
   }
 };
 
@@ -64,10 +94,14 @@ TEST_F(RestMockServerTest, get_globals_empty) {
   std::string http_uri = kMockServerGlobalsRestUri;
 
   EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
-  IOContext io_ctx;
-  auto req = RestClient(io_ctx, http_hostname, http_port).
+  auto req = rest_client.
     request_sync(HttpMethod::GET, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
@@ -121,9 +155,14 @@ TEST_F(RestMockServerTest, unknown_url_fails) {
 
   EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
 
-  SCOPED_TRACE("// make a http connections");
   IOContext io_ctx;
-  auto req = RestClient(io_ctx, http_hostname, http_port).
+  RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for HTTP server listening");
+  ASSERT_TRUE(wait_for_port_ready(http_port, 1000)) << server_mock.get_full_output();
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.
     request_sync(HttpMethod::GET, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
@@ -168,9 +207,14 @@ TEST_F(RestMockServerTest, put_globals_no_json) {
 
   EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
 
-  SCOPED_TRACE("// make a http connections");
   IOContext io_ctx;
-  auto req = RestClient(io_ctx, http_hostname, http_port).
+  RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.
     request_sync(HttpMethod::PUT, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
@@ -213,9 +257,14 @@ TEST_F(RestMockServerTest, put_globals_ok) {
 
   EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
 
-  SCOPED_TRACE("// make a http connections");
   IOContext io_ctx;
-  auto req = RestClient(io_ctx, http_hostname, http_port).
+  RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.
     request_sync(HttpMethod::PUT, http_uri, "{}");
 
   SCOPED_TRACE("// checking HTTP response");
@@ -261,6 +310,10 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
   SCOPED_TRACE("// make a http connections");
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
+
   auto put_req = rest_client.request_sync(HttpMethod::PUT, http_uri, "{\"key\": [ [1, 2, 3 ] ]}");
 
   SCOPED_TRACE("// checking PUT response");
