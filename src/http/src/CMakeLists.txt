@@ -25,13 +25,14 @@ ADD_LIBRARY(http_common
   http_common.cc
   http_time.cc
   )
+TARGET_LINK_LIBRARIES(http_common
+  ${LIBEVENT2_EXTRA}
+  ${LIBEVENT2_CORE})
 
 ADD_LIBRARY(http_server_component
   SHARED
   http_server_component.cc)
 TARGET_LINK_LIBRARIES(http_server_component
-  ${LIBEVENT2_EXTRA}
-  ${LIBEVENT2_CORE}
   http_common)
 
 ADD_HARNESS_PLUGIN(http_server
@@ -44,12 +45,16 @@ ADD_LIBRARY(http_client
   SHARED
   http_client.cc
   )
+TARGET_LINK_LIBRARIES(http_client
+  ${LIBEVENT2_EXTRA}
+  ${LIBEVENT2_CORE}
+  http_common)
 
 ADD_EXECUTABLE(rest_cli
   rest_cli.cc)
 TARGET_LINK_LIBRARIES(rest_cli
   harness-library
-  http_client http_common ${LIBEVENT2_CORE} ${LIBEVENT2_EXTRA})
+  http_client)
 
 
 INCLUDE_DIRECTORIES(${LIBEVENT2_INCLUDE_DIR}/)
