@@ -88,7 +88,8 @@ target_include_directories(duktape PUBLIC
 target_link_libraries(duktape ${math_libraries})
 
 add_harness_plugin(mock_server
-        SOURCES json_statement_reader.cc
+  NO_INSTALL
+  SOURCES json_statement_reader.cc
   duktape_statement_reader.cc
   mysql_protocol_decoder.cc
   mysql_protocol_encoder.cc
@@ -112,7 +113,8 @@ target_include_directories(mock_server PUBLIC
   )
 
 add_harness_plugin(rest_mock_server
-        SOURCES rest_mock_server.cc
+  NO_INSTALL
+  SOURCES rest_mock_server.cc
   REQUIRES mock_server;http_server_component)
 target_include_directories(rest_mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/http/include

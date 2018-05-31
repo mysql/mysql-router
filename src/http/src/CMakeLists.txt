@@ -35,6 +35,7 @@ TARGET_LINK_LIBRARIES(http_server_component
   http_common)
 
 ADD_HARNESS_PLUGIN(http_server
+  NO_INSTALL
   SOURCES http_server_plugin.cc
   static_files.cc
   REQUIRES router_lib;http_server_component)
