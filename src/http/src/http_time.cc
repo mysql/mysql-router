@@ -33,23 +33,43 @@
 
 #include "mysqlrouter/http_common.h"
 
-static int ts_to_rfc1123(time_t ts, char *date_buf, size_t date_buf_len) {
+int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len) {
   struct tm t_m;
 
   gmtime_r(&ts, &t_m);
 
-  const char *DAYS[] = {
-    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+  const char *DAYS[7] = {
+    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
-  const char *MONTH[] = {
-    "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+  const char *MONTH[12] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
   return evutil_snprintf(date_buf, date_buf_len, "%s, %02d %s %4d %02d:%02d:%02d GMT",
     DAYS[t_m.tm_wday], t_m.tm_mday, MONTH[t_m.tm_mon],
     1900 + t_m.tm_year, t_m.tm_hour, t_m.tm_min, t_m.tm_sec);
 }
 
-static time_t ts_from_http_date(const char *date_buf) {
+static
+time_t time_from_struct_tm_utc(struct tm *t_m) {
+#if defined(_WIN32)
+  return _mkgmtime(t_m);
+#elif defined(__sun)
+  // solaris, linux have typeof('timezone') == time_t
+  return mktime(t_m) - timezone;
+#else
+  // linux, freebsd and apple have timegm()
+  return timegm(t_m);
+#endif
+}
+
+
+
+time_t time_from_rfc5322_fixdate(const char *date_buf) {
+  // we can't use strptime as
+  //
+  // - it isn't portable
+  // - takes locale into account, but we need en_EN all the time
+
   std::regex http_date_re { "^(Sun|Mon|Tue|Wed|Thu|Fri|Sat|Sun), ([0-9]{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{4}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) GMT" };
 
   std::cmatch fields;
@@ -58,7 +78,7 @@ static time_t ts_from_http_date(const char *date_buf) {
     struct tm t_m;
     memset(&t_m, 0, sizeof(t_m));
 
-    t_m.tm_mday = std::strtol(fields[2].str().c_str(), nullptr, 10);
+    t_m.tm_mday = std::stol(fields[2].str());
     t_m.tm_mon = std::map<std::string, decltype(t_m.tm_mon)> {
       { "Jan", 0 },
       { "Feb", 1 },
@@ -72,27 +92,25 @@ static time_t ts_from_http_date(const char *date_buf) {
       { "Oct", 9 },
       { "Nov", 10 },
       { "Dec", 11 },
-    }[fields[3].str()];
-    t_m.tm_year = std::strtol(fields[4].str().c_str(), nullptr, 10) - 1900;
-    t_m.tm_hour = std::strtol(fields[5].str().c_str(), nullptr, 10);
-    t_m.tm_min = std::strtol(fields[6].str().c_str(), nullptr, 10);
-    t_m.tm_sec = std::strtol(fields[7].str().c_str(), nullptr, 10);
+    }.at(fields[3].str());
+    t_m.tm_year = std::stol(fields[4].str()) - 1900;
+    t_m.tm_hour = std::stol(fields[5].str());
+    t_m.tm_min = std::stol(fields[6].str());
+    t_m.tm_sec = std::stol(fields[7].str());
 
-    // mktime returns localhost, but we need GMT
-    return mktime(&t_m) - timezone;
+    return time_from_struct_tm_utc(&t_m);
   } else {
     std::cerr << "regex failed for " << date_buf << std::endl;
   }
   return 0;
 }
 
-
 bool is_modified_since(const HttpRequest &req, time_t last_modified) {
   auto req_hdrs = req.get_input_headers();
 
   auto *if_mod_since = req_hdrs.get("If-Modified-Since");
   if (if_mod_since != nullptr) {
-    time_t if_mod_since_ts = ts_from_http_date(if_mod_since);
+    time_t if_mod_since_ts = time_from_rfc5322_fixdate(if_mod_since);
 
     if (!(last_modified > if_mod_since_ts)) {
       return false;
@@ -105,7 +123,7 @@ void add_last_modified(HttpRequest &req, time_t last_modified) {
   auto out_hdrs = req.get_output_headers();
   char date_buf[50];
 
-  if (sizeof(date_buf) - ts_to_rfc1123(last_modified, date_buf, sizeof(date_buf)) > 0) {
+  if (sizeof(date_buf) - time_to_rfc5322_fixdate(last_modified, date_buf, sizeof(date_buf)) > 0) {
     out_hdrs.add("Last-Modified", date_buf);
   }
 }

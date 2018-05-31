@@ -20,7 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_SUBDIRECTORY(src)
-IF(ENABLE_TESTS)
-  ADD_SUBDIRECTORY(tests)
-ENDIF()
+include_directories(../include ../src)
+
+add_test_file(test_time.cc
+  MODULE http
+  LIB_DEPENDS http_common
+  INCLUDE_DIRS ${GTEST_INCLUDE_DIRS}
+  )

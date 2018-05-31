@@ -351,5 +351,7 @@ public:
 
 bool is_modified_since(const HttpRequest &req, time_t last_modified);
 void add_last_modified(HttpRequest &req, time_t last_modified);
+time_t time_from_rfc5322_fixdate(const char *date_buf);
+int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len);
 
 #endif
