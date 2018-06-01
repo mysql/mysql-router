@@ -33,6 +33,7 @@
 #include <event2/http.h>
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
+#include <event2/http_struct.h>
 
 #include "mysqlrouter/http_common.h"
 #include "http_request_impl.h"
@@ -169,7 +170,49 @@ void HttpRequest::sync_callback(HttpRequest *req, void *){
   // request-handler lifetime
   evhttp_request *ev_req = req->pImpl->req.get();
   if (ev_req) {
+#if LIBEVENT_VERSION_NUMBER >= 0x02010600
     evhttp_request_own(ev_req);
+#else
+    // swap the evhttp_request, as evhttp_request_own() is broken
+    // before libevent 2.1.6.
+    //
+    // see: https://github.com/libevent/libevent/issues/68
+    //
+    // libevent will free the event, let's make sure it only sees
+    // an empty evhttp_request
+    auto *copied_req = evhttp_request_new(nullptr, nullptr);
+
+    std::swap(copied_req->evcon, ev_req->evcon);
+    std::swap(copied_req->flags, ev_req->flags);
+
+    std::swap(copied_req->input_headers, ev_req->input_headers);
+    std::swap(copied_req->output_headers, ev_req->output_headers);
+    std::swap(copied_req->remote_host, ev_req->remote_host);
+    std::swap(copied_req->remote_port, ev_req->remote_port);
+    std::swap(copied_req->host_cache, ev_req->host_cache);
+    std::swap(copied_req->kind, ev_req->kind);
+    std::swap(copied_req->type, ev_req->type);
+    std::swap(copied_req->headers_size, ev_req->headers_size);
+    std::swap(copied_req->body_size, ev_req->body_size);
+    std::swap(copied_req->uri, ev_req->uri);
+    std::swap(copied_req->uri_elems, ev_req->uri_elems);
+    std::swap(copied_req->major, ev_req->major);
+    std::swap(copied_req->minor, ev_req->minor);
+    std::swap(copied_req->response_code, ev_req->response_code);
+    std::swap(copied_req->response_code_line, ev_req->response_code_line);
+    std::swap(copied_req->input_buffer, ev_req->input_buffer);
+    std::swap(copied_req->ntoread, ev_req->ntoread);
+    copied_req->chunked = ev_req->chunked;
+    copied_req->userdone = ev_req->userdone;
+    std::swap(copied_req->output_buffer, ev_req->output_buffer);
+
+    // release the old one, and let the event-loop free it
+    req->pImpl->req.release();
+
+    // but take ownership of the new one
+    req->pImpl->req.reset(copied_req);
+    req->pImpl->own();
+#endif
   }
 };
 

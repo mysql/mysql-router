@@ -38,6 +38,10 @@ public:
   {
   }
 
+  void own() {
+    owns_http_request = true;
+  }
+
   void disown() {
     owns_http_request = false;
   }
