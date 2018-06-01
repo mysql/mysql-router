@@ -683,7 +683,9 @@
 #define DUK_USE_BYTEORDER 3
 #endif
 #else  /* DUK_F_OLD_SOLARIS */
-#include <ast/endian.h>
+// no ast/endian.h, but isa_defs.h is already included, right?
+#include <sys/isa_defs.h>
+// #include <ast/endian.h>
 #endif  /* DUK_F_OLD_SOLARIS */
 
 #include <sys/param.h>
