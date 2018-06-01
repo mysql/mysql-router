@@ -63,7 +63,7 @@ public:
   void handle_request(HttpRequest &req) override {
     last_modified = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-    if (!((HttpMethod::GET|HttpMethod::PUT) & req.get_method())) {
+    if (!((HttpMethod::Get|HttpMethod::Put) & req.get_method())) {
       req.get_output_headers().add("Allow", "GET, PUT");
       req.send_reply(HttpStatusCode::MethodNotAllowed);
       return;
@@ -74,7 +74,7 @@ public:
       return;
     }
 
-    if (HttpMethod::GET & req.get_method()) {
+    if (HttpMethod::Get & req.get_method()) {
       if (!is_modified_since(req, last_modified)) {
         req.send_reply(HttpStatusCode::NotModified);
         return;
@@ -125,7 +125,7 @@ public:
       out_hdrs.add("Content-Type", "application/json");
 
       req.send_reply(HttpStatusCode::Ok, "Ok", chunk);
-    } else if (HttpMethod::PUT & req.get_method()) {
+    } else if (HttpMethod::Put & req.get_method()) {
       const char *content_type = req.get_input_headers().get("Content-Type");
       // PUT
       //

@@ -62,7 +62,7 @@ protected:
    */
   bool wait_for_rest_endpoint_ready(RestClient &rest_client, const std::string &uri, std::chrono::milliseconds max_wait_time) const noexcept {
     while (max_wait_time.count() > 0) {
-      auto req = rest_client.request_sync(HttpMethod::GET, uri);
+      auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
       if (req && req.get_response_code() != 404) return true;
 
@@ -102,7 +102,7 @@ TEST_F(RestMockServerTest, get_globals_empty) {
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.
-    request_sync(HttpMethod::GET, http_uri);
+    request_sync(HttpMethod::Get, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req)
@@ -163,7 +163,7 @@ TEST_F(RestMockServerTest, unknown_url_fails) {
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.
-    request_sync(HttpMethod::GET, http_uri);
+    request_sync(HttpMethod::Get, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req)
@@ -215,7 +215,7 @@ TEST_F(RestMockServerTest, put_globals_no_json) {
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.
-    request_sync(HttpMethod::PUT, http_uri);
+    request_sync(HttpMethod::Put, http_uri);
 
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req)
@@ -265,7 +265,7 @@ TEST_F(RestMockServerTest, put_globals_ok) {
 
   SCOPED_TRACE("// make a http connections");
   auto req = rest_client.
-    request_sync(HttpMethod::PUT, http_uri, "{}");
+    request_sync(HttpMethod::Put, http_uri, "{}");
 
   SCOPED_TRACE("// checking HTTP response");
   ASSERT_TRUE(req)
@@ -314,7 +314,7 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
   SCOPED_TRACE("// wait for REST endpoint");
   ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
 
-  auto put_req = rest_client.request_sync(HttpMethod::PUT, http_uri, "{\"key\": [ [1, 2, 3 ] ]}");
+  auto put_req = rest_client.request_sync(HttpMethod::Put, http_uri, "{\"key\": [ [1, 2, 3 ] ]}");
 
   SCOPED_TRACE("// checking PUT response");
   ASSERT_TRUE(put_req)
@@ -338,7 +338,7 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
 
   // GET request
 
-  auto get_req = rest_client.request_sync(HttpMethod::GET, http_uri);
+  auto get_req = rest_client.request_sync(HttpMethod::Get, http_uri);
   SCOPED_TRACE("// checking GET response");
   ASSERT_TRUE(get_req)
       << "HTTP Request to "

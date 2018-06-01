@@ -250,29 +250,29 @@ namespace HttpMethod {
   using type = int;
   using pos_type = unsigned;
   namespace Pos {
-    constexpr pos_type GET = 0;
-    constexpr pos_type POST = 1;
-    constexpr pos_type HEAD = 2;
-    constexpr pos_type PUT = 3;
-    constexpr pos_type DELETE = 4;
-    constexpr pos_type OPTIONS = 5;
-    constexpr pos_type TRACE = 6;
-    constexpr pos_type CONNECT = 7;
-    constexpr pos_type PATCH = 8;
+    constexpr pos_type Get = 0;
+    constexpr pos_type Post = 1;
+    constexpr pos_type Head = 2;
+    constexpr pos_type Put = 3;
+    constexpr pos_type Delete = 4;
+    constexpr pos_type Options = 5;
+    constexpr pos_type Trace = 6;
+    constexpr pos_type Connect = 7;
+    constexpr pos_type Patch = 8;
 
-    constexpr unsigned _LAST = PATCH;
+    constexpr unsigned _LAST = Patch;
   };
   using Bitset = std::bitset<Pos::_LAST>;
 
-  constexpr type GET { 1 << Pos::GET };
-  constexpr type POST { 1 << Pos::POST };
-  constexpr type HEAD { 1 << Pos::HEAD };
-  constexpr type PUT { 1 << Pos::PUT };
-  constexpr type DELETE { 1 << Pos::DELETE };
-  constexpr type OPTIONS { 1 << Pos::OPTIONS };
-  constexpr type TRACE { 1 << Pos::TRACE };
-  constexpr type CONNECT { 1 << Pos::CONNECT };
-  constexpr type PATCH { 1 << Pos::PATCH };
+  constexpr type Get { 1 << Pos::Get };
+  constexpr type Post { 1 << Pos::Post };
+  constexpr type Head { 1 << Pos::Head };
+  constexpr type Put { 1 << Pos::Put };
+  constexpr type Delete { 1 << Pos::Delete };
+  constexpr type Options { 1 << Pos::Options };
+  constexpr type Trace { 1 << Pos::Trace };
+  constexpr type Connect { 1 << Pos::Connect };
+  constexpr type Patch { 1 << Pos::Patch };
 };
 
 class IOContext {

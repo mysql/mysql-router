@@ -42,7 +42,7 @@ struct RestClientConfig {
   uint16_t port { 80 };
   bool verbose { false };
   bool request_data_stdin { false };
-  HttpMethod::type method { HttpMethod::GET };
+  HttpMethod::type method { HttpMethod::Get };
   std::string request_data;
 };
 
@@ -139,15 +139,15 @@ private:
         CmdOptionValueReq::required, "{GET|POST|PUT|DELETE|...}",
         [this](const std::string &method) {
           std::map<std::string, HttpMethod::type> methods {
-            {"GET", HttpMethod::GET},
-            {"PUT", HttpMethod::PUT},
-            {"POST", HttpMethod::POST},
-            {"DELETE", HttpMethod::DELETE},
-            {"CONNECT", HttpMethod::CONNECT},
-            {"TRACE", HttpMethod::TRACE},
-            {"PATCH", HttpMethod::PATCH},
-            {"HEAD", HttpMethod::HEAD},
-            {"OPTIONS", HttpMethod::OPTIONS}
+            {"GET", HttpMethod::Get},
+            {"PUT", HttpMethod::Put},
+            {"POST", HttpMethod::Post},
+            {"DELETE", HttpMethod::Delete},
+            {"CONNECT", HttpMethod::Connect},
+            {"TRACE", HttpMethod::Trace},
+            {"PATCH", HttpMethod::Patch},
+            {"HEAD", HttpMethod::Head},
+            {"OPTIONS", HttpMethod::Options}
           };
           auto it = methods.find(method);
 

@@ -38,7 +38,7 @@ public:
 
     // TRACE forbids a request-body
     if (!request_body.empty()) {
-      if (method == HttpMethod::TRACE) {
+      if (method == HttpMethod::Trace) {
         throw std::logic_error("TRACE can't have request-body");
       }
       req.get_output_headers().add("Content-Type", content_type.c_str());
