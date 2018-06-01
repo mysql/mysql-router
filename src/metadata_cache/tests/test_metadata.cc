@@ -95,6 +95,11 @@ using RS    = metadata_cache::ReplicasetStatus;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @file
+ * @brief These tests verify Metadata Cache's _refresh process_ at its different
+ *        stages.
+ */
 
 
 // query #1 (occurrs first) - fetches expected (configured) topology from metadata server
@@ -467,6 +472,16 @@ TEST_F(MetadataTest, ConnectToMetadataServer_none) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify that `ClusterMetadata::fetch_instances_from_metadata_server()` returns
+ * correct information that it obtains from MD server via SQL query. Tested
+ * result sets:
+ *
+ *   1. empty
+ *   2. many nodes in many replicasets
+ *   3. SQL query fails
+ */
 TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
   connect_to_first_metadata_server();
@@ -564,6 +579,16 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
+ * The tested function has two inputs: MD (cluster topology from MD server) and
+ * GR (health status from GR tables). All tested scenarios in this test keep the
+ * MD constant (3 nodes) and while varying the GR.
+ */
 TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
 
   std::vector<ManagedInstance> servers_in_metadata {
@@ -776,6 +801,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_3NodeSetup) {
   }
 }
 
+/**
+ * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
+ * This test is similar to `CheckReplicasetStatus_3NodeSetup`, but here we the
+ * inputs flip: MD is variable, GR is always 3 nodes.
+ */
 TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
 
   std::map<std::string, GroupReplicationMember> server_status {
@@ -868,6 +902,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariableNodeSetup) {
 
 }
 
+/**
+ * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
+ * This test focuses on scenarios where 1 and 2 nodes (out of 3-node setup) are
+ * in one of unavailable states (offline, error, unreachable, other).
+ */
 TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
 
   std::vector<ManagedInstance> servers_in_metadata {
@@ -892,6 +935,19 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
       EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
     }
 
+    // should keep quorum
+    {
+      std::map<std::string, GroupReplicationMember> server_status {
+        { "instance-1", {"", "", 0, State::Online,  Role::Secondary} },
+        { "instance-2", {"", "", 0, State::Online,  Role::Secondary} },
+        { "instance-3", {"", "", 0, state,          Role::Secondary} },
+      };
+      EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(servers_in_metadata, server_status));
+      EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(0).mode);
+      EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(1).mode);
+      EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
+    }
+
     // should lose quorum
     {
       std::map<std::string, GroupReplicationMember> server_status {
@@ -907,62 +963,18 @@ TEST_F(MetadataTest, CheckReplicasetStatus_VariousStatuses) {
   }
 }
 
-TEST_F(MetadataTest, CheckReplicasetStatus_ErrorAndOther) {
-  // Nodes with Error and Other status should both be handled the same:
-  // they don't count towards the quorum
-
-  std::vector<ManagedInstance> servers_in_metadata {
-    // ServerMode doesn't matter ------vvvvvvvvvvv
-    {"", "instance-1", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-    {"", "instance-2", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-    {"", "instance-3", "", ServerMode::Unavailable, 0, 0, "", "", 0, 0},
-  };
-
-  for (State state : {State::Error, State::Other}) {
-    {
-      std::map<std::string, GroupReplicationMember> server_status {
-        { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
-        { "instance-2", {"", "", 0, State::Online,     Role::Secondary} },
-        { "instance-3", {"", "", 0, state,             Role::Secondary} },
-      };
-      EXPECT_EQ(RS::AvailableWritable, metadata.check_replicaset_status(servers_in_metadata, server_status));
-      EXPECT_EQ(ServerMode::ReadWrite,   servers_in_metadata.at(0).mode);
-      EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(1).mode);
-      EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
-    }
-
-    {
-      std::map<std::string, GroupReplicationMember> server_status {
-        { "instance-1", {"", "", 0, State::Online,     Role::Secondary} },
-        { "instance-2", {"", "", 0, State::Online,     Role::Secondary} },
-        { "instance-3", {"", "", 0, state,             Role::Secondary} },
-      };
-      EXPECT_EQ(RS::AvailableReadOnly, metadata.check_replicaset_status(servers_in_metadata, server_status));
-      EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(0).mode);
-      EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(1).mode);
-      EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
-    }
-
-    {
-      std::map<std::string, GroupReplicationMember> server_status {
-        { "instance-1", {"", "", 0, State::Online,     Role::Primary  } },
-        { "instance-2", {"", "", 0, state,             Role::Secondary} },
-        { "instance-3", {"", "", 0, state,             Role::Secondary} },
-      };
-      EXPECT_EQ(RS::Unavailable, metadata.check_replicaset_status(servers_in_metadata, server_status));
-      EXPECT_EQ(ServerMode::ReadWrite,   servers_in_metadata.at(0).mode);
-      EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(1).mode);
-      EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
-    }
-  }
-}
-
+/**
+ * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
+ * Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
+ * should be treated as valid quorum members just like ONLINE nodes, but they
+ * cannot be routed to. RS::Recovering should be returned in a (corner) case
+ * when all nodes in quorum are recovering.
+ */
 TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
-
-  // Here we test various scenarios with RECOVERING nodes. RECOVERING nodes
-  // should be treated as valid quorum members just like ONLINE nodes, but they
-  // cannot be routed to. RS::Recovering should be returned in a (corner) case
-  // when all nodes in quorum are recovering.
 
   std::vector<ManagedInstance> servers_in_metadata {
     // ServerMode doesn't matter ------vvvvvvvvvvv
@@ -1115,11 +1127,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Recovering) {
 
 /**
  * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
  * Here we test an interesting cornercase:
  *
- *   MD defines nodes A, B, C
- *   GR defines nodes A, B, C, D, E
- *   A, B are alive; C, D, E are dead
+ *     MD defines nodes A, B, C
+ *     GR defines nodes A, B, C, D, E
+ *     A, B are alive; C, D, E are dead
  *
  * Availability calculation should deem replicaset to be unavailable, because
  * only 2 of 5 nodes are alive, even though looking purely from MD point-of-view,
@@ -1164,11 +1180,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
 
 /**
  * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
  * Here we test an interesting cornercase:
  *
- *   MD defines nodes A, B, C
- *   GR defines nodes A, B, C, D, E
- *   A, B are dead, C, D, E are alive
+ *     MD defines nodes A, B, C
+ *     GR defines nodes A, B, C, D, E
+ *     A, B are dead, C, D, E are alive
  *
  * Availability calculation, if fully GR-aware, could deem replicaset as
  * available, because looking from purely GR perspective, 3 of 5 nodes form
@@ -1228,11 +1248,15 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
 
 /**
  * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
+ * status for each node (instance) that it received from MD server, and
+ * calculates proper replicaset availability.
+ *
  * Here we test an interesting cornercase:
  *
- *   MD defines nodes A, B, C
- *   GR defines nodes       C, D, E
- *   A, B are not reported by GR, C, D, E are alive
+ *     MD defines nodes A, B, C
+ *     GR defines nodes       C, D, E
+ *     A, B are not reported by GR, C, D, E are alive
  *
  * According to GR, there's a quorum between nodes C, D and E. However, from MD
  * point-of-view, A, B went missing and only C is known to be alive.
@@ -1297,14 +1321,19 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * routing table, even despite having to failover on connection errors.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member FAILS
+ *     iteration 2 (instance-2): CAN'T CONNECT
+ *     iteration 3 (instance-3): query_primary_member OK, query_status OK
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
 
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member FAILS
-  //   iteration 2 (instance-2): CAN'T CONNECT
-  //   iteration 3 (instance-3): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1347,14 +1376,21 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnNode2) {
   EXPECT_EQ(3, session_factory.create_cnt());          // +2 from new connections to localhost:3320 and :3330
 }
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * when all connect attempts fail. Finally, it should clear the routing table
+ * since it's unable to connect to any server.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member FAILS
+ *     iteration 2 (instance-2): CAN'T CONNECT
+ *     iteration 3 (instance-3): CAN'T CONNECT
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes) {
 
   connect_to_first_metadata_server();
 
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member FAILS
-  //   iteration 2 (instance-2): CAN'T CONNECT
-  //   iteration 3 (instance-3): CAN'T CONNECT
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1387,13 +1423,19 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailConnectOnAllNodes)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * routing table, even despite having to failover on fetching primary member
+ * failing.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member FAILS
+ *     iteration 2 (instance-2): query_primary_member OK, query_status OK
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
 
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member FAILS
-  //   iteration 2 (instance-2): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1428,14 +1470,20 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnNode1) {
   EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300}, replicaset.members.at(2)));
 }
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * when all primary member query attempts fail. Finally, it should clear the
+ * routing table since it was unable to complete its operation successfully.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member FAILS
+ *     iteration 2 (instance-2): query_primary_member FAILS
+ *     iteration 3 (instance-3): query_primary_member FAILS
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
 
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member FAILS
-  //   iteration 2 (instance-2): query_primary_member FAILS
-  //   iteration 3 (instance-3): query_primary_member FAILS
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1479,13 +1527,19 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will correctly update
+ * routing table, even despite having to failover on fetching healh status
+ * failing.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member OK, query_status FAILS
+ *     iteration 2 (instance-2): query_primary_member OK, query_status OK
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
 
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member OK, query_status FAILS
-  //   iteration 2 (instance-2): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1524,14 +1578,20 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1) {
   EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly,  0, 0, "", "localhost", 3330, 33300}, replicaset.members.at(2)));
 }
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will handle correctly
+ * when all health status query attempts fail. Finally, it should clear the
+ * routing table since it was unable to complete its operation successfully.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member OK, query_status FAILS
+ *     iteration 2 (instance-2): query_primary_member OK, query_status FAILS
+ *     iteration 3 (instance-2): query_primary_member OK, query_status FAILS
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
 
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member OK, query_status FAILS
-  //   iteration 2 (instance-2): query_primary_member OK, query_status FAILS
-  //   iteration 2 (instance-2): query_primary_member OK, query_status FAILS
 
   // update_replicaset_status() first iteration: requests start with existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1587,11 +1647,16 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify `ClusterMetadata::update_replicaset_status()` will return correct
+ * results in a sunny-day scenario.
+ *
+ *     Scenario details:
+ *     iteration 1 (instance-1): query_primary_member OK, query_status OK
+ */
 TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
   connect_to_first_metadata_server();
-
-  // TEST SCENARIO:
-  //   iteration 1 (instance-1): query_primary_member OK, query_status OK
 
   // update_replicaset_status() first iteration: all requests go to existing connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -1630,6 +1695,11 @@ TEST_F(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @test
+ * Verify `ClusterMetadata::fetch_instances()` will return correct results in a
+ * sunny-day scenario.
+ */
 TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
 
   connect_to_first_metadata_server();
@@ -1660,6 +1730,12 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
   EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"replicaset-1", "instance-3", "", ServerMode::ReadOnly, 0, 0, "", "localhost", 3330, 33300}, rs.at("replicaset-1").members.at(2)));
 }
 
+/**
+ * @test
+ * Verify `ClusterMetadata::fetch_instances()` will handle correctly when
+ * retreiving information from all servers fail. It should return an empty
+ * routing table since it's unable to complete its operation successfully.
+ */
 TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
 
   connect_to_first_metadata_server();
