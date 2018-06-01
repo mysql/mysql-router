@@ -267,10 +267,8 @@ namespace {
 
       case ET_ERROR:
         log_info(notify, key_for_log, "  lifecycle:%s %s():ERROR", key_for_log, func.c_str());
-        char buf[128];
-        snprintf(buf, sizeof(buf), "lifecycle:%s %s(): I'm returning error!",
+        set_error(env, kRuntimeError, "lifecycle:%s %s(): I'm returning error!",
             key_for_log, func.c_str());
-        set_error(env, kRuntimeError, buf);
         return;
 
       case ET_ERROR_EMPTY:

@@ -1466,24 +1466,34 @@ TEST_F(LifecycleTest, set_error_message) {
   EXPECT_STREQ("[foo:bar] 42", emsg.c_str());
 
   // cornercase: empty
+#ifndef __GNUC__
+  // gcc/clang catch it at compile time: error: zero-length gnu_printf format string [-Werror=format-zero-length]
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, "");
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("", emsg.c_str());
+#endif
 
   // cornercase: NULL
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, nullptr);
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("<empty message>", emsg.c_str());
 
+#ifndef __GNUC__
+  // gcc/clang catch it at compile time: error: too many arguments for format [-Werror=format-extra-args]
   // cornercase: NULL + arg
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, nullptr, "foo");
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("<empty message>", emsg.c_str());
+#endif
+
+#ifndef __GNUC__
+  // gcc/clang catch it at compile time
 
   // cornercase: extra arg
   mysql_harness::set_error(&ctx, mysql_harness::kRuntimeError, "foo", "bar");
   std::tie(emsg, std::ignore) = ctx.pop_error();
   EXPECT_STREQ("foo", emsg.c_str());
+#endif
 }
 
 TEST_F(LifecycleTest, set_error_exception) {
