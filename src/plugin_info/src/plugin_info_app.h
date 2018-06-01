@@ -38,7 +38,7 @@ const std::string kPluginInfoAppName = "MySQLRouter Plugin Info App";
  **/
 class Plugin_info_app final {
  public:
-  /** @class Constructor
+  /** Constructor.
    *
    * @brief Normal application operation exepcts 3 parameters:
    *        {app_name} {path_to_plugin_file} {plugin_name}

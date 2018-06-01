@@ -50,13 +50,6 @@ static const mysql_harness::AppInfo *g_app_info;
 static const string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
-/**
- * Load the metadata cache configuration from the router config file.
- *
- * @param info the object encapuslating the router configuration.
- *
- * @return 0 if the configuration was read successfully.
- */
 static void init(mysql_harness::PluginFuncEnv* env) {
   g_app_info = get_app_info(env);
   // If a valid configuration object was found.
@@ -97,7 +90,7 @@ static mysqlrouter::SSLOptions make_ssl_options(
  * Initialize the metadata cache for fetching the information from the
  * metadata servers.
  *
- * @param section An object encapsulating the metadata cache information.
+ * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv* env) {
     const mysql_harness::ConfigSection* section = get_config_section(env);

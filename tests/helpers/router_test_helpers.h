@@ -80,7 +80,7 @@ mysql_harness::Path get_cmake_source_dir();
  * Throws runtime_error when the folder is not available.
  *
  * @param envvar Name of the environment variable
- * @param Path Alternative Path when environment variable is not available
+ * @param alternative Alternative Path when environment variable is not available
  * @return mysql_harness::Path
  */
 mysql_harness::Path get_envvar_path(const std::string &envvar, mysql_harness::Path alternative);
@@ -133,10 +133,10 @@ bool starts_with(const std::string &str, const std::string &prefix);
  * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
  * the reason can be extracted from the thrown object with what() method.
  *
- * @param socket file decriptor
+ * @param sockfd file decriptor
  * @param buffer to store read bytes
- * @param number of bytes to read
- * @param timeout expressed in milliseconds
+ * @param n_bytes of bytes to read
+ * @param timeout_in_ms expressed in milliseconds
  *
  * @return number of bytes read
  */

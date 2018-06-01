@@ -250,9 +250,7 @@ private:
    *
    * Sets up the TCP service binding to IP addresses and TCP port.
    *
-   * Throws std::runtime_error on errors.
-   *
-   * @return
+   * @throws std::runtime_error on errors.
    */
   void setup_tcp_service();
 

@@ -106,7 +106,7 @@ protected:
    * @param section Instance of ConfigSection
    * @return the name for this configuration
    */
-  virtual std::string get_section_name(const mysql_harness::ConfigSection *) const noexcept;
+  virtual std::string get_section_name(const mysql_harness::ConfigSection *section) const noexcept;
 
   /** @brief Gets the default for the given option
    *

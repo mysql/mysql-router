@@ -43,15 +43,12 @@ namespace mysql_harness {
 /** an alive, spawned process
  *
  * @todo
- *
- * refactor ProcessLauchner and SpawnedProcess into:
- *
- * - ProcessLauncher having ownly the spawn/launch() method and no state
- * - Process as a thin wrapper around 'pid' and operators on it
- * - SpawnedProcess being a Process with stdin/stdout/stderr
- * - a way to declare ownership over the 'pid' (if owned, kill pid in destructor)
- *
- * For now, this mostly exists to make the move-constructor of ProcessLauncher easier to implement.
+ *   refactor ProcessLauchner and SpawnedProcess into:
+ *   - ProcessLauncher having only the spawn/launch() method and no state
+ *   - Process as a thin wrapper around 'pid' and operators on it
+ *   - SpawnedProcess being a Process with stdin/stdout/stderr
+ *   - a way to declare ownership over the 'pid' (if owned, kill pid in destructor)
+ *   For now, this mostly exists to make the move-constructor of ProcessLauncher easier to implement.
  */
 class HARNESS_EXPORT SpawnedProcess {
 public:

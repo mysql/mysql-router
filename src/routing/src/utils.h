@@ -56,7 +56,7 @@ void * get_in_addr(struct sockaddr *addr);
  * socket. This works similar as getpeername() but will handle
  * IPv4, IPv6 and Unix sockets/Windows named pipes.
  *
- * @param int socket
+ * @param sock socket
  * @return std::pair with std::string and uint16_t
  */
 std::pair<std::string, int > get_peer_name(int sock);
@@ -66,7 +66,7 @@ std::pair<std::string, int > get_peer_name(int sock);
  *
  * @param data a string to split
  * @param delimiter a char used as delimiter
- * @param bool whether to allow empty tokens or not (default true)
+ * @param allow_empty whether to allow empty tokens or not (default true)
  * @return std::vector<string> containing tokens
  */
 std::vector<std::string> split_string(const std::string& data, const char delimiter, bool allow_empty);

@@ -329,7 +329,7 @@ class HARNESS_EXPORT Registry {
    *
    * This will unregister a previously registered handler.
    *
-   * @param handler Shared pointer to a previously allocated handler.
+   * @param name name of registered handler.
    */
   HARNESS_EXPORT
   void unregister_handler(std::string name);

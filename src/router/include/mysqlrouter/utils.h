@@ -184,7 +184,7 @@ uint16_t get_tcp_port(const std::string& data);
  *
  * @param data a string to split
  * @param delimiter a char used as delimiter
- * @param bool whether to allow empty tokens or not (default true)
+ * @param allow_empty whether to allow empty tokens or not (default true)
  * @return std::vector<string> containing tokens
  */
 std::vector<std::string> split_string(const std::string& data, const char delimiter, bool allow_empty = true);

@@ -39,7 +39,7 @@ std::shared_ptr<MetaData> meta_data;
  * @param connection_attempts The number of times a connection to metadata must be
  *                            attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
- * @param ssl_options
+ * @param ssl_options ssl options
  */
 std::shared_ptr<MetaData> get_instance(
   const std::string &user,

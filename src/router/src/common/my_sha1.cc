@@ -42,8 +42,6 @@ namespace my_sha1 {
   @param digest [out]  Computed SHA1 digest
   @param buf    [in]   Message to be computed
   @param len    [in]   Length of the message
-
-  @return              void
 */
 void mysql_sha1_yassl(uint8_t *digest, const char *buf, size_t len)
 {
@@ -61,8 +59,6 @@ void mysql_sha1_yassl(uint8_t *digest, const char *buf, size_t len)
   @param len1   [in]   Length of first message
   @param buf2   [in]   Second message
   @param len2   [in]   Length of second message
-
-  @return              void
 */
 void mysql_sha1_multi_yassl(uint8_t *digest, const char *buf1, int len1,
                             const char *buf2, int len2)
@@ -109,8 +105,6 @@ namespace my_sha1 {
   @param digest [out]  Computed SHA1 digest
   @param buf    [in]   Message to be computed
   @param len    [in]   Length of the message
-
-  @return              void
 */
 void compute_sha1_hash(uint8_t *digest, const char *buf, size_t len)
 {
@@ -135,8 +129,6 @@ void compute_sha1_hash(uint8_t *digest, const char *buf, size_t len)
   @param len1   [in]   Length of first message
   @param buf2   [in]   Second message
   @param len2   [in]   Length of second message
-
-  @return              void
 */
 void compute_sha1_hash_multi(uint8_t *digest, const char *buf1, int len1,
                              const char *buf2, int len2)

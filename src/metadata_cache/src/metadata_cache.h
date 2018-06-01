@@ -60,7 +60,7 @@ public:
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data.
    * @param ssl_options SSL related options for connection
-   * @param cluster The name of the desired cluster in the metadata server
+   * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
   MetadataCache(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
