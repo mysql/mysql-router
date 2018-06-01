@@ -164,7 +164,7 @@ struct RequestHandlerCtx {
   void *cb_data;
 };
 
-HttpRequest::RequestHandler HttpRequest::sync_callback = [](HttpRequest *req, void *){
+void HttpRequest::sync_callback(HttpRequest *req, void *){
   // if connection was successful, keep the request-object alive past this
   // request-handler lifetime
   evhttp_request *ev_req = req->pImpl->req.get();

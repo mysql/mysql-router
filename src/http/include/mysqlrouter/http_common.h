@@ -323,7 +323,7 @@ public:
   }
   void send_error(int status_code, std::string status_text);
 
-  static RequestHandler sync_callback;
+  static void sync_callback(HttpRequest *, void *);
 
   operator bool();
 
