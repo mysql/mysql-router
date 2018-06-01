@@ -1155,7 +1155,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase2of5Alive) {
     // check if they still compute correctly despite replicaset being
     // unavailable. If one day we need these results to compute differently,
     // please feel free to erase these tests.
-    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added
+    EXPECT_EQ(3u, servers_in_metadata.size()); // new nodes reported by GR will not be added
     EXPECT_EQ(ServerMode::ReadWrite,   servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::ReadOnly,    servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::Unavailable, servers_in_metadata.at(2).mode);
@@ -1219,7 +1219,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase3of5Alive) {
     // check if they still compute correctly despite replicaset being
     // unavailable. If one day we need these results to compute differently,
     // please feel free to erase these tests.
-    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added
+    EXPECT_EQ(3u, servers_in_metadata.size()); // new nodes reported by GR will not be added
     EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadOnly,      servers_in_metadata.at(2).mode);
@@ -1282,7 +1282,7 @@ TEST_F(MetadataTest, CheckReplicasetStatus_Cornercase1Common) {
     // check if they still compute correctly despite replicaset being
     // unavailable. If one day we need these results to compute differently,
     // please feel free to erase these tests.
-    EXPECT_EQ(3, servers_in_metadata.size()); // new nodes reported by GR will not be added, nor old ones removed
+    EXPECT_EQ(3u, servers_in_metadata.size()); // new nodes reported by GR will not be added, nor old ones removed
     EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(0).mode);
     EXPECT_EQ(ServerMode::Unavailable,   servers_in_metadata.at(1).mode);
     EXPECT_EQ(ServerMode::ReadWrite,     servers_in_metadata.at(2).mode);
