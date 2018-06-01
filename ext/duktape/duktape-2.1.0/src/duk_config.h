@@ -64,8 +64,12 @@
  */
 
 /* DLL build detection */
+#ifdef duktape_EXPORTS
+#define DUK_F_DLL_BUILD
+#else
 /* not configured for DLL build */
 #undef DUK_F_DLL_BUILD
+#endif
 
 /* Apple OSX, iOS */
 #if defined(__APPLE__)
