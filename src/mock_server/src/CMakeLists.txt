@@ -115,7 +115,7 @@ target_include_directories(mock_server PUBLIC
 add_harness_plugin(rest_mock_server
   NO_INSTALL
   SOURCES rest_mock_server.cc
-  REQUIRES mock_server;http_server_component)
+  REQUIRES mock_server;http_server)
 target_include_directories(rest_mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/http/include
   )

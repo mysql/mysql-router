@@ -29,17 +29,12 @@ TARGET_LINK_LIBRARIES(http_common
   ${LIBEVENT2_EXTRA}
   ${LIBEVENT2_CORE})
 
-ADD_LIBRARY(http_server_component
-  SHARED
-  http_server_component.cc)
-TARGET_LINK_LIBRARIES(http_server_component
-  http_common)
-
 ADD_HARNESS_PLUGIN(http_server
   NO_INSTALL
   SOURCES http_server_plugin.cc
   static_files.cc
-  REQUIRES router_lib;http_server_component)
+  http_server_component.cc
+  REQUIRES router_lib;http_common)
 
 ADD_LIBRARY(http_client
   SHARED
