@@ -36,12 +36,41 @@ protected:
   }
 };
 
-TEST_F(HttpTimeTest, Something) {
-  EXPECT_THAT(time_from_rfc5322_fixdate("Thu, 31 May 2018 15:18:20 GMT"), ::testing::Eq(1527779900));
+TEST_F(HttpTimeTest, time_from_rfc5322_fixdate) {
+  SCOPED_TRACE("// parses a valid date");
+  EXPECT_NO_THROW(
+    EXPECT_THAT(time_from_rfc5322_fixdate("Thu, 31 May 2018 15:18:20 GMT"), ::testing::Eq(1527779900)));
+  SCOPED_TRACE("// ignores whitespace");
+  EXPECT_NO_THROW(
+    EXPECT_THAT(time_from_rfc5322_fixdate("Thu,  31  May  2018  15:18:20  GMT"), ::testing::Eq(1527779900)));
+
+  SCOPED_TRACE("// throws at invalid weekday");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Tho, 31 May 2018 15:18:20 GMT"), std::exception);
+
+  SCOPED_TRACE("// throws at invalid month");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Thu, 31 Mai 2018 15:18:20 GMT"), std::exception);
+
+  SCOPED_TRACE("// throws at short year");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Thu, 31 Mai 201 15:18:20 GMT"), std::exception);
+
+  SCOPED_TRACE("// throws at long year");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Thu, 31 Mai 20188 15:18:20 GMT"), std::exception);
+
+  SCOPED_TRACE("// throws at wrong timezone");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Thu, 31 Mai 2018 15:18:20 UTC"), std::exception);
+
+  SCOPED_TRACE("// throws at short hour");
+  EXPECT_THROW(time_from_rfc5322_fixdate("Thu, 31 Mai 2018 5:18:20 UTC"), std::exception);
+
+  SCOPED_TRACE("// throws at short hour");
+  EXPECT_NO_THROW(
+    EXPECT_THAT(time_from_rfc5322_fixdate("Thu, 31 May 2018 05:18:20 GMT"), ::testing::Eq(1527743900)));
 
   char date_buf[30];
-  EXPECT_THAT(time_to_rfc5322_fixdate(1527779900, date_buf, sizeof(date_buf)), ::testing::Eq(29));
-  EXPECT_THAT(date_buf, ::testing::StrEq("Thu, 31 May 2018 15:18:20 GMT"));
+  EXPECT_NO_THROW(
+    EXPECT_THAT(time_to_rfc5322_fixdate(1527779900, date_buf, sizeof(date_buf)), ::testing::Eq(29)));
+  EXPECT_NO_THROW(
+    EXPECT_THAT(date_buf, ::testing::StrEq("Thu, 31 May 2018 15:18:20 GMT")));
 }
 
 int main(int argc, char *argv[])
