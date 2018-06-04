@@ -227,13 +227,15 @@ RouterComponentTest::CommandHandle
 RouterComponentTest::launch_mysql_server_mock(const std::string& json_file,
                                               unsigned port,
                                               bool debug_mode,
-                                              uint16_t http_port
+                                              uint16_t http_port,
+                                              const std::string& module_prefix /* = "" */
                                               ) const {
 
   if (mysqlserver_mock_exec_.str().empty()) throw std::logic_error("path to mysql-server-mock must not be empty");
   return launch_command(mysqlserver_mock_exec_.str(), "--filename=" + json_file
                         + " --port=" + std::to_string(port)
                         + " --http-port=" + std::to_string(http_port)
+                        + " --module-prefix=" + (!module_prefix.empty() ? module_prefix : get_data_dir().str())
                         + (debug_mode ? " --verbose" : ""),
                         true);
 }

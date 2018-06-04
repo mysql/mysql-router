@@ -605,6 +605,35 @@ TEST_F(RestMockServerTest, metadata_3_secondaries_js) {
   ASSERT_NO_THROW(client.execute("select @@port"));
 }
 
+/**
+ * ensure 'simple-client.js' works.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, simple_client_js) {
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("simple-client.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", ""));
+
+  SCOPED_TRACE("// select @@port");
+  ASSERT_NO_THROW(client.execute("select @@port"));
+}
+
 
 
 static void init_DIM() {

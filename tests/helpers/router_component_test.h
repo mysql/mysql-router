@@ -269,7 +269,8 @@ class RouterComponentTest {
   CommandHandle launch_mysql_server_mock(const std::string& json_file,
                                          unsigned port,
                                          bool debug_mode = true,
-                                         uint16_t http_port = 0) const;
+                                         uint16_t http_port = 0,
+                                         const std::string& module_prefix = "") const;
 
   /** @brief Launches a process.
    *
