@@ -28,7 +28,6 @@
 #include <string>
 #include <vector>
 #include <thread>
-#include <regex>
 
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -37,6 +36,7 @@
 #include <event2/util.h>
 
 #include "mysqlrouter/http_server_component.h"
+#include "posix_re.h"
 
 using harness_socket_t = evutil_socket_t;
 
@@ -46,7 +46,7 @@ class HttpRequestRouter
 {
   struct RouterData {
     std::string url_regex_str;
-    std::regex url_regex;
+    PosixRE url_regex;
     std::unique_ptr<BaseRequestHandler> handler;
   };
   std::vector<RouterData> request_handlers_;

@@ -27,7 +27,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <regex>
 #include <thread>
 
 #include <sys/types.h>
@@ -46,6 +45,7 @@
 #include "mysqlrouter/plugin_config.h"
 #include "mysqlrouter/http_server_component.h"
 #include "http_server_plugin.h"
+#include "posix_re.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -66,7 +66,7 @@ std::atomic<int> g_shutdown_pending { 0 };
  * if no handler is found, reply with 404 not found
  */
 void HttpRequestRouter::append(const std::string &url_regex_str, std::unique_ptr<BaseRequestHandler> cb) {
-  request_handlers_.emplace_back(RouterData { url_regex_str, std::regex {url_regex_str}, std::move(cb) });
+  request_handlers_.emplace_back(RouterData { url_regex_str, PosixRE {url_regex_str}, std::move(cb) });
 }
 
 void HttpRequestRouter::remove(const std::string &url_regex_str) {
@@ -101,7 +101,7 @@ void HttpRequestRouter::route(HttpRequest req) const {
   auto uri = req.get_uri();
 
   for (auto &request_handler: request_handlers_) {
-    if (std::regex_search(uri, request_handler.url_regex)) {
+    if (request_handler.url_regex.search(uri)) {
       request_handler.handler->handle_request(req);
       return;
     }

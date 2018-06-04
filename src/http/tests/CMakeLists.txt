@@ -27,3 +27,8 @@ add_test_file(test_time.cc
   LIB_DEPENDS http_client
   INCLUDE_DIRS ${GTEST_INCLUDE_DIRS}
   )
+
+add_test_file(test_posix_re.cc
+  MODULE http
+  INCLUDE_DIRS ${GTEST_INCLUDE_DIRS}
+  )
