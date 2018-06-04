@@ -25,6 +25,8 @@
 #ifndef MYSQLROUTER_HTTP_COMMON_INCLUDED
 #define MYSQLROUTER_HTTP_COMMON_INCLUDED
 
+#include "mysqlrouter/http_common_export.h"
+
 #include <ctime>
 #include <memory>
 #include <functional>  // std::function
@@ -185,7 +187,7 @@ namespace HttpStatusCode {
   }
 }
 
-class HttpUri {
+class HTTP_COMMON_EXPORT HttpUri {
   struct impl;
 
   std::unique_ptr<impl> pImpl;
@@ -200,7 +202,7 @@ public:
 };
 
 // wrapper around evbuffer
-class HttpBuffer {
+class HTTP_COMMON_EXPORT HttpBuffer {
   struct impl;
 
   std::unique_ptr<impl> pImpl;
@@ -220,7 +222,7 @@ public:
   std::vector<uint8_t> pop_front(size_t length);
 };
 
-class HttpHeaders {
+class HTTP_COMMON_EXPORT HttpHeaders {
   struct impl;
 
   std::unique_ptr<impl> pImpl;
@@ -275,7 +277,7 @@ namespace HttpMethod {
   constexpr type Patch { 1 << Pos::Patch };
 };
 
-class IOContext {
+class HTTP_COMMON_EXPORT IOContext {
   class impl;
 
   std::unique_ptr<impl> pImpl;
@@ -286,7 +288,7 @@ public:
   void dispatch();
 };
 
-class HttpRequest {
+class HTTP_COMMON_EXPORT HttpRequest {
   class impl;
 
   std::unique_ptr<impl> pImpl;
@@ -332,26 +334,11 @@ public:
   std::string error_msg();
 };
 
-class HttpClient {
-  class impl;
-
-  std::unique_ptr<impl> pImpl;
-
-  IOContext &io_ctx_;
-public:
-  HttpClient();
-  ~HttpClient();
-  HttpClient(IOContext &io_ctx, const std::string &address, uint16_t port);
-
-  void make_request(HttpRequest *req, HttpMethod::type method, const std::string &uri);
-  void make_request_sync(HttpRequest *req, HttpMethod::type method, const std::string &uri);
-};
-
 // http_time.cc
 
-bool is_modified_since(const HttpRequest &req, time_t last_modified);
-void add_last_modified(HttpRequest &req, time_t last_modified);
-time_t time_from_rfc5322_fixdate(const char *date_buf);
-int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len);
+HTTP_COMMON_EXPORT bool is_modified_since(const HttpRequest &req, time_t last_modified);
+HTTP_COMMON_EXPORT void add_last_modified(HttpRequest &req, time_t last_modified);
+HTTP_COMMON_EXPORT time_t time_from_rfc5322_fixdate(const char *date_buf);
+HTTP_COMMON_EXPORT int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len);
 
 #endif

@@ -22,48 +22,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_HTTP_SERVER_COMPONENT_INCLUDED
-#define MYSQLROUTER_HTTP_SERVER_COMPONENT_INCLUDED
+#ifndef MYSQLROUTER_HTTP_CLIENT_INCLUDED
+#define MYSQLROUTER_HTTP_CLIENT_INCLUDED
 
-#include <mutex>
-
+#include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_common.h"
-#include "mysqlrouter/http_server_export.h"
 
-class HTTP_SERVER_EXPORT BaseRequestHandler {
+class HTTP_CLIENT_EXPORT HttpClient {
+  class impl;
+
+  std::unique_ptr<impl> pImpl;
+
+  IOContext &io_ctx_;
 public:
-  void call(HttpRequest &req, void *me) {
-    auto *my = static_cast<BaseRequestHandler *>(me);
-    my->handle_request(req);
-  }
+  HttpClient();
+  ~HttpClient();
+  HttpClient(IOContext &io_ctx, const std::string &address, uint16_t port);
 
-  virtual void handle_request(HttpRequest &req) = 0;
-
-  virtual ~BaseRequestHandler() = default;
+  void make_request(HttpRequest *req, HttpMethod::type method, const std::string &uri);
+  void make_request_sync(HttpRequest *req, HttpMethod::type method, const std::string &uri);
 };
-
-class HTTP_SERVER_EXPORT HttpServerComponent {
-  // disable copy, as we are a single-instance
-  HttpServerComponent(HttpServerComponent const &) = delete;
-  void operator=(HttpServerComponent const &) = delete;
-
-  struct RouterData {
-    std::string url_regex_str;
-    std::unique_ptr<BaseRequestHandler> handler;
-  };
-
-  std::mutex rh_mu; // request handler mutex
-  std::vector<RouterData> request_handlers_;
-
-  std::weak_ptr<HttpServer> srv_;
-
-  HttpServerComponent() = default;
-public:
-  static HttpServerComponent& getInstance();
-  void init(std::shared_ptr<HttpServer> srv);
-  void add_route(const std::string &url_regex, std::unique_ptr<BaseRequestHandler> cb);
-  void remove_route(const std::string &url_regex);
-};
-
 
 #endif

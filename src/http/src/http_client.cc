@@ -28,7 +28,7 @@
 #include <string>
 #include <iostream>
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_client.h"
 #include "http_request_impl.h"
 
 class IOContext::impl {

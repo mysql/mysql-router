@@ -24,7 +24,7 @@
 #ifndef MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 #define MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_client.h"
 
 class RestClient {
 public:

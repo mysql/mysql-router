@@ -24,6 +24,6 @@ include_directories(../include ../src)
 
 add_test_file(test_time.cc
   MODULE http
-  LIB_DEPENDS http_common
+  LIB_DEPENDS http_client
   INCLUDE_DIRS ${GTEST_INCLUDE_DIRS}
   )

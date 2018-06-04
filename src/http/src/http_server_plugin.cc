@@ -328,18 +328,11 @@ static void start(PluginFuncEnv* env) {
   }
 }
 
-#if defined(_MSC_VER) && defined(http_server_EXPORTS)
-/* We are building this library */
-#  define DLLEXPORT __declspec(dllexport)
-#else
-#  define DLLEXPORT
-#endif
-
 const char *plugin_requires[] = {
 };
 
 extern "C" {
-Plugin DLLEXPORT harness_plugin_http_server = {
+Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
   "HTTP_SERVER",

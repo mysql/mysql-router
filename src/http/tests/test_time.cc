@@ -24,7 +24,7 @@
 
 #include "gmock/gmock.h"
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_client.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
