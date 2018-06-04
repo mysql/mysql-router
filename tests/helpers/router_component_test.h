@@ -263,6 +263,7 @@ class RouterComponentTest {
    *                     standard output
    * @param   http_port  port number where the http_server module of the mock server
    *                     will accept REST client requests
+   * @param   module_prefix base-path for javascript modules used by the tests
    *
    * @returns handle to the launched proccess
    */

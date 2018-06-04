@@ -87,7 +87,7 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   }
 
   // if we have a directory, check if it contains a index.html file
-  if (S_ISDIR(st.st_mode)) {
+  if ((st.st_mode & S_IFMT) == S_IFDIR) {
     file_path += "/index.html";
 
     if (-1 == stat(file_path.c_str(), &st)) {

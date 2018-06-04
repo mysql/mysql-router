@@ -44,6 +44,16 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+#ifdef _WIN32
+  // workaround error C2039: 'GetObjectA': is not a member of ...
+  //
+  // as winnt.h #defines GetObject(...) GetObjectA(...)
+  // and we call json_doc.GetObject() which gets replaced by the c-pre-processor
+#  ifdef GetObject
+#    undef GetObject
+#  endif
+#endif
+
 static const char* kSectionName { "rest_mock_server" };
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;

@@ -186,12 +186,16 @@ int main(int argc, char **argv) {
     if (frontend_config.request_data_stdin) {
       while (true) {
         char buf[128];
-        ssize_t bytes_read = ::fread(buf, 1, sizeof(buf), stdin);
+        auto bytes_read = ::fread(buf, 1, sizeof(buf), stdin);
 
         if (bytes_read == 0) {
-          break;
-        } else if (bytes_read < 0) {
-          throw std::system_error(errno, std::generic_category());
+          if (feof(stdin)) {
+            break;
+          } else if (ferror(stdin)) {
+            throw std::runtime_error("reading from stdin failed");
+          } else {
+            throw std::runtime_error("fread() returned 0, but no EOF nor error?");
+          }
         }
         request_data.append(buf, buf + bytes_read);
       }

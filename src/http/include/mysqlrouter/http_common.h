@@ -227,7 +227,7 @@ class HTTP_COMMON_EXPORT HttpHeaders {
 
   std::unique_ptr<impl> pImpl;
 public:
-  class Iterator {
+  class HTTP_COMMON_EXPORT Iterator {
     evkeyval *node_;
   public:
     Iterator(evkeyval *node):

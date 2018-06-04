@@ -327,16 +327,13 @@ static void start(PluginFuncEnv* env) {
   }
 }
 
-const char *plugin_requires[] = {
-};
-
 extern "C" {
 Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
   PLUGIN_ABI_VERSION,
   ARCHITECTURE_DESCRIPTOR,
   "HTTP_SERVER",
   VERSION_NUMBER(0, 0, 1),
-  sizeof(plugin_requires)/sizeof(plugin_requires[0]), plugin_requires,  // requires
+  0, nullptr,  // requires
   0, nullptr,  // conflicts
   init,        // init
   nullptr,     // deinit
