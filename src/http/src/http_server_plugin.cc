@@ -30,7 +30,6 @@
 #include <regex>
 #include <thread>
 
-#include <sys/socket.h>
 #include <sys/types.h>
 
 #include <event2/buffer.h>

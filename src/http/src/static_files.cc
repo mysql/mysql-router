@@ -26,9 +26,14 @@
 #include <memory>
 #include <map>
 
-#include <fcntl.h>
+#ifdef _WIN32
+#include <io.h>  // close
+#else
 #include <unistd.h>  // close
+#endif
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "mysqlrouter/http_server_component.h"
 #include "http_server_plugin.h"
