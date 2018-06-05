@@ -46,6 +46,12 @@ const std::string kMockServerInvalidRestUri = "/api/v1/mock_server/global/";
 constexpr std::chrono::milliseconds kMockServerMaxRestEndpointWaitTime{1000};
 constexpr std::chrono::milliseconds kMockServerMaxRestEndpointStepTime{50};
 
+// AddressSanitizer gets confused by the default, MemoryPoolAllocator
+// Solaris sparc also gets crashes
+using JsonDocument = rapidjson::GenericDocument<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
+using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
+
+
 class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
 protected:
   TcpPortPool port_pool_;
@@ -115,6 +121,8 @@ TEST_F(RestMockServerTest, get_globals_empty) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed (early): "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   ASSERT_GT(req.get_response_code(), 0u)
@@ -122,6 +130,8 @@ TEST_F(RestMockServerTest, get_globals_empty) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed: "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   EXPECT_EQ(req.get_response_code(), 200u);
@@ -135,7 +145,7 @@ TEST_F(RestMockServerTest, get_globals_empty) {
 
   std::string json_payload(resp_body_content.begin(), resp_body_content.end());
 
-  rapidjson::Document json_doc;
+  JsonDocument json_doc;
   json_doc.Parse(json_payload.c_str());
 
   EXPECT_TRUE(!json_doc.HasParseError()) << json_payload;
@@ -228,6 +238,8 @@ TEST_F(RestMockServerTest, put_globals_no_json) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed (early): "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   ASSERT_GT(req.get_response_code(), 0u)
@@ -235,6 +247,8 @@ TEST_F(RestMockServerTest, put_globals_no_json) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed: "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   EXPECT_EQ(req.get_response_code(), 415u);
@@ -278,6 +292,8 @@ TEST_F(RestMockServerTest, put_globals_ok) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed (early): "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   ASSERT_GT(req.get_response_code(), 0u)
@@ -285,6 +301,8 @@ TEST_F(RestMockServerTest, put_globals_ok) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed: "
       << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   EXPECT_EQ(req.get_response_code(), 204u);
@@ -327,6 +345,8 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed (early): "
       << put_req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   ASSERT_GT(put_req.get_response_code(), 0u)
@@ -334,6 +354,8 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed: "
       << put_req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   EXPECT_EQ(put_req.get_response_code(), 204u);
@@ -350,13 +372,18 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
       << http_hostname << ":" << std::to_string(http_port)
       << " failed (early): "
       << get_req.error_msg()
-      << std::endl;
+      << std::endl
+      << server_mock.get_full_output()
+      << std::endl
+      ;
 
   ASSERT_GT(get_req.get_response_code(), 0u)
       << "HTTP Request to "
       << http_hostname << ":" << std::to_string(http_port)
       << " failed: "
       << get_req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
       << std::endl;
 
   EXPECT_EQ(get_req.get_response_code(), 200u);
@@ -370,7 +397,7 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
 
   std::string json_payload(get_resp_body_content.begin(), get_resp_body_content.end());
 
-  rapidjson::Document json_doc;
+  JsonDocument json_doc;
   json_doc.Parse(json_payload.c_str());
 
   EXPECT_TRUE(!json_doc.HasParseError());

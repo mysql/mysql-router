@@ -174,7 +174,7 @@ public:
     mock_server_config.set("module_prefix", config_.module_prefix);
 
     try {
-      loader_ = std::unique_ptr<mysql_harness::Loader>(new mysql_harness::Loader("server-mock", loader_config));
+      loader_.reset(new mysql_harness::Loader("server-mock", loader_config));
     } catch (const std::runtime_error &err) {
       throw std::runtime_error(std::string("init-loader failed: ") + err.what());
     }

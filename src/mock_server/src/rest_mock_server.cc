@@ -57,6 +57,11 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[] { "rest_mock_server" };
 static constexpr const char kHttpHandlerUri[] { "^/api/v1/mock_server/globals/$" };
 
+// AddressSanitizer gets confused by the default, MemoryPoolAllocator
+// Solaris sparc also gets crashes
+using JsonDocument = rapidjson::GenericDocument<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
+using JsonValue = rapidjson::GenericValue<rapidjson::UTF8<>,  rapidjson::CrtAllocator>;
+
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::PluginFuncEnv;
@@ -114,7 +119,7 @@ private:
     auto data = body.pop_front(body.length());
     std::string str_data(data.begin(), data.end());
 
-    rapidjson::Document body_doc;
+    JsonDocument body_doc;
     body_doc.Parse(str_data.c_str());
 
     if (body_doc.HasParseError()) {
@@ -159,17 +164,15 @@ private:
       rapidjson::StringBuffer json_buf;
       {
         rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
-        rapidjson::Document json_doc;
+        JsonDocument json_doc;
 
         json_doc.SetObject();
-
-        rapidjson::Document::AllocatorType& allocator = json_doc.GetAllocator();
 
         auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
         auto all_globals = shared_globals->get_all();
 
         for (auto &element: all_globals) {
-          rapidjson::Document value_doc;
+          JsonDocument value_doc;
           value_doc.Parse(element.second.c_str()); // value is a json-value as string
 
           if (value_doc.HasParseError()) {
@@ -178,9 +181,9 @@ private:
           }
 
           json_doc.AddMember(
-              rapidjson::Value(element.first.c_str(), element.first.size(), allocator),
+              JsonValue(element.first.c_str(), element.first.size(), json_doc.GetAllocator()),
               value_doc,
-              allocator);
+              json_doc.GetAllocator());
         }
 
         json_doc.Accept(json_writer);
