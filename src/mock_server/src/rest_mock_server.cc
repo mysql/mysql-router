@@ -64,16 +64,14 @@ using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 
 class RestApiV1MockServer: public BaseRequestHandler {
-  time_t last_modified;
-
 public:
   RestApiV1MockServer():
-    last_modified(time(nullptr)) {}
+    last_modified_(time(nullptr)) {}
 
   // GET|PUT
   //
   void handle_request(HttpRequest &req) override {
-    last_modified = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    last_modified_ = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
     if (!((HttpMethod::Get|HttpMethod::Put) & req.get_method())) {
       req.get_output_headers().add("Allow", "GET, PUT");
@@ -87,107 +85,118 @@ public:
     }
 
     if (HttpMethod::Get & req.get_method()) {
-      if (!is_modified_since(req, last_modified)) {
+      if (!is_modified_since(req, last_modified_)) {
         req.send_reply(HttpStatusCode::NotModified);
         return;
       }
 
       // GET
-      add_last_modified(req, last_modified);
+      add_last_modified(req, last_modified_);
 
-      auto chunk = req.get_output_buffer();
-
-      {
-        rapidjson::StringBuffer json_buf;
-        {
-          rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
-          rapidjson::Document json_doc;
-
-          json_doc.SetObject();
-
-          rapidjson::Document::AllocatorType& allocator = json_doc.GetAllocator();
-
-          auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
-          auto all_globals = shared_globals->get_all();
-
-          for (auto &element: all_globals) {
-            rapidjson::Document value_doc;
-            value_doc.Parse(element.second.c_str()); // value is a json-value as string
-
-            if (value_doc.HasParseError()) {
-              req.send_reply(HttpStatusCode::InternalError);
-              return;
-            }
-
-            json_doc.AddMember(
-                rapidjson::Value(element.first.c_str(), element.first.size(), allocator),
-                value_doc,
-                allocator);
-          }
-
-          json_doc.Accept(json_writer);
-        } // free json_doc and json_writer early
-
-        // perhaps we could use evbuffer_add_reference() and a unique-ptr on json_buf here.
-        // needs to be benchmarked
-        chunk.add(json_buf.GetString(), json_buf.GetSize());
-      } // free json_buf early
-
-      auto out_hdrs = req.get_output_headers();
-      out_hdrs.add("Content-Type", "application/json");
-
-      req.send_reply(HttpStatusCode::Ok, "Ok", chunk);
+      handle_global_get_all(req);
     } else if (HttpMethod::Put & req.get_method()) {
-      const char *content_type = req.get_input_headers().get("Content-Type");
-      // PUT
-      //
-      // required content-type: application/json
-      if (nullptr == content_type || std::string(content_type) != "application/json") {
-        req.send_reply(HttpStatusCode::UnsupportedMediaType);
-        return;
-      }
-      auto body = req.get_input_buffer();
-      auto data = body.pop_front(body.length());
-      std::string str_data(data.begin(), data.end());
-
-      rapidjson::Document body_doc;
-      body_doc.Parse(str_data.c_str());
-
-      if (body_doc.HasParseError()) {
-        auto out_hdrs = req.get_output_headers();
-        auto out_buf = req.get_output_buffer();
-        out_hdrs.add("Content-Type", "text/plain");
-
-        std::string parse_error(rapidjson::GetParseError_En(body_doc.GetParseError()));
-
-        out_buf.add(parse_error.data(), parse_error.size());
-
-        req.send_reply(HttpStatusCode::UnprocessableEntity, "Unprocessable Entity", out_buf);
-        return;
-      }
-
-      if (!body_doc.IsObject()) {
-        req.send_reply(HttpStatusCode::UnprocessableEntity);
-        return;
-      }
-
-      // replace all the globals
-      typename MockServerGlobalScope::type all_globals;
-
-      for (auto& m : body_doc.GetObject()) {
-        rapidjson::StringBuffer json_buf;
-        rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
-        m.value.Accept(json_writer);
-
-        all_globals[m.name.GetString()] = std::string(json_buf.GetString(), json_buf.GetSize());
-      }
-
-      auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
-      shared_globals->reset(all_globals);
-
-      req.send_reply(HttpStatusCode::NoContent);
+      handle_global_put_all(req);
     }
   }
+private:
+  time_t last_modified_;
+
+  void handle_global_put_all(HttpRequest &req) {
+    const char *content_type = req.get_input_headers().get("Content-Type");
+    // PUT
+    //
+    // required content-type: application/json
+    if (nullptr == content_type || std::string(content_type) != "application/json") {
+      req.send_reply(HttpStatusCode::UnsupportedMediaType);
+      return;
+    }
+    auto body = req.get_input_buffer();
+    auto data = body.pop_front(body.length());
+    std::string str_data(data.begin(), data.end());
+
+    rapidjson::Document body_doc;
+    body_doc.Parse(str_data.c_str());
+
+    if (body_doc.HasParseError()) {
+      auto out_hdrs = req.get_output_headers();
+      auto out_buf = req.get_output_buffer();
+      out_hdrs.add("Content-Type", "text/plain");
+
+      std::string parse_error(rapidjson::GetParseError_En(body_doc.GetParseError()));
+
+      out_buf.add(parse_error.data(), parse_error.size());
+
+      req.send_reply(HttpStatusCode::UnprocessableEntity, "Unprocessable Entity", out_buf);
+      return;
+    }
+
+    if (!body_doc.IsObject()) {
+      req.send_reply(HttpStatusCode::UnprocessableEntity);
+      return;
+    }
+
+    // replace all the globals
+    typename MockServerGlobalScope::type all_globals;
+
+    for (auto& m : body_doc.GetObject()) {
+      rapidjson::StringBuffer json_buf;
+      rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+      m.value.Accept(json_writer);
+
+      all_globals[m.name.GetString()] = std::string(json_buf.GetString(), json_buf.GetSize());
+    }
+
+    auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
+    shared_globals->reset(all_globals);
+
+    req.send_reply(HttpStatusCode::NoContent);
+  }
+
+  void handle_global_get_all(HttpRequest &req) {
+    auto chunk = req.get_output_buffer();
+
+    {
+      rapidjson::StringBuffer json_buf;
+      {
+        rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+        rapidjson::Document json_doc;
+
+        json_doc.SetObject();
+
+        rapidjson::Document::AllocatorType& allocator = json_doc.GetAllocator();
+
+        auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
+        auto all_globals = shared_globals->get_all();
+
+        for (auto &element: all_globals) {
+          rapidjson::Document value_doc;
+          value_doc.Parse(element.second.c_str()); // value is a json-value as string
+
+          if (value_doc.HasParseError()) {
+            req.send_reply(HttpStatusCode::InternalError);
+            return;
+          }
+
+          json_doc.AddMember(
+              rapidjson::Value(element.first.c_str(), element.first.size(), allocator),
+              value_doc,
+              allocator);
+        }
+
+        json_doc.Accept(json_writer);
+      } // free json_doc and json_writer early
+
+      // perhaps we could use evbuffer_add_reference() and a unique-ptr on json_buf here.
+      // needs to be benchmarked
+      chunk.add(json_buf.GetString(), json_buf.GetSize());
+    } // free json_buf early
+
+    auto out_hdrs = req.get_output_headers();
+    out_hdrs.add("Content-Type", "application/json");
+
+    req.send_reply(HttpStatusCode::Ok, "Ok", chunk);
+  }
+
 };
 
 static void init(PluginFuncEnv* env) {
