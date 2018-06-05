@@ -40,7 +40,7 @@ public:
     return global_;
   }
 
-  void set(key_type key, value_type value) {
+  void set(const key_type &key, const value_type &value) {
     std::lock_guard<std::mutex> foo(global_mutex_);
 
     global_[key] = value;

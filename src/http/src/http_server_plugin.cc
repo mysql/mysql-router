@@ -144,8 +144,6 @@ void HttpRequestThread::wait_and_dispatch() {
 
 class HttpRequestMainThread : public HttpRequestThread
 {
-  std::string address_;
-  uint16_t port_;
 public:
   HttpRequestMainThread(const char *address, uint16_t port):
     address_(address), port_(port) {
@@ -156,6 +154,9 @@ public:
     }
     accept_fd_ = evhttp_bound_socket_get_fd(handle);
   }
+private:
+  std::string address_;
+  uint16_t port_;
 };
 
 class HttpRequestWorkerThread : public HttpRequestThread

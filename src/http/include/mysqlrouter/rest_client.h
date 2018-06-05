@@ -46,7 +46,7 @@ public:
       out_buf.add(request_body.data(), request_body.size());
     }
 
-    // ask the server the close the connection after this request
+    // ask the server to close the connection after this request
     req.get_output_headers().add("Connection", "close");
     req.get_output_headers().add("Host", hostname_.c_str());
     http_client_.make_request_sync(&req, method, uri);

@@ -46,7 +46,7 @@ struct HttpUri::impl {
 };
 
 HttpUri::HttpUri(std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri) {
-  pImpl.reset(new impl { std::move(uri) });
+  pImpl_.reset(new impl { std::move(uri) });
 }
 
 HttpUri::HttpUri(HttpUri &&) = default;
@@ -61,7 +61,7 @@ HttpUri HttpUri::parse(const std::string &uri_str) {
 }
 
 std::string HttpUri::get_path() const {
-  return evhttp_uri_get_path(pImpl->uri.get());
+  return evhttp_uri_get_path(pImpl_->uri.get());
 }
 
 
@@ -73,19 +73,19 @@ struct HttpBuffer::impl {
 
 // non-owning pointer
 HttpBuffer::HttpBuffer(std::unique_ptr<evbuffer, std::function<void(evbuffer *)>> buffer) {
-  pImpl.reset(new impl { std::move(buffer) });
+  pImpl_.reset(new impl { std::move(buffer) });
 }
 
 void HttpBuffer::add(const char *data, size_t data_size) {
-  evbuffer_add(pImpl->buffer.get(), data, data_size);
+  evbuffer_add(pImpl_->buffer.get(), data, data_size);
 }
 
 void HttpBuffer::add_file(int file_fd, off_t offset, off_t size) {
-  evbuffer_add_file(pImpl->buffer.get(), file_fd, offset, size);
+  evbuffer_add_file(pImpl_->buffer.get(), file_fd, offset, size);
 }
 
 size_t HttpBuffer::length() const {
-  return evbuffer_get_length(pImpl->buffer.get());
+  return evbuffer_get_length(pImpl_->buffer.get());
 }
 
 std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
@@ -93,7 +93,7 @@ std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
   data.resize(len);
 
   int bytes_read;
-  if (-1 == (bytes_read = evbuffer_remove(pImpl->buffer.get(), data.data(), data.size()))) {
+  if (-1 == (bytes_read = evbuffer_remove(pImpl_->buffer.get(), data.data(), data.size()))) {
     throw std::runtime_error("...");
   }
 
@@ -115,15 +115,15 @@ struct HttpHeaders::impl {
 };
 
 HttpHeaders::HttpHeaders(std::unique_ptr<evkeyvalq, std::function<void(evkeyvalq *)>> hdrs) {
-  pImpl.reset(new impl { std::move(hdrs) });
+  pImpl_.reset(new impl { std::move(hdrs) });
 }
 
 int HttpHeaders::add(const char *key, const char *value) {
-  return evhttp_add_header(pImpl->hdrs.get(), key, value);
+  return evhttp_add_header(pImpl_->hdrs.get(), key, value);
 }
 
 const char *HttpHeaders::get(const char *key) const {
-  return evhttp_find_header(pImpl->hdrs.get(), key);
+  return evhttp_find_header(pImpl_->hdrs.get(), key);
 }
 
 std::pair<std::string, std::string> HttpHeaders::Iterator::operator *() {
@@ -141,11 +141,11 @@ bool HttpHeaders::Iterator::operator!=(const Iterator &it) const {
 }
 
 HttpHeaders::Iterator HttpHeaders::begin() {
-  return pImpl->hdrs->tqh_first;
+  return pImpl_->hdrs->tqh_first;
 }
 
 HttpHeaders::Iterator HttpHeaders::end() {
-  return *(pImpl->hdrs->tqh_last);
+  return *(pImpl_->hdrs->tqh_last);
 }
 
 HttpHeaders::HttpHeaders(HttpHeaders &&) = default;
@@ -156,7 +156,7 @@ HttpHeaders::~HttpHeaders() = default;
 
 HttpRequest::HttpRequest(std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>> req)
 {
-  pImpl.reset(new impl { std::move(req) });
+  pImpl_.reset(new impl { std::move(req) });
 }
 
 struct RequestHandlerCtx {
@@ -168,7 +168,7 @@ struct RequestHandlerCtx {
 void HttpRequest::sync_callback(HttpRequest *req, void *){
   // if connection was successful, keep the request-object alive past this
   // request-handler lifetime
-  evhttp_request *ev_req = req->pImpl->req.get();
+  evhttp_request *ev_req = req->pImpl_->req.get();
   if (ev_req) {
 #if LIBEVENT_VERSION_NUMBER >= 0x02010600
     evhttp_request_own(ev_req);
@@ -207,11 +207,11 @@ void HttpRequest::sync_callback(HttpRequest *req, void *){
     std::swap(copied_req->output_buffer, ev_req->output_buffer);
 
     // release the old one, and let the event-loop free it
-    req->pImpl->req.release();
+    req->pImpl_->req.release();
 
     // but take ownership of the new one
-    req->pImpl->req.reset(copied_req);
-    req->pImpl->own();
+    req->pImpl_->req.reset(copied_req);
+    req->pImpl_->own();
 #endif
   }
 };
@@ -221,8 +221,8 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       [](evhttp_request *req, void *ev_cb_arg) {
         auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
-        ctx->req->pImpl->req.release(); // the old request object may already be free()ed in case of error
-        ctx->req->pImpl->req.reset(req); // just update with what we have
+        ctx->req->pImpl_->req.release(); // the old request object may already be free()ed in case of error
+        ctx->req->pImpl_->req.reset(req); // just update with what we have
         ctx->cb(ctx->req, ctx->cb_data);
 
         delete ctx;
@@ -236,7 +236,7 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       });
 #endif
 
-  pImpl.reset(new impl {
+  pImpl_.reset(new impl {
       std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>(
         ev_req, evhttp_request_free)});
 }
@@ -245,31 +245,31 @@ HttpRequest::HttpRequest(HttpRequest &&) = default;
 HttpRequest::~HttpRequest() = default;
 
 void HttpRequest::send_error(int status_code, std::string status_text) {
-  evhttp_send_error(pImpl->req.get(), status_code, status_text.c_str());
+  evhttp_send_error(pImpl_->req.get(), status_code, status_text.c_str());
 }
 
 void HttpRequest::send_reply(int status_code, std::string status_text, HttpBuffer &chunk) {
-  evhttp_send_reply(pImpl->req.get(), status_code, status_text.c_str(), chunk.pImpl->buffer.get());
+  evhttp_send_reply(pImpl_->req.get(), status_code, status_text.c_str(), chunk.pImpl_->buffer.get());
 }
 
 void HttpRequest::send_reply(int status_code, std::string status_text) {
-  evhttp_send_reply(pImpl->req.get(), status_code, status_text.c_str(), nullptr);
+  evhttp_send_reply(pImpl_->req.get(), status_code, status_text.c_str(), nullptr);
 }
 
 HttpRequest::operator bool() {
-  return pImpl->req.operator bool();
+  return pImpl_->req.operator bool();
 }
 
 void HttpRequest::error_code(int err_code) {
-  pImpl->error_code = err_code;
+  pImpl_->error_code = err_code;
 }
 
 int HttpRequest::error_code() {
-  return pImpl->error_code;
+  return pImpl_->error_code;
 }
 
 std::string HttpRequest::error_msg() {
-  switch(pImpl->error_code) {
+  switch(pImpl_->error_code) {
 #if LIBEVENT_VERSION_NUMBER >= 0x02010000
   case EVREQ_HTTP_TIMEOUT: return "timeout";
   case EVREQ_HTTP_EOF: return "eof";
@@ -284,11 +284,11 @@ std::string HttpRequest::error_msg() {
 
 
 std::string HttpRequest::get_uri() const {
-  return evhttp_request_get_uri(pImpl->req.get());
+  return evhttp_request_get_uri(pImpl_->req.get());
 }
 
 HttpHeaders HttpRequest::get_output_headers() {
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
 
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
@@ -300,7 +300,7 @@ HttpHeaders HttpRequest::get_output_headers() {
 }
 
 HttpHeaders HttpRequest::get_input_headers() const {
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
 
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
@@ -313,7 +313,7 @@ HttpHeaders HttpRequest::get_input_headers() const {
 
 HttpBuffer HttpRequest::get_output_buffer() {
   // wrap a non-owned pointer
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
 
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
@@ -324,7 +324,7 @@ HttpBuffer HttpRequest::get_output_buffer() {
 }
 
 unsigned HttpRequest::get_response_code() const {
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
 
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
@@ -334,7 +334,7 @@ unsigned HttpRequest::get_response_code() const {
 }
 
 std::string HttpRequest::get_response_code_line() const {
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
   }
@@ -348,7 +348,7 @@ std::string HttpRequest::get_response_code_line() const {
 
 
 HttpBuffer HttpRequest::get_input_buffer() const {
-  auto *ev_req = pImpl->req.get();
+  auto *ev_req = pImpl_->req.get();
 
   if (nullptr == ev_req) {
     throw std::logic_error("request is null");
@@ -361,5 +361,5 @@ HttpBuffer HttpRequest::get_input_buffer() const {
 }
 
 HttpMethod::type HttpRequest::get_method() const {
-  return evhttp_request_get_command(pImpl->req.get());
+  return evhttp_request_get_command(pImpl_->req.get());
 }

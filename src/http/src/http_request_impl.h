@@ -25,7 +25,6 @@
 #include <event2/http.h>
 
 class HttpRequest::impl {
-  bool owns_http_request { true };
 public:
   using evhttp_req_type = std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>;
 
@@ -58,4 +57,6 @@ public:
       req.release();
     }
   }
+private:
+  bool owns_http_request { true };
 };

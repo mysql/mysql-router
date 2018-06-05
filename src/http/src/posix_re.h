@@ -95,12 +95,6 @@ public:
 
 
 class PosixRE {
-#ifdef USE_POSIX_RE_IMPL
-  std::unique_ptr<regex_t> reg_;
-#else
-  std::regex reg_;
-#endif
-
 public:
   using flag_type = PosixRE_constants::syntax_option_type;
   using match_flag_type = PosixRE_constants::match_flag_type;
@@ -178,6 +172,12 @@ public:
     return std::regex_search(line, reg_, match_flags);
 #endif
   }
+private:
+#ifdef USE_POSIX_RE_IMPL
+  std::unique_ptr<regex_t> reg_;
+#else
+  std::regex reg_;
+#endif
 };
 
 

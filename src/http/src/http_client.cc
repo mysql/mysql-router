@@ -41,12 +41,19 @@ public:
 };
 
 IOContext::IOContext():
-  pImpl{new impl()}
+  pImpl_{new impl()}
 {
 }
 
-void IOContext::dispatch() {
-  event_base_dispatch(pImpl->ev_base.get());
+bool IOContext::dispatch() {
+  int ret = event_base_dispatch(pImpl_->ev_base.get());
+
+  if (ret == -1) {
+    // we don't have an better error here
+    throw std::runtime_error("event_base_dispath() error");
+  }
+
+  return ret == 0;
 }
 
 IOContext::~IOContext() = default;
@@ -60,33 +67,35 @@ public:
 };
 
 HttpClient::HttpClient(IOContext &io_ctx, const std::string &address, uint16_t port):
-  pImpl{new impl()},
+  pImpl_{new impl()},
 
   // gcc-4.8 requires a () here, instead of {}
   //
   // invalid initialization of non-const reference of type ‘IOContext&’ from an rvalue of type ‘<brace-enclosed initializer list>’
   io_ctx_(io_ctx)
 {
-  auto *ev_base = io_ctx_.pImpl->ev_base.get();
-  pImpl->conn.reset(evhttp_connection_base_new(ev_base, NULL, address.c_str(), port));
+  auto *ev_base = io_ctx_.pImpl_->ev_base.get();
+  pImpl_->conn.reset(evhttp_connection_base_new(ev_base, NULL, address.c_str(), port));
 }
 
 void HttpClient::make_request(HttpRequest *req, HttpMethod::type method, const std::string &uri) {
-  auto *ev_req = req->pImpl->req.get();
+  auto *ev_req = req->pImpl_->req.get();
 
-  evhttp_make_request(pImpl->conn.get(), ev_req,
-      static_cast<enum evhttp_cmd_type>(method), uri.c_str());
+  if (0 != evhttp_make_request(pImpl_->conn.get(), ev_req,
+      static_cast<enum evhttp_cmd_type>(method), uri.c_str())) {
+    throw std::runtime_error("evhttp_make_request() failed");
+  }
 
   // don't free the evhttp_request() when HttpRequest gets destructed
   // as the eventloop will do it
-  req->pImpl->disown();
-};
+  req->pImpl_->disown();
+}
 
 void HttpClient::make_request_sync(HttpRequest *req, HttpMethod::type method, const std::string &uri) {
   make_request(req, method, uri);
 
   io_ctx_.dispatch();
-};
+}
 
 
 HttpClient::~HttpClient() = default;

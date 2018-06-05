@@ -43,6 +43,12 @@ public:
 };
 
 class HTTP_SERVER_EXPORT HttpServerComponent {
+public:
+  static HttpServerComponent& getInstance();
+  void init(std::shared_ptr<HttpServer> srv);
+  void add_route(const std::string &url_regex, std::unique_ptr<BaseRequestHandler> cb);
+  void remove_route(const std::string &url_regex);
+private:
   // disable copy, as we are a single-instance
   HttpServerComponent(HttpServerComponent const &) = delete;
   void operator=(HttpServerComponent const &) = delete;
@@ -58,11 +64,6 @@ class HTTP_SERVER_EXPORT HttpServerComponent {
   std::weak_ptr<HttpServer> srv_;
 
   HttpServerComponent() = default;
-public:
-  static HttpServerComponent& getInstance();
-  void init(std::shared_ptr<HttpServer> srv);
-  void add_route(const std::string &url_regex, std::unique_ptr<BaseRequestHandler> cb);
-  void remove_route(const std::string &url_regex);
 };
 
 

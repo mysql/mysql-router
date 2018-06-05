@@ -44,14 +44,6 @@ void stop_eventloop(evutil_socket_t, short, void *cb_arg);
 
 class HttpRequestRouter
 {
-  struct RouterData {
-    std::string url_regex_str;
-    PosixRE url_regex;
-    std::unique_ptr<BaseRequestHandler> handler;
-  };
-  std::vector<RouterData> request_handlers_;
-
-  std::unique_ptr<BaseRequestHandler> default_route_;
 public:
   void append(const std::string &url_regex_str, std::unique_ptr<BaseRequestHandler> cb);
   void remove(const std::string &url_regex_str);
@@ -62,6 +54,15 @@ public:
   void set_default_route(std::unique_ptr<BaseRequestHandler> cb);
   void clear_default_route();
   void route(HttpRequest req) const;
+private:
+  struct RouterData {
+    std::string url_regex_str;
+    PosixRE url_regex;
+    std::unique_ptr<BaseRequestHandler> handler;
+  };
+  std::vector<RouterData> request_handlers_;
+
+  std::unique_ptr<BaseRequestHandler> default_route_;
 };
 
 /**
@@ -77,12 +78,6 @@ public:
  */
 class HttpRequestThread
 {
-protected:
-  std::unique_ptr<event_base, decltype(&event_base_free)> ev_base;
-  std::unique_ptr<evhttp, decltype(&evhttp_free)> ev_http;
-  std::unique_ptr<event, decltype(&event_free)> ev_shutdown_timer;
-
-  harness_socket_t accept_fd_ { -1 };
 public:
   HttpRequestThread() :
     ev_base(event_base_new(), &event_base_free),
@@ -95,17 +90,17 @@ public:
   void accept_socket();
   void set_request_router(HttpRequestRouter &router);
   void wait_and_dispatch();
+protected:
+  std::unique_ptr<event_base, decltype(&event_base_free)> ev_base;
+  std::unique_ptr<evhttp, decltype(&evhttp_free)> ev_http;
+  std::unique_ptr<event, decltype(&event_free)> ev_shutdown_timer;
+
+  harness_socket_t accept_fd_ { -1 };
 };
 
 
 class HttpServer
 {
-  std::vector<HttpRequestThread> thread_contexts;
-  std::string address_;
-  uint16_t port_;
-  HttpRequestRouter request_router_;
-
-  std::vector<std::thread> sys_threads;
 public:
   HttpServer(const char *address, uint16_t port):
     address_(address), port_(port)
@@ -126,15 +121,23 @@ public:
   void start(size_t max_threads);
   void add_route(const std::string &url_regex, std::unique_ptr<BaseRequestHandler> cb);
   void remove_route(const std::string &url_regex);
+private:
+  std::vector<HttpRequestThread> thread_contexts;
+  std::string address_;
+  uint16_t port_;
+  HttpRequestRouter request_router_;
+
+  std::vector<std::thread> sys_threads;
 };
 
 class HttpStaticFolderHandler: public BaseRequestHandler {
-  std::string static_basedir_;
 public:
   explicit HttpStaticFolderHandler(std::string static_basedir):
     static_basedir_(std::move(static_basedir)) {}
 
   void handle_request(HttpRequest &req) override;
+private:
+  std::string static_basedir_;
 };
 
 #endif

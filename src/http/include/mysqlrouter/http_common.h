@@ -188,10 +188,6 @@ namespace HttpStatusCode {
 }
 
 class HTTP_COMMON_EXPORT HttpUri {
-  struct impl;
-
-  std::unique_ptr<impl> pImpl;
-
 public:
   HttpUri(std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri);
   HttpUri(HttpUri &&);
@@ -199,15 +195,14 @@ public:
   static HttpUri parse(const std::string &uri_str);
 
   std::string get_path() const;
+private:
+  struct impl;
+
+  std::unique_ptr<impl> pImpl_;
 };
 
 // wrapper around evbuffer
 class HTTP_COMMON_EXPORT HttpBuffer {
-  struct impl;
-
-  std::unique_ptr<impl> pImpl;
-
-  friend class HttpRequest;
 public:
   HttpBuffer(std::unique_ptr<evbuffer, std::function<void(evbuffer *)>> buffer);
 
@@ -220,19 +215,22 @@ public:
 
   size_t length() const;
   std::vector<uint8_t> pop_front(size_t length);
+private:
+  struct impl;
+
+  std::unique_ptr<impl> pImpl_;
+
+  friend class HttpRequest;
 };
 
 class HTTP_COMMON_EXPORT HttpHeaders {
-  struct impl;
-
-  std::unique_ptr<impl> pImpl;
 public:
   class HTTP_COMMON_EXPORT Iterator {
     evkeyval *node_;
   public:
     Iterator(evkeyval *node):
       node_{node}
-    {};
+    {}
     std::pair<std::string, std::string> operator*();
     Iterator& operator++();
     bool operator!=(const Iterator &it) const;
@@ -246,6 +244,10 @@ public:
 
   Iterator begin();
   Iterator end();
+private:
+  struct impl;
+
+  std::unique_ptr<impl> pImpl_;
 };
 
 namespace HttpMethod {
@@ -262,8 +264,8 @@ namespace HttpMethod {
     constexpr pos_type Connect = 7;
     constexpr pos_type Patch = 8;
 
-    constexpr unsigned _LAST = Patch;
-  };
+    constexpr pos_type _LAST = Patch;
+  }
   using Bitset = std::bitset<Pos::_LAST>;
 
   constexpr type Get { 1 << Pos::Get };
@@ -275,25 +277,30 @@ namespace HttpMethod {
   constexpr type Trace { 1 << Pos::Trace };
   constexpr type Connect { 1 << Pos::Connect };
   constexpr type Patch { 1 << Pos::Patch };
-};
+}
 
 class HTTP_COMMON_EXPORT IOContext {
-  class impl;
-
-  std::unique_ptr<impl> pImpl;
-  friend class HttpClient;
 public:
   IOContext();
   ~IOContext();
-  void dispatch();
+
+  /**
+   * wait for events to fire and calls handlers.
+   *
+   * exits if no more pending events
+   *
+   * @returns false if no events were pending nor active, true otherwise
+   * @throws  std::runtime_error on internal, unexpected error
+   */
+  bool dispatch();
+private:
+  class impl;
+
+  std::unique_ptr<impl> pImpl_;
+  friend class HttpClient;
 };
 
 class HTTP_COMMON_EXPORT HttpRequest {
-  class impl;
-
-  std::unique_ptr<impl> pImpl;
-
-  friend class HttpClient;
 public:
   using RequestHandler = void (*)(HttpRequest *, void *);
 
@@ -332,12 +339,18 @@ public:
   int error_code();
   void error_code(int);
   std::string error_msg();
+private:
+  class impl;
+
+  std::unique_ptr<impl> pImpl_;
+
+  friend class HttpClient;
 };
 
 // http_time.cc
 
 HTTP_COMMON_EXPORT bool is_modified_since(const HttpRequest &req, time_t last_modified);
-HTTP_COMMON_EXPORT void add_last_modified(HttpRequest &req, time_t last_modified);
+HTTP_COMMON_EXPORT bool add_last_modified(HttpRequest &req, time_t last_modified);
 HTTP_COMMON_EXPORT time_t time_from_rfc5322_fixdate(const char *date_buf);
 HTTP_COMMON_EXPORT int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len);
 

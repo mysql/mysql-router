@@ -57,15 +57,15 @@ public:
     return config_;
   }
 
-  bool is_print_and_exit() {
+  bool is_print_and_exit() const noexcept {
     return do_print_and_exit_;
   }
 
-  std::string get_version_line() {
+  std::string get_version_line() const noexcept {
     return MYSQL_ROUTER_VERSION;
   }
 
-  std::string get_help() {
+  std::string get_help() const {
     std::stringstream os;
 
     for (auto line: arg_handler_.usage_lines("Usage: " + program_name_, "", 80)) {

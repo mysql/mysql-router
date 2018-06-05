@@ -29,11 +29,6 @@
 #include "mysqlrouter/http_common.h"
 
 class HTTP_CLIENT_EXPORT HttpClient {
-  class impl;
-
-  std::unique_ptr<impl> pImpl;
-
-  IOContext &io_ctx_;
 public:
   HttpClient();
   ~HttpClient();
@@ -41,6 +36,12 @@ public:
 
   void make_request(HttpRequest *req, HttpMethod::type method, const std::string &uri);
   void make_request_sync(HttpRequest *req, HttpMethod::type method, const std::string &uri);
+private:
+  class impl;
+
+  std::unique_ptr<impl> pImpl_;
+
+  IOContext &io_ctx_;
 };
 
 #endif

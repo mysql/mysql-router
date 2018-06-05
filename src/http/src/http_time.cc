@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <array>
 #include <ctime>     // mktime, gmtime_r, gmtime_s
 #include <cstring>   // memset
 #include <cstdio>    // sscanf
@@ -38,20 +39,21 @@ int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len) {
 
 #ifdef _WIN32
   // returns a errno_t
-  gmtime_s(&t_m, &ts);
+  if (0 != gmtime_s(&t_m, &ts)) {
+    return 0; // no bytes written to output
+  }
 #else
-  // return int
-  gmtime_r(&ts, &t_m);
+  if (nullptr == gmtime_r(&ts, &t_m)) {
+    return 0; // no bytes written to output
+  }
 #endif
 
-  const char *DAYS[7] = {
-    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+  constexpr std::array<const char *, 7> kDayNames { { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" } };
 
-  const char *MONTH[12] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+  constexpr std::array<const char *, 12> kMonthNames { { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" } };
 
   return evutil_snprintf(date_buf, date_buf_len, "%s, %02d %s %4d %02d:%02d:%02d GMT",
-    DAYS[t_m.tm_wday], t_m.tm_mday, MONTH[t_m.tm_mon],
+    kDayNames.at(t_m.tm_wday), t_m.tm_mday, kMonthNames.at(t_m.tm_mon),
     1900 + t_m.tm_year, t_m.tm_hour, t_m.tm_min, t_m.tm_sec);
 }
 
@@ -145,12 +147,16 @@ bool is_modified_since(const HttpRequest &req, time_t last_modified) {
   return true;
 }
 
-void add_last_modified(HttpRequest &req, time_t last_modified) {
+bool add_last_modified(HttpRequest &req, time_t last_modified) {
   auto out_hdrs = req.get_output_headers();
   char date_buf[50];
 
   if (sizeof(date_buf) - time_to_rfc5322_fixdate(last_modified, date_buf, sizeof(date_buf)) > 0) {
     out_hdrs.add("Last-Modified", date_buf);
+
+    return true;
+  } else {
+    return false;
   }
 }
 

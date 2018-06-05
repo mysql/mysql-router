@@ -319,7 +319,6 @@ duk_int_t process_set_shared(duk_context *ctx) {
  * allows to release resources in case exceptions are thrown
  */
 class ScopeGuard {
-  std::function<void()> undo_func_;
 public:
   template<class Callable>
   ScopeGuard(Callable &&undo_func):
@@ -333,6 +332,8 @@ public:
   ~ScopeGuard() {
     if (undo_func_) undo_func_();
   }
+private:
+  std::function<void()> undo_func_;
 };
 
 /*
