@@ -22,32 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
-#define MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
+#ifndef MYSQLROUTER_MOCK_SERVER_EXPORT_INCLUDED
+#define MYSQLROUTER_MOCK_SERVER_EXPORT_INCLUDED
 
-#include <memory>
-
-#include "mysqlrouter/mock_server_export.h"
-#include "mysqlrouter/mock_server_global_scope.h"
-
-namespace server_mock {
-  class MySQLServerMock;
-}
-
-class MOCK_SERVER_EXPORT MockServerComponent {
-  // disable copy, as we are a single-instance
-  MockServerComponent(MockServerComponent const &) = delete;
-  void operator=(MockServerComponent const &) = delete;
-
-  std::weak_ptr<server_mock::MySQLServerMock> srv_;
-
-  MockServerComponent() = default;
-public:
-  static MockServerComponent& getInstance();
-
-  void init(std::shared_ptr<server_mock::MySQLServerMock> srv);
-
-  std::shared_ptr<MockServerGlobalScope> getGlobalScope();
-};
+#ifdef _WIN32
+#  ifdef mock_server_DEFINE_STATIC
+#    define MOCK_SERVER_EXPORT
+#  else
+#    ifdef mock_server_EXPORTS
+#      define MOCK_SERVER_EXPORT __declspec(dllexport)
+#    else
+#      define MOCK_SERVER_EXPORT __declspec(dllimport)
+#    endif
+#  endif
+#else
+#  define MOCK_SERVER_EXPORT
+#endif
 
 #endif

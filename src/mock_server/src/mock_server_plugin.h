@@ -26,26 +26,11 @@
 #define MOCK_SERVER_PLUGIN_INCLUDED
 
 #include "mysql/harness/plugin.h"
-
-
-#ifdef _WIN32
-#  ifdef mock_server_DEFINE_STATIC
-#    define MOCK_SERVER_API
-#  else
-#    ifdef mock_server_EXPORTS
-#      define MOCK_SERVER_API __declspec(dllexport)
-#    else
-#      define MOCK_SERVER_API __declspec(dllimport)
-#    endif
-#  endif
-#else
-#  define MOCK_SERVER_API
-#endif
-
+#include "mysqlrouter/mock_server_export.h"
 
 extern "C"
 {
-  extern mysql_harness::Plugin MOCK_SERVER_API harness_plugin_mock_server;
+  extern mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server;
 }
 
 #endif

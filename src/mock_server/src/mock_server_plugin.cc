@@ -161,7 +161,7 @@ static void start(mysql_harness::PluginFuncEnv* env) {
 }
 
 extern "C" {
-  mysql_harness::Plugin MOCK_SERVER_API harness_plugin_mock_server = {
+  mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
       mysql_harness::PLUGIN_ABI_VERSION,
       mysql_harness::ARCHITECTURE_DESCRIPTOR,
       "Routing MySQL connections between MySQL clients/connectors and servers",
