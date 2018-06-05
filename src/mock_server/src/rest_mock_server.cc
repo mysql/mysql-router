@@ -54,7 +54,9 @@ IMPORT_LOG_FUNCTIONS()
 #  endif
 #endif
 
-static const char* kSectionName { "rest_mock_server" };
+static constexpr const char kSectionName[] { "rest_mock_server" };
+static constexpr const char kHttpHandlerUri[] { "^/api/v1/mock_server/globals/$" };
+
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::PluginFuncEnv;
@@ -207,13 +209,13 @@ static void init(PluginFuncEnv* env) {
 static void start(PluginFuncEnv*) {
   auto &srv = HttpServerComponent::getInstance();
 
-  srv.add_route("^/api/v1/mock_server/globals/$", std::unique_ptr<RestApiV1MockServer>(new RestApiV1MockServer()));
+  srv.add_route(kHttpHandlerUri, std::unique_ptr<RestApiV1MockServer>(new RestApiV1MockServer()));
 }
 
 static void stop(PluginFuncEnv*) {
   auto &srv = HttpServerComponent::getInstance();
 
-  srv.remove_route("^/api/v1/mock_server/globals/$");
+  srv.remove_route(kHttpHandlerUri);
 }
 
 

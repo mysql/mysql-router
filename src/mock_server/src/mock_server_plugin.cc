@@ -45,7 +45,7 @@ IMPORT_LOG_FUNCTIONS()
 #endif
 
 
-static const std::string kSectionName = "mock_server";
+static constexpr const char kSectionName[] { "mock_server" };
 
 class PluginConfig : public mysqlrouter::BasePluginConfig {
 public:

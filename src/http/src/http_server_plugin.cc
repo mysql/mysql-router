@@ -49,7 +49,7 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-static const char* kSectionName { "http_server" };
+static constexpr const char kSectionName[] { "http_server" };
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::PluginFuncEnv;
