@@ -484,13 +484,19 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
     if (FD_ISSET(listener_, &fds)) {
       while (true) {
         socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
-        if (client_socket < 0) {
+        if (client_socket == kInvalidSocket) {
+          auto last_errno = get_socket_errno();
+
           // if we got interrupted at shutdown, just leave
           if (!is_running(env)) break;
 
-          if (errno == EAGAIN) break;
-          if (errno == EWOULDBLOCK) break;
-          if (errno == EINTR) continue;
+          if (last_errno == EAGAIN) break;
+          if (last_errno == EWOULDBLOCK) break;
+#ifdef _WIN32
+          if (last_errno == WSAEWOULDBLOCK) break;
+          if (last_errno == WSAEINTR) continue;
+#endif
+          if (last_errno == EINTR) continue;
 
           std::cerr << "accept() failed: " << get_socket_errno_str() << std::endl;
           return;

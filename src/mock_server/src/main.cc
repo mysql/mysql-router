@@ -91,17 +91,6 @@ public:
     program_name_ = arguments[0];
     origin_dir_ = mysql_harness::Path(program_name_).dirname();
 
-    char *stage_dir_c = std::getenv("STAGE_DIR");
-    stage_dir_ = mysql_harness::Path(stage_dir_c ? stage_dir_c : "./stage");
-#ifdef CMAKE_INTDIR
-    if (!origin_dir_.str().empty()) {
-      stage_dir_ = mysql_harness::Path(stage_dir_.join(origin_dir_.basename()));
-    }
-    else {
-      throw std::runtime_error("Origin dir not set");
-    }
-#endif
-
     prepare_command_options();
     arg_handler_.process(std::vector<std::string>{arguments.begin() + 1, arguments.end()});
 
@@ -151,11 +140,21 @@ public:
       config_.module_prefix = cwd;
     }
 
+    // log to stderr
     loader_config.set_default("logging_folder", "");
-    loader_config.set_default("plugin_folder", mysql_harness::Path(stage_dir_).join("lib").join("mysqlrouter").str());
-    loader_config.set_default("runtime_folder", mysql_harness::Path(stage_dir_).join("var").join("lib").str());
-    loader_config.set_default("config_folder", mysql_harness::Path(stage_dir_).join("etc").str());
-    loader_config.set_default("data_folder", mysql_harness::Path(stage_dir_).join("var").join("share").str());
+
+    // assume all path relative to the installed binary
+    auto base_path = mysql_harness::Path(origin_dir_).join("..");
+    loader_config.set_default("plugin_folder", mysql_harness::Path(base_path).join("lib")
+#ifndef _WIN32
+        .join("mysqlrouter")
+#endif
+        .str());
+
+    // those are unused, but must be set
+    loader_config.set_default("runtime_folder", mysql_harness::Path(base_path).join("var").join("lib").str());
+    loader_config.set_default("config_folder", mysql_harness::Path(base_path).join("etc").str());
+    loader_config.set_default("data_folder", mysql_harness::Path(base_path).join("var").join("share").str());
 
     if (config_.http_port != 0) {
       auto &rest_mock_server_config = loader_config.add("rest_mock_server", "");
@@ -234,7 +233,6 @@ private:
 
   std::string program_name_;
   mysql_harness::Path origin_dir_;
-  mysql_harness::Path stage_dir_;
 };
 
 int main(int argc, char* argv[]) {

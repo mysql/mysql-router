@@ -57,6 +57,7 @@ protected:
   TcpPortPool port_pool_;
 
   void SetUp() override {
+    set_origin(g_origin_path);
     RouterComponentTest::SetUp();
   }
 

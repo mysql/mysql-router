@@ -28,9 +28,12 @@
 
 #include "mysqlrouter/http_server_component.h"
 #include "http_server_plugin.h"
-#include "mysql/harness/logging/logging.h"
 
-IMPORT_LOG_FUNCTIONS()
+// must be declared in .cc file as otherwise each plugin
+// gets its own class-instance of BaseRequestHandler which leads
+// to undefined behaviour (ubsan -> vptr)
+BaseRequestHandler::~BaseRequestHandler() = default;
+
 //
 // HTTP Server's public API
 //

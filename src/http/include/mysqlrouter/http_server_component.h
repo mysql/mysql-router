@@ -39,7 +39,7 @@ public:
 
   virtual void handle_request(HttpRequest &req) = 0;
 
-  virtual ~BaseRequestHandler() = default;
+  virtual ~BaseRequestHandler();
 };
 
 class HTTP_SERVER_EXPORT HttpServerComponent {
