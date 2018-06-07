@@ -2819,7 +2819,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
 
 /**
  * @test verify that exception thrown by (Mock)SocketOperations::get_local_hostname()
- *       when local hostname lookup fails in ConfigGenerator::register_router()
+ *       when local hostname lookup fails in ConfigGenerator::register_router_and_set_username()
  *       will be caught and rethrown with a user-friendly message
  */
 TEST_F(ConfigGeneratorTest, register_router_error_message) {
@@ -2832,7 +2832,7 @@ TEST_F(ConfigGeneratorTest, register_router_error_message) {
   std::string username;
 
   EXPECT_THROW_LIKE(
-    ConfigGenerator().register_router(router_id, "foo", username, "", false, metadata, rg),
+    ConfigGenerator().register_router_and_set_username(router_id, "foo", username, "", false, metadata, rg),
     std::runtime_error,
     "Could not register this Router instance with the cluster because querying this host's hostname from OS failed:\n"
     "  some error message from get_local_hostname()\n"

@@ -1140,7 +1140,6 @@ void ConfigGenerator::ensure_router_id_is_ours(uint32_t &router_id,
                                                std::string &username,
                                                const std::string &hostname_override,
                                                MySQLInnoDBClusterMetadata &metadata) {
-  std::string attributes;
   // if router data is valid
   try {
     metadata.check_router_id(router_id, hostname_override);
@@ -1158,13 +1157,14 @@ void ConfigGenerator::ensure_router_id_is_ours(uint32_t &router_id,
   }
 }
 
-void ConfigGenerator::register_router(uint32_t &router_id,
-                                      const std::string &router_name,
-                                      std::string &username,
-                                      const std::string &hostname_override,
-                                      bool force,
-                                      MySQLInnoDBClusterMetadata &metadata,
-                                      mysql_harness::RandomGeneratorInterface &rg) {
+void ConfigGenerator::register_router_and_set_username(
+         uint32_t &router_id,
+         const std::string &router_name,
+         std::string &username,
+         const std::string &hostname_override,
+         bool force,
+         MySQLInnoDBClusterMetadata &metadata,
+         mysql_harness::RandomGeneratorInterface &rg) {
   try {
     router_id = metadata.register_router(router_name, force, hostname_override);
   } catch (const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError& e) {
@@ -1231,7 +1231,8 @@ ConfigGenerator::try_bootstrap_deployment(uint32_t &router_id, std::string &user
     bool force = user_options.find("force") != user_options.end();
 
     // throws std::runtime on failure
-    register_router(router_id, router_name, username, hostname_override, force, metadata, rg);
+    register_router_and_set_username(router_id, router_name, username,
+                                     hostname_override, force, metadata, rg);
   }
 
   assert(router_id);

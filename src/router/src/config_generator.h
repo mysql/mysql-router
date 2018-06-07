@@ -310,13 +310,13 @@ private:
                                 const std::string &hostname_override,
                                 MySQLInnoDBClusterMetadata &metadata);
 
-  void register_router(uint32_t &router_id,
-                       const std::string &router_name,
-                       std::string &username,
-                       const std::string &hostname_override,
-                       bool force,
-                       MySQLInnoDBClusterMetadata &metadata,
-                       mysql_harness::RandomGeneratorInterface &rg);
+  void register_router_and_set_username(uint32_t &router_id,
+                                        const std::string &router_name,
+                                        std::string &username,
+                                        const std::string &hostname_override,
+                                        bool force,
+                                        MySQLInnoDBClusterMetadata &metadata,
+                                        mysql_harness::RandomGeneratorInterface &rg);
 private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
   int connect_timeout_;
