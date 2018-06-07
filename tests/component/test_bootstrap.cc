@@ -46,7 +46,7 @@ Path g_origin_path;
 class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
  protected:
   static void SetUpTestCase() {
-    my_hostname = "dont_query_dns";
+    my_hostname = "dont.query.dns";
   }
 
   void SetUp() override {

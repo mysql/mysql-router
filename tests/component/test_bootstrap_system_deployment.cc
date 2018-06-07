@@ -102,7 +102,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns");
+                              + " --report-host dont.query.dns");
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -128,7 +128,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_conf_tmp_WhenBootstra
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns");
+                              + " --report-host dont.query.dns");
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -156,7 +156,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, No_mysqlrouter_key_WhenBootstrapFail
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns");
+                              + " --report-host dont.query.dns");
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -194,7 +194,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, IsKeyringRevertedWhenBootstrapFail) 
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns");
+                              + " --report-host dont.query.dns");
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");
@@ -229,7 +229,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, Keep_mysqlrouter_log_WhenBootstrapFa
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns");
+                              + " --report-host dont.query.dns");
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ", "fake-pass\n");

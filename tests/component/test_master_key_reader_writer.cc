@@ -202,7 +202,7 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyFileWhenBootstrapPassWithMasterKeyR
   // launch the router in bootstrap mode
   auto router = launch_router(
       "--bootstrap=127.0.0.1:" + std::to_string(server_port)
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --directory=" + bootstrap_dir_
       + " --force"
       + " --master-key-reader=" + script_generator.get_reader_script()
@@ -253,7 +253,7 @@ TEST_F(MasterKeyReaderWriterTest, CheckConfigFileWhenBootstrapPassWithMasterKeyR
       + " --force"
       + " --master-key-reader=" + script_generator.get_reader_script()
       + " --master-key-writer=" + script_generator.get_writer_script()
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
 
   // add login hook
@@ -306,7 +306,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
   // launch the router in bootstrap mode
   auto router = launch_router(
       "--bootstrap=127.0.0.1:" + std::to_string(server_port)
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --directory=" + bootstrap_dir_
       + " --force"
       + " --master-key-reader=" + script_generator.get_fake_reader_script()
@@ -341,7 +341,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
   // launch the router in bootstrap mode
   auto router = launch_router(
       "--bootstrap=127.0.0.1:" + std::to_string(server_port)
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --directory=" + bootstrap_dir_
       + " --force"
       + " --master-key-reader=" + script_generator.get_reader_script()
@@ -442,7 +442,7 @@ TEST_F(MasterKeyReaderWriterTest, IsNewMasterKeyIfReaderReturnsEmptyKeyAndBootst
   // launch the router in bootstrap mode
   auto router = launch_router(
       "--bootstrap=127.0.0.1:" + std::to_string(server_port)
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --directory=" + bootstrap_dir_
       + " --force"
       + " --master-key-reader=" + script_generator.get_reader_script()
@@ -482,7 +482,7 @@ TEST_F(MasterKeyReaderWriterTest, DontWriteMasterKeyAtBootstrapIfMasterKeyAlread
   // launch the router in bootstrap mode
   auto router = launch_router(
       "--bootstrap=127.0.0.1:" + std::to_string(server_port)
-      + " --report-host dont_query_dns"
+      + " --report-host dont.query.dns"
       + " --directory=" + bootstrap_dir_
       + " --force"
       + " --master-key-reader=" + script_generator.get_reader_script()
@@ -710,7 +710,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns"
+                              + " --report-host dont.query.dns"
                               + " --master-key-reader=" + script_generator.get_reader_script()
                               + " --master-key-writer=" + script_generator.get_writer_script());
 
@@ -742,7 +742,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapFailsWhenCannotRunMas
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns"
+                              + " --report-host dont.query.dns"
                               + " --master-key-reader=" + script_generator.get_fake_reader_script()
                               + " --master-key-writer=" + script_generator.get_writer_script());
 
@@ -772,7 +772,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapFailsWhenCannotRunMas
 
   // launch the router in bootstrap mode
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_)
-                              + " --report-host dont_query_dns"
+                              + " --report-host dont.query.dns"
                               + " --master-key-reader=" + script_generator.get_reader_script()
                               + " --master-key-writer=" + script_generator.get_fake_writer_script());
 
