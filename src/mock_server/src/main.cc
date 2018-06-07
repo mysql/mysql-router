@@ -46,6 +46,9 @@
 #endif
 #endif
 
+constexpr unsigned kHelpScreenWidth = 72;
+constexpr unsigned kHelpScreenIndent = 8;
+
 struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
@@ -80,7 +83,12 @@ public:
   std::string get_help() {
     std::stringstream os;
 
-    for (auto line: arg_handler_.usage_lines("Usage: " + program_name_, "", 80)) {
+    for (auto line: arg_handler_.usage_lines("Usage: " + program_name_, "", kHelpScreenWidth)) {
+      os << line << std::endl;
+    }
+
+    os << "\nOptions:" << std::endl;
+    for (auto line: arg_handler_.option_descriptions(kHelpScreenWidth, kHelpScreenIndent)) {
       os << line << std::endl;
     }
 
@@ -249,17 +257,17 @@ int main(int argc, char* argv[]) {
 #endif
 
   std::vector<std::string> arguments { argv, argv + argc };
-  auto frontend_config = frontend.init_from_arguments(arguments);
-
-  if (frontend.is_print_and_exit()) {
-    return 0;
-  }
-
   try {
+    auto frontend_config = frontend.init_from_arguments(arguments);
+
+    if (frontend.is_print_and_exit()) {
+      return 0;
+    }
+
     frontend.run();
   }
   catch (const std::exception& e) {
-    std::cout << "MySQLServerMock ERROR: " << e.what() << std::endl;
+    std::cout << "ERROR: " << e.what() << std::endl;
     return -1;
   }
 
