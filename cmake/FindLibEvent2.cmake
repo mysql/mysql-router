@@ -25,20 +25,26 @@ IF(NOT WITH_LIBEVENT)
 ENDIF()
 
 IF(WITH_LIBEVENT STREQUAL "system" OR WITH_LIBEVENT STREQUAL "yes")
-  SET(LIBEVENT2_INCLUDE_PATH /usr/local/include /opt/local/include)
-  SET(LIBEVENT2_LIB_PATHS /usr/local/lib /opt/local/lib)
+  IF(NOT WIN32)
+    SET(LIBEVENT2_INCLUDE_PATH /usr/local/include /opt/local/include)
+    SET(LIBEVENT2_LIB_PATHS /usr/local/lib /opt/local/lib)
+  ENDIF()
+
+  # use default paths
   SET(HOW_TO_FIND)
 ELSEIF(WITH_LIBEVENT STREQUAL "bundled")
   MESSAGE(FATAL_ERROR "bundled libevent isn't support")
 ELSE()
-  SET(LIBEVENT2_INCLUDE_PATH ${WITH_LIBEVENT}/include)
-  SET(LIBEVENT2_LIB_PATHS ${WITH_LIBEVENT}/lib)
+  # make the users path for libevent absolute
+  GET_FILENAME_COMPONENT(LIBEVENT_ABS_DIR "${WITH_LIBEVENT}" ABSOLUTE)
+  SET(LIBEVENT2_INCLUDE_PATH ${LIBEVENT_ABS_DIR}/include)
+  SET(LIBEVENT2_LIB_PATHS ${LIBEVENT_ABS_DIR}/lib)
 
   # if path specified, use that path only
   SET(HOW_TO_FIND NO_DEFAULT_PATH)
 ENDIF()
 
-FIND_PATH(LIBEVENT2_INCLUDE_DIR event2/event.h PATHS ${LIBEVENT2_INCLUDE_PATH})
+FIND_PATH(LIBEVENT2_INCLUDE_DIR event2/event.h PATHS ${LIBEVENT2_INCLUDE_PATH} ${HOW_TO_FIND})
 IF(WIN32)
   ## libevent-2.0.22 on windows is only 'event.lib' and 'event.dll'
   FIND_LIBRARY(LIBEVENT2_CORE NAMES event PATHS ${LIBEVENT2_LIB_PATHS} ${HOW_TO_FIND})

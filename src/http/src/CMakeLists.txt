@@ -36,6 +36,20 @@ ADD_HARNESS_PLUGIN(http_server
   http_server_component.cc
   REQUIRES router_lib;http_common)
 
+## place event.dll into the same dir as http_common
+##
+## setting PATH isn't good enough as the windows has an event.dll
+## in system paths which would take precedence
+IF (WIN32 AND (NOT WITH_LIBEVENT STREQUAL "system"))
+  SET(LIBEVENT_NAME event)
+
+  ADD_CUSTOM_COMMAND(TARGET http_common PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${WITH_LIBEVENT}/bin/${LIBEVENT_NAME}.dll"
+    "$<TARGET_FILE_DIR:http_common>/${LIBEVENT_NAME}.dll"
+    )
+ENDIF()
+
 ADD_LIBRARY(http_client
   SHARED
   http_client.cc
