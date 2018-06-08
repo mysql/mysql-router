@@ -48,6 +48,7 @@ public:
   void init(std::shared_ptr<server_mock::MySQLServerMock> srv);
 
   std::shared_ptr<MockServerGlobalScope> getGlobalScope();
+  void close_all_connections();
 };
 
 #endif

@@ -39,6 +39,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <system_error>
 #include <deque>
 #include <queue>
+#include <set>
 
 #ifndef _WIN32
 #  include <netdb.h>
@@ -89,10 +90,16 @@ MySQLServerMock::MySQLServerMock(
 
 MySQLServerMock::~MySQLServerMock() {
   if (listener_ > 0) {
-#ifndef _WIN32
-    ::shutdown(listener_, SHUT_RDWR);
-#endif
     close_socket(listener_);
+  }
+}
+
+// close all active connections
+void MySQLServerMock::close_all_connections() {
+  std::lock_guard<std::mutex> active_fd_lock(active_fds_mutex_);
+  for (auto it = active_fds_.begin(); it != active_fds_.end(); ) {
+    close_socket(*it);
+    it = active_fds_.erase(it);
   }
 }
 
@@ -300,9 +307,6 @@ MySQLServerMockSession::MySQLServerMockSession(
 }
 
 MySQLServerMockSession::~MySQLServerMockSession() {
-  if (client_socket_ != -1) {
-    close_socket(client_socket_);
-  }
 }
 
 void MySQLServerMockSession::run() {
@@ -409,6 +413,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
   log_info("Starting to handle connections on port: %d", bind_port_);
 
   concurrent_queue<Work> work_queue;
+  concurrent_queue<socket_t> socket_queue;
 
   auto connection_handler = [&]() -> void {
     while (true) {
@@ -448,9 +453,21 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
             MySQLProtocolEncoder().encode_error_message(
               0, 1064, "", "reader error: " + std::string(e.what())),
             0);
-        close_socket(work.client_socket);
         log_error("%s", e.what());
       }
+
+      // first remove the book-keeping, then close the socket
+      // to avoid a race between the acceptor and the worker thread
+      {
+        // socket is done, unregister it
+        std::lock_guard<std::mutex> active_fd_lock(active_fds_mutex_);
+        auto it = active_fds_.find(work.client_socket);
+        if (it != active_fds_.end()) {
+          // it should always be there
+          active_fds_.erase(it);
+        }
+      }
+      close_socket(work.client_socket);
     }
   };
 
@@ -502,11 +519,22 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
           return;
         }
 
+        {
+          // socket is new, register it
+          std::lock_guard<std::mutex> active_fd_lock(active_fds_mutex_);
+          active_fds_.emplace(client_socket);
+        }
+
         // std::cout << "Accepted client " << client_socket << std::endl;
         work_queue.push(Work {client_socket, expected_queries_file_, module_prefix_, debug_mode_});
       }
     }
   }
+
+  // beware, this closes all sockets that are either in the work-queue or
+  // currently handled by worker-threads. As long as we don't reuse the file-handles
+  // for anything else before we leave this function, this approach is safe.
+  close_all_connections();
 
   // std::cerr << "sending death-signal to threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
@@ -522,7 +550,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
 bool MySQLServerMockSession::process_statements(socket_t client_socket) {
   using mysql_protocol::Command;
 
-  while (true) {
+  while (!killed_) {
     protocol_decoder_.read_message(client_socket);
     auto cmd = protocol_decoder_.get_command_type();
     switch (cmd) {

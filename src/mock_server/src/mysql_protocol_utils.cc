@@ -28,6 +28,8 @@
 #  include <sys/socket.h>
 #  include <sys/types.h>
 #  include <unistd.h>
+#  include <poll.h>
+#  include <cstring>
 #else
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -74,6 +76,43 @@ void read_packet(socket_t client_socket, uint8_t *data, size_t size, int flags) 
   ssize_t received = 0;
   size_t buffer_offset = 0;
   while (buffer_offset < size) {
+    // check if the current socket is readable/open
+    //
+    // allow interrupting the read() by closing the socket in another thread
+#ifdef _WIN32
+    WSAPOLLFD
+#else
+    struct pollfd
+#endif
+      fds[1];
+    memset(fds, 0, sizeof(fds));
+
+    fds[0].fd = client_socket;
+#ifdef _WIN32
+    fds[0].events = POLLRDNORM;
+#else
+    fds[0].events = POLLIN|POLLHUP;
+#endif
+
+    while (true) {
+      // check if someone closed our socket externally
+#ifdef _WIN32
+      int r = ::WSAPoll(fds, 1, 100);
+#else
+      int r = ::poll(fds, 1, 100);
+#endif
+
+      if (r > 0) break;
+      if (r < 0) throw std::system_error(get_socket_errno(), std::system_category(), "poll() failed");
+
+      if (fds[0].revents & POLLNVAL) {
+        // another thread may have closed the socket
+        throw std::runtime_error("poll() reported: invalid socket");
+      }
+
+      // timeout, just wait a bit more
+    }
+
     received = recv(client_socket, reinterpret_cast<char*>(data)+buffer_offset,
                     size-buffer_offset, flags);
     if (received < 0) {

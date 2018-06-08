@@ -25,6 +25,10 @@
 #ifndef MYSQLD_MOCK_MYSQL_SERVER_MOCK_INCLUDED
 #define MYSQLD_MOCK_MYSQL_SERVER_MOCK_INCLUDED
 
+#include <memory>
+#include <mutex>
+#include <set>
+
 #include "statement_reader.h"
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
@@ -69,7 +73,12 @@ public:
       uint16_t warning_count=0);
 
   void run();
+
+  void kill() {
+    killed_ = true;
+  }
 private:
+  bool killed_ { false };
   socket_t client_socket_;
   MySQLProtocolEncoder protocol_encoder_;
   MySQLProtocolDecoder protocol_decoder_;
@@ -110,6 +119,8 @@ class MySQLServerMock {
     return shared_globals_;
   }
 
+  void close_all_connections();
+
   ~MySQLServerMock();
 
  private:
@@ -125,6 +136,9 @@ class MySQLServerMock {
   std::string module_prefix_;
 
   std::shared_ptr<MockServerGlobalScope> shared_globals_ {new MockServerGlobalScope};
+
+  std::mutex active_fds_mutex_;
+  std::set<socket_t> active_fds_;
 };
 
 } // namespace

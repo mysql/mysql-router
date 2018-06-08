@@ -55,7 +55,8 @@ IMPORT_LOG_FUNCTIONS()
 #endif
 
 static constexpr const char kSectionName[] { "rest_mock_server" };
-static constexpr const char kHttpHandlerUri[] { "^/api/v1/mock_server/globals/$" };
+static constexpr const char kRestGlobalsUri[] { "^/api/v1/mock_server/globals/$" };
+static constexpr const char kRestConnectionsUri[] { "^/api/v1/mock_server/connections/$" };
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
@@ -68,9 +69,9 @@ using mysql_harness::PluginFuncEnv;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 
-class RestApiV1MockServer: public BaseRequestHandler {
+class RestApiV1MockServerGlobals: public BaseRequestHandler {
 public:
-  RestApiV1MockServer():
+  RestApiV1MockServerGlobals():
     last_modified_(time(nullptr)) {}
 
   // GET|PUT
@@ -202,6 +203,38 @@ private:
 
 };
 
+class RestApiV1MockServerConnections: public BaseRequestHandler {
+public:
+  // allow methods: DELETE
+  //
+  void handle_request(HttpRequest &req) override {
+    if (!((HttpMethod::Delete) & req.get_method())) {
+      req.get_output_headers().add("Allow", "DELETE");
+      req.send_reply(HttpStatusCode::MethodNotAllowed);
+      return;
+    }
+
+    if (req.get_input_headers().get("Content-Range")) {
+      req.send_reply(HttpStatusCode::NotImplemented);
+      return;
+    }
+
+    handle_connections_delete_all(req);
+  }
+private:
+  /**
+   * close all connections.
+   */
+  void handle_connections_delete_all(HttpRequest &req) {
+    // tell the mock_server to close all connections
+    MockServerComponent::getInstance().close_all_connections();
+
+    req.send_reply(HttpStatusCode::Ok);
+  }
+
+};
+
+
 static void init(PluginFuncEnv* env) {
   const mysql_harness::AppInfo* info = get_app_info(env);
 
@@ -221,13 +254,15 @@ static void init(PluginFuncEnv* env) {
 static void start(PluginFuncEnv*) {
   auto &srv = HttpServerComponent::getInstance();
 
-  srv.add_route(kHttpHandlerUri, std::unique_ptr<RestApiV1MockServer>(new RestApiV1MockServer()));
+  srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(new RestApiV1MockServerGlobals()));
+  srv.add_route(kRestConnectionsUri, std::unique_ptr<BaseRequestHandler>(new RestApiV1MockServerConnections()));
 }
 
 static void stop(PluginFuncEnv*) {
   auto &srv = HttpServerComponent::getInstance();
 
-  srv.remove_route(kHttpHandlerUri);
+  srv.remove_route(kRestConnectionsUri);
+  srv.remove_route(kRestGlobalsUri);
 }
 
 

@@ -49,3 +49,9 @@ MockServerComponent& MockServerComponent::getInstance() {
   return instance;
 }
 
+void MockServerComponent::close_all_connections() {
+  // if we have a mock_server instance, call its close_all_connections()
+  if (auto srv = srv_.lock()) {
+    srv->close_all_connections();
+  }
+}
