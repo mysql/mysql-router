@@ -21,27 +21,30 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#ifndef MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
-#define MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 
-#include "mysqlrouter/http_client.h"
+#include "mysqlrouter/rest_client.h"
 
-class HTTP_CLIENT_EXPORT RestClient {
-public:
-  RestClient(IOContext &io_ctx, const std::string &address, uint16_t port):
-    http_client_{io_ctx, address, port},
-    hostname_{address}
-  {}
+HttpRequest RestClient::request_sync(
+    HttpMethod::type method,
+    const std::string &uri,
+    const std::string &request_body /* = {} */,
+    const std::string &content_type /* = "application/json" */) {
+  HttpRequest req {HttpRequest::sync_callback, nullptr};
 
-  HttpRequest request_sync(
-      HttpMethod::type method,
-      const std::string &uri,
-      const std::string &request_body = {},
-      const std::string &content_type = "application/json");
+  // TRACE forbids a request-body
+  if (!request_body.empty()) {
+    if (method == HttpMethod::Trace) {
+      throw std::logic_error("TRACE can't have request-body");
+    }
+    req.get_output_headers().add("Content-Type", content_type.c_str());
+    auto out_buf = req.get_output_buffer();
+    out_buf.add(request_body.data(), request_body.size());
+  }
 
-private:
-  HttpClient http_client_;
-  std::string hostname_;
-};
+  // ask the server to close the connection after this request
+  req.get_output_headers().add("Connection", "close");
+  req.get_output_headers().add("Host", hostname_.c_str());
+  http_client_.make_request_sync(&req, method, uri);
 
-#endif
+  return req;
+}

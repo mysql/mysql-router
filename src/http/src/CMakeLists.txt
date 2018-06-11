@@ -53,6 +53,7 @@ ENDIF()
 ADD_LIBRARY(http_client
   SHARED
   http_client.cc
+  rest_client.cc
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT2_EXTRA}
