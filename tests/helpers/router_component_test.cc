@@ -263,6 +263,7 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
   std::shared_ptr<void> exit_freeaddrinfo(nullptr, [&](void*){freeaddrinfo(ainfo);});
 
   const unsigned MSEC_STEP = 10;
+  const auto started = std::chrono::steady_clock::now();
   do {
     auto sock_id = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
     if (sock_id < 0) {
@@ -276,7 +277,7 @@ bool RouterComponentTest::wait_for_port_ready(unsigned port, unsigned timeout_ms
       std::this_thread::sleep_for(std::chrono::milliseconds(step));
       timeout_msec -= step;
     }
-  } while(status < 0 && timeout_msec > 0);
+  } while(status < 0 && timeout_msec > std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count());
 
   return status >= 0;
 }
