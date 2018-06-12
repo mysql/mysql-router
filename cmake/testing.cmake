@@ -114,7 +114,7 @@ function(add_test_file FILE)
       ## win32 has single and multi-configuration builds
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
-        "${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:mysqlrouter>\;$<TARGET_FILE_DIR:mysql_protocol>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
+        "${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:mysqlrouter>\;$<TARGET_FILE_DIR:mysql_protocol>\;$<TARGET_FILE_DIR:http_common>\;$<TARGET_FILE_DIR:duktape>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
     else()
       set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
