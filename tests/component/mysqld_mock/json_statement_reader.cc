@@ -127,7 +127,8 @@ struct QueriesJsonReader::Pimpl {
   JsonDocument json_document_;
   size_t current_stmt_{0u};
 
-  Pimpl(): json_document_() {}
+  // load queries JSON; throws std::runtime_error on invalid JSON file
+  Pimpl(const std::string& json_filename): json_document_(load_json_from_file(json_filename)) {}
 
   static JsonDocument load_json_from_file(const std::string& filename);
   static void validate_json_against_schema(const JsonSchemaDocument& schema, const JsonDocument& json);
@@ -138,11 +139,7 @@ struct QueriesJsonReader::Pimpl {
 };
 
 QueriesJsonReader::QueriesJsonReader(const std::string &json_filename):
-              pimpl_(new Pimpl()){
-  if (json_filename.empty()) return;
-
-  // load queries JSON; throws std::runtime_error on invalid JSON file
-  pimpl_->json_document_ = pimpl_->load_json_from_file(json_filename);
+              pimpl_(new Pimpl(json_filename)) {
 
   // construct schema JSON; throws std::runtime_error on invalid JSON, but note
   // that invalid schema will slip by without throwing (but it will cause
