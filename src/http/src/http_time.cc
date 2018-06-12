@@ -95,7 +95,7 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
         &t_m.tm_min,
         &t_m.tm_sec
         )) {
-    throw std::runtime_error("invalid date");
+    throw std::out_of_range("invalid date");
   }
 
   // throws out-of-range
@@ -124,6 +124,9 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
     { "Nov", 10 },
     { "Dec", 11 },
   }.at(mon);
+  if (t_m.tm_year < 1900) {
+    throw std::out_of_range("year too small");
+  }
   t_m.tm_year -= 1900;
 
   return time_from_struct_tm_utc(&t_m);
