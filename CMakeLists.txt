@@ -46,6 +46,12 @@ else()
   SET(RAPIDJSON_INCLUDE_DIRS "${MySQLRouter_SOURCE_DIR}/ext/rapidjson/include/")
 endif()
 
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  # disable rapidjson optimisation on Solaris as the it breaks
+  # shared objects that build with -fPIC
+  ADD_DEFINITIONS(-DRAPIDJSON_48BITPOINTER_OPTIMIZATION=0)
+ENDIF()
+
 IF(EXISTS "${CMAKE_SOURCE_DIR}/rapid/plugin/x/protocol/mysqlx.proto")
   # use the server's protobuf files, we they exist
   SET(PROTOBUF_MYSQLX_DIR "${CMAKE_SOURCE_DIR}/rapid/plugin/x/protocol/")
