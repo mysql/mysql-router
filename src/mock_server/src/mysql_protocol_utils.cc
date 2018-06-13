@@ -22,6 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+/*
+ * include climits first to ensure _POSIX_C_SOURCE will be set
+ * correctly early.
+ *
+ * On solaris sys/feature_set.h must be included before errno.h
+ * to ensure the right version of 'errno' is provided:
+ *
+ * - without _POSIX_C_SOURCE >= 199509L: 'extern int errno'
+ * - with, '*(___errno())', the thread-local-storage version.
+ *
+ * including climits is safe on all platforms AND includes
+ * sys/feature_set.h on solaris.
+ */
+#include <climits>
 #include <system_error>
 
 #ifndef _WIN32
