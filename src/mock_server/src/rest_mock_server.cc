@@ -91,13 +91,13 @@ public:
     }
 
     if (HttpMethod::Get & req.get_method()) {
-      if (!is_modified_since(req, last_modified_)) {
+      if (!req.is_modified_since(last_modified_)) {
         req.send_reply(HttpStatusCode::NotModified);
         return;
       }
 
       // GET
-      add_last_modified(req, last_modified_);
+      req.add_last_modified(last_modified_);
 
       handle_global_get_all(req);
     } else if (HttpMethod::Put & req.get_method()) {

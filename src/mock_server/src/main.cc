@@ -72,10 +72,6 @@ static void init_DIM() {
 
 class MysqlServerMockFrontend {
 public:
-  std::string get_usage() {
-    return {};
-  }
-
   std::string get_version_line() {
     return MYSQL_ROUTER_VERSION;
   }
@@ -83,7 +79,7 @@ public:
   std::string get_help() {
     std::stringstream os;
 
-    for (auto line: arg_handler_.usage_lines("Usage: " + program_name_, "", kHelpScreenWidth)) {
+    for (auto line: arg_handler_.usage_lines("Usage: mysql_server_mock", "", kHelpScreenWidth)) {
       os << line << std::endl;
     }
 
@@ -177,7 +173,7 @@ public:
     auto &mock_server_config = loader_config.add("mock_server", "");
     mock_server_config.set("library", "mock_server");
     mock_server_config.set("port", std::to_string(config_.port));
-    mock_server_config.set("tracefile", config_.queries_filename);
+    mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
 
     try {

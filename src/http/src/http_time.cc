@@ -132,35 +132,4 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
   return time_from_struct_tm_utc(&t_m);
 }
 
-bool is_modified_since(const HttpRequest &req, time_t last_modified) {
-  auto req_hdrs = req.get_input_headers();
-
-  auto *if_mod_since = req_hdrs.get("If-Modified-Since");
-  if (if_mod_since != nullptr) {
-    try {
-      time_t if_mod_since_ts = time_from_rfc5322_fixdate(if_mod_since);
-
-      if (!(last_modified > if_mod_since_ts)) {
-        return false;
-      }
-    } catch (const std::exception &) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool add_last_modified(HttpRequest &req, time_t last_modified) {
-  auto out_hdrs = req.get_output_headers();
-  char date_buf[50];
-
-  if (sizeof(date_buf) - time_to_rfc5322_fixdate(last_modified, date_buf, sizeof(date_buf)) > 0) {
-    out_hdrs.add("Last-Modified", date_buf);
-
-    return true;
-  } else {
-    return false;
-  }
-}
-
 

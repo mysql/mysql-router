@@ -187,13 +187,25 @@ namespace HttpStatusCode {
   }
 }
 
+/**
+ * representation of HTTP URI.
+ *
+ * wraps evhttp_uri and exposes a subset of the libevent function-set
+ */
 class HTTP_COMMON_EXPORT HttpUri {
 public:
   HttpUri(std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri);
   HttpUri(HttpUri &&);
   ~HttpUri();
+
+  /**
+   * create HttpUri from string.
+   */
   static HttpUri parse(const std::string &uri_str);
 
+  /**
+   * get path part of the URI.
+   */
   std::string get_path() const;
 private:
   struct impl;
@@ -201,7 +213,14 @@ private:
   std::unique_ptr<impl> pImpl_;
 };
 
-// wrapper around evbuffer
+/**
+ * a Buffer to send/read from network.
+ *
+ * - memory buffer
+ * - file
+ *
+ * wraps evbuffer
+ */
 class HTTP_COMMON_EXPORT HttpBuffer {
 public:
   HttpBuffer(std::unique_ptr<evbuffer, std::function<void(evbuffer *)>> buffer);
@@ -210,10 +229,24 @@ public:
 
   ~HttpBuffer();
 
+  /**
+   * add a memory buffer.
+   */
   void add(const char *data, size_t data_size);
+
+  /**
+   * add a file.
+   */
   void add_file(int file_fd, off_t offset, off_t size);
 
+  /**
+   * get length of buffer.
+   */
   size_t length() const;
+
+  /**
+   * move a subset out from the front of the buffer.
+   */
   std::vector<uint8_t> pop_front(size_t length);
 private:
   struct impl;
@@ -223,6 +256,9 @@ private:
   friend class HttpRequest;
 };
 
+/**
+ * headers of a HTTP response/request.
+ */
 class HTTP_COMMON_EXPORT HttpHeaders {
 public:
   class HTTP_COMMON_EXPORT Iterator {
@@ -239,7 +275,15 @@ public:
   HttpHeaders(HttpHeaders &&);
 
   ~HttpHeaders();
+
+  /**
+   * add a header.
+   */
   int add(const char *key, const char *value);
+
+  /**
+   * get a header.
+   */
   const char *get(const char *key) const;
 
   Iterator begin();
@@ -279,6 +323,11 @@ namespace HttpMethod {
   constexpr type Patch { 1 << Pos::Patch };
 }
 
+/**
+ * IO Context for network operations.
+ *
+ * wraps libevent's base
+ */
 class HTTP_COMMON_EXPORT IOContext {
 public:
   IOContext();
@@ -300,6 +349,11 @@ private:
   friend class HttpClient;
 };
 
+/**
+ * a HTTP request and response.
+ *
+ * wraps evhttp_request
+ */
 class HTTP_COMMON_EXPORT HttpRequest {
 public:
   using RequestHandler = void (*)(HttpRequest *, void *);
@@ -339,6 +393,18 @@ public:
   int error_code();
   void error_code(int);
   std::string error_msg();
+
+  /**
+   * is request modified since 'last_modified'.
+   *
+   * @return true, if local content is newer than the clients last known date, false otherwise
+   */
+  bool is_modified_since(time_t last_modified);
+
+  /**
+   * add a Last-Modified-Since header to the response headers.
+   */
+  bool add_last_modified(time_t last_modified);
 private:
   class impl;
 
@@ -349,9 +415,18 @@ private:
 
 // http_time.cc
 
-HTTP_COMMON_EXPORT bool is_modified_since(const HttpRequest &req, time_t last_modified);
-HTTP_COMMON_EXPORT bool add_last_modified(HttpRequest &req, time_t last_modified);
+/**
+ * convert a Date: header into a time_t.
+ *
+ * @return a time_t representation of Date: header value
+ * @throws std::out_of_range on invalid formats
+ */
 HTTP_COMMON_EXPORT time_t time_from_rfc5322_fixdate(const char *date_buf);
+
+/**
+ * convert time_t into a Date: header value.
+ *
+ */
 HTTP_COMMON_EXPORT int time_to_rfc5322_fixdate(time_t ts, char *date_buf, size_t date_buf_len);
 
 #endif

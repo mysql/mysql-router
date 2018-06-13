@@ -120,12 +120,12 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       return;
     }
   } else {
-    if (!is_modified_since(req, st.st_mtime)) {
+    if (!req.is_modified_since(st.st_mtime)) {
       req.send_error(HttpStatusCode::NotModified);
       return;
     }
 
-    add_last_modified(req, st.st_mtime);
+    req.add_last_modified(st.st_mtime);
 
     auto chunk = req.get_output_buffer();
     // if the file-size is 0, there is nothing to send ... and it triggers a mmap() error

@@ -56,7 +56,7 @@ public:
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section):
     mysqlrouter::BasePluginConfig(section),
-    trace_filename(get_option_string(section, "tracefile")),
+    trace_filename(get_option_string(section, "filename")),
     module_prefix(get_option_string(section, "module_prefix")),
     srv_address(get_option_string(section, "bind_address")),
     srv_port(get_uint_option<uint16_t>(section, "port"))
@@ -83,7 +83,7 @@ public:
   }
 
   bool is_required(const std::string &option) const override {
-    if (option == "tracefile") return true;
+    if (option == "filename") return true;
     return false;
   }
 };
@@ -102,7 +102,7 @@ static void init(mysql_harness::PluginFuncEnv* env) {
         }
         if (has_started) {
           // ignore all the other sections for now
-          continue;
+          break;
         }
 
         has_started = true;
@@ -120,13 +120,10 @@ static void init(mysql_harness::PluginFuncEnv* env) {
       }
     }
   } catch (const std::invalid_argument& exc) {
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::exception& exc) {
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
   } catch (...) {
-    log_error("Unexpected exception: init()");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }
@@ -146,16 +143,12 @@ static void start(mysql_harness::PluginFuncEnv* env) {
 
     srv->run(env);
   } catch (const std::invalid_argument &exc) {
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
   } catch (const std::runtime_error &exc) {
-    log_error("%s: %s", name.c_str(), exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s: %s", name.c_str(), exc.what());
   } catch (const std::exception &exc) {
-    log_error("%s: %s", name.c_str(), exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "%s: %s", name.c_str(), exc.what());
   } catch (...) {
-    log_error("Unexpected exception: start()");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }

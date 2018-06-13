@@ -22,6 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef _WIN32
+// disable the min() macro in favor of std::min() and std::numeric_limits<>::min()
+#define NOMINMAX
+#endif
+
 #include <string>
 #include <map>
 #include <functional>
@@ -36,6 +41,59 @@
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
+
+/*
+ * get the names of the type.
+ *
+ * returns a comma-seperated string
+ *
+ * useful for debugging
+ */
+static
+std::string duk_get_type_names(duk_context *ctx, duk_idx_t ndx) {
+  std::string names;
+  bool is_first = true;
+
+  std::vector<std::pair<std::function<bool(duk_context *, duk_idx_t)>, std::string>> type_checks = {
+    { duk_is_array, "array" },
+    { duk_is_boolean, "boolean" },
+    { duk_is_buffer, "buffer" },
+    { duk_is_buffer_data, "buffer_data" },
+    { duk_is_c_function, "c-function" },
+    { duk_is_dynamic_buffer, "dynamic-buffer" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_callable(_ctx, _ndx); }, "callable" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_error(_ctx, _ndx); }, "error" },
+    { duk_is_function, "function" },
+    { duk_is_ecmascript_function, "ecmascript-function" },
+    { duk_is_null, "null" },
+    { duk_is_number, "number" },
+    { duk_is_object, "object" },
+    { duk_is_pointer, "pointer" },
+    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_primitive(_ctx, _ndx); }, "primitive" },
+    { duk_is_string, "string" },
+    { duk_is_symbol, "symbol" },
+    { duk_is_thread, "thread" },
+    { duk_is_undefined, "undefined" },
+  };
+
+  for (auto &check: type_checks) {
+    if (check.first(ctx, ndx)) {
+      if (is_first) {
+        is_first = false;
+      } else {
+        names.append(", ");
+      }
+
+      names.append(check.second);
+    }
+  }
+
+  return names;
+
+
+}
+
+
 
 class DuktapeRuntimeError: public std::runtime_error {
 public:
@@ -80,7 +138,7 @@ struct DuktapeStatementReader::Pimpl {
 
     if (duk_is_undefined(ctx, -1)) {
       if (is_required) {
-        throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
+        throw std::runtime_error("Wrong statements document structure: missing field \"" + field  + "\"");
       }
 
       value = default_val;
@@ -94,7 +152,8 @@ struct DuktapeStatementReader::Pimpl {
   }
 
   template<class INT_TYPE>
-  INT_TYPE get_object_integer_value(duk_idx_t idx,
+  typename std::enable_if<std::is_unsigned<INT_TYPE>::value, INT_TYPE>::type
+  get_object_integer_value(duk_idx_t idx,
                                     const std::string& field,
                                     const INT_TYPE default_val = 0,
                                     bool is_required = false) {
@@ -104,12 +163,20 @@ struct DuktapeStatementReader::Pimpl {
 
     if (duk_is_undefined(ctx, -1)) {
       if (is_required) {
-        throw std::runtime_error("Wrong statements document structure: missing field\"" + field  + "\"");
+        throw std::runtime_error("Wrong statements document structure: missing field \"" + field  + "\"");
       }
 
       value = default_val;
+    } else if (duk_is_number(ctx, -1)) {
+      if (duk_get_number(ctx, -1) < std::numeric_limits<INT_TYPE>::min()) {
+        throw std::runtime_error("value out-of-range for field \"" + field  + "\"");
+      }
+      if (duk_get_number(ctx, -1) > std::numeric_limits<INT_TYPE>::max()) {
+        throw std::runtime_error("value out-of-range for field \"" + field  + "\"");
+      }
+      value = duk_to_uint(ctx, -1);
     } else {
-      value = duk_to_int(ctx, -1);
+      throw std::runtime_error("wrong type for field \"" + field  + "\", expected unsigned number");
     }
 
     duk_pop(ctx);
@@ -122,20 +189,10 @@ struct DuktapeStatementReader::Pimpl {
       throw std::runtime_error("expect a object");
     }
 
-    unsigned int last_insert_id = 0;
-    unsigned int warning_count = 0;
-
-    if (duk_get_prop_string(ctx, -1, "last_insert_id")) {
-      last_insert_id = duk_require_int(ctx, -1);
-    }
-    duk_pop(ctx);
-
-    if (duk_get_prop_string(ctx, -1, "warning_count")) {
-      warning_count = duk_require_int(ctx, -1);
-    }
-    duk_pop(ctx);
-
-    return std::unique_ptr<Response>(new OkResponse(last_insert_id, warning_count));
+    return std::unique_ptr<Response>(new OkResponse(
+          get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
+          get_object_integer_value<uint16_t>(-1, "warning_count", 0)
+          ));
   }
 
 
@@ -144,26 +201,11 @@ struct DuktapeStatementReader::Pimpl {
       throw std::runtime_error("expect a object");
     }
 
-    std::string sql_state;
-    std::string msg;
-    unsigned int code = 1149;
-
-    if (duk_get_prop_string(ctx, -1, "sql_state")) {
-      sql_state = duk_require_string(ctx, -1);
-    }
-    duk_pop(ctx);
-
-    if (duk_get_prop_string(ctx, -1, "message")) {
-      msg = duk_require_string(ctx, -1);
-    }
-    duk_pop(ctx);
-
-    if (duk_get_prop_string(ctx, -1, "code")) {
-      code = duk_require_int(ctx, -1);
-    }
-    duk_pop(ctx);
-
-    return std::unique_ptr<Response>(new ErrorResponse(code, msg, sql_state));
+    return std::unique_ptr<Response>(new ErrorResponse(
+          get_object_integer_value<uint16_t>(-1, "code", 0, true),
+          get_object_string_value(-1, "message", "", true),
+          get_object_string_value(-1, "sql_state", "HY000")
+          ));
   }
 
   std::unique_ptr<Response> get_result(duk_idx_t idx) {
@@ -236,7 +278,7 @@ struct DuktapeStatementReader::Pimpl {
       }
       duk_pop(ctx); // rows-enum
     } else if (!duk_is_undefined(ctx, -1)) {
-      log_warning("rows: expected array or undefined, got something else. Ignoring");
+      throw std::runtime_error("rows: expected array or undefined, get " + duk_get_type_names(ctx, -1));
     }
 
     duk_pop(ctx); // "rows"
@@ -336,58 +378,6 @@ private:
   std::function<void()> undo_func_;
 };
 
-/*
- * get the names of the type.
- *
- * returns a comma-seperated string
- *
- * useful for debugging
- */
-static
-std::string duk_get_type_names(duk_context *ctx, duk_idx_t ndx) {
-  std::string names;
-  bool is_first = true;
-
-  std::vector<std::pair<std::function<bool(duk_context *, duk_idx_t)>, std::string>> type_checks = {
-    { duk_is_array, "array" },
-    { duk_is_boolean, "boolean" },
-    { duk_is_buffer, "buffer" },
-    { duk_is_buffer_data, "buffer_data" },
-    { duk_is_c_function, "c-function" },
-    { duk_is_dynamic_buffer, "dynamic-buffer" },
-    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_callable(_ctx, _ndx); }, "callable" },
-    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_error(_ctx, _ndx); }, "error" },
-    { duk_is_function, "function" },
-    { duk_is_ecmascript_function, "ecmascript-function" },
-    { duk_is_null, "null" },
-    { duk_is_number, "number" },
-    { duk_is_object, "object" },
-    { duk_is_pointer, "pointer" },
-    { [](duk_context *_ctx, duk_idx_t _ndx) -> bool { return duk_is_primitive(_ctx, _ndx); }, "primitive" },
-    { duk_is_string, "string" },
-    { duk_is_symbol, "symbol" },
-    { duk_is_thread, "thread" },
-    { duk_is_undefined, "undefined" },
-  };
-
-  for (auto &check: type_checks) {
-    if (check.first(ctx, ndx)) {
-      if (is_first) {
-        is_first = false;
-      } else {
-        names.append(", ");
-      }
-
-      names.append(check.second);
-    }
-  }
-
-  return names;
-
-
-}
-
-
 DuktapeStatementReader::DuktapeStatementReader(
     const std::string &filename,
     const std::string &module_prefix,
@@ -409,7 +399,8 @@ DuktapeStatementReader::DuktapeStatementReader(
 
   duk_push_global_stash(ctx);
   if (nullptr == shared_.get()) {
-    throw std::logic_error("what is going one?");
+    // why is the shared-ptr empty?
+    throw std::logic_error("expected shared global variable object to be set, but it isn't.");
   }
 
   duk_push_pointer(ctx, shared_.get());
@@ -418,7 +409,8 @@ DuktapeStatementReader::DuktapeStatementReader(
 
   duk_get_global_string(ctx, "process");
   if (duk_is_undefined(ctx, -1)) {
-    throw std::runtime_error("...");
+    // duk_module_shim_init() is expected to initialize it.
+    throw std::runtime_error("expected 'process' to exist, but it is undefined.");
   }
   duk_push_c_function(ctx, process_get_shared, 1);
   duk_put_prop_string(ctx, -2, "get_shared");
@@ -540,9 +532,12 @@ StatementAndResponse DuktapeStatementReader::handle_statement(const std::string 
     if (!duk_is_number(ctx, -1)) {
       throw std::runtime_error("exec_time must be a number, if set, get " + duk_get_type_names(ctx, -1));
     }
+    if (duk_get_number(ctx, -1) < 0) {
+      throw std::out_of_range("exec_time must be a non-negative number");
+    }
 
-    double exec_time = duk_get_number(ctx, -1);;
-    response.exec_time = std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+    // exec-time is written in the tracefile as microseconds
+    response.exec_time = std::chrono::microseconds(static_cast<long>(duk_get_number(ctx, -1) * 1000));
   }
   duk_pop(ctx);
 

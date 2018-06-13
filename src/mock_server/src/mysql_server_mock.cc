@@ -502,20 +502,20 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv* env) {
       while (true) {
         socket_t client_socket = accept(listener_, (struct sockaddr*)&client_addr, &addr_size);
         if (client_socket == kInvalidSocket) {
-          auto last_errno = get_socket_errno();
+          auto accept_errno = get_socket_errno();
 
           // if we got interrupted at shutdown, just leave
           if (!is_running(env)) break;
 
-          if (last_errno == EAGAIN) break;
-          if (last_errno == EWOULDBLOCK) break;
+          if (accept_errno == EAGAIN) break;
+          if (accept_errno == EWOULDBLOCK) break;
 #ifdef _WIN32
-          if (last_errno == WSAEWOULDBLOCK) break;
-          if (last_errno == WSAEINTR) continue;
+          if (accept_errno == WSAEWOULDBLOCK) break;
+          if (accept_errno == WSAEINTR) continue;
 #endif
-          if (last_errno == EINTR) continue;
+          if (accept_errno == EINTR) continue;
 
-          std::cerr << "accept() failed: " << get_socket_errno_str() << std::endl;
+          std::cerr << "accept() failed: errno=" << accept_errno << std::endl;
           return;
         }
 
@@ -557,8 +557,18 @@ bool MySQLServerMockSession::process_statements(socket_t client_socket) {
     case Command::QUERY: {
       std::string statement_received = protocol_decoder_.get_statement();
 
-      handle_statement(client_socket, protocol_decoder_.packet_seq(),
-          json_reader_->handle_statement(statement_received));
+      try {
+        handle_statement(client_socket, protocol_decoder_.packet_seq(),
+            json_reader_->handle_statement(statement_received));
+      } catch (const std::exception &e) {
+        // handling statement failed. Return the error to the client
+        uint8_t packet_seq = protocol_decoder_.packet_seq() + 1;   // rollover to 0 is ok
+        std::this_thread::sleep_for(json_reader_->get_default_exec_time());
+        send_error(client_socket, packet_seq, 1064, std::string("executing statement failed: ") + e.what());
+
+        // assume the connection is broken
+        return true;
+      }
     }
     break;
     case Command::QUIT:
