@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <mutex>
 
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -49,11 +50,11 @@ public:
   void remove(const std::string &url_regex_str);
 
   // if no routes are specified, return 404
-  void route_default(HttpRequest &req) const;
+  void route_default(HttpRequest &req);
 
   void set_default_route(std::unique_ptr<BaseRequestHandler> cb);
   void clear_default_route();
-  void route(HttpRequest req) const;
+  void route(HttpRequest req);
 private:
   struct RouterData {
     std::string url_regex_str;
@@ -63,6 +64,8 @@ private:
   std::vector<RouterData> request_handlers_;
 
   std::unique_ptr<BaseRequestHandler> default_route_;
+
+  std::mutex route_mtx_;
 };
 
 /**

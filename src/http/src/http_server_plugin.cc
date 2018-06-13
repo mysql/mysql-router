@@ -28,6 +28,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <mutex>
 
 #include <sys/types.h>
 
@@ -66,10 +67,12 @@ std::atomic<int> g_shutdown_pending { 0 };
  * if no handler is found, reply with 404 not found
  */
 void HttpRequestRouter::append(const std::string &url_regex_str, std::unique_ptr<BaseRequestHandler> cb) {
+  std::lock_guard<std::mutex> lock(route_mtx_);
   request_handlers_.emplace_back(RouterData { url_regex_str, PosixRE {url_regex_str}, std::move(cb) });
 }
 
 void HttpRequestRouter::remove(const std::string &url_regex_str) {
+  std::lock_guard<std::mutex> lock(route_mtx_);
   for (auto it = request_handlers_.begin(); it != request_handlers_.end(); ) {
     if (it->url_regex_str == url_regex_str) {
       it = request_handlers_.erase(it);
@@ -80,7 +83,7 @@ void HttpRequestRouter::remove(const std::string &url_regex_str) {
 }
 
 // if no routes are specified, return 404
-void HttpRequestRouter::route_default(HttpRequest &req) const {
+void HttpRequestRouter::route_default(HttpRequest &req) {
   if (default_route_) {
     default_route_->handle_request(req);
   } else {
@@ -89,15 +92,19 @@ void HttpRequestRouter::route_default(HttpRequest &req) const {
 }
 
 void HttpRequestRouter::set_default_route(std::unique_ptr<BaseRequestHandler> cb) {
+  std::lock_guard<std::mutex> lock(route_mtx_);
   default_route_ = std::move(cb);
 }
 
 void HttpRequestRouter::clear_default_route() {
+  std::lock_guard<std::mutex> lock(route_mtx_);
   default_route_ = nullptr;
 }
 
 
-void HttpRequestRouter::route(HttpRequest req) const {
+void HttpRequestRouter::route(HttpRequest req) {
+  std::lock_guard<std::mutex> lock(route_mtx_);
+
   auto uri = req.get_uri();
 
   for (auto &request_handler: request_handlers_) {
@@ -127,7 +134,7 @@ void HttpRequestThread::accept_socket() {
 
 void HttpRequestThread::set_request_router(HttpRequestRouter &router) {
   evhttp_set_gencb(ev_http.get(), [](evhttp_request * req, void * user_data) {
-      const auto *rtr = static_cast<HttpRequestRouter *>(user_data);
+      auto *rtr = static_cast<HttpRequestRouter *>(user_data);
       rtr->route(
           HttpRequest {
           std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>(
