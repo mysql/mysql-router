@@ -97,7 +97,12 @@ int close_socket(SOCKET sock) {
 }
 
 RouterComponentTest::RouterComponentTest():
-  data_dir_(COMPONENT_TEST_DATA_DIR) {
+  data_dir_(COMPONENT_TEST_DATA_DIR),
+  logging_dir_(RouterComponentTest::get_tmp_dir("log")) {
+}
+
+RouterComponentTest::~RouterComponentTest() {
+  purge_dir(logging_dir_.str());
 }
 
 void RouterComponentTest::SetUp() {
@@ -508,7 +513,7 @@ bool RouterComponentTest::CommandHandle::autorespond_on_matching_pattern(const s
 
 std::map<std::string, std::string> RouterComponentTest::get_DEFAULT_defaults() const {
   return {
-    {"logging_folder", ""},
+    {"logging_folder", logging_dir_.str()},
     {"plugin_folder", plugin_dir_.str()},
     {"runtime_folder", stage_dir_.str()},
     {"config_folder", stage_dir_.str()},
@@ -536,7 +541,7 @@ std::string RouterComponentTest::make_DEFAULT_section(const std::map<std::string
         + l("master_key_writer")
         + "\n"
     : std::string("[DEFAULT]\n")
-        + "logging_folder =\n"
+        + "logging_folder = " + logging_dir_.str() + "\n"
         + "plugin_folder = "  + plugin_dir_.str() + "\n"
         + "runtime_folder = " + stage_dir_.str() + "\n"
         + "config_folder = "  + stage_dir_.str() + "\n"
@@ -620,4 +625,19 @@ bool RouterComponentTest::real_find_in_log(
   }
 
   return false;
+}
+
+std::string RouterComponentTest::get_router_log_output(const std::string& file_name) {
+  std::ifstream in_file;
+
+  Path file(logging_dir_.str() + "/" + file_name);
+  in_file.open(file.c_str(), std::ifstream::in);
+  if (!in_file) {
+    return "Could not open log file " + file.str() + " for reading.";
+  }
+
+  std::string result((std::istreambuf_iterator<char>(in_file)),
+    std::istreambuf_iterator<char>());
+
+  return result;
 }

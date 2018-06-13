@@ -193,7 +193,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     const std::string conf_file = create_config_file(metadata_cache_section + routing_section, &default_section);
     auto router = RouterComponentTest::launch_router("-c " +  conf_file);
     bool ready = wait_for_port_ready(router_port, 1000);
-    EXPECT_TRUE(ready) << router.get_full_output();
+    EXPECT_TRUE(ready) << get_router_log_output();
 
     return router;
   }
@@ -201,13 +201,18 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   RouterComponentTest::CommandHandle
   launch_router_static(unsigned router_port,
                        const std::string& routing_section,
-                       bool expect_error = false) {
+                       bool expect_error = false,
+                       bool log_to_console = true) {
+    auto def_section = get_DEFAULT_defaults();
+    if (log_to_console) {
+      def_section["logging_folder"] = "";
+    }
     // launch the router with the static routing configuration
-    const std::string conf_file = create_config_file(routing_section);
+    const std::string conf_file = create_config_file(routing_section, &def_section);
     auto router = RouterComponentTest::launch_router("-c " +  conf_file);
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port, 1000);
-      EXPECT_TRUE(ready) << router.get_full_output();
+      EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output() : get_router_log_output());
     }
 
     return router;
@@ -619,7 +624,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output("Configuration error: option routing_strategy in [routing:test_default] is invalid; "
                                     "valid are first-available, next-available, and round-robin (was 'round-robin-with-fallback'"))
-                                    << router.get_full_output();
+                                    << get_router_log_output();
 }
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
@@ -634,7 +639,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output("option routing_strategy in [routing:test_default] is invalid; valid are first-available, next-available, and round-robin (was 'invalid')"))
-                                    << router.get_full_output();
+                                    << get_router_log_output();
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
@@ -649,7 +654,7 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output("Configuration error: option routing_strategy in [routing:test_default] is required"))
-                                    << router.get_full_output();
+                                    << get_router_log_output();
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
@@ -664,7 +669,7 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output("Configuration error: option routing_strategy in [routing:test_default] needs a value"))
-                                    << router.get_full_output();
+                                    << get_router_log_output();
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
@@ -679,7 +684,7 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
 
   EXPECT_EQ(router.wait_for_exit(wait_for_process_exit_timeout), 1);
   EXPECT_TRUE(router.expect_output("Configuration error: option mode in [routing:test_default] needs a value"))
-                                    << router.get_full_output();
+                                    << get_router_log_output();
 }
 
 

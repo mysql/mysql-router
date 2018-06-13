@@ -68,7 +68,7 @@ class RouterComponentTest {
  protected:
 
   RouterComponentTest();
-  virtual ~RouterComponentTest() = default;
+  virtual ~RouterComponentTest();
 
   static void rewrite_js_to_tracefile(const std::string &infile_name, const std::string &outfile_name,
                                       const std::map<std::string, std::string> &env_vars);
@@ -333,6 +333,12 @@ class RouterComponentTest {
     return data_dir_;
   }
 
+  /** @brief Gets path to the directory used as log output directory
+  */
+  const Path &get_logging_dir() const {
+    return logging_dir_;
+  }
+
   /** @brief replace the 'process.env.{id}' in the input stream
    *
    * @pre assumes the input stream is a JS(ON) document with 'process.env.{id}' references.
@@ -380,6 +386,12 @@ class RouterComponentTest {
     const std::string& logging_file = "mysqlrouter.log",
     std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
 
+  /** @brief returns the content of the router logfile as a string
+  *
+  * @param file_name name of the logfile
+  */
+  std::string get_router_log_output(const std::string& file_name = "mysqlrouter.log");
+
 
  protected:
   /** @brief returns a [DEFAULT] section as string
@@ -406,6 +418,7 @@ class RouterComponentTest {
   Path origin_dir_;
   Path stage_dir_;
   Path plugin_dir_;
+  Path logging_dir_;
   Path mysqlrouter_exec_;
   Path mysqlserver_mock_exec_;
 };

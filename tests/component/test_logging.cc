@@ -60,7 +60,10 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   // This test verifies that fatal error message thrown in MySQLRouter::start()
   // during startup (before Loader::start() takes over) are properly logged to STDERR
 
-  const std::string conf_file = create_config_file("");
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  const std::string conf_file = create_config_file("", &conf_params);
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -199,7 +202,10 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
   // This test verifies that [logger:with_some_key] section is handled properly
   // Router should report the error on STDERR and exit
 
-  const std::string conf_file = create_config_file("[logger:some_key]\n");
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  const std::string conf_file = create_config_file("[logger:some_key]\n", &conf_params);
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -215,7 +221,10 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   // This test verifies that multiple [logger] sections are handled properly.
   // Router should report the error on STDERR and exit
 
-  const std::string conf_file = create_config_file("[logger]\n[logger]\n");
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  const std::string conf_file = create_config_file("[logger]\n[logger]\n", &conf_params);
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -231,7 +240,10 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
   // This test verifies that bad log level in [logger] section is handled properly.
   // Router should report the error on STDERR and exit
 
-  const std::string conf_file = create_config_file("[logger]\nlevel = UNKNOWN\n");
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  const std::string conf_file = create_config_file("[logger]\nlevel = UNKNOWN\n", &conf_params);
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " +  conf_file);
@@ -358,7 +370,10 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";
-  std::string conf_file = create_config_file(logger_section, nullptr,
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  std::string conf_file = create_config_file(logger_section, &conf_params,
       bootstrap_conf, "bootstrap.conf");
 
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)
@@ -439,7 +454,10 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 
   // launch the router in bootstrap mode
   std::string logger_section = "[logger]\nlevel = DEBUG\n";
-  std::string conf_file = create_config_file(logger_section, nullptr,
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  std::string conf_file = create_config_file(logger_section, &conf_params,
       bootstrap_conf, "bootstrap.conf");
 
   auto router = launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port)

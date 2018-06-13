@@ -78,7 +78,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
     << server_mock.get_full_output();
 
   ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
-    << router_static.get_full_output();
+    << get_router_log_output();
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
@@ -91,13 +91,13 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   ASSERT_EQ(router_bootstrapping.wait_for_exit(), 0
   ) << "bootstrap output: " << router_bootstrapping.get_full_output() << std::endl
-    << "routing output: "<< router_static.get_full_output() << std::endl
+    << "routing log: "<< get_router_log_output() << std::endl
     << "server output: "<< server_mock.get_full_output() << std::endl;
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
     "MySQL Router  has now been configured for the InnoDB cluster 'test'")
   ) << "bootstrap output: " << router_bootstrapping.get_full_output() << std::endl
-    << "routing output: "<< router_static.get_full_output() << std::endl
+    << "routing log: "<< get_router_log_output() << std::endl
     << "server output: "<< server_mock.get_full_output() << std::endl;
 }
 
@@ -126,7 +126,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port, 5000)) << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << router_static.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << get_router_log_output();
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -166,7 +166,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port, 5000)) << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << router_static.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000)) << get_router_log_output();
 
   // don't allow router to create any more (client) threads
   {
@@ -257,13 +257,6 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port,
     false /*expecting huge data, can't print on the console*/);
 
-  // create tmp dir where we will log
-  auto logging_folder = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr, [&](void*) {purge_dir(logging_folder); });
-  // create config with logging_folder set to that directory
-  auto params = get_DEFAULT_defaults();
-  params.at("logging_folder") = logging_folder;
-
   const std::string routing_section =
     "[routing:basic]\n"
     "bind_port = " + std::to_string(router_port) + "\n"
@@ -271,7 +264,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
     "destinations = 127.0.0.1:" + std::to_string(server_port) + "\n"
     "max_connect_errors = 1\n";
 
-  std::string conf_file = create_config_file(routing_section, &params);
+  std::string conf_file = create_config_file(routing_section);
 
   // launch the router
   auto router_static = launch_router("-c " + conf_file);
@@ -285,10 +278,10 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   //       should be treated as connection error and increment
   //       connection errors counter.  This test relies on that.
   ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
-    << router_static.get_full_output();
+    << get_router_log_output();
 
   // wait until blocking client host info appears in the log
-  bool res = find_in_log(logging_folder,
+  bool res = find_in_log(get_logging_dir().str(),
     [](const std::string& line) -> bool {
       return line.find("blocking client host") != line.npos;
     }
