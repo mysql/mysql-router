@@ -42,6 +42,7 @@
 Path g_origin_path;
 
 static constexpr const char kMockServerGlobalsRestUri[] = "/api/v1/mock_server/globals/";
+static constexpr const char kMockServerConnectionsRestUri[] = "/api/v1/mock_server/connections/";
 static constexpr const char kMockServerInvalidRestUri[] = "/api/v1/mock_server/global/";
 static constexpr std::chrono::milliseconds kMockServerMaxRestEndpointWaitTime{1000};
 static constexpr std::chrono::milliseconds kMockServerMaxRestEndpointStepTime{50};
@@ -420,6 +421,82 @@ TEST_F(RestMockServerTest, put_globals_and_read_back) {
   EXPECT_TRUE(!json_doc.HasParseError());
   EXPECT_THAT(json_payload, ::testing::StrEq("{\"key\":[[1,2,3]]}"));
 }
+
+/**
+ * test DELETE connections.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerTest, delete_all_connections) {
+  RecordProperty("verifies", "[\"WL12118::TS_1-2\"]");
+
+  SCOPED_TRACE("// start mock-server with http-port");
+
+  const unsigned server_port = port_pool_.get_next_available();
+  const unsigned http_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("rest_server_mock.js").str();
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false, http_port);
+
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerConnectionsRestUri;
+
+  EXPECT_TRUE(wait_for_port_ready(server_port, 1000)) << server_mock.get_full_output();
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri, kMockServerMaxRestEndpointWaitTime)) << server_mock.get_full_output();
+
+  // mysql query
+  mysqlrouter::MySQLSession client;
+
+  SCOPED_TRACE("// connecting via mysql protocol");
+  ASSERT_NO_THROW(
+      client.connect("127.0.0.1", server_port, "username", "password", "", "")) << server_mock.get_full_output();
+
+
+  SCOPED_TRACE("// check connection works");
+  std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
+    client.query_one("select @@port")};
+  ASSERT_NE(nullptr, result.get());
+  ASSERT_EQ(1u, result->size());
+  EXPECT_EQ(std::to_string(server_port), std::string((*result)[0]));
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.
+    request_sync(HttpMethod::Delete, http_uri, "{}");
+
+  SCOPED_TRACE("// checking HTTP response");
+  ASSERT_TRUE(req)
+      << "HTTP Request to "
+      << http_hostname << ":" << std::to_string(http_port)
+      << " failed (early): "
+      << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
+      << std::endl;
+
+  ASSERT_GT(req.get_response_code(), 0u)
+      << "HTTP Request to "
+      << http_hostname << ":" << std::to_string(http_port)
+      << " failed: "
+      << req.error_msg()
+      << std::endl
+      << server_mock.get_full_output()
+      << std::endl;
+
+  EXPECT_EQ(req.get_response_code(), 200u);
+
+  auto resp_body = req.get_input_buffer();
+  EXPECT_EQ(resp_body.length(), 0u);
+
+  SCOPED_TRACE("// check connection is killed");
+  EXPECT_THROW_LIKE(result.reset(client.query_one("select @@port")), mysqlrouter::MySQLSession::Error,
+      "Lost connection to MySQL server during query");
+}
+
 
 
 /**
