@@ -86,14 +86,16 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
 
   char wday[4];
   char mon[4];
-  if (7 != sscanf(date_buf, "%3s, %2u %3s %4u %2u:%2u:%2u GMT",
+  char timezone_s[4];
+  if (8 != sscanf(date_buf, "%3s, %2u %3s %4u %2u:%2u:%2u %3s",
         wday,
         &t_m.tm_mday,
         mon,
         &t_m.tm_year,
         &t_m.tm_hour,
         &t_m.tm_min,
-        &t_m.tm_sec
+        &t_m.tm_sec,
+        timezone_s
         )) {
     throw std::out_of_range("invalid date");
   }
@@ -126,6 +128,9 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
   }.at(mon);
   if (t_m.tm_year < 1900) {
     throw std::out_of_range("year too small");
+  }
+  if (std::string(timezone_s) != "GMT") {
+    throw std::out_of_range("invalid timezone");
   }
   t_m.tm_year -= 1900;
 

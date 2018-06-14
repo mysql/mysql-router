@@ -69,7 +69,6 @@ INSTANTIATE_TEST_CASE_P(HttpTimeParses,
       ));
 
 TEST_P(HttpTimeThrowsTest, time_from_rfc5322_fixdate_p) {
-  SCOPED_TRACE("// year before 1900");
   EXPECT_THROW(time_from_rfc5322_fixdate(GetParam()), std::out_of_range);
 }
 
