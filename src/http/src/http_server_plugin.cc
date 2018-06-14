@@ -264,35 +264,43 @@ static void init(PluginFuncEnv* env) {
   }
 
   // assume there is only one section for us
+  //
+  try {
+    for (const mysql_harness::ConfigSection* section: info->config->sections()) {
+      if (section->name != kSectionName) {
+        continue;
+      }
 
-  for (const mysql_harness::ConfigSection* section: info->config->sections()) {
-    if (section->name != kSectionName) {
-      continue;
+      if (has_started) {
+        // ignore all the other sections for now
+        continue;
+      }
+
+      has_started = true;
+
+      PluginConfig config {section};
+
+      log_info("listening on %s:%u", config.srv_address.c_str(), config.srv_port);
+
+      http_servers.emplace(
+          std::make_pair(section->name,
+          std::make_shared<HttpServer>(config.srv_address.c_str(), config.srv_port)));
+
+      auto srv = http_servers.at(section->name);
+      HttpServerComponent::getInstance().init(srv);
+
+      if (!config.static_basedir.empty()) {
+        srv->add_route("",
+            std::unique_ptr<HttpStaticFolderHandler>(
+              new HttpStaticFolderHandler(config.static_basedir)));
+      }
     }
-
-    if (has_started) {
-      // ignore all the other sections for now
-      continue;
-    }
-
-    has_started = true;
-
-    PluginConfig config {section};
-
-    log_info("listening on %s:%u", config.srv_address.c_str(), config.srv_port);
-
-    http_servers.emplace(
-        std::make_pair(section->name,
-        std::make_shared<HttpServer>(config.srv_address.c_str(), config.srv_port)));
-
-    auto srv = http_servers.at(section->name);
-    HttpServerComponent::getInstance().init(srv);
-
-    if (!config.static_basedir.empty()) {
-      srv->add_route("",
-          std::unique_ptr<HttpStaticFolderHandler>(
-            new HttpStaticFolderHandler(config.static_basedir)));
-    }
+  } catch (const std::invalid_argument& exc) {
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+  } catch (const std::exception& exc) {
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
+  } catch (...) {
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }
 
@@ -330,8 +338,12 @@ static void start(PluginFuncEnv* env) {
     g_shutdown_pending = 1;
 
     srv->join_all();
+  } catch (const std::invalid_argument& exc) {
+    set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
+  } catch (const std::exception& exc) {
+    set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
   } catch (...) {
-    set_error(env, mysql_harness::kRuntimeError, "...");
+    set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }
 
