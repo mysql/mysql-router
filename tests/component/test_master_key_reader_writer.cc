@@ -522,9 +522,9 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
       "-c " + create_config_file("[logger]\nlevel = DEBUG\n"+ metadata_cache_section + routing_section, &default_section_map));
-  bool router_ready = wait_for_port_ready(router_port, 3000);
 
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  // in windows waiting for the router's keyring reader takes about 2seconds, and we need to do 3 rounds
+  EXPECT_TRUE(wait_for_port_ready(router_port, 10000)) << router.get_full_output();
 
   auto matcher = [&](const std::string& line) -> bool {
     return line.find("Connected with metadata server running on") != line.npos;
@@ -560,9 +560,9 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyInLogsWhenConnectToMetadataServerPa
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
       "-c " + create_config_file("[logger]\nlevel = DEBUG\n"+ metadata_cache_section + routing_section, &default_section_map));
-  bool router_ready = wait_for_port_ready(router_port, 3000);
 
-  EXPECT_TRUE(router_ready) << router.get_full_output();
+  // in windows waiting for the router's keyring reader takes about 2seconds, and we need to do 3 rounds
+  EXPECT_TRUE(wait_for_port_ready(router_port, 10000)) << router.get_full_output();
 
   auto matcher = [&, this](const std::string& line) -> bool {
     return line.find(master_key_) != line.npos;
