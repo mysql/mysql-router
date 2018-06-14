@@ -29,6 +29,7 @@
 
 #include <thread>
 
+#include "router_config.h"
 #include "gmock/gmock.h"
 #include "router_component_test.h"
 
@@ -65,7 +66,7 @@ TEST_F(MockServerCLITest, has_version) {
   SCOPED_TRACE("// wait for exit");
   EXPECT_EQ(cmd.wait_for_exit(1000), 0); // should be quick, and return 0
   SCOPED_TRACE("// checking stdout");
-  EXPECT_THAT(cmd.get_full_output(), ::testing::ContainsRegex("[0-9]\\.[0-9]\\.[0-9]"));
+  EXPECT_THAT(cmd.get_full_output(), ::testing::HasSubstr(MYSQL_ROUTER_VERSION));
 }
 
 /**
