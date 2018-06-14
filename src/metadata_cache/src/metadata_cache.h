@@ -65,7 +65,7 @@ public:
    */
   MetadataCache(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                 std::shared_ptr<MetaData> cluster_metadata,
-                unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
                 const std::string &cluster_name,
                 size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
@@ -169,7 +169,7 @@ private:
   std::vector<metadata_cache::ManagedInstance> metadata_servers_;
 
   // The time to live of the metadata cache.
-  unsigned int ttl_;
+  std::chrono::milliseconds ttl_;
 
   // SSL options for MySQL connections
   mysqlrouter::SSLOptions ssl_options_;

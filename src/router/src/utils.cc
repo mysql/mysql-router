@@ -257,6 +257,14 @@ string string_format(const char *format, ...) {
   return string(buf.begin(), buf.end() - 1);
 }
 
+std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
+  std::ostringstream os;
+  os.imbue(std::locale("C"));
+  std::chrono::duration<double> seconds = msec;
+  os << seconds.count();
+  return os.str();
+}
+
 std::pair<string, uint16_t> split_addr_port(string data) {
   size_t pos;
   string addr;

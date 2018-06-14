@@ -46,11 +46,11 @@ public:
   MockNG mf;
   MetadataCache cache;
 
-  MetadataCacheTest() : mf("admin", "admin", 1, 1, 1, 10),
+  MetadataCacheTest() : mf("admin", "admin", 1, 1, 1, std::chrono::seconds(10)),
                       cache({TCPAddress("localhost", 32275)},
-                              get_instance("admin", "admin", 1, 1, 1, 10,
+                              get_instance("admin", "admin", 1, 1, 1, std::chrono::seconds(10),
                                            mysqlrouter::SSLOptions()),
-                              10, mysqlrouter::SSLOptions(), "replicaset-1") {}
+                              std::chrono::seconds(10), mysqlrouter::SSLOptions(), "replicaset-1") {}
 };
 
 /**
@@ -94,7 +94,7 @@ class MetadataCacheTest2 : public ::testing::Test {
       [this](){ return session.get(); }, // provide pointer to session
       [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
     );
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, 10, mysqlrouter::SSLOptions()));
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, std::chrono::seconds(10), mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset
@@ -161,7 +161,7 @@ TEST_F(MetadataCacheTest2, basic_test) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(metadata_servers, cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1");
+  MetadataCache mc(metadata_servers, cmeta, std::chrono::seconds(10), mysqlrouter::SSLOptions(), "cluster-1");
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -189,7 +189,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  MetadataCache mc(metadata_servers, cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1");
+  MetadataCache mc(metadata_servers, cmeta, std::chrono::seconds(10), mysqlrouter::SSLOptions(), "cluster-1");
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to first metadata server

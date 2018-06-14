@@ -27,8 +27,6 @@
 #include "tcp_port_pool.h"
 #include "mysql_session.h"
 #include "keyring/keyring_manager.h"
-#include "random_generator.h"
-#include "dim.h"
 
 #include <chrono>
 #include <thread>
@@ -41,14 +39,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   virtual void SetUp() {
     set_origin(g_origin_path);
     RouterComponentTest::SetUp();
-
-    mysql_harness::DIM& dim = mysql_harness::DIM::instance();
-    // RandomGenerator
-    dim.set_RandomGenerator(
-      [](){ static mysql_harness::RandomGenerator rg; return &rg; },
-      [](mysql_harness::RandomGeneratorInterface*){}
-    );
-
 
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
@@ -174,31 +164,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   }
 
   RouterComponentTest::CommandHandle
-  launch_router_for_md_cache(unsigned router_port,
-                             const std::string& temp_test_dir,
-                             const std::string& metadata_cache_section,
-                             const std::string& routing_section) {
-    const std::string masterkey_file = Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
-
-    // launch the router with metadata-cache configuration
-    auto default_section = get_DEFAULT_defaults();
-    default_section["keyring_path"] = keyring_file;
-    default_section["master_key_path"] = masterkey_file;
-    const std::string conf_file = create_config_file(metadata_cache_section + routing_section, &default_section);
-    auto router = RouterComponentTest::launch_router("-c " +  conf_file);
-    bool ready = wait_for_port_ready(router_port, 1000);
-    EXPECT_TRUE(ready) << get_router_log_output();
-
-    return router;
-  }
-
-  RouterComponentTest::CommandHandle
   launch_router_static(unsigned router_port,
                        const std::string& routing_section,
                        bool expect_error = false,
@@ -213,6 +178,40 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port, 1000);
       EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output() : get_router_log_output());
+    }
+
+    return router;
+  }
+
+  RouterComponentTest::CommandHandle
+  launch_router(unsigned router_port,
+                const std::string& temp_test_dir,
+                const std::string& metadata_cache_section,
+                const std::string& routing_section,
+                bool catch_stderr = true,
+                bool with_sudo = false,
+                bool wait_ready = true,
+                bool log_to_stdout = false) {
+    const std::string masterkey_file = Path(temp_test_dir).join("master.key").str();
+    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
+    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
+    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+    keyring->store("mysql_router1_user", "password", "root");
+    mysql_harness::flush_keyring();
+    mysql_harness::reset_keyring();
+
+    // launch the router with metadata-cache configuration
+    auto default_section = get_DEFAULT_defaults();
+    default_section["keyring_path"] = keyring_file;
+    default_section["master_key_path"] = masterkey_file;
+    if (log_to_stdout) {
+      default_section["logging_folder"] = "";
+    }
+    const std::string conf_file = create_config_file(metadata_cache_section + routing_section, &default_section);
+    auto router = RouterComponentTest::launch_router("-c " +  conf_file, catch_stderr, with_sudo);
+    if (wait_ready) {
+      bool ready = wait_for_port_ready(router_port, 1000);
+      EXPECT_TRUE(ready) << get_router_log_output();
     }
 
     return router;
@@ -312,7 +311,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   const std::string routing_section = get_metadata_cache_routing_section(router_port, test_params.role,
                                                                          test_params.routing_strategy,
                                                                          test_params.mode);
-  auto router = launch_router_for_md_cache(router_port, temp_test_dir, metadata_cache_section, routing_section);
+  auto router = launch_router(router_port, temp_test_dir, metadata_cache_section, routing_section);
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {

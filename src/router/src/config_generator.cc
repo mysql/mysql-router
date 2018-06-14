@@ -80,7 +80,7 @@ static const int kMaxRouterNameLength = 255; // must match metadata router.name 
 
 static const char *kKeyringAttributePassword = "password";
 
-static const int kDefaultMetadataTTL = 5; // default configured TTL in seconds
+static const std::chrono::milliseconds kDefaultMetadataTTL = std::chrono::milliseconds(500);
 static constexpr uint32_t kMaxRouterId = 999999;  // max router id is 6 digits due to username size constraints
 static constexpr unsigned kNumRandomChars = 12;
 static constexpr unsigned kDefaultPasswordRetries = 20; // number of the retries when generating random password
@@ -1512,7 +1512,7 @@ void ConfigGenerator::create_config(std::ostream &cfp,
       << "bootstrap_server_addresses=" << bootstrap_server_addresses << "\n"
       << "user=" << username << "\n"
       << "metadata_cluster=" << metadata_cluster << "\n"
-      << "ttl=" << kDefaultMetadataTTL << "\n";
+      << "ttl=" << mysqlrouter::ms_to_seconds_string(kDefaultMetadataTTL) << "\n";
 
   // SSL options
   cfp << option_line("ssl_mode", options.ssl_options.mode);

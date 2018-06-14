@@ -68,7 +68,7 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
                                  int connect_timeout,
                                  int read_timeout,
                                  int /*connection_attempts*/,
-                                 unsigned int ttl,
+                                 std::chrono::milliseconds ttl,
                                  const mysqlrouter::SSLOptions &ssl_options) {
   this->ttl_ = ttl;
   this->user_ = user;

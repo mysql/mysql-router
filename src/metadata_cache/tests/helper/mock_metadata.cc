@@ -47,7 +47,7 @@ using namespace std;
  */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connect_timeout, int read_timeout,
-               int connection_attempts, unsigned int ttl,
+               int connection_attempts, std::chrono::milliseconds ttl,
                const mysqlrouter::SSLOptions &ssl_options)
   : ClusterMetadata(user, password, connect_timeout, read_timeout,
                     connection_attempts, ttl, ssl_options) {

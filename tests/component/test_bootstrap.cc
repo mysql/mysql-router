@@ -202,6 +202,12 @@ CommonBootstrapTest::bootstrap_failover(
     EXPECT_THAT(lines, ::testing::Contains("MySQL Router  has now been configured for the InnoDB cluster '" + cluster_name + "'."))
       << "router:" << router.get_full_output() << std::endl
       << mock_servers;
+
+    // check the output configuration file:
+    // we check if the valid default ttl has been put in the configuraion
+    EXPECT_TRUE(find_in_file(bootstrap_dir+"/mysqlrouter.conf",
+      [](const std::string& line) -> bool { return line == "ttl=0.5"; },
+      std::chrono::milliseconds(0)));
   }
 }
 

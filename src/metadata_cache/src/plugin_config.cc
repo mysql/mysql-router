@@ -38,13 +38,14 @@
 
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
+using mysqlrouter::ms_to_seconds_string;
 using std::invalid_argument;
 
 std::string MetadataCachePluginConfig::get_default(const std::string &option) const {
 
   static const std::map<std::string, std::string> defaults{
       {"address",  metadata_cache::kDefaultMetadataAddress},
-      {"ttl", to_string(metadata_cache::kDefaultMetadataTTL)},
+      {"ttl", ms_to_seconds_string(metadata_cache::kDefaultMetadataTTL)},
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
       {"thread_stack_size", to_string(mysql_harness::kDefaultStackSizeInKiloBytes)}

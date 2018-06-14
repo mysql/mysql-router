@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_METADATA_CACHE_INCLUDED
 #define MYSQLROUTER_METADATA_CACHE_INCLUDED
 
+#include <chrono>
 #include <stdexcept>
 #include <exception>
 #include <vector>
@@ -57,7 +58,7 @@ extern const uint16_t kDefaultMetadataPort;
 extern const std::string kDefaultMetadataAddress;
 extern const std::string kDefaultMetadataUser;
 extern const std::string kDefaultMetadataPassword;
-extern const unsigned int kDefaultMetadataTTL;
+extern const std::chrono::milliseconds kDefaultMetadataTTL;
 extern const std::string kDefaultMetadataCluster;
 extern const unsigned int kDefaultConnectTimeout;
 extern const unsigned int kDefaultReadTimeout;
@@ -254,7 +255,7 @@ METADATA_API class MetadataCacheAPIBase : public ReplicasetStateNotifierInterfac
    */
   virtual void cache_init(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                           const std::string &user, const std::string &password,
-                          unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                          std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
                           const std::string &cluster_name,
                           int connect_timeout, int read_timeout,
                           size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes) = 0;
@@ -326,7 +327,7 @@ METADATA_API class MetadataCacheAPI: public MetadataCacheAPIBase {
 
   void cache_init(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                   const std::string &user, const std::string &password,
-                  unsigned int ttl, const mysqlrouter::SSLOptions &ssl_options,
+                  std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
                   const std::string &cluster_name,
                   int connect_timeout, int read_timeout, size_t thread_stack_size) override;
 

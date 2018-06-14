@@ -471,6 +471,10 @@
  *      a bug, reported as BUG#28082473
  */
 
+#ifdef _WIN32
+#define NOMINMAX
+#endif
+
 #include "common.h"
 #include "metadata_cache.h"
 #include "mysql/harness/logging/logging.h"
@@ -485,7 +489,7 @@ IMPORT_LOG_FUNCTIONS()
 MetadataCache::MetadataCache(
   const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
   std::shared_ptr<MetaData> cluster_metadata, // this could be changed to UniquePtr
-  unsigned int ttl,
+  std::chrono::milliseconds ttl,
   const mysqlrouter::SSLOptions &ssl_options,
   const std::string &cluster,
   size_t thread_stack_size) : refresh_thread_(thread_stack_size) {
@@ -514,20 +518,28 @@ void* MetadataCache::run_thread(void* context) {
 void MetadataCache::refresh_thread() {
   mysql_harness::rename_thread("MDC Refresh");
 
+  // this will be only useful if the TTL is set to some value that is more than 1 second
+  const std::chrono::milliseconds kTerminateOrForcedRefreshCheckInterval = std::chrono::seconds(1);
+
   while (!terminate_) {
     refresh();
 
+    auto ttl_left = ttl_;
     // wait for up to TTL until next refresh, unless some replicaset loses an
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
-    unsigned int seconds_waited = 0;
-    while (seconds_waited < ttl_ && !terminate_) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-      seconds_waited++;
+    while (ttl_left > std::chrono::milliseconds(0)) {
+      if (terminate_) return;
+
+      auto sleep_for = std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
+      std::this_thread::sleep_for(sleep_for);
+      ttl_left -= sleep_for;
+
       {
         std::lock_guard<std::mutex> lock(replicasets_with_unreachable_nodes_mtx_);
+
         if (!replicasets_with_unreachable_nodes_.empty())
-          break;  // we're in "emergency mode", don't wait until TTL expires
+          break; // we're in "emergency mode", don't wait until TTL expires
       }
     }
   }
@@ -656,8 +668,12 @@ bool MetadataCache::fetch_metadata_from_connected_instance() {
       }
     }
 
+    // we want to trigger those actions not only if the metadata has really changed
+    // but also when something external (like unsuccessful client connection)
+    // triggered the refresh so that we werified if this wasn't false alarm
+    // and turn it off if it was
     if (changed) {
-      log_info("Changes detected in cluster '%s' after metadata refresh",
+      log_info("Potential changes detected in cluster '%s' after metadata refresh",
           cluster_name_.c_str());
       // dump some informational/debugging information about the replicasets
       if (replicaset_data_.empty())
@@ -789,7 +805,7 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
         return true;
       }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(metadata_cache::kDefaultMetadataTTL);
   }
   return false;
 }

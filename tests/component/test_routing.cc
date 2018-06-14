@@ -281,7 +281,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
     << get_router_log_output();
 
   // wait until blocking client host info appears in the log
-  bool res = find_in_log(get_logging_dir().str(),
+  bool res = find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
     [](const std::string& line) -> bool {
       return line.find("blocking client host") != line.npos;
     }

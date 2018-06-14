@@ -39,7 +39,7 @@ static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 namespace metadata_cache {
 
 const uint16_t kDefaultMetadataPort = 32275;
-const unsigned int kDefaultMetadataTTL = 5;
+const std::chrono::milliseconds kDefaultMetadataTTL = std::chrono::milliseconds(500);
 const std::string kDefaultMetadataAddress{"127.0.0.1:" + mysqlrouter::to_string(
     kDefaultMetadataPort)};
 const std::string kDefaultMetadataUser = "";
@@ -82,7 +82,7 @@ MetadataCacheAPIBase* MetadataCacheAPI::instance() {
 void MetadataCacheAPI::cache_init(const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
                   const std::string &user,
                   const std::string &password,
-                  unsigned int ttl,
+                  std::chrono::milliseconds ttl,
                   const mysqlrouter::SSLOptions &ssl_options,
                   const std::string &cluster_name,
                   int connect_timeout,

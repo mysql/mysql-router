@@ -27,6 +27,7 @@
 
 #include "mysqlrouter/metadata_cache.h"
 
+#include <chrono>
 #include <map>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ public:
                               section, "bootstrap_server_addresses",
                               metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
-        ttl(get_uint_option<unsigned int>(section, "ttl")),
+        ttl(get_option_milliseconds(section, "ttl", 0.0, 3600.0)),
         metadata_cluster(get_option_string(section, "metadata_cluster")),
         connect_timeout(get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
@@ -72,7 +73,7 @@ public:
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
   /** @brief TTL used for storing data in the cache */
-  const unsigned int ttl;
+  const std::chrono::milliseconds ttl;
   /** @brief Cluster in the metadata */
   const std::string metadata_cluster;
   /** @brief connect_timeout The time in seconds after which trying to connect

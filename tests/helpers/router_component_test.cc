@@ -50,6 +50,10 @@
 
 #include "process_launcher.h"
 #include "mysqlrouter/utils.h"
+#include "keyring/keyring_manager.h"
+#include "random_generator.h"
+#include "dim.h"
+
 
 #include <algorithm>
 #include <chrono>
@@ -137,6 +141,13 @@ void RouterComponentTest::SetUp() {
 
   mysqlrouter_exec_ = get_exe_path("mysqlrouter");
   mysqlserver_mock_exec_ = get_exe_path("mysql_server_mock");
+
+  mysql_harness::DIM& dim = mysql_harness::DIM::instance();
+  // RandomGenerator
+  dim.set_RandomGenerator(
+    [](){ static mysql_harness::RandomGenerator rg; return &rg; },
+    [](mysql_harness::RandomGeneratorInterface*){}
+  );
 }
 
 RouterComponentTest::CommandHandle
@@ -575,9 +586,8 @@ std::string RouterComponentTest::create_config_file(const std::string &content,
   return file_path.str();
 }
 
-bool RouterComponentTest::find_in_log(const std::string& logging_folder,
+bool RouterComponentTest::find_in_file(const std::string& file_path,
     const std::function<bool(const std::string&)>& predicate,
-    const std::string& logging_file,
     std::chrono::milliseconds sleep_time) {
   const auto STEP = std::chrono::milliseconds(100);
   std::ifstream in_file;
@@ -585,13 +595,13 @@ bool RouterComponentTest::find_in_log(const std::string& logging_folder,
   do {
     try {
       // This is proxy function to account for the fact that I/O can sometimes be slow.
-      if (real_find_in_log(logging_folder, logging_file, predicate, in_file, cur_pos))
+      if (real_find_in_file(file_path, predicate, in_file, cur_pos))
         return true;
     }
     catch (const std::runtime_error&) {
       // report I/O error only on the last attempt
       if (sleep_time == std::chrono::milliseconds(0)) {
-        std::cerr << "  find_in_log() failed, giving up." << std::endl;
+        std::cerr << "  find_in_file() failed, giving up." << std::endl;
         throw;
       }
     }
@@ -605,15 +615,14 @@ bool RouterComponentTest::find_in_log(const std::string& logging_folder,
   return false;
 }
 
-bool RouterComponentTest::real_find_in_log(
-    const std::string& logging_folder,
-    const std::string& logging_file,
+bool RouterComponentTest::real_find_in_file(
+    const std::string& file_path,
     const std::function<bool(const std::string&)>& predicate,
     std::ifstream& in_file,
     std::ios::streampos& cur_pos) {
   if (!in_file.is_open()) {
     in_file.clear();
-    Path file(logging_folder + "/" + logging_file);
+    Path file(file_path);
     in_file.open(file.c_str(), std::ifstream::in);
     if (!in_file) {
       throw std::runtime_error("Error opening file " + file.str());

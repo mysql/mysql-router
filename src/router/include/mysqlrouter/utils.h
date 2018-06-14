@@ -25,6 +25,7 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
+#include <chrono>
 #include <cstdarg>
 #include <cstdint>
 #include <sstream>
@@ -135,6 +136,9 @@ std::string to_string(const T &data) {
   os << data;
   return os.str();
 }
+
+// represent milliseconds as floating point seconds
+std::string ms_to_seconds_string(const std::chrono::milliseconds &msec);
 
 /** @brief Returns string formatted using given data
 *

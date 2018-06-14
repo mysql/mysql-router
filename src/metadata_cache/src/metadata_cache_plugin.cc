@@ -98,11 +98,10 @@ static void start(mysql_harness::PluginFuncEnv* env) {
   // launch metadata cache
   try {
     MetadataCachePluginConfig config(section);
-    unsigned int ttl{config.ttl};
+    std::chrono::milliseconds ttl{config.ttl};
     string metadata_cluster{config.metadata_cluster};
 
     // Initialize the defaults.
-    ttl = ttl == 0 ? metadata_cache::kDefaultMetadataTTL : ttl;
     metadata_cluster = metadata_cluster.empty()?
       metadata_cache::kDefaultMetadataCluster : metadata_cluster;
 

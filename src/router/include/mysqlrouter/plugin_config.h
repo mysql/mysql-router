@@ -94,6 +94,27 @@ public:
    */
   std::string get_option_string(const mysql_harness::ConfigSection *section, const std::string &option) const;
 
+  /** @brief Gets a number of milliseconds from a string value
+   *
+   * The expected option value is a string with floating point number in seconds
+   * (with '.' as a decimal separator) in standard or scientific notation
+   * Example:
+   *  for value = "1.0" expected result is std::chrono:milliseconds(1000)
+   *  for value = "0.01" expected result is std::chrono:milliseconds(10)
+   *  for value = "1.6E-2" expected result is std::chrono:milliseconds(16)
+   *
+   * @param value Instance of ConfigSection
+   * @param min_value Minimum value
+   * @param max_value Maximum value
+   * @param log_prefix prefix to be used when creating a message for the
+   *        exception
+   * @return value converted to milliseconds
+   * @throws std::invalid_argument on errors
+   */
+  static std::chrono::milliseconds get_option_milliseconds(const std::string& value,
+                                       double min_value = 0.0, double max_value = std::numeric_limits<double>::max(),
+                                       const std::string& log_prefix = "");
+
   /** @brief Name of the section */
   std::string section_name;
 
@@ -159,7 +180,7 @@ protected:
    * @param option Option name in section
    * @param min_value Minimum value
    * @param max_value Maximum value
-   * @return mysql_harness::TCPAddress
+   * @return value read from the configuration
    */
   template<typename T>
   T get_uint_option(const mysql_harness::ConfigSection *section, const std::string &option,
@@ -186,6 +207,25 @@ protected:
     }
     return result;
   }
+
+  /** @brief Gets a number of milliseconds using the given option
+   *
+   * The expected option value is a string with floating point number in seconds
+   * (with '.' as a decimal separator) in standard or scientific notation
+   * Example:
+   *  for value = "1.0" expected result is std::chrono:milliseconds(1000)
+   *  for value = "0.01" expected result is std::chrono:milliseconds(10)
+   *  for value = "1.6E-2" expected result is std::chrono:milliseconds(16)
+   *
+   * @param section Instance of ConfigSection
+   * @param option Option name in section
+   * @param min_value Minimum value
+   * @param max_value Maximum value
+   * @return value read from the configuration converted to milliseconds
+   * @throws std::invalid_argument on errors
+   */
+  std::chrono::milliseconds get_option_milliseconds(const mysql_harness::ConfigSection *section, const std::string &option,
+      double min_value = 0.0, double max_value = std::numeric_limits<double>::max()) const;
 
   /** @brief Gets a TCP address using the given option
    *

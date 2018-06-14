@@ -27,6 +27,8 @@
 #include "../src/plugin_config.h"
 #include "../src/metadata_cache.h"
 
+#include "router_test_helpers.h"
+
 #include "gmock/gmock.h"
 
 using ::testing::StrEq;
@@ -61,7 +63,7 @@ struct GoodTestData {
 
   struct {
     std::string user;
-    unsigned int ttl;
+    std::chrono::milliseconds ttl;
     std::string metadata_cluster;
     std::vector<TCPAddress> bootstrap_addresses;
   } expected;
@@ -94,7 +96,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& container) {
 
 std::ostream& operator<<(std::ostream& os, const GoodTestData& test_data) {
   return os << "user=" << test_data.expected.user << ", "
-    << "ttl=" << test_data.expected.ttl << ", "
+    << "ttl=" << mysqlrouter::ms_to_seconds_string(test_data.expected.ttl) << ", "
     << "metadata_cluster=" << test_data.expected.metadata_cluster << ", "
     << "bootstrap_server_addresses=" << test_data.expected.bootstrap_addresses;
 }
@@ -137,20 +139,47 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
         std::vector<TCPAddress>()
       }
     },
-    // TTL value can be parsed
+    // TTL = 0.5 seconds
     {
       {
         std::map<std::string, std::string>({
           { "user", "foo", }, // required
-          { "ttl", "123", },
+          { "ttl", "0.5", },
         })
       },
 
       {
         "foo",
-        123,
-        "",
-        std::vector<TCPAddress>()
+        std::chrono::milliseconds(500),
+        "", std::vector<TCPAddress>()
+      }
+    },
+    // TTL = 0 seconds
+    {
+      {
+        std::map<std::string, std::string>({
+          { "user", "foo", }, // required
+          { "ttl", "0", },
+        })
+      },
+      {
+        "foo",
+        std::chrono::milliseconds(0),
+        "", std::vector<TCPAddress>()
+      }
+    },
+    // TTL = 5 seconds
+    {
+      {
+        std::map<std::string, std::string>({
+          { "user", "foo", }, // required
+          { "ttl", "5", },
+        })
+      },
+      {
+        "foo",
+        std::chrono::milliseconds(5000),
+        "", std::vector<TCPAddress>()
       }
     },
     // bootstrap_servers, nicely split into pieces
@@ -158,13 +187,13 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
       {
         std::map<std::string, std::string>({
           { "user", "foo", }, // required
-          { "ttl", "123", },
+          { "ttl", "0.5", },
           { "bootstrap_server_addresses", "mysql://foobar,mysql://fuzzbozz", },
         })
       },
       {
         "foo",
-        123,
+        std::chrono::milliseconds(500),
         "",
         std::vector<TCPAddress>({
           { TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
@@ -195,7 +224,7 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
       {
         std::map<std::string, std::string>({
           { "user", "foo", }, // required
-          { "ttl", "123", },
+          { "ttl", "0.5", },
           { "bootstrap_server_addresses", "mysql://foobar,mysql://fuzzbozz", },
           { "metadata_cluster", "whatisthis", },
         })
@@ -203,7 +232,7 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigGoodTest,
 
       {
         "foo",
-        123,
+        std::chrono::milliseconds(500),
         "whatisthis",
         std::vector<TCPAddress>({
           { TCPAddress("foobar", metadata_cache::kDefaultMetadataPort), },
@@ -277,10 +306,102 @@ INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
           { "ttl", "garbage" },
         }),
       },
+      {
+        typeid(std::invalid_argument),
+        "option ttl in [metadata_cache] needs value between 0 and 3600 inclusive, was 'garbage'",
+      }
+    },
+    // ttl is too big
+    {
+      {
+        std::map<std::string, std::string>({
+          { "user", "foo" }, // required
+          { "ttl", "3600.1" },
+        }),
+      },
 
       {
         typeid(std::invalid_argument),
-        "option ttl in [metadata_cache] needs value between 0 and 4294967295 inclusive, was 'garbage'",
+        "option ttl in [metadata_cache] needs value between 0 and 3600 inclusive, was '3600.1'",
+      }
+    },
+    // ttl is negative
+    {
+      {
+        std::map<std::string, std::string>({
+          { "user", "foo" }, // required
+          { "ttl", "-0.1" },
+        }),
+      },
+      {
+        typeid(std::invalid_argument),
+        "option ttl in [metadata_cache] needs value between 0 and 3600 inclusive, was '-0.1'",
       }
     },
   })));
+
+using mysqlrouter::BasePluginConfig;
+
+// Valid millisecond configuration values
+using GetOptionMillisecondsOkTestData = std::pair<std::string, std::chrono::milliseconds>;
+
+class GetOptionMillisecondsOkTest : public ::testing::Test,
+  public ::testing::WithParamInterface<GetOptionMillisecondsOkTestData> {};
+
+TEST_P(GetOptionMillisecondsOkTest, StringToMilliseconds) {
+  GetOptionMillisecondsOkTestData test_data = GetParam();
+
+  ASSERT_EQ(test_data.second, BasePluginConfig::get_option_milliseconds(test_data.first));
+}
+
+INSTANTIATE_TEST_CASE_P(OkData, GetOptionMillisecondsOkTest,
+  ::testing::ValuesIn(std::vector<GetOptionMillisecondsOkTestData>({
+    { "1.0", std::chrono::milliseconds(1000)},
+    { "1", std::chrono::milliseconds(1000)},
+    { "1.0", std::chrono::milliseconds(1000)},
+    { "0.001", std::chrono::milliseconds(1)},
+    { "0.0019", std::chrono::milliseconds(1)},
+    { "0.002", std::chrono::milliseconds(2)},
+    { "0.0020", std::chrono::milliseconds(2)},
+    { "0.00200", std::chrono::milliseconds(2)},
+    { "0.1", std::chrono::milliseconds(100)},
+    { "0.0009", std::chrono::milliseconds(0)},
+    { "0.011999", std::chrono::milliseconds(11)},
+    { "1.6E2", std::chrono::milliseconds(160000)},
+    { "1.6e2", std::chrono::milliseconds(160000)},
+    { "1.6E+2", std::chrono::milliseconds(160000)},
+    { "1.6E-2", std::chrono::milliseconds(16)},
+    { "1.6E-0", std::chrono::milliseconds(1600)},
+    { "1.6E+0", std::chrono::milliseconds(1600)},
+    { "0.0", std::chrono::milliseconds(0)},
+    { "0", std::chrono::milliseconds(0)},
+    { "0.00000", std::chrono::milliseconds(0)},
+    { "3600", std::chrono::milliseconds(3600000)},
+    { "3600.0", std::chrono::milliseconds(3600000)},
+    { "3600.0000", std::chrono::milliseconds(3600000)},
+})));
+
+// Invalid millisecond configuration values
+using GetOptionMillisecondsBadTestData = std::pair<std::string, std::string>;
+
+class GetOptionMillisecondsBadTest : public ::testing::Test,
+  public ::testing::WithParamInterface<GetOptionMillisecondsBadTestData> {};
+
+TEST_P(GetOptionMillisecondsBadTest, StringToMilliseconds) {
+  GetOptionMillisecondsBadTestData test_data = GetParam();
+
+  ASSERT_THROW_LIKE(
+    BasePluginConfig::get_option_milliseconds(test_data.first, 0.0, 3600.0),
+    std::invalid_argument,
+    test_data.second
+  );
+}
+
+INSTANTIATE_TEST_CASE_P(OkData, GetOptionMillisecondsBadTest,
+  ::testing::ValuesIn(std::vector<GetOptionMillisecondsBadTestData>({
+    { "-1.0", "needs value between 0 and 3600 inclusive, was '-1.0'"},
+    { "1,0", "needs value between 0 and 3600 inclusive, was '1,0'"},
+    { "1xx", "needs value between 0 and 3600 inclusive, was '1xx'"},
+    { "3600.1", "needs value between 0 and 3600 inclusive, was '3600.1'"},
+    { "3600.001", "needs value between 0 and 3600 inclusive, was '3600.001'"},
+})));

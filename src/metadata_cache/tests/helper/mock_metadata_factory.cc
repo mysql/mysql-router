@@ -47,7 +47,7 @@ std::shared_ptr<MetaData> get_instance(
   int connect_timeout,
   int read_timeout,
   int connection_attempts,
-  unsigned int ttl,
+  std::chrono::milliseconds ttl,
   const mysqlrouter::SSLOptions &ssl_options) {
   meta_data.reset(new MockNG(user, password, connect_timeout, read_timeout,
                              connection_attempts, ttl, ssl_options));

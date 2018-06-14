@@ -31,9 +31,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
     ${GTEST_INCLUDE_DIRS})
 
 add_test_dir(issues MODULE issues
-  INCLUDE_DIRS
   LIB_DEPENDS test-helpers
-  ${GTEST_INCLUDE_DIRS})
+  INCLUDE_DIRS ${GTEST_INCLUDE_DIRS})
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   # silence undefined use of macro-vars in gtest.

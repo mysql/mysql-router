@@ -57,12 +57,12 @@ public:
       [](mysqlrouter::MySQLSession*){}   // and don't try deleting it!
     );
 
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, 10, mysqlrouter::SSLOptions()));
+    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1, std::chrono::seconds(10), mysqlrouter::SSLOptions()));
   }
 
   void init_cache() {
     cache.reset(new MetadataCache({mysql_harness::TCPAddress("localhost", 32275)},
-                                  cmeta, 10, mysqlrouter::SSLOptions(), "cluster-1"));
+                                  cmeta, std::chrono::seconds(10), mysqlrouter::SSLOptions(), "cluster-1"));
   }
 
 

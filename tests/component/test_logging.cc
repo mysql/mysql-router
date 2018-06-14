@@ -99,7 +99,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
     return line.find(" main ERROR ") != line.npos &&
            line.find(" Error: MySQL Router not configured to load or start any plugin. Exiting.") != line.npos;
   };
-  EXPECT_TRUE(find_in_log(logging_folder, matcher));
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", matcher));
 }
 
 TEST_F(RouterLoggingTest, bad_logging_folder) {
@@ -279,7 +279,7 @@ TEST_F(RouterLoggingTest, bad_loglevel_gets_logged) {
     return line.find(" main ERROR ") != line.npos &&
            line.find(" Configuration error: Log level 'unknown' is not valid. Valid values are: debug, error, fatal, info, and warning") != line.npos;
   };
-  EXPECT_TRUE(find_in_log(logging_folder, matcher));
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", matcher));
 }
 
 TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
@@ -427,7 +427,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
     return line.find("Executing query:") != line.npos;
   };
 
-  EXPECT_TRUE(find_in_log(bootstrap_conf, matcher, "mysqlrouter.log", std::chrono::milliseconds(5000)));
+  EXPECT_TRUE(find_in_file(bootstrap_conf+"/mysqlrouter.log", matcher, std::chrono::milliseconds(5000)));
 }
 
 /**
@@ -617,7 +617,7 @@ TEST_F(MetadataCacheLoggingTest, log_error_when_cannot_connect_to_any_metadata_s
         line.find("Failed connecting with any of the metadata servers") != line.npos;
   };
 
-  EXPECT_TRUE(find_in_log(logging_folder, matcher, "mysqlrouter.log", std::chrono::milliseconds(5000)));
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", matcher, std::chrono::milliseconds(5000)));
 }
 
 /*
@@ -643,13 +643,13 @@ TEST_F(MetadataCacheLoggingTest, log_warning_when_cannot_connect_to_first_metada
         line.find("Failed connecting with Metadata Server 127.0.0.1:" + std::to_string(cluster_nodes_ports[0])) != line.npos;
   };
 
-  EXPECT_TRUE(find_in_log(logging_folder, info_matcher, "mysqlrouter.log", std::chrono::milliseconds(10000)));
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", info_matcher, std::chrono::milliseconds(10000)));
 
   auto warning_matcher = [](const std::string& line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
         line.find("While updating metadata, could not establish a connection to replicaset") != line.npos;
   };
-  EXPECT_TRUE(find_in_log(logging_folder, warning_matcher, "mysqlrouter.log", std::chrono::milliseconds(10000)));
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", warning_matcher, std::chrono::milliseconds(10000)));
 }
 
 int main(int argc, char *argv[]) {

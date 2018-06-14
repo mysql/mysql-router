@@ -388,16 +388,14 @@ class RouterComponentTest {
     mysqlrouter_exec_ = path;
   }
 
-  /** @brief returns true if the log file in the given directory contains a string
-  *          that us true for a given predicate
+  /** @brief returns true if the selected file contains a string
+  *          that is true for a given predicate
   *
-  * @param logging_folder directory with the log file to parse
+  * @param file_path path to the file we want to serach
   * @param predicate predicate to test the file
-  * @param logging_file name of the log file to parse
-  * @param sleep_time max time to wait for the entry in the log file
+  * @param sleep_time max time to wait for the entry in the file
   */
-  bool find_in_log(const std::string& logging_folder, const std::function<bool(const std::string&)>& predicate,
-    const std::string& logging_file = "mysqlrouter.log",
+  bool find_in_file(const std::string& file_path, const std::function<bool(const std::string&)>& predicate,
     std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));
 
   /** @brief returns the content of the router logfile as a string
@@ -421,8 +419,7 @@ class RouterComponentTest {
                   const std::vector<std::string> &params_vec,
                   const char* out_params[MAX_PARAMS]) const;
 
-  bool real_find_in_log(const std::string& logging_folder,
-                        const std::string& logging_file,
+  bool real_find_in_file(const std::string& file_path,
                         const std::function<bool(const std::string&)>& predicate,
                         std::ifstream& in_file,
                         std::ios::streampos& cur_pos);

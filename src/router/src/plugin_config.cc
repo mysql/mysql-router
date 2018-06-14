@@ -70,6 +70,37 @@ string BasePluginConfig::get_log_prefix(const std::string &option,
       (section ? section->get_section_name(option) : section_name) + "]";
 }
 
+/*static*/
+std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(const std::string& value,
+                                     double min_value, double max_value,
+                                     const std::string& log_prefix) {
+  std::istringstream ss(value);
+  // we want to make sure the decinal separator is always '.' regardless of the user locale settings
+  // so we force classic locale
+  ss.imbue(std::locale("C"));
+  double result  = 0.0;
+  if (!(ss >> result) || !ss.eof() || (result < min_value - 0.0001) || (result > max_value + 0.0001)) {
+    std::stringstream os;
+    os << log_prefix << " needs value between " << min_value << " and "
+       << to_string(max_value) << " inclusive";
+    if (!value.empty()) {
+      os << ", was '" << value << "'";
+    }
+    throw std::invalid_argument(os.str());
+  }
+
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::duration<double>(result));
+}
+
+std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
+              const mysql_harness::ConfigSection *section, const std::string &option,
+               double min_value, double max_value) const {
+  std::string value = get_option_string(section, option);
+
+  return get_option_milliseconds(value, min_value, max_value, get_log_prefix(option, section));
+}
+
 mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(const mysql_harness::ConfigSection *section,
                                                     const string &option,
                                                     bool require_port,

@@ -530,7 +530,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
     return line.find("Connected with metadata server running on") != line.npos;
   };
 
-  EXPECT_TRUE(find_in_log(logging_folder, matcher, "mysqlrouter.log",
+  EXPECT_TRUE(find_in_file(logging_folder+"/mysqlrouter.log", matcher,
           std::chrono::milliseconds(10000))) << router.get_full_output();
 }
 
@@ -568,7 +568,7 @@ TEST_F(MasterKeyReaderWriterTest, NoMasterKeyInLogsWhenConnectToMetadataServerPa
     return line.find(master_key_) != line.npos;
   };
 
-  EXPECT_FALSE(find_in_log(logging_folder, matcher, "mysqlrouter.log",
+  EXPECT_FALSE(find_in_file(logging_folder+"/mysqlrouter.log", matcher,
           std::chrono::milliseconds(1000))) << router.get_full_output();
 }
 

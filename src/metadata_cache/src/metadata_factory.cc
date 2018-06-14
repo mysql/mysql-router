@@ -39,7 +39,7 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  * @param connection_attempts The number of times a connection to the metadata
  *                            server must be attempted, when a connection
  *                            attempt fails.
- * @param ttl The TTL of the cached data.
+ * @param ttl The TTL of the cached data (in milliseconds).
  * @param ssl_options SSL related options to be used for connection
  */
 std::shared_ptr<MetaData> get_instance(
@@ -48,7 +48,7 @@ std::shared_ptr<MetaData> get_instance(
   int connect_timeout,
   int read_timeout,
   int connection_attempts,
-  unsigned int ttl,
+  std::chrono::milliseconds ttl,
   const mysqlrouter::SSLOptions &ssl_options
   ) {
   meta_data.reset(new ClusterMetadata(user, password, connect_timeout,

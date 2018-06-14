@@ -30,6 +30,7 @@
 #include "metadata.h"
 #include "tcp_address.h"
 
+#include <chrono>
 #include <vector>
 #include <memory>
 #include <map>
@@ -53,18 +54,18 @@ class METADATA_API ClusterMetadata : public MetaData {
    * @param user The user name used to authenticate to the metadata server.
    * @param password The password used to authenticate to the metadata server.
    * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout.
+   *                        metadata server should timeout (in seconds).
    * @param read_timeout The time after which read from metadata server should
-   *                     timeout.
+   *                     timeout (in seconds).
    * @param connection_attempts The number of times a connection to metadata
    *                            must be attempted, when a connection attempt
    *                            fails.  NOTE: not used so far
-   * @param ttl The time to live of the data in the cache.
+   * @param ttl The time to live of the data in the cache (in milliseconds).
    * @param ssl_options SSL related options to use for MySQL connections
    */
   ClusterMetadata(const std::string &user, const std::string &password,
                   int connect_timeout, int read_timeout,
-                  int connection_attempts, unsigned int ttl,
+                  int connection_attempts, std::chrono::milliseconds ttl,
                   const mysqlrouter::SSLOptions &ssl_options);
 
   /** @brief Destructor
@@ -155,7 +156,7 @@ class METADATA_API ClusterMetadata : public MetaData {
   std::string password_;
 
   // Metadata node generic information
-  unsigned int ttl_;
+  std::chrono::milliseconds ttl_;
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
 
