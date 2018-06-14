@@ -128,7 +128,6 @@
           {
             "type": "STRING",
             "name": "fake",
-            "repeat": 4194304 // "Additional field that we use to force generating of big packets"
           }
         ],
         "rows": [
@@ -137,7 +136,7 @@
             "default",
             "pm",
             "localhost:5500",
-            "x"
+            "x".repeat(4194304)
           ],
           [
             "test",

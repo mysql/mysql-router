@@ -375,6 +375,15 @@ class RouterComponentTest {
     return mysqlrouter_exec_;
   }
 
+  /**
+   * get Path to mysql_server_mock inside the build-dir.
+   *
+   * valid after SetUp() got called.
+   */
+  const Path& get_mysqlserver_mock_exec() const {
+    return mysqlserver_mock_exec_;
+  }
+
   void set_mysqlrouter_exec(const Path &path) {
     mysqlrouter_exec_ = path;
   }

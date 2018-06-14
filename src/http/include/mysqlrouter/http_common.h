@@ -47,7 +47,7 @@ class HttpServer;
 // https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
 namespace HttpStatusCode {
   using name_type = const char *;
-  using key_type = int;
+  using key_type = unsigned int;
 
   constexpr key_type Continue = 100;  // RFC 7231
   constexpr key_type SwitchingProtocols = 101;  // RFC 7231

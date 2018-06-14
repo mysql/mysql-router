@@ -237,8 +237,13 @@ struct DuktapeStatementReader::Pimpl {
           get_object_integer_value<uint8_t>(-1, "decimals"),
           get_object_integer_value<uint32_t>(-1, "length"),
           get_object_integer_value<uint16_t>(-1, "character_set", 63),
-          get_object_integer_value<unsigned>(-1, "repeat", 1)
+          1 // repeat
       };
+
+      if (duk_get_prop_string(ctx, -1, "repeat")) {
+        throw std::runtime_error("repeat is not supported");
+      }
+      duk_pop(ctx);
 
       response->columns.push_back(column_info);
 
