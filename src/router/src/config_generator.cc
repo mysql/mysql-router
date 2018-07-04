@@ -1734,6 +1734,7 @@ void ConfigGenerator::create_start_scripts(const std::string &directory,
   if (script.fail()) {
     throw std::runtime_error("Could not open " + script_path + " for writing: " + get_strerror(errno));
   }
+  script << "#!/bin/bash\n";
   script << "if [ -f " + directory + "/mysqlrouter.pid ]; then\n";
   script << "  kill -HUP `cat " + directory + "/mysqlrouter.pid`\n";
   script << "  rm -f " << directory + "/mysqlrouter.pid\n";
