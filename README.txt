@@ -1,3 +1,13 @@
+This repository is frozen
+=========================
+
+Newer versions of MySQL Router 8.0 can be found in the MySQL Server repository:
+
+* https://github.com/mysql/mysql-server/tree/8.0/router
+
+
+
+
 MySQL Router 8.0
 ================
 
